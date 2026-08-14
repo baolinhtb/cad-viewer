@@ -49,3 +49,6 @@ Thumbs.db
 
 # local deployment secrets
 .env
+
+# BMAD generated documents
+_bmad-output/
