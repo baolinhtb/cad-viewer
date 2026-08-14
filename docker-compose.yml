@@ -1,0 +1,13 @@
+services:
+  cad-viewer:
+    build: .
+    image: cad-viewer:latest
+    container_name: cad-viewer
+    ports:
+      - "127.0.0.1:8090:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

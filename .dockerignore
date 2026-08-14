@@ -1,0 +1,11 @@
+.git
+.nx
+node_modules
+**/node_modules
+**/dist
+**/lib
+**/*.tsbuildinfo
+docs
+tmp
+docker-compose.yml
+Dockerfile
