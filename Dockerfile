@@ -9,7 +9,9 @@ RUN npm install -g pnpm@10.33.4
 ENV NX_DAEMON=false \
     CI=true
 
-COPY . .
+# docker/ and server/ are runtime-only — excluding them keeps this layer's
+# cache valid when only nginx config or the auth service changes
+COPY --exclude=docker --exclude=server . .
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm build

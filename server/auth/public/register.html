@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng ký — CAD Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 32px; width: 100%; max-width: 380px; margin: 16px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 24px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+  input:focus { outline: 2px solid #4a7cf7; border-color: transparent; }
+  button { width: 100%; margin-top: 22px; padding: 11px; border: 0; border-radius: 8px; background: #2f5fe0; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button:hover { background: #244db8; }
+  button:disabled { opacity: .6; cursor: default; }
+  .msg { margin-top: 14px; font-size: 14px; padding: 10px 12px; border-radius: 8px; display: none; }
+  .msg.error { display: block; background: #fdecea; color: #b3261e; }
+  .msg.ok { display: block; background: #e6f4ea; color: #137333; }
+  .foot { margin-top: 20px; text-align: center; font-size: 14px; color: #555; }
+  a { color: #2f5fe0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Đăng ký thành viên</h1>
+  <p class="sub">Tài khoản sẽ dùng được sau khi quản trị viên kích hoạt</p>
+  <form id="f">
+    <label for="name">Họ tên</label>
+    <input id="name" type="text" required maxlength="100">
+    <label for="email">Email</label>
+    <input id="email" type="email" required autocomplete="username">
+    <label for="password">Mật khẩu (tối thiểu 8 ký tự)</label>
+    <input id="password" type="password" required minlength="8" autocomplete="new-password">
+    <label for="confirm">Nhập lại mật khẩu</label>
+    <input id="confirm" type="password" required autocomplete="new-password">
+    <button id="btn" type="submit">Đăng ký</button>
+  </form>
+  <div id="msg" class="msg"></div>
+  <p class="foot">Đã có tài khoản? <a href="/login">Đăng nhập</a></p>
+</div>
+<script>
+const f = document.getElementById('f'), msg = document.getElementById('msg'), btn = document.getElementById('btn')
+f.addEventListener('submit', async e => {
+  e.preventDefault()
+  msg.className = 'msg'
+  const password = document.getElementById('password').value
+  if (password !== document.getElementById('confirm').value) {
+    msg.textContent = 'Mật khẩu nhập lại không khớp.'
+    msg.className = 'msg error'
+    return
+  }
+  btn.disabled = true
+  try {
+    const r = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        password
+      })
+    })
+    const data = await r.json()
+    if (r.ok) {
+      f.style.display = 'none'
+      msg.textContent = data.message
+      msg.className = 'msg ok'
+      return
+    }
+    msg.textContent = data.error || 'Đăng ký thất bại.'
+    msg.className = 'msg error'
+  } catch {
+    msg.textContent = 'Không kết nối được máy chủ.'
+    msg.className = 'msg error'
+  }
+  btn.disabled = false
+})
+</script>
+</body>
+</html>

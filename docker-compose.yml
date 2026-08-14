@@ -6,8 +6,29 @@ services:
     ports:
       - "127.0.0.1:8090:80"
     restart: unless-stopped
+    depends_on:
+      - auth
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+  auth:
+    build: ./server/auth
+    image: cad-viewer-auth:latest
+    container_name: cad-viewer-auth
+    restart: unless-stopped
+    environment:
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    volumes:
+      - auth-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  auth-data:

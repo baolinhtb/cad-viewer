@@ -46,3 +46,6 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+
+# local deployment secrets
+.env

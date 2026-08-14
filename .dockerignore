@@ -9,3 +9,5 @@ docs
 tmp
 docker-compose.yml
 Dockerfile
+.env
+server/auth/auth.db*
