@@ -347,6 +347,24 @@ importers:
         specifier: ^0.12.4
         version: 0.12.4(three@0.172.0)
 
+  packages/cad-template-cau-ban-btct:
+    devDependencies:
+      '@mlightcad/cad-template-sdk':
+        specifier: workspace:*
+        version: link:../cad-template-sdk
+      '@mlightcad/data-model':
+        specifier: ^1.12.5
+        version: 1.12.5
+
+  packages/cad-template-sdk:
+    devDependencies:
+      '@mlightcad/cad-simple-viewer':
+        specifier: workspace:*
+        version: link:../cad-simple-viewer
+      '@mlightcad/data-model':
+        specifier: ^1.12.5
+        version: 1.12.5
+
   packages/cad-viewer:
     devDependencies:
       '@element-plus/icons-vue':
