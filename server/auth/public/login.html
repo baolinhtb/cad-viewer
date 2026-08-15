@@ -39,8 +39,13 @@
 </div>
 <script>
 const f = document.getElementById('f'), msg = document.getElementById('msg'), btn = document.getElementById('btn')
+// Where to go once signed in. `next` carries the page the user was trying to
+// reach; without it, land straight in the editor — that is what people log in
+// to do, and a landing page in between is a click that never earns itself.
+// The `//` check keeps `next` from being used to bounce to another site.
+const HOME = '/cad-viewer/'
 const next = new URLSearchParams(location.search).get('next')
-const dest = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+const dest = next && next.startsWith('/') && !next.startsWith('//') ? next : HOME
 f.addEventListener('submit', async e => {
   e.preventDefault()
   btn.disabled = true
@@ -56,7 +61,7 @@ f.addEventListener('submit', async e => {
     })
     const data = await r.json()
     if (r.ok) {
-      location.href = data.isAdmin && dest === '/' ? '/admin' : dest
+      location.href = dest
       return
     }
     msg.textContent = data.error || 'Đăng nhập thất bại.'
