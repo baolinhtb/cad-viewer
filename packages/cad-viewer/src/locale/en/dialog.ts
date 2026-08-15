@@ -1,4 +1,13 @@
 export default {
+  templateDlg: {
+    title: 'Generate drawing from template',
+    template: 'Template',
+    showAll: 'Show all parameters on one page',
+    back: 'Back',
+    next: 'Next',
+    generate: 'Generate drawing',
+    done: 'Drawing generated. {count} entities, {layers} layers.'
+  },
   baseDialog: {
     ok: 'OK',
     cancel: 'Cancel',

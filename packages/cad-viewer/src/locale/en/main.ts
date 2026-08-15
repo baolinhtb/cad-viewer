@@ -296,7 +296,8 @@ export default {
         'Open Drawing Units to set coordinate formats, precision, and insertion scale.',
       attachDwg:
         'Attach a DWG or DXF drawing as an external reference (XATTACH).',
-      attachImage: 'Attach a raster image as an external reference (IMAGEATTACH).',
+      attachImage:
+        'Attach a raster image as an external reference (IMAGEATTACH).',
       insert:
         'Open the Blocks palette to browse and insert block definitions (INSERT).',
       editAttributes:
@@ -647,8 +648,7 @@ export default {
       count: 'Count',
       empty: 'No visible blocks found',
       prompt: {
-        firstCorner:
-          'Specify first corner of count area or [Entire]: ',
+        firstCorner: 'Specify first corner of count area or [Entire]: ',
         secondCorner: 'Specify opposite corner: '
       }
     },

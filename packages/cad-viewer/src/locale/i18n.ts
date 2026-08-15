@@ -14,6 +14,7 @@ import trCommand from './tr/command'
 import trDialog from './tr/dialog'
 import trEntity from './tr/entity'
 import trMain from './tr/main'
+import viDialog from './vi/dialog'
 import zhCommand from './zh/command'
 import zhDialog from './zh/dialog'
 import zhEnity from './zh/entity'
@@ -22,7 +23,13 @@ import zhMain from './zh/main'
 // Get language of browser - use same logic as useLocale
 const getInitialLocale = (): string => {
   const stored = localStorage.getItem('preferred_lang')
-  if (stored === 'en' || stored === 'zh' || stored === 'tr' || stored === 'cs')
+  if (
+    stored === 'en' ||
+    stored === 'zh' ||
+    stored === 'tr' ||
+    stored === 'cs' ||
+    stored === 'vi'
+  )
     return stored
 
   const browserLang = navigator.language.toLowerCase()
@@ -30,6 +37,7 @@ const getInitialLocale = (): string => {
   if (browserLocale === 'zh') return 'zh'
   if (browserLocale === 'tr') return 'tr'
   if (browserLocale === 'cs') return 'cs'
+  if (browserLocale === 'vi') return 'vi'
   return 'en'
 }
 
@@ -57,6 +65,10 @@ const messages = {
     command: csCommand,
     dialog: csDialog,
     entity: csEntity
+  },
+  // Partial locale: untranslated keys fall back to English.
+  vi: {
+    dialog: viDialog
   }
 }
 
@@ -64,6 +76,7 @@ AcApI18n.mergeLocaleMessage('en', messages.en)
 AcApI18n.mergeLocaleMessage('zh', messages.zh)
 AcApI18n.mergeLocaleMessage('tr', messages.tr)
 AcApI18n.mergeLocaleMessage('cs', messages.cs)
+AcApI18n.mergeLocaleMessage('vi', messages.vi)
 
 export const i18n = createI18n({
   legacy: false,

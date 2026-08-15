@@ -10,6 +10,8 @@ import {
   AcEdMTextEditor
 } from '@mlightcad/cad-simple-viewer'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
+import { setTemplateDialogOpener } from '@mlightcad/cad-template-plugin'
+import { registerLazyTemplatePlugin } from '@mlightcad/cad-template-plugin/register'
 import { markRaw } from 'vue'
 
 import {
@@ -38,6 +40,7 @@ import {
   MlExportHtmlDlg,
   MlPointStyleDlg,
   MlQuickSelectDlg,
+  MlTemplateDlg,
   MlTextStyleDlg
 } from '../component'
 import { useDialogManager } from '../composable'
@@ -169,6 +172,11 @@ export const registerDialogs = () => {
       props: {}
     })
     registerDialog({
+      name: 'TemplateDlg',
+      component: markRaw(MlTemplateDlg),
+      props: {}
+    })
+    registerDialog({
       name: 'ExportHtmlDlg',
       component: markRaw(MlExportHtmlDlg),
       props: {}
@@ -251,8 +259,9 @@ export interface RegisterLazyPluginsOptions {
  * Registers lazy plugins that load on first use of their trigger commands.
  *
  * Currently registers the PDF plugin (`cpdf`, `ipdf`), the HTML export
- * plugin (`-chtml`), the SVG export plugin (`csvg`), and optionally the CAD
- * Agent plugin (`agent`) when `@mlightcad/cad-agent-plugin` is installed.
+ * plugin (`-chtml`), the SVG export plugin (`csvg`), the template plugin
+ * (`template`), and optionally the CAD Agent plugin (`agent`) when
+ * `@mlightcad/cad-agent-plugin` is installed.
  * Safe to call multiple times; registration runs once per application lifetime.
  *
  * @param options - Optional HTML plugin settings such as `viewerRuntimeUrl`
@@ -268,6 +277,14 @@ export const registerLazyPlugins = (
   registerLazyPdfPlugin(pluginManager)
   registerLazyHtmlPlugin(pluginManager, options.htmlPlugin)
   registerLazySvgPlugin(pluginManager)
+
+  // The plugin owns the `template` command; the dialog lives here, so the two
+  // are connected by an opener rather than by the plugin importing Vue.
+  setTemplateDialogOpener(() => {
+    const { toggleDialog } = useDialogManager()
+    toggleDialog('TemplateDlg', true)
+  })
+  registerLazyTemplatePlugin(pluginManager)
 
   if (!isAgentIntegrationStarted) {
     isAgentIntegrationStarted = true
