@@ -293,7 +293,8 @@ export default {
       properties: 'Geçerli seçim için Özellikler panelini açın.',
       quickSelect:
         'Ölçütlere göre varlıkları filtrelemek ve seçmek için Hızlı Seçimi açın.',
-      countList: 'Blok sayılarını görüntülemek ve yönetmek için Sayım paletini açın.',
+      countList:
+        'Blok sayılarını görüntülemek ve yönetmek için Sayım paletini açın.',
       missingResources:
         'Yazı tipleri, görseller ve xref’ler için Eksik / Harici Kaynaklar paletini açın.',
       drawingUnits:
@@ -652,8 +653,7 @@ export default {
       count: 'Adet',
       empty: 'Görünür blok bulunamadı',
       prompt: {
-        firstCorner:
-          'Sayım alanının ilk köşesini belirtin veya [Entire]: ',
+        firstCorner: 'Sayım alanının ilk köşesini belirtin veya [Entire]: ',
         secondCorner: 'Karşı köşeyi belirtin: '
       }
     },
@@ -771,7 +771,8 @@ export default {
       copyFailed: 'Performans verileri kopyalanamadı',
       collectedAt: 'Toplama zamanı {time}',
       hint: 'Son çizim açılışında otomatik toplanır. OPENPROF=1 konsola da yazar.',
-      noData: 'Henüz profil yok. Önce bir çizim açın, sonra OPENPERF çalıştırın.',
+      noData:
+        'Henüz profil yok. Önce bir çizim açın, sonra OPENPERF çalıştırın.',
       empty: 'Veri yok',
       timing: 'Duvar saati zamanlaması',
       progressive: 'Kademeli açılış',

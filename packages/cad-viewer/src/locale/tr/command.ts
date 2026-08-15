@@ -12,8 +12,7 @@ export default {
         'Yazı tipi, görsel ve xref’ler için Eksik / Harici Kaynaklar paletini açar'
     },
     xref: {
-      description:
-        'Eksik / Harici Kaynaklar paletini Xref sekmesinde açar'
+      description: 'Eksik / Harici Kaynaklar paletini Xref sekmesinde açar'
     },
     properties: {
       description: 'Varlık özellikleri paleti'

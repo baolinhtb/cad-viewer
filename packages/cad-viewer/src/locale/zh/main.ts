@@ -665,8 +665,7 @@ export default {
       hidePie: '隐藏汇总图表',
       collectedAt: '采集时间 {time}',
       heapUsed: 'JS 堆 {used} / {total}',
-      estimateNote:
-        '几何体大小来自缓冲区 byteLength，其余类别为估算值。',
+      estimateNote: '几何体大小来自缓冲区 byteLength，其余类别为估算值。',
       estimated: '估',
       pieTotal: '已统计',
       pieAriaLabel: '按类别划分的内存占用',
