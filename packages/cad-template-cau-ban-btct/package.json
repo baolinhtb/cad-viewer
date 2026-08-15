@@ -1,0 +1,41 @@
+{
+  "name": "@mlightcad/cad-template-cau-ban-btct",
+  "version": "1.5.11",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mlightcad/cad-viewer.git"
+  },
+  "files": [
+    "dist",
+    "lib",
+    "README.md",
+    "package.json"
+  ],
+  "main": "./dist/cad-template-cau-ban-btct.umd.cjs",
+  "module": "./dist/cad-template-cau-ban-btct.js",
+  "sideEffects": false,
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./dist/cad-template-cau-ban-btct.js",
+      "require": "./dist/cad-template-cau-ban-btct.umd.cjs"
+    }
+  },
+  "scripts": {
+    "clean": "rimraf dist lib tsconfig.tsbuildinfo",
+    "build": "tsc && vite build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint --fix --quiet src/"
+  },
+  "devDependencies": {
+    "@mlightcad/cad-template-sdk": "workspace:*",
+    "@mlightcad/data-model": "^1.12.5"
+  },
+  "peerDependencies": {
+    "@mlightcad/cad-template-sdk": "workspace:*",
+    "@mlightcad/data-model": "^1.12.5"
+  }
+}
