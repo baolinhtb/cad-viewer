@@ -6,8 +6,10 @@
  * onto Element Plus variables — the components themselves are never rewritten,
  * which is what keeps this a theme rather than a fork.
  *
- * Load order matters: this file must come after Element Plus' own dark
- * css-vars so these definitions win.
+ * Load order alone does NOT make these win. Element Plus declares its dark
+ * values under `html.dark`, which outranks `:root` on specificity no matter
+ * which file is loaded last — the mapping block below has to match that
+ * selector, not merely follow it.
  */
 
 :root {
@@ -52,8 +54,8 @@
      dimension set in the same face as a menu label reads as prose — mono is
      the signal that a value is exact and copyable. */
   --cv-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --cv-font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas,
-    monospace;
+  --cv-font-mono:
+    ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
 
   /* --- Thang spacing ----------------------------------------------------- */
   --cv-space-1: 2px;
@@ -75,9 +77,15 @@
 /* -------------------------------------------------------------------------
    Mapping onto Element Plus.
    Only variables are overridden; no component is restyled by selector.
+
+   Scoped to `html.dark` for two reasons. It is the same specificity as
+   Element Plus' own dark block, so coming later in the cascade is enough to
+   win — under `:root` it silently lost and the app rendered in stock Element
+   dark. And this is a dark identity: forcing these surfaces into light mode
+   would leave the theme toggle switching between dark and dark.
    ------------------------------------------------------------------------- */
 
-:root {
+html.dark {
   --el-bg-color: var(--cv-surface-panel);
   --el-bg-color-page: var(--cv-surface-canvas);
   --el-bg-color-overlay: var(--cv-surface-raised);
