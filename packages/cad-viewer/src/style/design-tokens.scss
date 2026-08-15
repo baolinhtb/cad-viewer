@@ -23,7 +23,12 @@
   /* --- Chữ -------------------------------------------------------------- */
   --cv-ink-primary: #e8ecf1;
   --cv-ink-secondary: #9aa3ae;
-  --cv-ink-disabled: #5a626c;
+  /* Lifted from the original #5a626c, which sat at 2.6:1 on the raised
+     surface. WCAG exempts disabled text from contrast requirements, but
+     exempt is not the same as readable — this clears 3:1 on every surface
+     while staying 1.9× darker than secondary text, so it still reads as
+     "not available". */
+  --cv-ink-disabled: #6b7380;
 
   /* --- Accent ----------------------------------------------------------- */
   /* Teal means "AI, or alive". It is not a decoration colour: it marks the AI
@@ -149,6 +154,22 @@
 /** Canvas selection colour — never interchangeable with the accent. */
 .cv-selection {
   color: var(--cv-selection);
+}
+
+/* -------------------------------------------------------------------------
+   Keyboard focus.
+
+   The whole generate flow has to be operable without a mouse, which is only
+   true if you can see where you are. Element Plus draws focus on some
+   components and not others, so the ring is defined once, here, against
+   `:focus-visible` — it appears for keyboard users and stays out of the way
+   of pointer users.
+   ------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+  border-radius: var(--cv-radius-sm);
 }
 
 /* Numbers typed into a form are values, so they read in the mono face too. */

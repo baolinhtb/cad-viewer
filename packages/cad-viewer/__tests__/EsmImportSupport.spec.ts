@@ -44,7 +44,7 @@ describe('cad-viewer ESM import support', () => {
         [
           '--input-type=module',
           '-e',
-          "console.log(import.meta.resolve('@mlightcad/cad-viewer'))"
+          'console.log(import.meta.resolve(\'@mlightcad/cad-viewer\'))'
         ],
         {
           cwd: tempDir,

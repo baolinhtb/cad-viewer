@@ -22,6 +22,7 @@ describe('design tokens', () => {
     ['--cv-surface-raised', '#1b2028'],
     ['--cv-border-hairline', '#262c35'],
     ['--cv-ink-primary', '#e8ecf1'],
+    ['--cv-ink-disabled', '#6b7380'],
     ['--cv-accent', '#35e0a1'],
     ['--cv-selection', '#54a9ff'],
     ['--cv-warning', '#f5b942'],

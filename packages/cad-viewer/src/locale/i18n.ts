@@ -15,6 +15,7 @@ import trDialog from './tr/dialog'
 import trEntity from './tr/entity'
 import trMain from './tr/main'
 import viDialog from './vi/dialog'
+import viMain from './vi/main'
 import zhCommand from './zh/command'
 import zhDialog from './zh/dialog'
 import zhEnity from './zh/entity'
@@ -68,6 +69,7 @@ const messages = {
   },
   // Partial locale: untranslated keys fall back to English.
   vi: {
+    main: viMain,
     dialog: viDialog
   }
 }
