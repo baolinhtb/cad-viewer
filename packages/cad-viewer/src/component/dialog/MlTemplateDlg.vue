@@ -224,44 +224,52 @@ async function generate() {
 </template>
 
 <style scoped>
+/* Spacing, colour and type all come from the design tokens; nothing here
+   hard-codes a value that DESIGN.md owns. */
 .ml-template-dlg__select {
   width: 100%;
 }
 .ml-template-dlg__desc {
-  margin: 0 0 12px;
+  margin: 0 0 var(--cv-space-4);
   font-size: 13px;
-  opacity: 0.75;
+  color: var(--cv-ink-secondary);
 }
 .ml-template-dlg__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--cv-space-3);
+  padding-bottom: var(--cv-space-3);
+  /* Depth by hairline, not by shadow. */
+  border-bottom: 1px solid var(--cv-border-hairline);
 }
 .ml-template-dlg__step {
-  font-family: ui-monospace, monospace;
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  opacity: 0.75;
+  color: var(--cv-ink-secondary);
 }
 .ml-template-dlg__group {
-  margin: 12px 0 4px;
+  margin: var(--cv-space-4) 0 var(--cv-space-2);
   font-size: 13px;
+  color: var(--cv-ink-primary);
 }
 .ml-template-dlg__field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cv-space-3);
 }
-/* Numbers and ranges read as data, so they stay in the mono face. */
+/* Units and ranges are exact values, so they read in the mono face. */
 .ml-template-dlg__unit,
 .ml-template-dlg__range {
-  font-family: ui-monospace, monospace;
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--cv-ink-secondary);
 }
 .ml-template-dlg__hint {
   font-size: 12px;
-  opacity: 0.6;
+  color: var(--cv-ink-secondary);
 }
 .ml-template-dlg__errors ul {
   margin: 0;
@@ -270,6 +278,6 @@ async function generate() {
 .ml-template-dlg__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--cv-space-3);
 }
 </style>

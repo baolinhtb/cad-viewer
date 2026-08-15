@@ -1,0 +1,158 @@
+/**
+ * "Phòng kỹ thuật" design tokens.
+ *
+ * Source of truth: `_bmad-output/planning-artifacts/ux-designs/
+ * ux-cad-viewer-2026-08-14/DESIGN.md`. Values are mirrored here, then mapped
+ * onto Element Plus variables — the components themselves are never rewritten,
+ * which is what keeps this a theme rather than a fork.
+ *
+ * Load order matters: this file must come after Element Plus' own dark
+ * css-vars so these definitions win.
+ */
+
+:root {
+  /* --- Nền: ba tầng, canvas luôn tối nhất ------------------------------- */
+  /* Depth comes from these three tones plus a 1px hairline — never from a
+     shadow. Shadow is reserved for surfaces that physically float over the
+     canvas (dropdown, popover), because those hide the drawing. */
+  --cv-surface-canvas: #0d0f12;
+  --cv-surface-panel: #14171c;
+  --cv-surface-raised: #1b2028;
+  --cv-border-hairline: #262c35;
+
+  /* --- Chữ -------------------------------------------------------------- */
+  --cv-ink-primary: #e8ecf1;
+  --cv-ink-secondary: #9aa3ae;
+  --cv-ink-disabled: #5a626c;
+
+  /* --- Accent ----------------------------------------------------------- */
+  /* Teal means "AI, or alive". It is not a decoration colour: it marks the AI
+     command prompt, AI echo, the current undo mark, a passing standards badge,
+     and the single primary action on a screen. Anything else that reaches for
+     it is a bug. */
+  --cv-accent: #35e0a1;
+  --cv-accent-foreground: #06130d;
+  --cv-accent-dim: #1c4a38;
+
+  /* Selection blue belongs to canvas selection and nothing else. Mixing it
+     with the accent is how "the AI did this" stops meaning anything. */
+  --cv-selection: #54a9ff;
+
+  --cv-warning: #f5b942;
+  --cv-danger: #f26d5b;
+  --cv-danger-foreground: #1a0b09;
+
+  /* --- Chữ: hai giọng ---------------------------------------------------- */
+  /* Sans for labels and menus; mono for every number and identifier. A
+     dimension set in the same face as a menu label reads as prose — mono is
+     the signal that a value is exact and copyable. */
+  --cv-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cv-font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas,
+    monospace;
+
+  /* --- Thang spacing ----------------------------------------------------- */
+  --cv-space-1: 2px;
+  --cv-space-2: 4px;
+  --cv-space-3: 8px;
+  --cv-space-4: 12px;
+  --cv-space-5: 16px;
+  --cv-space-6: 24px;
+  --cv-panel-gutter: 12px;
+  --cv-toolbar-height: 40px;
+  --cv-command-bar-height: 44px;
+
+  /* --- Bo góc: sắc, đọc thành "dụng cụ" ---------------------------------- */
+  --cv-radius-sm: 2px;
+  --cv-radius-md: 4px;
+  --cv-radius-lg: 6px;
+}
+
+/* -------------------------------------------------------------------------
+   Mapping onto Element Plus.
+   Only variables are overridden; no component is restyled by selector.
+   ------------------------------------------------------------------------- */
+
+:root {
+  --el-bg-color: var(--cv-surface-panel);
+  --el-bg-color-page: var(--cv-surface-canvas);
+  --el-bg-color-overlay: var(--cv-surface-raised);
+  --el-fill-color-blank: var(--cv-surface-panel);
+  --el-fill-color: var(--cv-surface-raised);
+  --el-fill-color-light: var(--cv-surface-raised);
+  --el-fill-color-lighter: var(--cv-surface-panel);
+  --el-fill-color-dark: var(--cv-surface-raised);
+
+  --el-text-color-primary: var(--cv-ink-primary);
+  --el-text-color-regular: var(--cv-ink-primary);
+  --el-text-color-secondary: var(--cv-ink-secondary);
+  --el-text-color-placeholder: var(--cv-ink-secondary);
+  --el-text-color-disabled: var(--cv-ink-disabled);
+
+  --el-border-color: var(--cv-border-hairline);
+  --el-border-color-light: var(--cv-border-hairline);
+  --el-border-color-lighter: var(--cv-border-hairline);
+  --el-border-color-extra-light: var(--cv-border-hairline);
+  --el-border-color-darker: var(--cv-border-hairline);
+  --el-border-color-hover: var(--cv-ink-disabled);
+
+  /* Primary maps to the accent because the primary action *is* the live one —
+     which is also why DESIGN.md allows at most one primary button per screen. */
+  --el-color-primary: var(--cv-accent);
+  --el-color-primary-light-3: var(--cv-accent);
+  --el-color-primary-light-5: var(--cv-accent-dim);
+  --el-color-primary-light-7: var(--cv-accent-dim);
+  --el-color-primary-light-8: var(--cv-accent-dim);
+  --el-color-primary-light-9: var(--cv-accent-dim);
+  --el-color-primary-dark-2: var(--cv-accent);
+
+  --el-color-warning: var(--cv-warning);
+  --el-color-danger: var(--cv-danger);
+  --el-color-error: var(--cv-danger);
+  --el-color-info: var(--cv-ink-secondary);
+
+  --el-border-radius-small: var(--cv-radius-sm);
+  --el-border-radius-base: var(--cv-radius-md);
+  --el-border-radius-round: var(--cv-radius-lg);
+
+  --el-font-family: var(--cv-font-sans);
+
+  /* Hierarchy is tone + hairline. These stay off. */
+  --el-box-shadow: none;
+  --el-box-shadow-light: none;
+  --el-box-shadow-lighter: none;
+  /* The exception: surfaces that float over the canvas need real separation,
+     because they cover the drawing. */
+  --el-box-shadow-dark: 0 4px 16px rgb(0 0 0 / 50%);
+}
+
+/* -------------------------------------------------------------------------
+   Typography rules that cannot be expressed as a variable.
+   ------------------------------------------------------------------------- */
+
+/** Any exact value: dimensions, coordinates, ids, command text, versions. */
+.cv-data {
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/** Muted supporting text, e.g. a unit or an allowed range next to a field. */
+.cv-hint {
+  color: var(--cv-ink-secondary);
+  font-size: 12px;
+}
+
+/** Marks the one element on a surface that represents AI or live state. */
+.cv-accent {
+  color: var(--cv-accent);
+}
+
+/** Canvas selection colour — never interchangeable with the accent. */
+.cv-selection {
+  color: var(--cv-selection);
+}
+
+/* Numbers typed into a form are values, so they read in the mono face too. */
+.el-input-number .el-input__inner {
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
