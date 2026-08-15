@@ -67,7 +67,8 @@
     "vue-eslint-parser": "^10.4.0",
     "vue-i18n": "^11.4.4",
     "vue-tsc": "^2.1.6",
-    "@mlightcad/cad-template-plugin": "workspace:*"
+    "@mlightcad/cad-template-plugin": "workspace:*",
+    "@mlightcad/cad-storage-plugin": "workspace:*"
   },
   "peerDependencies": {
     "@mlightcad/cad-agent-plugin": "workspace:*",
@@ -83,7 +84,8 @@
     "three": "^0.172.0",
     "vue": "^3.4.21",
     "vue-i18n": "^11.4.4",
-    "@mlightcad/cad-template-plugin": "workspace:*"
+    "@mlightcad/cad-template-plugin": "workspace:*",
+    "@mlightcad/cad-storage-plugin": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@mlightcad/cad-agent-plugin": {

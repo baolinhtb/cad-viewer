@@ -5,6 +5,17 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import {
+  createDrawing,
+  deleteDrawing,
+  ERRORS,
+  getDrawing,
+  listDrawings,
+  MAX_DRAWING_BYTES,
+  updateDrawing
+} from './drawings.mjs'
+import { migrate } from './schema.mjs'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 3000)
 const DB_PATH = process.env.DB_PATH || join(__dirname, 'auth.db')
@@ -12,24 +23,7 @@ const SESSION_TTL_MS = 7 * 24 * 3600 * 1000
 const COOKIE_NAME = 'cv_session'
 
 const db = new DatabaseSync(DB_PATH)
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    pass_hash TEXT NOT NULL,
-    salt TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    is_admin INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    expires_at INTEGER NOT NULL
-  );
-`)
+migrate(db)
 
 const hashPassword = (password, salt) =>
   scryptSync(password, salt, 64).toString('hex')
@@ -64,13 +58,13 @@ function json(res, code, body) {
   res.end(data)
 }
 
-function readBody(req) {
+function readBody(req, limit = 10240) {
   return new Promise((resolve, reject) => {
     let size = 0
     const chunks = []
     req.on('data', c => {
       size += c.length
-      if (size > 10240) {
+      if (size > limit) {
         reject(new Error('body too large'))
         req.destroy()
         return
@@ -308,10 +302,93 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // --- drawings ---
+    if (path === '/api/drawings' || path.startsWith('/api/drawings/')) {
+      const user = currentUser(req)
+      if (!user) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+
+      const id = path.startsWith('/api/drawings/')
+        ? decodeURIComponent(path.slice('/api/drawings/'.length))
+        : ''
+
+      if (req.method === 'GET' && !id) {
+        json(res, 200, {
+          drawings: listDrawings(db, user.id, {
+            search: url.searchParams.get('q') ?? undefined
+          })
+        })
+        return
+      }
+
+      if (req.method === 'GET' && id) {
+        const row = getDrawing(db, user.id, id)
+        if (!row) {
+          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: ERRORS.NOT_FOUND })
+          return
+        }
+        json(res, 200, {
+          id: row.id,
+          name: row.name,
+          templateId: row.template_id,
+          templateVersion: row.template_version,
+          params: row.params ? JSON.parse(row.params) : null,
+          batchId: row.batch_id,
+          revision: row.revision,
+          updatedAt: row.updated_at,
+          dxf: row.dxf ? Buffer.from(row.dxf).toString('utf8') : null
+        })
+        return
+      }
+
+      if (req.method === 'POST' && !id) {
+        const body = await readBody(req, MAX_DRAWING_BYTES)
+        const created = createDrawing(db, user.id, body)
+        json(res, 201, created)
+        return
+      }
+
+      if (req.method === 'PUT' && id) {
+        const body = await readBody(req, MAX_DRAWING_BYTES)
+        const result = updateDrawing(db, user.id, id, body)
+        if (result.error === ERRORS.NOT_FOUND) {
+          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: result.error })
+          return
+        }
+        if (result.error === ERRORS.CONFLICT) {
+          json(res, 409, {
+            error:
+              'Bản vẽ đã được sửa ở nơi khác. Mở lại để xem bản mới nhất trước khi lưu.',
+            code: result.error,
+            currentRevision: result.currentRevision
+          })
+          return
+        }
+        json(res, 200, result)
+        return
+      }
+
+      if (req.method === 'DELETE' && id) {
+        if (!deleteDrawing(db, user.id, id)) {
+          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: ERRORS.NOT_FOUND })
+          return
+        }
+        res.writeHead(204)
+        res.end()
+        return
+      }
+    }
+
     json(res, 404, { error: 'not found' })
   } catch (err) {
-    json(res, err.message === 'body too large' ? 413 : 400, {
-      error: err.message || 'bad request'
+    const tooLarge = err.message === 'body too large'
+    json(res, tooLarge ? 413 : 400, {
+      error: tooLarge
+        ? 'Dữ liệu gửi lên vượt quá dung lượng cho phép.'
+        : err.message || 'bad request',
+      code: tooLarge ? ERRORS.TOO_LARGE : ERRORS.INVALID
     })
   }
 })

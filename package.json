@@ -39,6 +39,7 @@
     "sync:versions:check": "node tools/sync-versions.mjs --check",
     "serve": "nx run @mlightcad/cad-viewer-examples:serve",
     "test": "jest",
+    "test:server": "node --test server/auth/*.test.mjs",
     "test:e2e": "pnpm --filter @mlightcad/cad-viewer-example test:e2e",
     "use:dwg-converter": "node tools/use-dwg-converter.mjs"
   },

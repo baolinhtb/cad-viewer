@@ -9,6 +9,7 @@ import {
   AcEdCommandStack,
   AcEdMTextEditor
 } from '@mlightcad/cad-simple-viewer'
+import { registerStoragePlugin } from '@mlightcad/cad-storage-plugin/register'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
 import { setTemplateDialogOpener } from '@mlightcad/cad-template-plugin'
 import { registerLazyTemplatePlugin } from '@mlightcad/cad-template-plugin/register'
@@ -285,6 +286,10 @@ export const registerLazyPlugins = (
     toggleDialog('TemplateDlg', true)
   })
   registerLazyTemplatePlugin(pluginManager)
+
+  // Resident, not lazy: auto-save has to be listening before the first edit,
+  // not after a command asks for it.
+  void registerStoragePlugin(pluginManager)
 
   if (!isAgentIntegrationStarted) {
     isAgentIntegrationStarted = true

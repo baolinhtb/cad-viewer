@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { attachDrawing } from '@mlightcad/cad-storage-plugin'
 import type {
   AcTpParamSpec,
   AcTpTemplate
@@ -95,6 +96,16 @@ async function generate() {
       return
     }
     result.value = { entityCount: outcome.entityCount, layers: outcome.layers }
+
+    // Hand the drawing to auto-save with its recipe, so it can be regenerated
+    // or adjusted later without re-entering every parameter.
+    attachDrawing({
+      name: template.meta.name,
+      templateId: template.meta.id,
+      templateVersion: template.meta.version,
+      params: { ...values.value }
+    })
+
     visible.value = false
   } catch (error) {
     errors.value = [String((error as Error)?.message ?? error)]

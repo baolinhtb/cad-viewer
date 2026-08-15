@@ -25,7 +25,10 @@ const config: Config = {
   ],
   testPathIgnorePatterns: [
     '/e2e/',
-    '/__tests__/helpers/'
+    '/__tests__/helpers/',
+    // The service tests run on node:test (`pnpm test:server`); jest cannot
+    // parse them and does not need to.
+    '<rootDir>/server/'
   ],
   moduleNameMapper: {
     '^lodash-es$': 'lodash',
