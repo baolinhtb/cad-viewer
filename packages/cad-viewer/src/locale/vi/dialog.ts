@@ -1,11 +1,16 @@
 /**
- * Vietnamese strings.
+ * Vietnamese dialog strings.
  *
- * Partial on purpose: vue-i18n falls back to English for anything not
- * translated yet, so the locale can grow one surface at a time instead of
- * blocking on a full translation pass (see story 1.12).
+ * Microcopy follows the "engineer talking to an engineer" register from
+ * EXPERIENCE.md: state the outcome and the numbers, skip the encouragement.
+ * "Đã sinh bản vẽ. 247 đối tượng, 8 layer." — not "Tuyệt vời! 🎉".
  */
 export default {
+  baseDialog: {
+    ok: 'Đồng ý',
+    cancel: 'Hủy',
+    apply: 'Áp dụng'
+  },
   templateDlg: {
     title: 'Sinh bản vẽ từ template',
     template: 'Template',
@@ -14,5 +19,8 @@ export default {
     next: 'Tiếp',
     generate: 'Sinh bản vẽ',
     done: 'Đã sinh bản vẽ. {count} đối tượng, {layers} layer.'
+  },
+  drawingUnitsDlg: {
+    title: 'Đơn vị bản vẽ'
   }
 }

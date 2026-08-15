@@ -1,13 +1,16 @@
 // import dark theme
 @use "element-plus/theme-chalk/src/dark/css-vars.scss" as *;
 
+// "Phòng kỹ thuật" tokens. Must come after Element Plus' own dark css-vars so
+// the mappings in it win.
+@use "./design-tokens.scss" as *;
+
 :root {
   --ml-status-bar-height: 30px;
 }
 
 body {
-  font-family: Inter, system-ui, Avenir, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  font-family: var(--cv-font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
