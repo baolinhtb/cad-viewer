@@ -2,6 +2,7 @@ import { AcApI18n, AcApLocale } from '@mlightcad/cad-simple-viewer'
 import cs from 'element-plus/es/locale/lang/cs'
 import en from 'element-plus/es/locale/lang/en'
 import tr from 'element-plus/es/locale/lang/tr'
+import vi from 'element-plus/es/locale/lang/vi'
 import zh from 'element-plus/es/locale/lang/zh-cn'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,17 +14,29 @@ export const LOCALE_OPTIONS = [
   { locale: 'en' as const, label: 'English' },
   { locale: 'zh' as const, label: '简体中文' },
   { locale: 'tr' as const, label: 'Türkçe' },
-  { locale: 'cs' as const, label: 'Čeština' }
+  { locale: 'cs' as const, label: 'Čeština' },
+  { locale: 'vi' as const, label: 'Tiếng Việt' }
 ]
 
 export const isSupportedLocale = (value: string): value is AcApLocale => {
-  return value === 'en' || value === 'zh' || value === 'tr' || value === 'cs'
+  return (
+    value === 'en' ||
+    value === 'zh' ||
+    value === 'tr' ||
+    value === 'cs' ||
+    value === 'vi'
+  )
 }
 
+// Anything not listed collapses to English. That makes this function the last
+// word on which locales exist: a locale missing here is not merely absent from
+// the picker, it is reset to English by the i18n watcher below even when the
+// browser asked for it.
 const normalizeLocale = (value: string | null | undefined): AcApLocale => {
   if (value === 'zh') return 'zh'
   if (value === 'tr') return 'tr'
   if (value === 'cs') return 'cs'
+  if (value === 'vi') return 'vi'
   return 'en'
 }
 
@@ -102,6 +115,7 @@ export function useLocale(propLocale?: LocaleProp) {
     if (effectiveLocale.value === 'zh') return zh
     if (effectiveLocale.value === 'tr') return tr
     if (effectiveLocale.value === 'cs') return cs
+    if (effectiveLocale.value === 'vi') return vi
     return en
   })
 

@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
 import viDialog from '../src/locale/vi/dialog'
 import viMain from '../src/locale/vi/main'
 
@@ -87,5 +90,64 @@ describe('Vietnamese locale', () => {
       .map(([key]) => key)
 
     expect(malformed).toEqual([])
+  })
+})
+
+/**
+ * Translating a locale is only half of shipping one.
+ *
+ * `useLocale.ts` is the real gatekeeper: it lists what the picker offers, and
+ * `normalizeLocale` collapses anything it does not recognise to English — so a
+ * locale missing there is not just hidden, it is actively reset even when the
+ * browser asks for it. Vietnamese shipped fully translated and completely
+ * unreachable for exactly that reason.
+ *
+ * These read the sources as text rather than importing them, because importing
+ * `useLocale` pulls in the UMD core bundle that Jest cannot parse. It is a
+ * weaker check than calling the functions, but it catches the failure that
+ * actually happened, and it catches it for the next locale too.
+ */
+const source = (path: string) =>
+  readFileSync(join(__dirname, '..', 'src', path), 'utf8')
+
+const useLocaleSrc = source('composable/useLocale.ts')
+const i18nSrc = source('locale/i18n.ts')
+
+/** Locales whose messages are actually shipped in the bundle. */
+const shipped = [...i18nSrc.matchAll(/mergeLocaleMessage\('(\w+)'/g)].map(
+  m => m[1]
+)
+
+describe('locale wiring', () => {
+  test('the messages really do include Vietnamese', () => {
+    expect(shipped).toContain('vi')
+  })
+
+  test.each(shipped)('%s is offered in the language picker', locale => {
+    expect(useLocaleSrc).toMatch(
+      new RegExp(`\\{\\s*locale:\\s*'${locale}' as const`)
+    )
+  })
+
+  test.each(shipped)('%s survives normalizeLocale', locale => {
+    // English is the fallback, so it needs no branch of its own.
+    if (locale === 'en') return
+    expect(useLocaleSrc).toContain(
+      `if (value === '${locale}') return '${locale}'`
+    )
+  })
+
+  test.each(shipped)('%s passes isSupportedLocale', locale => {
+    expect(useLocaleSrc).toMatch(new RegExp(`value === '${locale}'`))
+  })
+
+  test('Vietnamese also switches the Element Plus component strings', () => {
+    // Otherwise the app is in Vietnamese and its date pickers are not.
+    expect(useLocaleSrc).toContain(
+      "import vi from 'element-plus/es/locale/lang/vi'"
+    )
+    expect(useLocaleSrc).toContain(
+      "if (effectiveLocale.value === 'vi') return vi"
+    )
   })
 })

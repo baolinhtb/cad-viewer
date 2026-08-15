@@ -60,6 +60,19 @@ describe('design tokens', () => {
     expect(tokens).toMatch(/--el-box-shadow-dark: 0 4px 16px/)
   })
 
+  test('the Element Plus mapping can actually outrank the stock dark theme', () => {
+    // Element Plus declares its dark values under `html.dark`. A mapping under
+    // `:root` loses to that on specificity however late it is loaded, and the
+    // app renders in stock Element dark with none of this identity visible —
+    // which is exactly what shipped the first time. The selector is the fix,
+    // so the selector is what this test pins.
+    const mappingBlock = tokens.match(
+      /^([^\s{][^{}\n]*?)\s*\{\n[^}]*--el-bg-color:/m
+    )
+    expect(mappingBlock).not.toBeNull()
+    expect(mappingBlock![1].trim()).toBe('html.dark')
+  })
+
   test('both type faces are declared, and data reads in mono', () => {
     expect(tokens).toMatch(/--cv-font-sans:/)
     expect(tokens).toMatch(/--cv-font-mono:/)
