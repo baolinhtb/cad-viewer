@@ -11,7 +11,11 @@ import {
   AcGePoint3dLike
 } from '@mlightcad/data-model'
 
-import { AcTpSemanticTag, writeSemanticTag } from './AcTpSemanticTag'
+import {
+  AcTpSemanticTag,
+  ensureSemanticTagRegApp,
+  writeSemanticTag
+} from './AcTpSemanticTag'
 
 /** Identity every drawn entity must carry. */
 interface AcTpDrawBase {
@@ -91,6 +95,11 @@ export function createDrawContext(
   templateId: string,
   roleLayers: AcTpRoleLayerMap
 ): AcTpDrawContext {
+  // Single place the RegApp is registered. Doing it here rather than leaving it
+  // to each caller is what keeps "exactly one definition per file" true — an
+  // untagged-because-unregistered drawing fails much later, at query time.
+  ensureSemanticTagRegApp(db)
+
   const drawn: AcDbEntity[] = []
 
   const place = (entity: AcDbEntity, args: AcTpDrawBase): AcDbEntity => {
