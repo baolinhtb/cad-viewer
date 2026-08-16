@@ -20,8 +20,10 @@ import {
   deleteLayer,
   deleteTerm,
   ERRORS as STANDARD_ERRORS,
+  findContradictions,
   listLayers,
   listTerms,
+  roleLayerMap,
   StandardsError,
   updateLayer,
   updateTerm
@@ -535,6 +537,19 @@ const server = createServer(async (req, res) => {
             detail: error.detail ?? null
           })
         }
+      }
+
+      if (kind === 'check' && req.method === 'GET') {
+        json(res, 200, { contradictions: findContradictions(db) })
+        return
+      }
+
+      // The role → layer mapping the editor draws with. Served separately from
+      // the term list because the client needs only this shape, on every
+      // document open, and sending the whole dictionary for it would be waste.
+      if (kind === 'role-layers' && req.method === 'GET') {
+        json(res, 200, { roleLayers: roleLayerMap(db) })
+        return
       }
 
       if (kind === 'terms') {

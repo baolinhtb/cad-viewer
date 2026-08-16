@@ -216,3 +216,37 @@ export async function refreshTemplateLibrary(): Promise<AcApRemoteTemplateLoad> 
     return { loaded: [], failed: [] }
   }
 }
+
+/**
+ * Loads the company's role → layer mapping and applies it.
+ *
+ * Until this lands the registry draws with the SDK's built-in pairing, which
+ * is right for a fresh deployment and wrong for a company that has since
+ * renamed a layer. Applied separately from the template library because it
+ * matters even when nothing has been uploaded.
+ *
+ * A mapping that cannot be fetched leaves the built-in one in place. Drawing
+ * onto the old layer names is a far better failure than refusing to draw.
+ */
+export async function refreshRoleLayers(
+  fetchImpl: AcApFetch = fetch as unknown as AcApFetch,
+  url = '/api/standards/role-layers'
+): Promise<boolean> {
+  const { setRoleLayers } = await import('./templateRegistry')
+  try {
+    const response = await fetchImpl(url, { credentials: 'same-origin' })
+    if (!response.ok) return false
+    const body = (await response.json()) as {
+      roleLayers?: Record<string, string>
+    }
+    // An empty mapping is not an answer worth applying: it would leave every
+    // role unlayered and every template unable to draw.
+    if (!body.roleLayers || Object.keys(body.roleLayers).length === 0) {
+      return false
+    }
+    setRoleLayers(body.roleLayers)
+    return true
+  } catch {
+    return false
+  }
+}

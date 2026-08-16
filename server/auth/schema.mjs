@@ -218,6 +218,27 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_templates_status
         ON templates(status, template_id, version);
     `)
+  },
+
+  // v6 — the layer a role is drawn on.
+  //
+  // v3 created both tables and lost the relationship between them: the SDK has
+  // always paired `lan_can` with `KC-LANCAN`, but on the server the two sat in
+  // separate tables with nothing joining them. That left the client with no
+  // central mapping to override its built-in one, and made "a role with no
+  // layer" — the contradiction Story 2.3 has to warn about — unaskable.
+  //
+  // Nullable on purpose: a term can exist before anyone has decided which
+  // layer it belongs on, and forcing a layer at creation would make people
+  // invent one.
+  db => {
+    db.exec(`ALTER TABLE standard_terms ADD COLUMN layer TEXT`)
+    const setLayer = db.prepare(
+      `UPDATE standard_terms SET layer = ? WHERE role = ? AND layer IS NULL`
+    )
+    for (const [role, seed] of Object.entries(SEED_STANDARDS)) {
+      setLayer.run(seed.layer, role)
+    }
   }
 ]
 

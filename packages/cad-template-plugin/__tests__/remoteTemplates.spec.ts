@@ -2,7 +2,8 @@ import {
   asTemplate,
   type AcApFetch,
   loadRemoteTemplates,
-  markTemplateVerified
+  markTemplateVerified,
+  refreshRoleLayers
 } from '../src/remoteTemplates'
 import {
   findTemplate,
@@ -259,5 +260,39 @@ describe('publishing after a successful run', () => {
       json: async () => ({})
     }))
     expect(ok).toBe(false)
+  })
+})
+
+describe('the company layer mapping', () => {
+  beforeEach(() => setRoleLayers(undefined as never))
+
+  test('a fetched mapping replaces the built-in one', async () => {
+    const applied = await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ roleLayers: { lan_can: 'CTY-LANCAN' } })
+    }))
+    expect(applied).toBe(true)
+    expect(roleLayers()).toEqual({ lan_can: 'CTY-LANCAN' })
+  })
+
+  test('an empty mapping is not applied', async () => {
+    // Applying it would leave every role unlayered and every template unable
+    // to draw — worse than drawing on the built-in names.
+    const applied = await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ roleLayers: {} })
+    }))
+    expect(applied).toBe(false)
+    expect(roleLayers()).toEqual({ lan_can: 'KC-LANCAN' })
+  })
+
+  test('a mapping that cannot be fetched leaves the built-in one alone', async () => {
+    const applied = await refreshRoleLayers(async () => {
+      throw new Error('mạng hỏng')
+    })
+    expect(applied).toBe(false)
+    expect(roleLayers()).toEqual({ lan_can: 'KC-LANCAN' })
   })
 })

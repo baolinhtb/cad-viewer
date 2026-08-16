@@ -71,6 +71,18 @@
   .msg.show { display: block; }
   .msg.error { border: 1px solid var(--cv-danger); color: var(--cv-danger); }
   .msg.ok { border: 1px solid var(--cv-accent); color: var(--cv-accent); }
+
+  /* Amber is DESIGN.md's "needs attention", not an error: nothing is broken,
+     something is unfinished. */
+  .issues {
+    margin-bottom: 12px; padding: 10px 14px;
+    border: 1px solid var(--cv-warning); border-radius: var(--cv-radius-sm);
+    font-size: 12px; color: var(--cv-ink-secondary);
+  }
+  .issues h2 { margin: 0 0 6px; font-size: 12px; color: var(--cv-warning); }
+  .issues ul { margin: 0; padding-left: 18px; }
+  .issues code { font-family: var(--cv-font-mono); color: var(--cv-ink-primary); }
+  .missing { color: var(--cv-warning); font-family: var(--cv-font-sans); font-size: 11px; }
 </style>
 </head>
 <body>
@@ -91,6 +103,10 @@
 
   <div id="msg" class="msg"></div>
 
+  <!-- Contradictions are reported, never blocking: every one of them is a
+       legitimate midway state. What must not happen is nobody noticing. -->
+  <div id="issues" class="issues" hidden></div>
+
   <!-- Terms -->
   <section id="pane-terms">
     <div class="toolbar">
@@ -99,12 +115,13 @@
     <div class="toolbar">
       <input id="t-role" class="slug" placeholder="khóa (vd: dam_chu)" size="18" autocomplete="off">
       <input id="t-label" placeholder="Tên chuẩn (vd: Dầm chủ)" size="22" autocomplete="off">
+      <input id="t-layer" class="slug" placeholder="Layer (vd: KC-DAMCHU)" size="18" autocomplete="off">
       <input id="t-aliases" class="grow" placeholder="Bí danh, cách nhau bằng dấu phẩy" autocomplete="off">
       <button id="t-add" class="primary">Thêm thuật ngữ</button>
     </div>
     <div class="panel">
       <table>
-        <thead><tr><th>Khóa</th><th>Tên chuẩn</th><th>Bí danh</th><th>Sửa lần cuối</th><th></th></tr></thead>
+        <thead><tr><th>Khóa</th><th>Tên chuẩn</th><th>Layer</th><th>Bí danh</th><th>Sửa lần cuối</th><th></th></tr></thead>
         <tbody id="t-rows"></tbody>
       </table>
       <div id="t-empty" class="empty" hidden>Chưa có thuật ngữ nào.</div>
@@ -189,6 +206,40 @@ async function explain(response) {
   return body.error || `Lỗi ${response.status}`
 }
 
+/**
+ * Shows the contradictions the server found.
+ *
+ * Kept out of the message box on purpose: a message is about what just
+ * happened, this is about the standing state of the standards, and mixing the
+ * two means the standing problems vanish on the next successful save.
+ */
+async function loadIssues() {
+  const { contradictions } = await (await api('/api/standards/check')).json()
+  const blocks = []
+
+  if (contradictions.rolesWithoutLayer.length) {
+    blocks.push(`<h2>Thuật ngữ chưa có layer</h2><ul>` +
+      contradictions.rolesWithoutLayer
+        .map(t => `<li><code>${esc(t.role)}</code> — ${esc(t.label)}: chưa vẽ được vì chưa biết đặt lên layer nào.</li>`)
+        .join('') + `</ul>`)
+  }
+  if (contradictions.rolesWithUnknownLayer.length) {
+    blocks.push(`<h2>Layer không có trong danh mục</h2><ul>` +
+      contradictions.rolesWithUnknownLayer
+        .map(t => `<li><code>${esc(t.role)}</code> trỏ tới <code>${esc(t.layer)}</code>, chưa khai ở thẻ Layer.</li>`)
+        .join('') + `</ul>`)
+  }
+  if (contradictions.unusedLayers.length) {
+    blocks.push(`<h2>Layer không thuật ngữ nào dùng</h2><ul>` +
+      contradictions.unusedLayers
+        .map(l => `<li><code>${esc(l.name)}</code> — ${esc(l.meaning)}</li>`)
+        .join('') + `</ul>`)
+  }
+
+  $('issues').innerHTML = blocks.join('')
+  $('issues').hidden = blocks.length === 0
+}
+
 // --- terms ---
 async function loadTerms() {
   const query = $('q').value.trim()
@@ -199,10 +250,12 @@ async function loadTerms() {
     <tr data-role="${esc(term.role)}">
       <td class="slug">${esc(term.role)}</td>
       <td>${esc(term.label)}</td>
+      <td class="slug">${term.layer ? esc(term.layer) : '<span class="missing">chưa đặt</span>'}</td>
       <td><div class="aliases">${term.aliases.map(a => `<span class="alias">${esc(a)}</span>`).join('')}</div></td>
       <td class="when">${esc(term.updatedAt)}${term.updatedBy ? ` · #${term.updatedBy}` : ''}</td>
       <td>
         <button class="ghost" data-act="edit-term">Sửa bí danh</button>
+        <button class="ghost" data-act="edit-layer">Đổi layer</button>
         <button class="ghost danger" data-act="del-term">Xóa</button>
       </td>
     </tr>`).join('')
@@ -212,15 +265,16 @@ $('t-add').addEventListener('click', async () => {
   const payload = {
     role: $('t-role').value.trim(),
     label: $('t-label').value.trim(),
-    aliases: $('t-aliases').value.split(',').map(s => s.trim()).filter(Boolean)
+    aliases: $('t-aliases').value.split(',').map(s => s.trim()).filter(Boolean),
+    layer: $('t-layer').value.trim() || null
   }
   const response = await api('/api/standards/terms', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   })
   if (!response.ok) return say(await explain(response))
-  $('t-role').value = $('t-label').value = $('t-aliases').value = ''
+  $('t-role').value = $('t-label').value = $('t-aliases').value = $('t-layer').value = ''
   say('Đã thêm thuật ngữ.', 'ok')
-  loadTerms()
+  refresh()
 })
 
 $('t-rows').addEventListener('click', async event => {
@@ -233,7 +287,7 @@ $('t-rows').addEventListener('click', async event => {
     const response = await api(`/api/standards/terms/${encodeURIComponent(role)}`, { method: 'DELETE' })
     if (!response.ok) return say(await explain(response))
     say('Đã xóa.', 'ok')
-    return loadTerms()
+    return refresh()
   }
 
   if (button.dataset.act === 'edit-term') {
@@ -246,9 +300,28 @@ $('t-rows').addEventListener('click', async event => {
     })
     if (!response.ok) return say(await explain(response))
     say('Đã cập nhật bí danh.', 'ok')
-    loadTerms()
+    return refresh()
+  }
+
+  if (button.dataset.act === 'edit-layer') {
+    const cell = button.closest('tr').querySelector('td.slug + td + td')
+    const current = cell?.querySelector('.missing') ? '' : (cell?.textContent.trim() ?? '')
+    const next = prompt(`Layer của "${role}":`, current)
+    if (next === null) return
+    const response = await api(`/api/standards/terms/${encodeURIComponent(role)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ layer: next.trim() })
+    })
+    if (!response.ok) return say(await explain(response))
+    say('Đã đổi layer.', 'ok')
+    refresh()
   }
 })
+
+/** Reloads everything that can change when one row changes. */
+async function refresh() {
+  await Promise.all([loadTerms(), loadLayers(), loadIssues()])
+}
 
 let searchTimer
 $('q').addEventListener('input', () => {
@@ -277,7 +350,7 @@ $('l-add').addEventListener('click', async () => {
   if (!response.ok) return say(await explain(response))
   $('l-name').value = $('l-meaning').value = ''
   say('Đã thêm layer.', 'ok')
-  loadLayers()
+  refresh()
 })
 
 $('l-rows').addEventListener('click', async event => {
@@ -288,7 +361,7 @@ $('l-rows').addEventListener('click', async event => {
   const response = await api(`/api/standards/layers/${encodeURIComponent(name)}`, { method: 'DELETE' })
   if (!response.ok) return say(await explain(response))
   say('Đã xóa.', 'ok')
-  loadLayers()
+  refresh()
 })
 
 // --- shell ---
@@ -308,7 +381,7 @@ $('logout').addEventListener('click', async () => {
 async function start() {
   const me = await (await api('/api/auth/me')).json().catch(() => ({}))
   if (me?.role === 'admin') $('adminLink').hidden = false
-  await Promise.all([loadTerms(), loadLayers()])
+  await refresh()
 }
 start()
 </script>
