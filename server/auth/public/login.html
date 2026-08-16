@@ -4,27 +4,44 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Đăng nhập — CAD Viewer</title>
+<link rel="stylesheet" href="/theme.css">
 <style>
-  * { box-sizing: border-box; margin: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 32px; width: 100%; max-width: 380px; margin: 16px; }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  .sub { color: #666; font-size: 14px; margin-bottom: 24px; }
-  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
-  input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
-  input:focus { outline: 2px solid #4a7cf7; border-color: transparent; }
-  button { width: 100%; margin-top: 22px; padding: 11px; border: 0; border-radius: 8px; background: #2f5fe0; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
-  button:hover { background: #244db8; }
-  button:disabled { opacity: .6; cursor: default; }
-  .msg { margin-top: 14px; font-size: 14px; padding: 10px 12px; border-radius: 8px; display: none; }
-  .msg.error { display: block; background: #fdecea; color: #b3261e; }
-  .msg.info { display: block; background: #e8f0fe; color: #1a4fba; }
-  .foot { margin-top: 20px; text-align: center; font-size: 14px; color: #555; }
-  a { color: #2f5fe0; }
+  /* The reset, body and .panel rules live in theme.css. */
+  body { display: flex; align-items: center; justify-content: center; }
+  .card { padding: 32px; width: 100%; max-width: 380px; margin: 16px; }
+  h1 { font-size: 22px; margin-bottom: 4px; font-weight: 600; }
+  .sub { color: var(--cv-ink-secondary); font-size: 14px; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: var(--cv-ink-secondary); }
+  input {
+    width: 100%; padding: 9px 12px; font-size: 14px;
+    background: var(--cv-surface-canvas);
+    border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-md);
+    color: var(--cv-ink-primary);
+  }
+  input:focus { outline: 2px solid var(--cv-accent); outline-offset: 0; border-color: transparent; }
+  /* The accent is reserved for the one action the page exists for. */
+  button {
+    width: 100%; margin-top: 22px; padding: 10px; border: 0;
+    border-radius: var(--cv-radius-md);
+    background: var(--cv-accent); color: var(--cv-accent-foreground);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg {
+    margin-top: 14px; font-size: 13px; padding: 9px 12px;
+    border-radius: var(--cv-radius-md); display: none;
+    border: 1px solid transparent;
+  }
+  .msg.error { display: block; color: var(--cv-danger); border-color: var(--cv-danger); background: rgba(242,109,91,.1); }
+  .msg.info { display: block; color: var(--cv-selection); border-color: var(--cv-selection); background: rgba(84,169,255,.1); }
+  .foot { margin-top: 20px; text-align: center; font-size: 13px; color: var(--cv-ink-secondary); }
+  a { color: var(--cv-selection); }
 </style>
 </head>
 <body>
-<div class="card">
+<div class="card panel">
   <h1>Đăng nhập</h1>
   <p class="sub">CAD Viewer — dành cho thành viên đã kích hoạt</p>
   <form id="f">

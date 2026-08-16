@@ -4,29 +4,58 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quản trị thành viên — CAD Viewer</title>
+<link rel="stylesheet" href="/theme.css">
 <style>
-  * { box-sizing: border-box; margin: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; min-height: 100vh; }
-  header { background: #fff; border-bottom: 1px solid #e2e2e2; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
-  h1 { font-size: 18px; }
-  .who { font-size: 14px; color: #555; }
-  .who button { margin-left: 12px; padding: 6px 14px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; }
+  /* The reset, body and .panel rules live in theme.css. */
+  header {
+    background: var(--cv-surface-panel);
+    border-bottom: 1px solid var(--cv-border-hairline);
+    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  h1 { font-size: 16px; font-weight: 600; }
+  .who { font-size: 13px; color: var(--cv-ink-secondary); }
+  .who button {
+    margin-left: 12px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+    border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-md);
+    background: var(--cv-surface-raised); color: var(--cv-ink-primary);
+  }
   main { max-width: 900px; margin: 24px auto; padding: 0 16px; }
-  .panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #eee; white-space: nowrap; }
-  th { background: #fafafa; font-size: 13px; color: #555; }
+  .panel { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td {
+    text-align: left; padding: 10px 16px; white-space: nowrap;
+    border-bottom: 1px solid var(--cv-border-hairline);
+  }
+  th { background: var(--cv-surface-raised); font-size: 12px; font-weight: 600; color: var(--cv-ink-secondary); }
   tr:last-child td { border-bottom: 0; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  .badge.pending { background: #fef3cd; color: #8a6d00; }
-  .badge.active { background: #e6f4ea; color: #137333; }
-  .badge.disabled { background: #fdecea; color: #b3261e; }
-  .badge.admin { background: #e8f0fe; color: #1a4fba; }
-  td button { padding: 6px 14px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  button.act { background: #137333; color: #fff; }
-  button.deact { background: #fdecea; color: #b3261e; }
-  .empty { padding: 32px; text-align: center; color: #888; }
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .3s; }
+  /* Emails, dates and roles are exact values, so they take the mono face. */
+  td.data { font-family: var(--cv-font-mono); font-variant-numeric: tabular-nums; }
+  /* Status reads from the outline, not a filled pill: a table of filled
+     badges competes with the one action in each row. */
+  .badge {
+    display: inline-block; padding: 2px 9px; font-size: 11px; font-weight: 600;
+    border-radius: var(--cv-radius-sm); border: 1px solid currentColor;
+  }
+  .badge.pending { color: var(--cv-warning); }
+  .badge.active { color: var(--cv-accent); }
+  .badge.disabled { color: var(--cv-danger); }
+  .badge.admin { color: var(--cv-selection); }
+  td button {
+    padding: 5px 12px; border: 1px solid currentColor; font-size: 12px;
+    font-weight: 600; cursor: pointer; background: transparent;
+    border-radius: var(--cv-radius-md);
+  }
+  button.act { color: var(--cv-accent); }
+  button.deact { color: var(--cv-danger); }
+  .empty { padding: 32px; text-align: center; color: var(--cv-ink-disabled); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--cv-surface-raised); color: var(--cv-ink-primary);
+    border: 1px solid var(--cv-border-hairline);
+    padding: 9px 18px; border-radius: var(--cv-radius-md); font-size: 13px;
+    opacity: 0; transition: opacity .3s;
+  }
   .toast.show { opacity: 1; }
 </style>
 </head>
@@ -88,7 +117,7 @@ function render(users) {
       ? `<button class="deact" data-id="${u.id}" data-a="deactivate">Vô hiệu hóa</button>`
       : `<button class="act" data-id="${u.id}" data-a="activate">Kích hoạt</button>`)
 
-    return `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${roleCell}</td><td>${status}</td><td>${esc(u.created_at)}</td><td>${action}</td></tr>`
+    return `<tr><td>${esc(u.name)}</td><td class="data">${esc(u.email)}</td><td>${roleCell}</td><td>${status}</td><td class="data">${esc(u.created_at)}</td><td>${action}</td></tr>`
   }).join('')
 }
 
