@@ -14,6 +14,7 @@
 export default {
   mainMenu: {
     new: 'Bản vẽ mới',
+    template: 'Sinh bản vẽ từ template',
     open: 'Mở bản vẽ',
     drawingUnits: 'Đơn vị bản vẽ',
     exportMenu: 'Xuất',

@@ -1735,6 +1735,13 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
       label: t('main.mainMenu.new')
     },
     {
+      // Sits with the two other ways to start a drawing rather than in a
+      // ribbon group: generating from a template is a way to begin, not an
+      // editing tool. The Home tab is also already overflowing.
+      id: 'Template',
+      label: t('main.mainMenu.template')
+    },
+    {
       id: 'Open',
       label: t('main.mainMenu.open')
     },
@@ -1837,6 +1844,8 @@ const handleFileMenuSelect = async (command: string) => {
   } else if (command === 'Open') {
     const cmd = new AcApOpenCmd()
     cmd.trigger(AcApDocManager.instance.context)
+  } else if (command === 'Template') {
+    await runLazyCommand('template')
   } else if (command === 'DrawingUnits') {
     AcApDocManager.instance.sendStringToExecute('units')
   } else if (command === 'About') {

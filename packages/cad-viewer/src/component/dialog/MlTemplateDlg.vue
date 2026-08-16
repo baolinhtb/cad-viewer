@@ -89,14 +89,18 @@ watch(
   { immediate: true }
 )
 
-/** Range hint shown next to a numeric field, in the drawing's own units. */
+/**
+ * Range hint shown next to a numeric field.
+ *
+ * The unit is not repeated here — it is already displayed against the input,
+ * and printing both renders as "m 4–20 m".
+ */
 function rangeHint(param: AcTpParamSpec): string {
-  if (param.min === undefined && param.max === undefined) return ''
-  const unit = param.unit ? ` ${param.unit}` : ''
-  if (param.min !== undefined && param.max !== undefined)
-    return `${param.min}–${param.max}${unit}`
-  if (param.min !== undefined) return `≥ ${param.min}${unit}`
-  return `≤ ${param.max}${unit}`
+  const { min, max } = param
+  if (min === undefined && max === undefined) return ''
+  if (min !== undefined && max !== undefined) return `${min}–${max}`
+  if (min !== undefined) return `≥ ${min}`
+  return `≤ ${max}`
 }
 
 async function generate() {
@@ -284,7 +288,14 @@ async function generate() {
   font-size: 12px;
   color: var(--cv-ink-secondary);
 }
+/* The row is a flex line; without this the hint sits on it and runs straight
+   into the range, reading as one unbroken string. */
+:deep(.el-form-item__content) {
+  flex-wrap: wrap;
+}
 .ml-template-dlg__hint {
+  flex-basis: 100%;
+  margin-top: var(--cv-space-1);
   font-size: 12px;
   color: var(--cv-ink-secondary);
 }
