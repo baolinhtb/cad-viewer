@@ -20,6 +20,16 @@
     border-radius: var(--cv-radius-md);
     background: var(--cv-surface-raised); color: var(--cv-ink-primary);
   }
+  /* A native select keeps the platform's own light chrome unless every part
+     of it is named, and one bright control in a dark table is the thing the
+     eye goes to first. */
+  select {
+    padding: 4px 8px; font-size: 12px; font-family: inherit; cursor: pointer;
+    background: var(--cv-surface-canvas); color: var(--cv-ink-primary);
+    border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-md);
+  }
+  select:disabled { color: var(--cv-ink-disabled); cursor: default; }
   main { max-width: 900px; margin: 24px auto; padding: 0 16px; }
   .panel { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
