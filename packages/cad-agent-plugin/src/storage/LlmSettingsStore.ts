@@ -2,6 +2,13 @@ import { decryptApiKey, encryptApiKey } from './apiKeyCrypto'
 
 /** Supported LLM API backends for the CAD agent. */
 export type LlmProviderId =
+  /**
+   * This deployment's own proxy — the default, and the only option that keeps
+   * the provider key off the browser. The others call a provider directly
+   * with a key this machine holds, which is why they are no longer offered in
+   * the settings UI even though the code still supports them.
+   */
+  | 'proxy'
   | 'openai'
   | 'anthropic'
   | 'openai-compatible'
