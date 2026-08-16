@@ -37,6 +37,7 @@
     "@mlightcad/cad-html-plugin": "workspace:*",
     "@mlightcad/cad-pdf-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
+    "@mlightcad/cad-storage-plugin": "workspace:*",
     "@mlightcad/cad-viewer": "workspace:*",
     "@mlightcad/data-model": "^1.12.5",
     "@mlightcad/mtext-renderer": "^0.12.4",

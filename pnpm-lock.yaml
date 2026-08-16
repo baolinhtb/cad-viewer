@@ -487,6 +487,9 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
+      '@mlightcad/cad-storage-plugin':
+        specifier: workspace:*
+        version: link:../cad-storage-plugin
       '@mlightcad/cad-viewer':
         specifier: workspace:*
         version: link:../cad-viewer

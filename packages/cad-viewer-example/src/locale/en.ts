@@ -10,6 +10,11 @@ export default {
     }
   },
   fileUpload: {
+    recentTitle: 'Recent drawings',
+    recentEmpty: 'No saved drawings yet',
+    recentFailed: 'Could not load saved drawings',
+    recentLoading: 'Loading…',
+    recentOpen: 'Open',
     title: 'Select CAD File to View',
     subtitle: 'Import DWG or DXF drawings into the viewer',
     newDrawing: 'New Drawing',

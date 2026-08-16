@@ -48,6 +48,31 @@
               </div>
             </div>
           </el-upload>
+
+          <section class="recent">
+            <h2 class="recent-title">{{ t('fileUpload.recentTitle') }}</h2>
+            <p v-if="recentState === 'loading'" class="recent-note">
+              {{ t('fileUpload.recentLoading') }}
+            </p>
+            <p v-else-if="recentState === 'failed'" class="recent-note">
+              {{ t('fileUpload.recentFailed') }}
+            </p>
+            <p v-else-if="recent.length === 0" class="recent-note">
+              {{ t('fileUpload.recentEmpty') }}
+            </p>
+            <ul v-else class="recent-list">
+              <li v-for="item in recent" :key="item.id">
+                <button
+                  type="button"
+                  class="recent-item"
+                  @click="emitOpen(item.id)"
+                >
+                  <span class="recent-name">{{ item.name }}</span>
+                  <span class="recent-meta">{{ item.updated_at }}</span>
+                </button>
+              </li>
+            </ul>
+          </section>
         </div>
       </div>
 
@@ -210,7 +235,7 @@ import { AcApOpenViewMode, AcEdOpenMode } from '@mlightcad/cad-simple-viewer'
 import { log } from '@mlightcad/data-model'
 import type { UploadFile, UploadProps } from 'element-plus'
 import { ElIcon, ElUpload } from 'element-plus'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface Props {
@@ -229,6 +254,21 @@ interface Props {
     progressiveRendering: boolean,
     openViewMode: AcApOpenViewMode | undefined
   ) => void
+  onOpenDrawing?: (
+    id: string,
+    mode: AcEdOpenMode,
+    useMainThreadDraw: boolean,
+    drawNoPlotLayers: boolean,
+    progressiveRendering: boolean,
+    openViewMode: AcApOpenViewMode | undefined
+  ) => void
+}
+
+/** One row of the recent list, as `/api/drawings` returns it. */
+interface RecentDrawing {
+  id: string
+  name: string
+  updated_at: string
 }
 
 const props = defineProps<Props>()
@@ -241,6 +281,44 @@ const selectedOpenViewMode = ref<OpenViewModeChoice>('auto')
 const useMainThreadDraw = ref(false)
 const drawNoPlotLayers = ref(false)
 const progressiveRendering = ref(false)
+
+/**
+ * Drawings already on the server.
+ *
+ * Auto-save has been storing every generated drawing since Story 1.10, but
+ * nothing ever offered them back — closing the tab left the work saved and
+ * unreachable, which is worse than not saving it, because it looks safe.
+ * This is the way back in.
+ */
+const recent = ref<RecentDrawing[]>([])
+const recentState = ref<'loading' | 'ready' | 'failed'>('loading')
+
+onMounted(async () => {
+  try {
+    const response = await fetch('/api/drawings', {
+      credentials: 'same-origin'
+    })
+    if (!response.ok) throw new Error(String(response.status))
+    const body = (await response.json()) as { drawings?: RecentDrawing[] }
+    recent.value = (body.drawings ?? []).slice(0, 8)
+    recentState.value = 'ready'
+  } catch {
+    // A listing that cannot load must not block the two ways in that need no
+    // server at all.
+    recentState.value = 'failed'
+  }
+})
+
+const emitOpen = (id: string) => {
+  props.onOpenDrawing?.(
+    id,
+    selectedMode.value,
+    useMainThreadDraw.value,
+    drawNoPlotLayers.value,
+    progressiveRendering.value,
+    resolveOpenViewMode()
+  )
+}
 
 // Labels are resolved through `t` in the template rather than baked in here,
 // so switching language re-renders them instead of needing a reload.
@@ -636,5 +714,67 @@ const isValidFile = (file: File): boolean => {
   .setting-block--full {
     grid-column: auto;
   }
+}
+
+.recent {
+  margin-top: var(--cv-space-5, 16px);
+  border-top: 1px solid var(--cv-border-hairline, #262c35);
+  padding-top: var(--cv-space-4, 12px);
+}
+
+.recent-title {
+  margin: 0 0 var(--cv-space-3, 8px);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cv-ink-secondary, #9aa3ae);
+}
+
+.recent-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cv-ink-disabled, #6b7380);
+}
+
+.recent-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--cv-space-4, 12px);
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--cv-radius-sm, 2px);
+  background: transparent;
+  color: var(--cv-ink-primary, #e8ecf1);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-item:hover {
+  background: var(--cv-surface-raised, #1b2028);
+  border-color: var(--cv-border-hairline, #262c35);
+}
+
+/* A timestamp is a value, so it reads in the mono face. */
+.recent-meta {
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--cv-ink-secondary, #9aa3ae);
+  white-space: nowrap;
 }
 </style>
