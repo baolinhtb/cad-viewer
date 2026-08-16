@@ -1,0 +1,297 @@
+/**
+ * The standardisation layer: what the trade's words mean, and which layer each
+ * kind of part is drawn on.
+ *
+ * This is the table an assistant reads to turn "nâng lan can lên 1.27m" into a
+ * `role` it can look for in a drawing. It is deliberately data rather than
+ * code: the company adds a term the day it needs one, without waiting for a
+ * release. Every member may edit it — a standard only stays accurate if the
+ * people using it can correct it.
+ */
+
+/** Error codes clients map to messages; never show the raw string to a user. */
+export const ERRORS = {
+  NOT_FOUND: 'standard_not_found',
+  DUPLICATE: 'standard_duplicate',
+  ALIAS_CONFLICT: 'standard_alias_conflict',
+  INVALID: 'standard_invalid'
+}
+
+/** Roles are matched by machine, so they are ASCII slugs with no diacritics. */
+const ROLE_SLUG = /^[a-z0-9_]+$/
+
+/**
+ * Layer names follow the drafting convention already in use (`KC-BAN`), which
+ * AutoCAD treats case-insensitively — so uniqueness has to ignore case too, or
+ * `KC-Ban` and `KC-BAN` become two rows describing one layer.
+ */
+const LAYER_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
+
+class StandardsError extends Error {
+  constructor(code, detail) {
+    super(code)
+    this.code = code
+    this.detail = detail
+  }
+}
+
+/** Comparison form for an alias: case and surrounding space carry no meaning. */
+function normalizeAlias(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+}
+
+function parseAliases(raw) {
+  try {
+    const parsed = JSON.parse(raw ?? '[]')
+    return Array.isArray(parsed) ? parsed.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+function rowToTerm(row) {
+  return {
+    role: row.role,
+    label: row.label,
+    aliases: parseAliases(row.aliases),
+    description: row.description ?? null,
+    entityKind: row.entity_kind ?? null,
+    updatedBy: row.updated_by ?? null,
+    updatedAt: row.updated_at
+  }
+}
+
+/**
+ * Lists terms, newest edits last so the list reads in a stable order.
+ *
+ * `search` matches the canonical label *and* the aliases, because someone
+ * looking for "tay vịn" will not find it by searching the word the dictionary
+ * happens to have chosen as canonical.
+ */
+export function listTerms(db, { search } = {}) {
+  const rows = db
+    .prepare(`SELECT * FROM standard_terms ORDER BY role`)
+    .all()
+    .map(rowToTerm)
+
+  if (!search) return rows
+  const needle = normalizeAlias(search)
+  return rows.filter(
+    term =>
+      term.role.includes(needle) ||
+      normalizeAlias(term.label).includes(needle) ||
+      term.aliases.some(alias => normalizeAlias(alias).includes(needle))
+  )
+}
+
+export function getTerm(db, role) {
+  const row = db
+    .prepare(`SELECT * FROM standard_terms WHERE role = ?`)
+    .get(String(role ?? ''))
+  return row ? rowToTerm(row) : undefined
+}
+
+/**
+ * Finds every term that already claims one of these aliases.
+ *
+ * Run on the server because only the server sees the whole dictionary: a
+ * check in the browser can only compare against the rows that happen to be
+ * loaded, which is exactly when a conflict slips through.
+ */
+function findAliasConflicts(db, aliases, exceptRole) {
+  const wanted = new Set(aliases.map(normalizeAlias).filter(Boolean))
+  if (wanted.size === 0) return []
+
+  const conflicts = []
+  for (const row of db.prepare(`SELECT * FROM standard_terms`).all()) {
+    if (row.role === exceptRole) continue
+    const taken = [row.label, ...parseAliases(row.aliases)].map(normalizeAlias)
+    const clashing = [...wanted].filter(alias => taken.includes(alias))
+    if (clashing.length > 0) conflicts.push({ role: row.role, aliases: clashing })
+  }
+  return conflicts
+}
+
+function assertTermInput(db, input, { existingRole } = {}) {
+  const role = String(input.role ?? '').trim()
+  if (!ROLE_SLUG.test(role)) {
+    throw new StandardsError(ERRORS.INVALID, {
+      field: 'role',
+      reason: 'Khóa phải là slug ASCII không dấu (a-z, 0-9, _)'
+    })
+  }
+
+  const label = String(input.label ?? '').trim()
+  if (!label) {
+    throw new StandardsError(ERRORS.INVALID, {
+      field: 'label',
+      reason: 'Tên chuẩn không được để trống'
+    })
+  }
+
+  const aliases = Array.isArray(input.aliases)
+    ? [...new Set(input.aliases.map(a => String(a).trim()).filter(Boolean))]
+    : []
+
+  // The canonical label is itself an alias for conflict purposes: two terms
+  // where one's label is the other's alias are just as ambiguous.
+  const conflicts = findAliasConflicts(db, [label, ...aliases], existingRole)
+  if (conflicts.length > 0) {
+    throw new StandardsError(ERRORS.ALIAS_CONFLICT, { conflicts })
+  }
+
+  return { role, label, aliases }
+}
+
+export function createTerm(db, userId, input) {
+  const { role, label, aliases } = assertTermInput(db, input)
+  if (getTerm(db, role)) {
+    throw new StandardsError(ERRORS.DUPLICATE, { field: 'role', value: role })
+  }
+
+  db.prepare(
+    `INSERT INTO standard_terms
+       (role, label, aliases, description, entity_kind, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+  ).run(
+    role,
+    label,
+    JSON.stringify(aliases),
+    input.description ?? null,
+    input.entityKind ?? null,
+    userId
+  )
+  return getTerm(db, role)
+}
+
+export function updateTerm(db, userId, role, input) {
+  const existing = getTerm(db, role)
+  if (!existing) throw new StandardsError(ERRORS.NOT_FOUND, { role })
+
+  const merged = assertTermInput(
+    db,
+    { role, label: input.label ?? existing.label, aliases: input.aliases ?? existing.aliases },
+    { existingRole: role }
+  )
+
+  db.prepare(
+    `UPDATE standard_terms
+        SET label = ?, aliases = ?, description = ?, entity_kind = ?,
+            updated_by = ?, updated_at = datetime('now')
+      WHERE role = ?`
+  ).run(
+    merged.label,
+    JSON.stringify(merged.aliases),
+    input.description ?? existing.description,
+    input.entityKind ?? existing.entityKind,
+    userId,
+    role
+  )
+  return getTerm(db, role)
+}
+
+export function deleteTerm(db, role) {
+  const result = db
+    .prepare(`DELETE FROM standard_terms WHERE role = ?`)
+    .run(String(role ?? ''))
+  return result.changes > 0
+}
+
+function rowToLayer(row) {
+  return {
+    name: row.name,
+    meaning: row.meaning,
+    color: row.color ?? null,
+    lineType: row.line_type ?? null,
+    updatedBy: row.updated_by ?? null,
+    updatedAt: row.updated_at
+  }
+}
+
+export function listLayers(db) {
+  return db
+    .prepare(`SELECT * FROM standard_layers ORDER BY name`)
+    .all()
+    .map(rowToLayer)
+}
+
+export function getLayer(db, name) {
+  const row = db
+    .prepare(`SELECT * FROM standard_layers WHERE lower(name) = lower(?)`)
+    .get(String(name ?? ''))
+  return row ? rowToLayer(row) : undefined
+}
+
+function assertLayerInput(input) {
+  const name = String(input.name ?? '').trim()
+  if (!LAYER_NAME.test(name)) {
+    throw new StandardsError(ERRORS.INVALID, {
+      field: 'name',
+      reason: 'Tên layer chỉ gồm chữ, số, gạch ngang và gạch dưới'
+    })
+  }
+  const meaning = String(input.meaning ?? '').trim()
+  if (!meaning) {
+    throw new StandardsError(ERRORS.INVALID, {
+      field: 'meaning',
+      reason: 'Ý nghĩa của layer không được để trống'
+    })
+  }
+  return { name, meaning }
+}
+
+export function createLayer(db, userId, input) {
+  const { name, meaning } = assertLayerInput(input)
+  if (getLayer(db, name)) {
+    throw new StandardsError(ERRORS.DUPLICATE, { field: 'name', value: name })
+  }
+  db.prepare(
+    `INSERT INTO standard_layers
+       (name, meaning, color, line_type, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+  ).run(name, meaning, input.color ?? null, input.lineType ?? null, userId)
+  return getLayer(db, name)
+}
+
+export function updateLayer(db, userId, name, input) {
+  const existing = getLayer(db, name)
+  if (!existing) throw new StandardsError(ERRORS.NOT_FOUND, { name })
+
+  db.prepare(
+    `UPDATE standard_layers
+        SET meaning = ?, color = ?, line_type = ?,
+            updated_by = ?, updated_at = datetime('now')
+      WHERE lower(name) = lower(?)`
+  ).run(
+    String(input.meaning ?? existing.meaning).trim() || existing.meaning,
+    input.color ?? existing.color,
+    input.lineType ?? existing.lineType,
+    userId,
+    name
+  )
+  return getLayer(db, name)
+}
+
+export function deleteLayer(db, name) {
+  const result = db
+    .prepare(`DELETE FROM standard_layers WHERE lower(name) = lower(?)`)
+    .run(String(name ?? ''))
+  return result.changes > 0
+}
+
+/**
+ * Reports terms whose layer is missing from the catalogue.
+ *
+ * A role with no layer cannot be drawn, so this is the check a template upload
+ * runs before being accepted (Story 2.5).
+ */
+export function findRolesWithoutLayer(db, roleLayers) {
+  const known = new Set(listLayers(db).map(layer => layer.name.toLowerCase()))
+  return Object.entries(roleLayers)
+    .filter(([, layer]) => !known.has(String(layer).toLowerCase()))
+    .map(([role, layer]) => ({ role, layer }))
+}
+
+export { StandardsError }

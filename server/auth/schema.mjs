@@ -11,6 +11,35 @@
  * make it safe to run on a database that already carries real drawings.
  */
 
+/**
+ * The seed standardisation set, mirroring `SEED_ROLES` / `SEED_ROLE_LAYERS` in
+ * `cad-template-sdk`.
+ *
+ * Duplicated here rather than imported: the service runs on plain Node with no
+ * bundler and must not depend on a browser package. The SDK constants stay the
+ * compile-time contract for template authors; these are the runtime seed for a
+ * fresh database. A test pins the two together.
+ *
+ * Aliases are the words engineers actually use for the same part. They are
+ * deliberately sparse — the company fills them in, and guessing on their
+ * behalf is how a dictionary ends up describing nobody's drawings.
+ */
+export const SEED_STANDARDS = {
+  ban_mat_cau: { label: 'Bản mặt cầu', layer: 'KC-BAN', aliases: ['bản mặt cầu', 'bản'] },
+  lop_phu: { label: 'Lớp phủ mặt cầu', layer: 'KC-LOPPHU', aliases: ['lớp phủ', 'bê tông nhựa'] },
+  lan_can: { label: 'Lan can', layer: 'KC-LANCAN', aliases: ['lan can', 'tay vịn'] },
+  go_chan_banh: { label: 'Gờ chắn bánh', layer: 'KC-GOCHAN', aliases: ['gờ chắn bánh', 'gờ chắn'] },
+  ban_qua_do: { label: 'Bản quá độ', layer: 'KC-BANQUADO', aliases: ['bản quá độ'] },
+  mo_cau: { label: 'Mố cầu', layer: 'KC-MO', aliases: ['mố', 'mố cầu'] },
+  goi_cau: { label: 'Gối cầu', layer: 'KC-GOI', aliases: ['gối', 'gối cầu'] },
+  khe_co_gian: { label: 'Khe co giãn', layer: 'KC-KHE', aliases: ['khe co giãn', 'khe'] },
+  ong_thoat_nuoc: { label: 'Ống thoát nước', layer: 'KT-THOATNUOC', aliases: ['ống thoát nước', 'ống thoát'] },
+  cot_thep: { label: 'Cốt thép', layer: 'KC-COTTHEP', aliases: ['cốt thép', 'thép'] },
+  duong_tim: { label: 'Đường tim', layer: 'TRUC-TIM', aliases: ['tim cầu', 'đường tim'] },
+  kich_thuoc: { label: 'Đường kích thước', layer: 'GC-KICHTHUOC', aliases: ['kích thước', 'cột kích thước'] },
+  ghi_chu: { label: 'Ghi chú', layer: 'GC-GHICHU', aliases: ['ghi chú', 'chú thích'] }
+}
+
 /** Ordered migrations. Index + 1 is the resulting `user_version`. */
 const MIGRATIONS = [
   // v1 — accounts and sessions (the shape that shipped first).
@@ -64,6 +93,58 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_drawings_batch
         ON drawings(owner_id, batch_id);
     `)
+  },
+
+  // v3 — the standardisation layer: trade terms and the layer catalogue.
+  //
+  // Until now these lived as constants in `cad-template-sdk`, which meant the
+  // company could not add a term without someone shipping a release. They are
+  // data, not code: an engineer who says "tay vịn" where the dictionary says
+  // "lan can" is describing the same rail, and only the company knows which
+  // words its own drawings use.
+  //
+  // `aliases` is a JSON array rather than a child table on purpose. It is read
+  // whole, written whole, never joined against, and never grows past a handful
+  // of entries per term — a table would buy nothing and cost a join on every
+  // lookup.
+  //
+  // Both tables record who last touched a row and when, because a standard
+  // nobody can attribute is a standard nobody will correct.
+  db => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS standard_terms (
+        role TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        aliases TEXT NOT NULL DEFAULT '[]',
+        description TEXT,
+        entity_kind TEXT,
+        updated_by INTEGER REFERENCES users(id),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS standard_layers (
+        name TEXT PRIMARY KEY,
+        meaning TEXT NOT NULL,
+        color INTEGER,
+        line_type TEXT,
+        updated_by INTEGER REFERENCES users(id),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `)
+
+    // Seeded from the constants the first template already draws against, so
+    // an existing deployment keeps working the moment it migrates rather than
+    // starting from an empty dictionary that matches nothing.
+    const term = db.prepare(
+      `INSERT OR IGNORE INTO standard_terms (role, label, aliases)
+       VALUES (?, ?, ?)`
+    )
+    const layer = db.prepare(
+      `INSERT OR IGNORE INTO standard_layers (name, meaning) VALUES (?, ?)`
+    )
+    for (const [role, seed] of Object.entries(SEED_STANDARDS)) {
+      term.run(role, seed.label, JSON.stringify(seed.aliases ?? []))
+      layer.run(seed.layer, seed.label)
+    }
   }
 ]
 
