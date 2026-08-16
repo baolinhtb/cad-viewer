@@ -87,8 +87,25 @@ const drawNoPlotLayers = ref(false)
 const progressiveRendering = ref(false)
 const openViewMode = ref<AcApOpenViewMode | undefined>(undefined)
 
+/**
+ * Template for new drawings, served from this app rather than the shared CDN.
+ *
+ * It is the stock `acadiso.dxf` with its two paper-space layouts renamed from
+ * 布局1 / 布局2 to Layout1 / Layout2 — the upstream file ships Chinese names,
+ * which then became the tab labels of every new drawing here. Renaming after
+ * the fact does not work: the tab list snapshots the names when the document
+ * activates, and nothing re-reads them. Fixing the template is the only place
+ * the change actually lands.
+ *
+ * Resolved against `document.baseURI` so it follows the app wherever it is
+ * mounted.
+ */
+const NEW_DRAWING_TEMPLATE = new URL('templates/acadiso.dxf', document.baseURI)
+  .href
+
 const createNewDrawing = async () => {
   const success = await AcApDocManager.instance.newDocument({
+    templateUrl: NEW_DRAWING_TEMPLATE,
     mode: selectedMode.value,
     drawNoPlotLayers: drawNoPlotLayers.value,
     progressiveRendering: progressiveRendering.value,
