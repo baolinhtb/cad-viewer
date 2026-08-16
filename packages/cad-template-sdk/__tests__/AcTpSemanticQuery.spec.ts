@@ -293,7 +293,8 @@ describe('naming a part back to an engineer', () => {
         partId: 'lan_can_phai',
         side: 'phai',
         layers: [],
-        entityCount: 1
+        entityCount: 1,
+        objectIds: []
       })
     ).toBe('Lan can bên phải')
 
@@ -304,7 +305,8 @@ describe('naming a part back to an engineer', () => {
         partId: 'ong_thoat_nuoc_03',
         ordinal: 3,
         layers: [],
-        entityCount: 1
+        entityCount: 1,
+        objectIds: []
       })
     ).toBe('Ống thoát nước số 3')
   })

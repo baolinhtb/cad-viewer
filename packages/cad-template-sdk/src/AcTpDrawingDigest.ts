@@ -38,6 +38,15 @@ export interface AcTpPartSummary {
   /** Layers the part's entities sit on. More than one is legal but unusual. */
   layers: string[]
   entityCount: number
+  /**
+   * Ids of the entities that make up this part.
+   *
+   * Carried so a caller can select or modify the part without walking the
+   * database again — and, more importantly, without matching on geometry.
+   * Re-finding a part by coordinates is exactly the fragile addressing the
+   * semantic tag exists to replace.
+   */
+  objectIds: string[]
   bounds?: AcTpBounds
   /** Values the template recorded for this part, merged across its entities. */
   params?: Record<string, number | string | boolean>
@@ -148,12 +157,14 @@ export function readDrawingDigest(
         ...(parsed?.side ? { side: parsed.side } : {}),
         ...(parsed?.ordinal !== undefined ? { ordinal: parsed.ordinal } : {}),
         layers: [],
-        entityCount: 0
+        entityCount: 0,
+        objectIds: []
       }
       byPartId.set(tag.partId, part)
     }
 
     part.entityCount++
+    if (entity.objectId) part.objectIds.push(entity.objectId)
     if (entity.layer && !part.layers.includes(entity.layer)) {
       part.layers.push(entity.layer)
     }
