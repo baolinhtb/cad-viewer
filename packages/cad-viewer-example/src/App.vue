@@ -5,6 +5,7 @@
       <FileUpload
         @file-select="handleFileSelect"
         @new-drawing="handleNewDrawing"
+        @open-drawing="handleOpenDrawing"
       />
     </div>
 
@@ -33,6 +34,7 @@ import {
   AcEdCommandStack,
   AcEdOpenMode
 } from '@mlightcad/cad-simple-viewer'
+import { attachDrawing } from '@mlightcad/cad-storage-plugin'
 import { MlCadViewer } from '@mlightcad/cad-viewer'
 import { log } from '@mlightcad/data-model'
 import { computed, nextTick, ref } from 'vue'
@@ -88,6 +90,18 @@ const progressiveRendering = ref(false)
 const openViewMode = ref<AcApOpenViewMode | undefined>(undefined)
 
 /**
+ * Identity of a drawing reopened from the server.
+ *
+ * Held until the viewer exists, then handed to the auto-saver. Without it the
+ * next save would create a second row instead of updating the one just
+ * opened, and the drawing would fork every time it was reopened.
+ */
+const reopened = ref<
+  | { id: string; revision: number; name: string; templateId?: string | null }
+  | undefined
+>()
+
+/**
  * Template for new drawings, served from this app rather than the shared CDN.
  *
  * It is the stock `acadiso.dxf` with its two paper-space layouts renamed from
@@ -121,6 +135,62 @@ const onViewerCreate = async () => {
   if (store.isNewDrawing) {
     await nextTick()
     await createNewDrawing()
+  }
+  if (reopened.value) {
+    await nextTick()
+    attachDrawing({
+      id: reopened.value.id,
+      revision: reopened.value.revision,
+      name: reopened.value.name,
+      templateId: reopened.value.templateId ?? null
+    })
+  }
+}
+
+/** Opens a drawing already stored on the server. */
+const handleOpenDrawing = async (
+  id: string,
+  mode: AcEdOpenMode,
+  mainThreadDraw: boolean,
+  showNoPlotLayers: boolean,
+  enableProgressiveRendering: boolean,
+  viewMode: AcApOpenViewMode | undefined
+) => {
+  try {
+    const response = await fetch(`/api/drawings/${encodeURIComponent(id)}`, {
+      credentials: 'same-origin'
+    })
+    if (!response.ok) throw new Error(String(response.status))
+    const drawing = (await response.json()) as {
+      id: string
+      name: string
+      revision: number
+      templateId?: string | null
+      dxf: string
+    }
+
+    // Reuses the ordinary open path rather than adding a second way to load a
+    // drawing: the stored DXF becomes a File and goes through exactly what an
+    // uploaded file goes through.
+    reopened.value = {
+      id: drawing.id,
+      revision: drawing.revision,
+      name: drawing.name,
+      templateId: drawing.templateId
+    }
+    store.isNewDrawing = false
+    store.selectedFile = new File([drawing.dxf], `${drawing.name}.dxf`, {
+      type: 'image/vnd.dxf'
+    })
+    applyOpenOptions(
+      mode,
+      mainThreadDraw,
+      showNoPlotLayers,
+      enableProgressiveRendering,
+      viewMode
+    )
+  } catch (error) {
+    log.error('Failed to open stored drawing', error)
   }
 }
 

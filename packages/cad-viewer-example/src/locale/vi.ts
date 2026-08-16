@@ -10,6 +10,11 @@ export default {
     }
   },
   fileUpload: {
+    recentTitle: 'Bản vẽ gần đây',
+    recentEmpty: 'Chưa có bản vẽ nào được lưu',
+    recentFailed: 'Không tải được danh sách bản vẽ đã lưu',
+    recentLoading: 'Đang tải…',
+    recentOpen: 'Mở',
     title: 'Chọn tệp CAD để mở',
     subtitle: 'Nạp bản vẽ DWG hoặc DXF vào trình xem',
     newDrawing: 'Bản vẽ mới',
