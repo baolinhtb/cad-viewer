@@ -10,7 +10,8 @@ import {
   listTemplates,
   refreshTemplateLibrary,
   renderTemplatePreview,
-  runTemplate
+  runTemplate,
+  uploadTemplateModule
 } from '@mlightcad/cad-template-plugin'
 // Imported explicitly, like every other component here. Without it Vue cannot
 // resolve `<el-dialog>` and friends, and renders nothing at all — in a
@@ -73,7 +74,10 @@ const syncTemplates = async () => {
 }
 
 watch(visible, isOpen => {
-  if (isOpen) void syncTemplates()
+  if (isOpen) {
+    void syncTemplates()
+    void checkRole()
+  }
 })
 
 /** Structure categories present in the library, plus an "all" entry. */
@@ -118,6 +122,62 @@ const previewOf = (item: AcTpTemplate): AcApTemplatePreview => {
  * an engineer rule a template out before opening it, not to reproduce the
  * form on the card.
  */
+/**
+ * Whether this member may upload templates.
+ *
+ * Asked of the server rather than assumed. Hiding the control is a courtesy to
+ * members who cannot use it, not a permission — the route refuses them
+ * regardless, which is where the actual boundary lives.
+ */
+const canUpload = ref(false)
+const uploading = ref(false)
+const uploadNote = ref('')
+const uploadError = ref('')
+
+const checkRole = async () => {
+  try {
+    const response = await fetch('/api/auth/me', { credentials: 'same-origin' })
+    if (!response.ok) return
+    const me = (await response.json()) as { role?: string }
+    canUpload.value = me.role === 'author' || me.role === 'admin'
+  } catch {
+    canUpload.value = false
+  }
+}
+
+const onPickModule = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  input.value = ''
+
+  uploading.value = true
+  uploadError.value = ''
+  uploadNote.value = ''
+  try {
+    const outcome = await uploadTemplateModule(await file.text())
+    const gaps = [
+      ...outcome.missingRoles.map(role => `vai trò ${role}`),
+      ...outcome.missingLayers.map(gap => `layer ${gap.layer}`)
+    ]
+    uploadNote.value =
+      t('dialog.templateDlg.uploaded', {
+        name: outcome.templateId,
+        version: outcome.version,
+        count: outcome.entityCount
+      }) +
+      (gaps.length
+        ? ` ${t('dialog.templateDlg.uploadGaps', { gaps: gaps.join(', ') })}`
+        : '')
+    templates.value = listTemplates()
+    selectedId.value = outcome.templateId
+  } catch (error) {
+    uploadError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    uploading.value = false
+  }
+}
+
 const rangeSummary = (item: AcTpTemplate): string =>
   item.params
     .filter(spec => spec.min !== undefined && spec.max !== undefined)
@@ -272,6 +332,31 @@ async function generate() {
               </button>
             </li>
           </ul>
+
+          <div v-if="canUpload" class="ml-template-dlg__upload">
+            <label class="ml-template-dlg__upload-btn">
+              <input
+                type="file"
+                accept=".js,.mjs,text/javascript"
+                :disabled="uploading"
+                @change="onPickModule"
+              />
+              {{
+                uploading
+                  ? t('dialog.templateDlg.uploading')
+                  : t('dialog.templateDlg.upload')
+              }}
+            </label>
+            <span class="ml-template-dlg__upload-hint">
+              {{ t('dialog.templateDlg.uploadHint') }}
+            </span>
+          </div>
+          <p v-if="uploadNote" class="ml-template-dlg__upload-ok">
+            {{ uploadNote }}
+          </p>
+          <p v-if="uploadError" class="ml-template-dlg__upload-err">
+            {{ uploadError }}
+          </p>
         </div>
       </el-form-item>
 
@@ -537,5 +622,53 @@ async function generate() {
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   color: var(--cv-ink-secondary);
+}
+
+/* --- Uploading a template ------------------------------------------------
+   Author-only, and only as a courtesy: the route refuses everyone else
+   regardless, which is where the boundary actually lives. */
+.ml-template-dlg__upload {
+  display: flex;
+  align-items: center;
+  gap: var(--cv-space-3);
+  margin-top: var(--cv-space-3);
+  padding-top: var(--cv-space-3);
+  border-top: 1px solid var(--cv-border-hairline);
+}
+
+.ml-template-dlg__upload-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--cv-border-hairline);
+  border-radius: var(--cv-radius-md);
+  color: var(--cv-ink-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ml-template-dlg__upload-btn:hover {
+  border-color: var(--cv-accent);
+  color: var(--cv-accent);
+}
+
+.ml-template-dlg__upload-btn input {
+  display: none;
+}
+
+.ml-template-dlg__upload-hint,
+.ml-template-dlg__upload-ok,
+.ml-template-dlg__upload-err {
+  font-size: 12px;
+  color: var(--cv-ink-secondary);
+}
+
+.ml-template-dlg__upload-ok {
+  margin: var(--cv-space-2) 0 0;
+  color: var(--cv-accent);
+}
+
+/* Amber, not red: the upload worked, something in the standards is missing. */
+.ml-template-dlg__upload-err {
+  margin: var(--cv-space-2) 0 0;
+  color: var(--cv-warning);
 }
 </style>

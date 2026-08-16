@@ -11,6 +11,11 @@
  */
 export default {
   templateDlg: {
+    upload: 'Nạp template lên…',
+    uploading: 'Đang chạy thử…',
+    uploadHint: 'Module được chạy thử trước khi lưu.',
+    uploaded: 'Đã nạp {name} {version}: vẽ được {count} đối tượng.',
+    uploadGaps: 'Chưa có trong nền chuẩn hóa: {gaps}.',
     title: 'Sinh bản vẽ từ template',
     template: 'Template',
     allCategories: 'Tất cả',
