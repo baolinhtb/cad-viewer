@@ -114,9 +114,9 @@ describe('reading a drawing back into addressable parts', () => {
     })
     // The rail records the datum its height is measured from, which is the
     // known ambiguity in the term list.
-    expect(findParts(digest, { role: 'lan_can', side: 'trai' })[0].params).toEqual(
-      { hLanCan: 1270, mocDo: 'mat_lop_phu' }
-    )
+    expect(
+      findParts(digest, { role: 'lan_can', side: 'trai' })[0].params
+    ).toEqual({ hLanCan: 1270, mocDo: 'mat_lop_phu' })
   })
 
   test('bounds cover every entity of a part', () => {
@@ -188,5 +188,25 @@ describe('surviving a save', () => {
     expect(after.parts.map(p => p.params)).toEqual(
       before.parts.map(p => p.params)
     )
+  })
+})
+
+describe('addressing a part without touching geometry', () => {
+  test('a part carries the ids of its own entities', () => {
+    // Re-finding a part by coordinates is the fragile addressing the semantic
+    // tag exists to replace, so the ids travel with the part.
+    const digest = digestOfSection()
+    const rail = findParts(digest, { role: 'lan_can', side: 'trai' })[0]
+    expect(rail.objectIds).toHaveLength(rail.entityCount)
+    expect(
+      rail.objectIds.every(id => typeof id === 'string' && id.length > 0)
+    ).toBe(true)
+  })
+
+  test('no id belongs to two parts', () => {
+    // An id in two parts would make "edit the left rail" touch the right one.
+    const digest = digestOfSection()
+    const all = digest.parts.flatMap(part => part.objectIds)
+    expect(new Set(all).size).toBe(all.length)
   })
 })
