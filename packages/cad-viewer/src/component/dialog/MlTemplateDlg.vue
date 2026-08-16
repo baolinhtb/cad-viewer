@@ -7,6 +7,7 @@ import type {
 import {
   defaultValues,
   listTemplates,
+  refreshTemplateLibrary,
   runTemplate
 } from '@mlightcad/cad-template-plugin'
 // Imported explicitly, like every other component here. Without it Vue cannot
@@ -40,11 +41,38 @@ const visible = computed({
   set: (value: boolean) => toggleDialog('TemplateDlg', value)
 })
 
-const templates = listTemplates()
-const selectedId = ref<string>(templates[0]?.meta.id ?? '')
+/**
+ * Templates offered by the picker.
+ *
+ * Read into a ref rather than a plain const: the library loads over the
+ * network after the dialog component is created, so a value captured at setup
+ * shows only the built-in templates forever — which is exactly how an
+ * uploaded template stayed invisible until this was found.
+ */
+const templates = ref<readonly AcTpTemplate[]>(listTemplates())
+const selectedId = ref<string>(templates.value[0]?.meta.id ?? '')
 const selected = computed<AcTpTemplate | undefined>(() =>
-  templates.find(item => item.meta.id === selectedId.value)
+  templates.value.find(item => item.meta.id === selectedId.value)
 )
+
+/**
+ * Re-reads the registry, then refetches the library behind it.
+ *
+ * The synchronous read makes the picker correct immediately; the refetch is
+ * what makes a template uploaded during this session appear without a reload.
+ * Ordering them this way keeps opening the dialog instant even on a slow link.
+ */
+const syncTemplates = async () => {
+  templates.value = listTemplates()
+  if (!selectedId.value) selectedId.value = templates.value[0]?.meta.id ?? ''
+  await refreshTemplateLibrary()
+  templates.value = listTemplates()
+  if (!selectedId.value) selectedId.value = templates.value[0]?.meta.id ?? ''
+}
+
+watch(visible, isOpen => {
+  if (isOpen) void syncTemplates()
+})
 
 const values = ref<Record<string, number | string | boolean>>({})
 const errors = ref<string[]>([])
