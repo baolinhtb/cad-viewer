@@ -150,7 +150,22 @@ function rateLimited(req) {
 const PAGES = {
   '/login': readFileSync(join(__dirname, 'public/login.html')),
   '/register': readFileSync(join(__dirname, 'public/register.html')),
-  '/admin': readFileSync(join(__dirname, 'public/admin.html'))
+  '/admin': readFileSync(join(__dirname, 'public/admin.html')),
+  '/standards': readFileSync(join(__dirname, 'public/standards.html'))
+}
+
+/**
+ * Static assets these pages share.
+ *
+ * Only the theme so far. Read once at startup like the pages themselves: the
+ * service serves a handful of files and a directory walk per request would be
+ * both slower and a path-traversal surface for no gain.
+ */
+const ASSETS = {
+  '/theme.css': {
+    type: 'text/css; charset=utf-8',
+    body: readFileSync(join(__dirname, 'public/theme.css'))
+  }
 }
 
 // --- routes ----------------------------------------------------------------
@@ -165,6 +180,15 @@ const server = createServer(async (req, res) => {
         'Cache-Control': 'no-store'
       })
       res.end(PAGES[path])
+      return
+    }
+
+    if (req.method === 'GET' && ASSETS[path]) {
+      res.writeHead(200, {
+        'Content-Type': ASSETS[path].type,
+        'Cache-Control': 'no-cache'
+      })
+      res.end(ASSETS[path].body)
       return
     }
 

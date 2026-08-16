@@ -23,7 +23,8 @@ export default {
     exportPdf: 'Xuất ra PDF',
     exportSvg: 'Xuất ra SVG',
     exportImage: 'Xuất ra ảnh',
-    about: 'Giới thiệu'
+    about: 'Giới thiệu',
+    standards: 'Nền chuẩn hóa'
   },
   ribbon: {
     tab: {

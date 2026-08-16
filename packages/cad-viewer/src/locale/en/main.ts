@@ -10,7 +10,8 @@ export default {
     exportPdf: 'Export to PDF',
     exportSvg: 'Export to SVG',
     exportImage: 'Export to Image',
-    about: 'About'
+    about: 'About',
+    standards: 'Standards'
   },
   ribbon: {
     tab: {
