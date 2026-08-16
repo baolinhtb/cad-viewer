@@ -26,7 +26,7 @@ import {
   updateLayer,
   updateTerm
 } from './standards.mjs'
-import { migrate } from './schema.mjs'
+import { hasRoleAtLeast, migrate, ROLES } from './schema.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 3000)
@@ -49,11 +49,11 @@ function seedAdmin() {
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
   if (existing) {
     db.prepare(
-      "UPDATE users SET pass_hash = ?, salt = ?, status = 'active', is_admin = 1 WHERE id = ?"
+      "UPDATE users SET pass_hash = ?, salt = ?, status = 'active', role = 'admin' WHERE id = ?"
     ).run(hash, salt, existing.id)
   } else {
     db.prepare(
-      "INSERT INTO users (email, name, pass_hash, salt, status, is_admin) VALUES (?, ?, ?, ?, 'active', 1)"
+      "INSERT INTO users (email, name, pass_hash, salt, status, role) VALUES (?, ?, ?, ?, 'active', 'admin')"
     ).run(email, 'Administrator', hash, salt)
   }
 }
@@ -108,7 +108,7 @@ function currentUser(req) {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null
   const row = db
     .prepare(
-      `SELECT u.id, u.email, u.name, u.status, u.is_admin
+      `SELECT u.id, u.email, u.name, u.status, u.role
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.expires_at > ?`
     )
@@ -184,7 +184,8 @@ const server = createServer(async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        isAdmin: !!user.is_admin
+        role: user.role,
+        isAdmin: user.role === ROLES.ADMIN
       })
       return
     }
@@ -260,7 +261,11 @@ const server = createServer(async (req, res) => {
         'INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)'
       ).run(token, user.id, now + SESSION_TTL_MS)
       setSessionCookie(req, res, token, SESSION_TTL_MS / 1000)
-      json(res, 200, { message: 'ok', isAdmin: !!user.is_admin })
+      json(res, 200, {
+        message: 'ok',
+        role: user.role,
+        isAdmin: user.role === ROLES.ADMIN
+      })
       return
     }
 
@@ -275,7 +280,7 @@ const server = createServer(async (req, res) => {
     // --- admin ---
     if (path.startsWith('/api/admin/')) {
       const user = currentUser(req)
-      if (!user || !user.is_admin) {
+      if (!user || !hasRoleAtLeast(user.role, ROLES.ADMIN)) {
         json(res, user ? 403 : 401, { error: 'forbidden' })
         return
       }
@@ -283,10 +288,44 @@ const server = createServer(async (req, res) => {
       if (req.method === 'GET' && path === '/api/admin/users') {
         const users = db
           .prepare(
-            'SELECT id, email, name, status, is_admin, created_at FROM users ORDER BY created_at DESC'
+            'SELECT id, email, name, status, role, created_at FROM users ORDER BY created_at DESC'
           )
           .all()
         json(res, 200, { users })
+        return
+      }
+
+      // Role changes are an administrator's call, and demoting yourself is
+      // refused for the same reason as deactivating yourself: it is the one
+      // move that cannot be undone from inside the application.
+      const roleMatch = path.match(/^\/api\/admin\/users\/(\d+)\/role$/)
+      if (req.method === 'POST' && roleMatch) {
+        const targetId = Number(roleMatch[1])
+        const body = await readBody(req)
+        const role = String(body.role ?? '')
+        if (!Object.values(ROLES).includes(role)) {
+          json(res, 400, {
+            error: 'Vai trò không hợp lệ.',
+            code: 'invalid_role',
+            detail: { allowed: Object.values(ROLES) }
+          })
+          return
+        }
+        if (targetId === user.id && role !== ROLES.ADMIN) {
+          json(res, 400, {
+            error: 'Không thể tự hạ quyền của chính mình.',
+            code: 'cannot_demote_self'
+          })
+          return
+        }
+        const changed = db
+          .prepare('UPDATE users SET role = ? WHERE id = ?')
+          .run(role, targetId)
+        if (!changed.changes) {
+          json(res, 404, { error: 'Không tìm thấy người dùng.', code: 'user_not_found' })
+          return
+        }
+        json(res, 200, { message: 'ok', id: targetId, role })
         return
       }
 
