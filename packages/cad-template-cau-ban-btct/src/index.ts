@@ -1,7 +1,9 @@
-import type {
-  AcTpDrawContext,
-  AcTpParamValues,
-  AcTpTemplate
+import {
+  type AcTpDrawContext,
+  type AcTpParamValues,
+  type AcTpSide,
+  type AcTpTemplate,
+  formatPartId
 } from '@mlightcad/cad-template-sdk'
 
 /**
@@ -148,7 +150,8 @@ const template: AcTpTemplate = {
     // --- Bản mặt cầu -------------------------------------------------------
     ctx.polyline({
       role: 'ban_mat_cau',
-      partId: 'bmc_01',
+      partId: formatPartId({ role: 'ban_mat_cau' }),
+      params: { B, h },
       closed: true,
       points: [
         { x: -half, y: 0, z: 0 },
@@ -161,7 +164,8 @@ const template: AcTpTemplate = {
     // --- Lớp phủ mặt cầu ---------------------------------------------------
     ctx.polyline({
       role: 'lop_phu',
-      partId: 'lp_01',
+      partId: formatPartId({ role: 'lop_phu' }),
+      params: { tLopPhu, doDocNgang: slope },
       closed: true,
       points: [
         { x: -half, y: 0, z: 0 },
@@ -174,13 +178,14 @@ const template: AcTpTemplate = {
 
     // --- Gờ chắn bánh và lan can hai bên -----------------------------------
     for (const side of [-1, 1] as const) {
-      const ben = side < 0 ? 'trai' : 'phai'
+      const ben: AcTpSide = side < 0 ? 'trai' : 'phai'
       const edge = side * half
       const inner = edge - side * bGoChan
 
       ctx.polyline({
         role: 'go_chan_banh',
-        partId: `gcb_${ben}_01`,
+        partId: formatPartId({ role: 'go_chan_banh', side: ben }),
+        params: { bGoChan, hGoChan },
         closed: true,
         points: [
           { x: edge, y: tEdge, z: 0 },
@@ -198,7 +203,10 @@ const template: AcTpTemplate = {
 
       ctx.polyline({
         role: 'lan_can',
-        partId: `lc_${ben}_01`,
+        // Height is recorded from the wearing surface, matching how it is
+        // drawn. Reading it back must not require knowing that.
+        params: { hLanCan, mocDo: 'mat_lop_phu' },
+        partId: formatPartId({ role: 'lan_can', side: ben }),
         points: [
           { x: railX, y: railBase, z: 0 },
           { x: railX, y: railTop, z: 0 },
@@ -208,14 +216,15 @@ const template: AcTpTemplate = {
     }
 
     // --- Ống thoát nước ----------------------------------------------------
+    // Spread the pipes evenly across the slab rather than bunching them at
+    // the centre: 2 pipes land at ±B/4, 4 pipes at ±B/8 and ±3B/8.
+    const step = B / (soOng + 1)
     for (let i = 0; i < soOng; i++) {
-      // Spread the pipes evenly across the slab rather than bunching them at
-      // the centre: 2 pipes land at ±B/4, 4 pipes at ±B/8 and ±3B/8.
-      const step = B / (soOng + 1)
       const x = -half + step * (i + 1)
       ctx.circle({
         role: 'ong_thoat_nuoc',
-        partId: `otn_${String(i + 1).padStart(2, '0')}`,
+        partId: formatPartId({ role: 'ong_thoat_nuoc', ordinal: i + 1 }),
+        params: { dOngThoatNuoc: rOng * 2, khoangCach: step },
         center: { x, y: -h - rOng, z: 0 },
         radius: rOng
       })
@@ -224,14 +233,14 @@ const template: AcTpTemplate = {
     // --- Đường tim và ghi chú ---------------------------------------------
     ctx.line({
       role: 'duong_tim',
-      partId: 'tim_01',
+      partId: formatPartId({ role: 'duong_tim' }),
       start: { x: 0, y: -h - 400, z: 0 },
       end: { x: 0, y: tEdge + hLanCan + 400, z: 0 }
     })
 
     ctx.text({
       role: 'ghi_chu',
-      partId: 'gc_tieude',
+      partId: formatPartId({ role: 'ghi_chu' }),
       position: { x: 0, y: -h - 900, z: 0 },
       text: 'MẶT CẮT NGANG',
       height: 200

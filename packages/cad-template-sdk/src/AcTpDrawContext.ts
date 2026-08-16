@@ -25,6 +25,14 @@ interface AcTpDrawBase {
   partId: string
   /** Layer to place it on. Defaults to the layer mapped to `role`. */
   layer?: string
+  /**
+   * Values that define this part — see {@link AcTpSemanticTag.params}.
+   *
+   * Set it on the call that establishes the part's dimensions; the digest
+   * merges the records of every entity sharing a `partId`, so repeating them
+   * on each stroke of the same part is allowed but pointless.
+   */
+  params?: Readonly<Record<string, number | string | boolean>>
 }
 
 export interface AcTpLineArgs extends AcTpDrawBase {
@@ -115,7 +123,8 @@ export function createDrawContext(
     const tag: AcTpSemanticTag = {
       role: args.role,
       partId: args.partId,
-      templateId
+      templateId,
+      ...(args.params ? { params: args.params } : {})
     }
     writeSemanticTag(entity, tag)
 
