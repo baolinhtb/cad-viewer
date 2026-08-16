@@ -178,6 +178,46 @@ const MIGRATIONS = [
     db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`)
     db.exec(`UPDATE users SET role = 'admin' WHERE is_admin = 1`)
     db.exec(`ALTER TABLE users DROP COLUMN is_admin`)
+  },
+
+  // v5 — the template library.
+  //
+  // `code` is the built JS module an author uploads. The server never executes
+  // it: templates run in the browser, which is both where the CAD runtime
+  // lives and the only place a runaway template can only spoil its own tab.
+  //
+  // `content_hash` is what makes a saved drawing's "regenerate" mean anything.
+  // A drawing pins `(template_id, template_version)`; if that pair could be
+  // re-uploaded with different code, an approved drawing would silently
+  // regenerate into a different shape. Re-uploading identical content is fine
+  // and idempotent — it is a changed body under an unchanged version that is
+  // refused.
+  //
+  // `status` starts at 'draft'. A template becomes visible to the rest of the
+  // company only after it has actually produced a drawing once, because a
+  // template that throws is worse than a missing one: it wastes the engineer's
+  // time and their trust.
+  db => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS templates (
+        template_id TEXT NOT NULL,
+        version TEXT NOT NULL,
+        name TEXT NOT NULL,
+        category TEXT,
+        description TEXT,
+        params TEXT NOT NULL DEFAULT '[]',
+        role_layers TEXT NOT NULL DEFAULT '{}',
+        code TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        uploaded_by INTEGER REFERENCES users(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        verified_at TEXT,
+        PRIMARY KEY (template_id, version)
+      );
+      CREATE INDEX IF NOT EXISTS idx_templates_status
+        ON templates(status, template_id, version);
+    `)
   }
 ]
 
