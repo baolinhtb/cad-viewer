@@ -7,6 +7,7 @@ import {
 import packageJson from '../package.json'
 import { AcApTemplateCmd } from './command/AcApTemplateCmd'
 import { TemplateDialogOpener } from './dialogIntegration'
+import { refreshTemplateLibrary } from './remoteTemplates'
 
 /** Registered name of the template plugin in the plugin manager. */
 export const TEMPLATE_PLUGIN_NAME = 'TemplatePlugin'
@@ -37,6 +38,14 @@ export class AcApTemplatePlugin implements AcApPlugin {
       new AcApTemplateCmd(this.openDialog)
     )
     this.registered.push({ group, name: 'template' })
+
+    // Fetch the library as soon as the plugin loads, so a template uploaded a
+    // minute ago is usable in this session without a reload — that is the
+    // whole point of uploading rather than deploying. Deliberately not
+    // awaited: the built-in templates already work, and blocking the command
+    // on a network round trip would make a company with no uploads pay for a
+    // library it does not have.
+    void refreshTemplateLibrary()
   }
 
   onUnload(_context: AcApContext, commandManager: AcEdCommandStack): void {

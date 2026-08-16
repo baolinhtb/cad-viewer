@@ -9,7 +9,8 @@ import {
 } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
-import { roleLayers } from './templateRegistry'
+import { markTemplateVerified } from './remoteTemplates'
+import { findRemoteSource, roleLayers } from './templateRegistry'
 
 /** Outcome of a run, enough to tell the user what was produced. */
 export interface AcApTemplateRunResult {
@@ -62,6 +63,23 @@ export async function runTemplate(
   // view attached to it.
   if (!database) {
     await AcApDocManager.instance.regen()
+  }
+
+  // A library template proves itself by producing a drawing. Reported after
+  // the run rather than at upload, because the browser is the only place it
+  // can be proven at all. A failure here is not the engineer's problem: they
+  // got their drawing, and the template stays a draft until the next run.
+  const source = findRemoteSource(template.meta.id)
+  if (source && source.source.status === 'draft' && entityCount > 0) {
+    try {
+      const published = await markTemplateVerified(
+        source.source.templateId,
+        source.source.version
+      )
+      if (published) source.source.status = 'published'
+    } catch {
+      // Left as a draft; the next successful run tries again.
+    }
   }
 
   return { entityCount, layers, errors: [] }
