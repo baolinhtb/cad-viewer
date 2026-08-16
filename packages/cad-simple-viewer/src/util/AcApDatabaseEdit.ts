@@ -137,13 +137,24 @@ export async function acapRunMarkedEdits<T>(
     }
     return result
   } catch (error) {
-    if (tm.hasTransaction()) {
-      tm.abortTransaction()
-    }
-    tm.endUndoMark()
-    if (changed) {
-      tm.undo()
-      acapNotifyUndoStackChanged()
+    // The rollback runs inside its own guard so that a failure to unwind can
+    // never replace the failure that caused it. A caller shown "No active undo
+    // mark to end" in place of the tool error it actually hit would be sent
+    // looking in entirely the wrong place.
+    try {
+      if (tm.hasTransaction()) {
+        tm.abortTransaction()
+      }
+      tm.endUndoMark()
+      if (changed) {
+        tm.undo()
+        acapNotifyUndoStackChanged()
+      }
+    } catch (rollbackError) {
+      console.error(
+        '[acapRunMarkedEdits] rollback failed; the drawing may hold part of a failed edit',
+        rollbackError
+      )
     }
     throw error
   } finally {

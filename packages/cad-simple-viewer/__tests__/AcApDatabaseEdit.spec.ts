@@ -399,6 +399,24 @@ describe('AcApDatabaseEdit', () => {
       expect(db.transactionManager.canUndo()).toBe(true)
     })
 
+    test('a rollback that fails does not hide the failure that caused it', async () => {
+      const db = createRealDatabase()
+      const boom = new Error('tool call thứ ba hỏng')
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {})
+      db.transactionManager.endUndoMark = jest.fn(() => {
+        throw new Error('No active undo mark to end.')
+      }) as never
+
+      await expect(
+        acapRunMarkedEdits(db, 'vẽ trụ cầu', async () => {
+          throw boom
+        })
+      ).rejects.toThrow(boom)
+
+      expect(logged).toHaveBeenCalled()
+      logged.mockRestore()
+    })
+
     test('hand edits before and after a turn stay on the same history', async () => {
       const db = createRealDatabase()
 
