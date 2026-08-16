@@ -14,6 +14,18 @@ import {
   MAX_DRAWING_BYTES,
   updateDrawing
 } from './drawings.mjs'
+import {
+  createLayer,
+  createTerm,
+  deleteLayer,
+  deleteTerm,
+  ERRORS as STANDARD_ERRORS,
+  listLayers,
+  listTerms,
+  StandardsError,
+  updateLayer,
+  updateTerm
+} from './standards.mjs'
 import { migrate } from './schema.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -300,6 +312,104 @@ const server = createServer(async (req, res) => {
         json(res, 200, { message: 'ok' })
         return
       }
+    }
+
+    // --- standardisation layer ---
+    //
+    // Readable and writable by every activated member: this is the company's
+    // own vocabulary, and a dictionary only stays accurate if the people who
+    // use it can fix it. Story 2.4 adds a stricter role for uploading template
+    // *code*, which is a different thing entirely.
+    if (path === '/api/standards' || path.startsWith('/api/standards/')) {
+      const user = currentUser(req)
+      if (!user) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+
+      const rest = path.slice('/api/standards'.length).replace(/^\//, '')
+      const [kind, rawKey] = rest.split('/')
+      const key = rawKey ? decodeURIComponent(rawKey) : ''
+
+      const handle = fn => {
+        try {
+          fn()
+        } catch (error) {
+          if (!(error instanceof StandardsError)) throw error
+          const status =
+            error.code === STANDARD_ERRORS.NOT_FOUND
+              ? 404
+              : error.code === STANDARD_ERRORS.INVALID
+                ? 400
+                : 409
+          json(res, status, {
+            error: 'Không lưu được mục chuẩn hóa.',
+            code: error.code,
+            detail: error.detail ?? null
+          })
+        }
+      }
+
+      if (kind === 'terms') {
+        if (req.method === 'GET' && !key) {
+          json(res, 200, {
+            terms: listTerms(db, { search: url.searchParams.get('q') ?? undefined })
+          })
+          return
+        }
+        if (req.method === 'POST' && !key) {
+          const body = await readBody(req, 64 * 1024)
+          handle(() => json(res, 201, { term: createTerm(db, user.id, body) }))
+          return
+        }
+        if (req.method === 'PATCH' && key) {
+          const body = await readBody(req, 64 * 1024)
+          handle(() => json(res, 200, { term: updateTerm(db, user.id, key, body) }))
+          return
+        }
+        if (req.method === 'DELETE' && key) {
+          if (!deleteTerm(db, key)) {
+            json(res, 404, {
+              error: 'Không tìm thấy thuật ngữ.',
+              code: STANDARD_ERRORS.NOT_FOUND
+            })
+            return
+          }
+          json(res, 200, { message: 'ok' })
+          return
+        }
+      }
+
+      if (kind === 'layers') {
+        if (req.method === 'GET' && !key) {
+          json(res, 200, { layers: listLayers(db) })
+          return
+        }
+        if (req.method === 'POST' && !key) {
+          const body = await readBody(req, 64 * 1024)
+          handle(() => json(res, 201, { layer: createLayer(db, user.id, body) }))
+          return
+        }
+        if (req.method === 'PATCH' && key) {
+          const body = await readBody(req, 64 * 1024)
+          handle(() => json(res, 200, { layer: updateLayer(db, user.id, key, body) }))
+          return
+        }
+        if (req.method === 'DELETE' && key) {
+          if (!deleteLayer(db, key)) {
+            json(res, 404, {
+              error: 'Không tìm thấy layer.',
+              code: STANDARD_ERRORS.NOT_FOUND
+            })
+            return
+          }
+          json(res, 200, { message: 'ok' })
+          return
+        }
+      }
+
+      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      return
     }
 
     // --- drawings ---
