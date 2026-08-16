@@ -10,30 +10,50 @@ export function acapNotifyUndoStackChanged(): void {
 }
 
 /**
- * Databases currently inside an {@link acapRunMarkedEdits} group.
+ * State of the {@link acapRunMarkedEdits} group open on each database.
  *
  * Tracked here rather than asked of the database because the state this needs
  * to name does not exist in the core: between two edits of a mark-only group
  * there is no open transaction, so `isUndoRecording()` reads false even though
  * a mark is very much open.
+ *
+ * `depth` rather than a flag: two sequences can overlap on one database, and a
+ * membership cleared by whichever finishes first would drop the other's
+ * remaining edits back to one mark each.
+ *
+ * `edits` counts commits this group made, which is the only signal about the
+ * group's own effect that does not depend on guessing. Reading the database's
+ * change events instead would miss sysvar and dictionary writes — `db.clayer`,
+ * which the `set_current_layer` tool goes through, dispatches neither.
  */
-const markedGroups = new WeakSet<AcDbDatabase>()
+interface AcApMarkedGroupState {
+  depth: number
+  edits: number
+}
 
-/** Whether `db` is inside a group opened by {@link acapRunMarkedEdits}. */
-export function acapIsInMarkedGroup(db: AcDbDatabase): boolean {
-  return markedGroups.has(db)
+const markedGroups = new WeakMap<AcDbDatabase, AcApMarkedGroupState>()
+
+function openGroup(db: AcDbDatabase): AcApMarkedGroupState | undefined {
+  const state = markedGroups.get(db)
+  return state && state.depth > 0 ? state : undefined
 }
 
 /**
  * Application-layer shortcut for {@link AcDbDatabase.runDatabaseEdit} that also
  * notifies UI listeners when a new undo mark is created.
+ *
+ * Inside an {@link acapRunMarkedEdits} group the behaviour differs: the edit
+ * runs in a transaction of its own, opens no mark, and notifies nobody — the
+ * enclosing group owns both. `label` is unused on that path, because the label
+ * shown in the history is the group's.
  */
 export function acapRunDatabaseEdit(
   db: AcDbDatabase,
   label: string,
   fn: () => void
 ): void {
-  if (markedGroups.has(db)) {
+  const group = openGroup(db)
+  if (group) {
     // Inside a mark-only group: run a transaction of our own so the commit
     // dispatches entity events — that is what puts the new geometry on the
     // canvas and into the renderer scene the preview capture reads — but open
@@ -45,6 +65,7 @@ export function acapRunDatabaseEdit(
     try {
       fn()
       tm.commitTransaction()
+      group.edits += 1
     } catch (error) {
       if (tm.hasTransaction()) {
         tm.abortTransaction()
@@ -59,12 +80,6 @@ export function acapRunDatabaseEdit(
   if (!wasRecording) {
     acapNotifyUndoStackChanged()
   }
-}
-
-/** Event channel shape this module needs from the database. */
-interface AcApEditNotifier {
-  addEventListener(listener: () => void): void
-  removeEventListener(listener: () => void): void
 }
 
 /**
@@ -84,11 +99,18 @@ interface AcApEditNotifier {
  * core is built for exactly that: `startUndoMark` documents that commits
  * performed before `endUndoMark` merge into one `AcDbUndoRecord`.
  *
- * The cost is the failure path. Committed changes cannot be aborted, so a
- * throw is rolled back by closing the mark and undoing the record it produced
- * — and only when something was actually committed, because `undo()` pops
- * whatever sits on top and popping an unrelated record would delete work this
- * group never touched.
+ * A failing sequence is **not** unwound automatically, and that is deliberate.
+ * Committed changes can only be reverted by `undo()`, which pops whatever sits
+ * on top of the stack — and nothing in the public core says whether the top
+ * record is this group's. It usually is; it is not when something opened a
+ * mark of its own while this group was awaiting. `AcEdCommand.trigger` does
+ * exactly that, so a hand command run mid-sequence takes the changes into its
+ * own record, and an automatic `undo()` here would delete the user's work
+ * instead of the failed sequence's. Measured, not theorised.
+ *
+ * So a failure leaves what it managed to commit, gathered under this one mark.
+ * The sequence stays a single `Ctrl+Z` — which is the promise that matters —
+ * and the undo stack is never reached into blind.
  *
  * @param db - Database being edited.
  * @param label - Human-readable label shown in the undo history.
@@ -101,65 +123,49 @@ export async function acapRunMarkedEdits<T>(
   fn: () => T | Promise<T>
 ): Promise<T> {
   // Already inside a group: contribute to the enclosing mark and open none.
-  if (markedGroups.has(db)) {
-    return await fn()
+  const enclosing = openGroup(db)
+  if (enclosing) {
+    enclosing.depth += 1
+    try {
+      return await fn()
+    } finally {
+      enclosing.depth -= 1
+    }
   }
 
   const tm = db.transactionManager
-
-  // Whether any commit inside the group carried real changes. The database
-  // dispatches these events only from the commit path, and the very changes
-  // that trigger them are what fill the mark — so `changed` being true is a
-  // guarantee that `endUndoMark` pushed a record. That guarantee is the whole
-  // point: it is what makes the `undo()` below safe.
-  let changed = false
-  const noteChange = () => {
-    changed = true
-  }
-  const channels: AcApEditNotifier[] = [
-    db.events.entityAppended,
-    db.events.entityModified,
-    db.events.entityErased,
-    db.events.layerAppended,
-    db.events.layerModified,
-    db.events.layerErased
-  ]
-  channels.forEach(channel => channel.addEventListener(noteChange))
-
+  const group: AcApMarkedGroupState = { depth: 1, edits: 0 }
+  markedGroups.set(db, group)
   tm.startUndoMark(label)
-  markedGroups.add(db)
 
   try {
-    const result = await fn()
-    tm.endUndoMark()
-    if (changed) {
-      acapNotifyUndoStackChanged()
-    }
-    return result
-  } catch (error) {
-    // The rollback runs inside its own guard so that a failure to unwind can
-    // never replace the failure that caused it. A caller shown "No active undo
-    // mark to end" in place of the tool error it actually hit would be sent
-    // looking in entirely the wrong place.
+    return await fn()
+  } finally {
+    group.depth -= 1
+    // Closing runs on both paths and is guarded on both: an unwind that throws
+    // must never replace the failure that caused it, or the caller goes
+    // looking for "No active undo mark to end" instead of the tool error they
+    // actually hit.
     try {
       if (tm.hasTransaction()) {
         tm.abortTransaction()
       }
       tm.endUndoMark()
-      if (changed) {
-        tm.undo()
+      // Announced when this group committed anything at all, not when the
+      // database happened to dispatch a change event: a turn whose only edit
+      // was `db.clayer` dispatches nothing yet still leaves a record, and an
+      // unannounced record is a stale Undo button and a skipped autosave.
+      // A sequence that edited nothing stays silent, so asking a question
+      // never costs an upload.
+      if (group.edits > 0) {
         acapNotifyUndoStackChanged()
       }
-    } catch (rollbackError) {
+    } catch (closeError) {
       console.error(
-        '[acapRunMarkedEdits] rollback failed; the drawing may hold part of a failed edit',
-        rollbackError
+        '[acapRunMarkedEdits] could not close the undo mark',
+        closeError
       )
     }
-    throw error
-  } finally {
-    markedGroups.delete(db)
-    channels.forEach(channel => channel.removeEventListener(noteChange))
   }
 }
 
@@ -204,7 +210,7 @@ export async function acapRunGroupedEdit(
   // The mark-only check is separate because between two of that group's edits
   // there is no open transaction, so `isUndoRecording()` would say false and
   // this would open a competing mark.
-  if (markedGroups.has(db) || (db.isUndoRecording?.() ?? false)) {
+  if (openGroup(db) || (db.isUndoRecording?.() ?? false)) {
     await fn()
     return
   }

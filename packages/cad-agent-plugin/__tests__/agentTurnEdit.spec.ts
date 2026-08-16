@@ -1,43 +1,35 @@
 /**
- * A whole AI turn has to land in the undo history as one entry.
+ * `withTurnUndoMark` is the seam between the chat turn and the undo history.
  *
- * Every drawing tool records its own undo mark, so a turn that draws twelve
- * strokes used to cost twelve `Ctrl+Z` and twelve autosaves. The contract this
- * file pins down is the I/O matrix of the story: one turn one mark, a
- * query-only turn no mark at all, a thrown error rolled back whole, and a
- * missing drawing still letting the conversation run.
+ * What it owes the caller is narrow: resolve the drawing, build the label,
+ * hand the turn to `acapRunMarkedEdits`, and give the result back. This file
+ * checks exactly that, against a spy.
  *
- * `acapRunMarkedEdits` is stubbed with a faithful miniature of the real thing
- * — it opens a mark, drops an empty one, rolls back on throw — because the
- * real one is proven against a real `AcDbDatabase` in the cad-simple-viewer
- * suite, and pulling the whole viewer in here would prove nothing extra.
+ * It deliberately does **not** re-implement the helper. An earlier version did
+ * — seventy lines of miniature that decided "something changed" from a counter
+ * while the real helper decided it from database events — and every assertion
+ * about marks and rollbacks was really an assertion about the miniature. Two
+ * genuine bugs lived underneath it with the suite green. The helper's own
+ * behaviour is pinned against a real `AcDbDatabase` in
+ * `packages/cad-simple-viewer/__tests__/AcApDatabaseEdit.spec.ts`; here that
+ * would only prove the mock agrees with itself.
  */
+const runMarkedEdits = jest.fn(
+  async <T>(_db: unknown, _label: string, fn: () => T | Promise<T>) =>
+    await fn()
+)
+
 jest.mock('@mlightcad/cad-simple-viewer', () => {
   const state = {
     /** Database the doc manager currently reports, if any. */
     database: undefined as unknown,
     /** True once the manager throws instead of answering (no app yet). */
-    docManagerUnavailable: false,
-    /** Labels of every group opened, in order. */
-    groupsOpened: [] as string[],
-    /** Committed undo records, newest last. */
-    undoStack: [] as string[],
-    /** How many times listeners were told the undo stack changed. */
-    notifications: 0,
-    /** Edits applied since the enclosing group opened. */
-    pendingChanges: 0,
-    /** Marks discarded because the turn threw. */
-    rollbacks: 0,
-    recording: false
+    docManagerUnavailable: false
   }
 
   return {
     __esModule: true,
     __state: state,
-    /** Stands in for a tool call that actually mutates the drawing. */
-    __applyEdit: () => {
-      state.pendingChanges += 1
-    },
     AcApDocManager: {
       get instance() {
         if (state.docManagerUnavailable) {
@@ -48,138 +40,82 @@ jest.mock('@mlightcad/cad-simple-viewer', () => {
         }
       }
     },
-    acapRunMarkedEdits: async <T>(
-      _db: unknown,
-      label: string,
-      fn: () => T | Promise<T>
-    ): Promise<T> => {
-      state.groupsOpened.push(label)
-      if (state.recording) {
-        return await fn()
-      }
-
-      state.recording = true
-      state.pendingChanges = 0
-      let result: T
-      try {
-        result = await fn()
-      } catch (error) {
-        state.recording = false
-        // Committed edits cannot be aborted, so the real helper closes the
-        // mark and undoes the record — and only when something was committed.
-        if (state.pendingChanges > 0) {
-          state.rollbacks += 1
-          state.notifications += 1
-        }
-        state.pendingChanges = 0
-        throw error
-      }
-      state.recording = false
-      // The core drops a mark that collected nothing, which is why a
-      // query-only turn leaves the history untouched — and announces nothing,
-      // so autosave stays asleep.
-      if (state.pendingChanges > 0) {
-        state.undoStack.push(label)
-        state.notifications += 1
-      }
-      return result
+    acapRunMarkedEdits: (...args: unknown[]) =>
+      (runMarkedEdits as unknown as (...a: unknown[]) => unknown)(...args),
+    // `agentT` resolves through the viewer's i18n; echoing the fallback keeps
+    // the assertions about *which* key is used rather than about a translation.
+    AcApI18n: {
+      t: (_key: string, options: { fallback: string }) => options.fallback
     }
   }
 })
 
 import {
   buildTurnUndoLabel,
-  FALLBACK_TURN_UNDO_LABEL,
   MAX_TURN_UNDO_LABEL_LENGTH,
   withTurnUndoMark
 } from '../src/agent/agentTurnEdit'
+import { agentT } from '../src/i18n'
 
 const viewer = jest.requireMock('@mlightcad/cad-simple-viewer') as {
-  __state: {
-    database: unknown
-    docManagerUnavailable: boolean
-    groupsOpened: string[]
-    undoStack: string[]
-    notifications: number
-    pendingChanges: number
-    rollbacks: number
-    recording: boolean
-  }
-  __applyEdit: () => void
+  __state: { database: unknown; docManagerUnavailable: boolean }
+}
+const state = viewer.__state
+
+/** The database the mark is expected to be opened against. */
+const drawing = { name: 'cau-dam-i.dwg' }
+
+function openDrawing() {
+  state.database = drawing
 }
 
-const state = viewer.__state
-const applyEdit = viewer.__applyEdit
-
-/** An open drawing, as far as the undo mark is concerned. */
-function openDrawing() {
-  state.database = { name: 'cau-dam-i.dwg' }
+/** Arguments of the single expected `acapRunMarkedEdits` call. */
+function markCall() {
+  expect(runMarkedEdits).toHaveBeenCalledTimes(1)
+  const [db, label] = runMarkedEdits.mock.calls[0] as [unknown, string, unknown]
+  return { db, label }
 }
 
 beforeEach(() => {
   state.database = undefined
   state.docManagerUnavailable = false
-  state.groupsOpened = []
-  state.undoStack = []
-  state.notifications = 0
-  state.pendingChanges = 0
-  state.rollbacks = 0
-  state.recording = false
+  runMarkedEdits.mockClear()
+  jest.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
-describe('a turn that draws', () => {
-  test('many tool calls leave exactly one undo record, labelled with the request', async () => {
-    openDrawing()
-
-    await withTurnUndoMark('vẽ lan can hai bên nhịp giữa', async () => {
-      for (let stroke = 0; stroke < 12; stroke += 1) {
-        await Promise.resolve()
-        applyEdit()
-      }
-    })
-
-    expect(state.undoStack).toEqual(['vẽ lan can hai bên nhịp giữa'])
-    expect(state.groupsOpened).toHaveLength(1)
-  })
-
-  test('the undo stack is announced once, so autosave runs once', async () => {
-    openDrawing()
-
-    await withTurnUndoMark('vẽ dầm', async () => {
-      applyEdit()
-      applyEdit()
-      applyEdit()
-    })
-
-    expect(state.notifications).toBe(1)
-  })
-
-  test('several verification rounds still share the one mark', async () => {
-    openDrawing()
-
-    await withTurnUndoMark('vẽ mặt cắt ngang', async () => {
-      for (let round = 0; round < 3; round += 1) {
-        applyEdit()
-        // The screenshot round-trip the high-inference mode waits on.
-        await Promise.resolve()
-      }
-    })
-
-    expect(state.undoStack).toEqual(['vẽ mặt cắt ngang'])
-  })
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
-describe('a turn that changes nothing', () => {
-  test('a query-only turn leaves no record behind', async () => {
+describe('a turn with a drawing open', () => {
+  test('runs inside one mark, on the open drawing, labelled with the request', async () => {
     openDrawing()
 
-    await withTurnUndoMark('lan can bên phải ở đâu', async () => {
-      await Promise.resolve()
-    })
+    await withTurnUndoMark('vẽ lan can hai bên nhịp giữa', async () => {})
 
-    expect(state.undoStack).toEqual([])
-    // And nothing is announced, so a question does not trigger a save.
-    expect(state.notifications).toBe(0)
+    expect(markCall()).toEqual({
+      db: drawing,
+      label: 'vẽ lan can hai bên nhịp giữa'
+    })
+  })
+
+  test('hands the turn through and gives its value back', async () => {
+    openDrawing()
+    const turn = jest.fn(async () => 42)
+
+    await expect(withTurnUndoMark('vẽ', turn)).resolves.toBe(42)
+    expect(turn).toHaveBeenCalledTimes(1)
+  })
+
+  test('lets the error of a failing turn travel on unchanged', async () => {
+    openDrawing()
+    const boom = new Error('tool call thứ ba hỏng')
+
+    await expect(
+      withTurnUndoMark('vẽ trụ cầu', async () => {
+        throw boom
+      })
+    ).rejects.toThrow(boom)
   })
 })
 
@@ -190,7 +126,7 @@ describe('a turn without a drawing', () => {
     await withTurnUndoMark('vẽ gì đó', ran)
 
     expect(ran).toHaveBeenCalledTimes(1)
-    expect(state.groupsOpened).toEqual([])
+    expect(runMarkedEdits).not.toHaveBeenCalled()
   })
 
   test('a document manager that is not up yet is not an error', async () => {
@@ -200,91 +136,54 @@ describe('a turn without a drawing', () => {
     await expect(
       withTurnUndoMark('xin chào', async () => 'trả lời')
     ).resolves.toBe('trả lời')
-    expect(state.groupsOpened).toEqual([])
-  })
-})
-
-describe('a turn that fails', () => {
-  test('an error part-way through rolls the whole turn back before it escapes', async () => {
-    openDrawing()
-    const boom = new Error('tool call thứ ba hỏng')
-
-    await expect(
-      withTurnUndoMark('vẽ trụ cầu', async () => {
-        applyEdit()
-        applyEdit()
-        await Promise.resolve()
-        throw boom
-      })
-    ).rejects.toThrow(boom)
-
-    expect(state.undoStack).toEqual([])
-    expect(state.rollbacks).toBe(1)
-    // The rollback itself moved the undo stack, so listeners are told once —
-    // the button state has to stop showing a turn that no longer exists.
-    expect(state.notifications).toBe(1)
-  })
-
-  test('a failure before anything was committed rolls nothing back', async () => {
-    openDrawing()
-
-    await expect(
-      withTurnUndoMark('vẽ trụ cầu', async () => {
-        throw new Error('mô hình từ chối ngay')
-      })
-    ).rejects.toThrow('mô hình từ chối ngay')
-
-    // Nothing was committed, so there is no record to undo. Undoing anyway
-    // would pop whatever the user did before the turn.
-    expect(state.rollbacks).toBe(0)
-    expect(state.notifications).toBe(0)
-    expect(state.undoStack).toEqual([])
-  })
-})
-
-describe('a turn the user stops', () => {
-  test('work already drawn is kept as one record', async () => {
-    openDrawing()
-    const abortController = new AbortController()
-
-    await withTurnUndoMark('vẽ toàn bộ cầu', async () => {
-      applyEdit()
-      abortController.abort()
-      // Stop leaves the turn body normally; it is not a failure.
-      if (abortController.signal.aborted) return
-      applyEdit()
-    })
-
-    expect(state.undoStack).toEqual(['vẽ toàn bộ cầu'])
+    expect(runMarkedEdits).not.toHaveBeenCalled()
+    // And it says so, rather than costing the turn its grouping in silence.
+    expect(console.warn).toHaveBeenCalled()
   })
 })
 
 describe('the label', () => {
-  test('an empty request falls back rather than labelling nothing', () => {
-    expect(buildTurnUndoLabel('')).toBe(FALLBACK_TURN_UNDO_LABEL)
-    expect(buildTurnUndoLabel('   \n  ')).toBe(FALLBACK_TURN_UNDO_LABEL)
-    expect(buildTurnUndoLabel(undefined)).toBe(FALLBACK_TURN_UNDO_LABEL)
-  })
-
-  test('a long request is cut so the history stays readable', async () => {
+  test('an empty request falls back to a localized label', async () => {
     openDrawing()
-    const request = 'vẽ '.repeat(60).trim()
 
-    await withTurnUndoMark(request, applyEdit)
+    await withTurnUndoMark('   \n  ', async () => {})
 
-    expect(state.undoStack[0]).toHaveLength(MAX_TURN_UNDO_LABEL_LENGTH)
-    expect(request.startsWith(state.undoStack[0])).toBe(true)
+    // Asserted through the mark, not just the builder: the fallback is only
+    // worth anything if it is what the history actually receives.
+    expect(markCall().label).toBe(agentT('turnUndoLabelFallback'))
+    expect(buildTurnUndoLabel(undefined)).toBe(agentT('turnUndoLabelFallback'))
   })
 
-  test('surrounding whitespace never reaches the history', () => {
+  test('a long request is cut, and says that it was', () => {
+    const request = `${'nâng cao lan can bên phải '.repeat(8)}lên 1.27 mét`
+
+    const label = buildTurnUndoLabel(request)
+
+    expect([...label]).toHaveLength(MAX_TURN_UNDO_LABEL_LENGTH + 1)
+    expect(label.endsWith('…')).toBe(true)
+    expect(request.startsWith(label.slice(0, -1))).toBe(true)
+  })
+
+  test('a short request is left exactly as typed', () => {
     expect(buildTurnUndoLabel('  vẽ lan can  ')).toBe('vẽ lan can')
   })
-})
 
-describe('the value of the turn', () => {
-  test('what the turn returns comes back to the caller', async () => {
-    openDrawing()
+  test('a multi-line request becomes one line', () => {
+    // `extractConversationContext` joins a message's text parts with newlines,
+    // and a history entry is one line.
+    expect(buildTurnUndoLabel('vẽ lan can\nbên phải\n\ncao 1.1m')).toBe(
+      'vẽ lan can bên phải cao 1.1m'
+    )
+  })
 
-    await expect(withTurnUndoMark('vẽ', async () => 42)).resolves.toBe(42)
+  test('the cut never splits a character in half', () => {
+    // Sixty-one code points, each of which is two UTF-16 units: a slice by
+    // units would land inside one and produce a lone surrogate.
+    const label = buildTurnUndoLabel('🌉'.repeat(61))
+
+    expect([...label]).toHaveLength(MAX_TURN_UNDO_LABEL_LENGTH + 1)
+    const loneSurrogate =
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+    expect(label).not.toMatch(loneSurrogate)
   })
 })

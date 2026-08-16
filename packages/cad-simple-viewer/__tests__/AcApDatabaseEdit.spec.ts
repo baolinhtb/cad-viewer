@@ -359,7 +359,7 @@ describe('AcApDatabaseEdit', () => {
       expect(eventBus.emit).not.toHaveBeenCalled()
     })
 
-    test('a throw after edits committed rolls the whole turn back', async () => {
+    test('a throw keeps what was drawn, gathered under one mark', async () => {
       const db = createRealDatabase()
       const boom = new Error('tool call thứ ba hỏng')
 
@@ -376,30 +376,149 @@ describe('AcApDatabaseEdit', () => {
         })
       ).rejects.toThrow(boom)
 
-      // Committed edits cannot be aborted, so the helper undoes them instead.
+      // Not unwound automatically — see the helper's doc comment. What it did
+      // draw stays, and one Ctrl+Z removes all of it.
+      expect(entityCount(db)).toBe(2)
+      expect(db.transactionManager.undo()).toBe(true)
       expect(entityCount(db)).toBe(0)
-      expect(db.transactionManager.canUndo()).toBe(false)
     })
 
-    test('a throw before anything committed never touches earlier history', async () => {
+    test('a failing turn never touches a record it did not create', async () => {
       const db = createRealDatabase()
+      const tm = db.transactionManager
+
       acapRunDatabaseEdit(db, 'LINE', () => {
         db.tables.blockTable.modelSpace.appendEntity(line(0))
       })
 
       await expect(
         acapRunMarkedEdits(db, 'vẽ trụ cầu', async () => {
-          throw new Error('mô hình từ chối ngay')
+          // A hand command running mid-turn opens a mark of its own, exactly
+          // as `AcEdCommand.trigger` does, and it takes the changes into that
+          // mark. An earlier build inferred "something committed" from the
+          // database's change events and undid on failure — which popped this
+          // record and deleted the user's line. Measured, hence this test.
+          tm.startUndoMark('LINE giữa lượt')
+          tm.startTransaction()
+          db.tables.blockTable.modelSpace.appendEntity(line(1))
+          tm.commitTransaction()
+          tm.endUndoMark()
+          throw new Error('mô hình từ chối')
         })
-      ).rejects.toThrow('mô hình từ chối ngay')
+      ).rejects.toThrow('mô hình từ chối')
 
-      // The rollback undoes a record; with none of its own to undo it must not
-      // reach for the one the user drew by hand a moment earlier.
-      expect(entityCount(db)).toBe(1)
-      expect(db.transactionManager.canUndo()).toBe(true)
+      expect(entityCount(db)).toBe(2)
     })
 
-    test('a rollback that fails does not hide the failure that caused it', async () => {
+    test('an edit whose body throws aborts only itself', async () => {
+      const db = createRealDatabase()
+      const tm = db.transactionManager
+
+      await acapRunMarkedEdits(db, 'vẽ trụ cầu', async () => {
+        // Every agent tool catches its own failure and reports it to the
+        // model, so the turn carries on after one.
+        expect(() =>
+          acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+            throw new Error('toạ độ sai')
+          })
+        ).toThrow('toạ độ sai')
+        acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+          db.tables.blockTable.modelSpace.appendEntity(line(0))
+        })
+      })
+
+      // No transaction left dangling for later edits to fall into, and the
+      // stroke that did succeed is undoable.
+      expect(tm.hasTransaction()).toBe(false)
+      expect(entityCount(db)).toBe(1)
+      expect(eventBus.emit).toHaveBeenCalledTimes(1)
+      expect(tm.undo()).toBe(true)
+      expect(entityCount(db)).toBe(0)
+    })
+
+    test('a turn whose only edit dispatches no entity event is still announced', async () => {
+      const db = createRealDatabase()
+
+      await acapRunMarkedEdits(db, 'đặt layer hiện hành', async () => {
+        acapRunDatabaseEdit(db, 'CLAYER', () => {
+          db.clayer = db.tables.layerTable.getAt('0')!.objectId
+        })
+      })
+
+      // `db.clayer` is a sysvar: no entityAppended, no layerModified. Reading
+      // the change events to decide would leave this record unannounced, so
+      // the Undo button would go stale and autosave would skip the turn.
+      expect(db.transactionManager.canUndo()).toBe(true)
+      expect(eventBus.emit).toHaveBeenCalledTimes(1)
+    })
+
+    test('an erase-only turn is announced once and undoes as one', async () => {
+      const db = createRealDatabase()
+      acapRunDatabaseEdit(db, 'LINE', () => {
+        db.tables.blockTable.modelSpace.appendEntity(line(0))
+        db.tables.blockTable.modelSpace.appendEntity(line(1))
+      })
+      ;(eventBus.emit as jest.Mock).mockClear()
+
+      await acapRunMarkedEdits(db, 'xoá hai nét', async () => {
+        for (const entity of [...db.tables.blockTable.modelSpace.newIterator()])
+          acapRunDatabaseEdit(db, 'Agent: delete_entities', () => {
+            entity.erase()
+          })
+      })
+
+      expect(eventBus.emit).toHaveBeenCalledTimes(1)
+      expect(db.transactionManager.undo()).toBe(true)
+      expect(entityCount(db)).toBe(2)
+    })
+
+    test('a template run inside a turn joins the turn mark', async () => {
+      const db = createRealDatabase()
+
+      await acapRunMarkedEdits(db, 'vẽ cầu', async () => {
+        acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+          db.tables.blockTable.modelSpace.appendEntity(line(0))
+        })
+        // `runTemplate` reaches for the grouped helper; a turn awaiting the
+        // model is long enough for a template run to start inside it.
+        await acapRunGroupedEdit(db, 'Sinh từ template', async () => {
+          acapRunDatabaseEdit(db, 'template', () => {
+            db.tables.blockTable.modelSpace.appendEntity(line(1))
+          })
+        })
+        acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+          db.tables.blockTable.modelSpace.appendEntity(line(2))
+        })
+      })
+
+      expect(entityCount(db)).toBe(3)
+      // One record, not a history split around the template's own mark.
+      expect(db.transactionManager.undo()).toBe(true)
+      expect(entityCount(db)).toBe(0)
+      expect(db.transactionManager.canUndo()).toBe(false)
+    })
+
+    test('a nested marked group joins rather than opening a second mark', async () => {
+      const db = createRealDatabase()
+
+      await acapRunMarkedEdits(db, 'lượt ngoài', async () => {
+        acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+          db.tables.blockTable.modelSpace.appendEntity(line(0))
+        })
+        await acapRunMarkedEdits(db, 'lượt trong', async () => {
+          acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+            db.tables.blockTable.modelSpace.appendEntity(line(1))
+          })
+        })
+      })
+
+      expect(eventBus.emit).toHaveBeenCalledTimes(1)
+      expect(db.transactionManager.undo()).toBe(true)
+      expect(entityCount(db)).toBe(0)
+      expect(db.transactionManager.canUndo()).toBe(false)
+    })
+
+    test('a close that fails does not hide the failure that caused it', async () => {
       const db = createRealDatabase()
       const boom = new Error('tool call thứ ba hỏng')
       const logged = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -407,14 +526,49 @@ describe('AcApDatabaseEdit', () => {
         throw new Error('No active undo mark to end.')
       }) as never
 
-      await expect(
-        acapRunMarkedEdits(db, 'vẽ trụ cầu', async () => {
-          throw boom
-        })
-      ).rejects.toThrow(boom)
+      try {
+        await expect(
+          acapRunMarkedEdits(db, 'vẽ trụ cầu', async () => {
+            throw boom
+          })
+        ).rejects.toThrow(boom)
+        expect(logged).toHaveBeenCalled()
+      } finally {
+        // Restored in `finally` so a failing assertion does not silence
+        // console output for every test that runs after this one.
+        logged.mockRestore()
+      }
+    })
 
-      expect(logged).toHaveBeenCalled()
-      logged.mockRestore()
+    test('a close that fails still lets the next turn open its own mark', async () => {
+      const db = createRealDatabase()
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const realEnd = db.transactionManager.endUndoMark.bind(
+        db.transactionManager
+      )
+      db.transactionManager.endUndoMark = jest.fn(() => {
+        throw new Error('No active undo mark to end.')
+      }) as never
+
+      try {
+        await expect(
+          acapRunMarkedEdits(db, 'lượt hỏng', async () => {
+            throw new Error('hỏng')
+          })
+        ).rejects.toThrow('hỏng')
+
+        // A broken unwind must not strand the database inside a group, or
+        // every later edit in the session runs mark-less and unannounced.
+        db.transactionManager.endUndoMark = realEnd as never
+        await acapRunMarkedEdits(db, 'lượt sau', async () => {
+          acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+            db.tables.blockTable.modelSpace.appendEntity(line(0))
+          })
+        })
+        expect(db.transactionManager.canUndo()).toBe(true)
+      } finally {
+        logged.mockRestore()
+      }
     })
 
     test('hand edits before and after a turn stay on the same history', async () => {

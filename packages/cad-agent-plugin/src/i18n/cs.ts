@@ -60,5 +60,6 @@ export const agentCs = {
   referenceImages: 'Referenční obrázek(y)',
   drawingScreenshot: 'Snímek aktuálního výkresu',
   unsavedSettings: 'Před odesíláním zpráv uložte nastavení.',
-  missingApiKey: 'Před odesíláním zpráv nastavte v nastavení API klíč.'
+  missingApiKey: 'Před odesíláním zpráv nastavte v nastavení API klíč.',
+  turnUndoLabelFallback: 'Příkaz AI'
 } as const

@@ -57,5 +57,6 @@ export const agentZh = {
   referenceImages: '参考图片',
   drawingScreenshot: '当前图纸截图',
   unsavedSettings: '请先保存设置后再发送消息。',
-  missingApiKey: '请先在设置中配置 API Key 后再发送消息。'
+  missingApiKey: '请先在设置中配置 API Key 后再发送消息。',
+  turnUndoLabelFallback: 'AI 命令'
 } as const

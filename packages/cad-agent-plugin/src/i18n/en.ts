@@ -61,5 +61,6 @@ export const agentEn = {
   referenceImages: 'Reference image(s)',
   drawingScreenshot: 'Current drawing screenshot',
   unsavedSettings: 'Save settings before sending messages.',
-  missingApiKey: 'Configure an API key in settings before sending messages.'
+  missingApiKey: 'Configure an API key in settings before sending messages.',
+  turnUndoLabelFallback: 'AI command'
 } as const
