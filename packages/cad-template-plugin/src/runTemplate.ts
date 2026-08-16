@@ -1,6 +1,7 @@
 import {
   AcApDocManager,
-  acapRunGroupedEdit} from '@mlightcad/cad-simple-viewer'
+  acapRunGroupedEdit
+} from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues, AcTpTemplate } from '@mlightcad/cad-template-sdk'
 import {
   createDrawContext,

@@ -160,3 +160,32 @@ describe('createDrawContext', () => {
     expect(ids).toContain('tim_02')
   })
 })
+
+describe('layers the context draws on', () => {
+  test('a layer an entity is placed on exists in the drawing', async () => {
+    // Setting `entity.layer` records a name; it does not create the layer.
+    // A drawing that references a missing layer still saves and still
+    // round-trips, so only the renderer complains — with the entity dropped
+    // and the drawing blank.
+    const { AcDbDatabase } = await import('@mlightcad/data-model')
+    const { createDrawContext } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+
+    ctx.line({
+      role: 'ban_mat_cau',
+      partId: 'ban_mat_cau',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 100, y: 0, z: 0 }
+    })
+
+    const missing = ctx.drawn
+      .map(entity => entity.layer)
+      .filter(name => !db.tables.layerTable.has(name))
+
+    expect(missing).toEqual([])
+  })
+})

@@ -9,6 +9,23 @@ import {
   listTemplates,
   runTemplate
 } from '@mlightcad/cad-template-plugin'
+// Imported explicitly, like every other component here. Without it Vue cannot
+// resolve `<el-dialog>` and friends, and renders nothing at all — in a
+// production build the "Failed to resolve component" warning is stripped, so
+// the dialog fails in complete silence: the command runs, the manager toggles
+// it visible, and no element ever reaches the DOM.
+import {
+  ElAlert,
+  ElButton,
+  ElCheckbox,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElInputNumber,
+  ElOption,
+  ElSelect
+} from 'element-plus'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 

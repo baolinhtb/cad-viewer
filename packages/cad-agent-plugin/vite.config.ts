@@ -8,6 +8,7 @@ import {
 } from '../vite-config/pluginRollupOutput'
 
 const packageId = 'cad-agent-plugin'
+const packageName = '@mlightcad/cad-agent-plugin'
 
 export default defineConfig({
   build: {
@@ -24,6 +25,13 @@ export default defineConfig({
     },
     minify: true,
     rollupOptions: {
+      // The lazy loader in `src/register.ts` imports this package by name so
+      // the reference survives bundling. Rollup must leave that import alone:
+      // resolving it means resolving `dist/`, which this build is what
+      // produces. Every other plugin externalises its own name for the same
+      // reason — without it the build works only where a previous `dist/`
+      // happens to be lying around, and fails in a clean tree.
+      external: [packageName],
       output: {
         ...createLibRollupOutput(packageId),
         // Keep `style.css` so `@mlightcad/cad-agent-plugin/style.css` resolves

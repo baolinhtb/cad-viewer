@@ -11,7 +11,6 @@ import {
 } from '@mlightcad/cad-simple-viewer'
 import { registerStoragePlugin } from '@mlightcad/cad-storage-plugin/register'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
-import { setTemplateDialogOpener } from '@mlightcad/cad-template-plugin'
 import { registerLazyTemplatePlugin } from '@mlightcad/cad-template-plugin/register'
 import { markRaw } from 'vue'
 
@@ -280,12 +279,13 @@ export const registerLazyPlugins = (
   registerLazySvgPlugin(pluginManager)
 
   // The plugin owns the `template` command; the dialog lives here, so the two
-  // are connected by an opener rather than by the plugin importing Vue.
-  setTemplateDialogOpener(() => {
+  // are connected by a callback rather than by the plugin importing Vue. It is
+  // handed over at registration instead of stored in the plugin's module
+  // state, which does not reliably survive the lazy chunk boundary.
+  registerLazyTemplatePlugin(pluginManager, () => {
     const { toggleDialog } = useDialogManager()
     toggleDialog('TemplateDlg', true)
   })
-  registerLazyTemplatePlugin(pluginManager)
 
   // Resident, not lazy: auto-save has to be listening before the first edit,
   // not after a command asks for it.

@@ -1,8 +1,11 @@
 import {
+  AcCmColor,
+  AcCmColorMethod,
   AcDbArc,
   AcDbCircle,
   AcDbDatabase,
   AcDbEntity,
+  AcDbLayerTableRecord,
   AcDbLine,
   AcDbPolyline,
   AcDbText,
@@ -110,6 +113,31 @@ export function createDrawContext(
 
   const drawn: AcDbEntity[] = []
 
+  /**
+   * Creates the layer if the drawing does not have it yet.
+   *
+   * Setting `entity.layer` to a name only records the name; it does not make
+   * the layer exist. A drawing referencing a layer with no table record still
+   * saves and still round-trips through DXF, so nothing in a unit test
+   * notices — but the renderer refuses the entity with "layer 'KC-BAN'
+   * doesn't exist" and the drawing comes out blank. The whole generated
+   * section was invisible for exactly this reason.
+   */
+  const ensureLayer = (name: string): void => {
+    const layerTable = db.tables.layerTable
+    if (layerTable.has(name)) return
+    layerTable.add(
+      new AcDbLayerTableRecord({
+        name,
+        isOff: false,
+        // Colour is presentation and the standards layer owns it properly;
+        // white here just means "visible" until that lands.
+        color: new AcCmColor(AcCmColorMethod.ByACI, 7),
+        isPlottable: true
+      })
+    )
+  }
+
   const place = (entity: AcDbEntity, args: AcTpDrawBase): AcDbEntity => {
     const layer = args.layer ?? roleLayers[args.role]
     if (!layer) {
@@ -118,6 +146,7 @@ export function createDrawContext(
           'Bổ sung vào nền chuẩn hóa, hoặc truyền layer tường minh.'
       )
     }
+    ensureLayer(layer)
     entity.layer = layer
 
     const tag: AcTpSemanticTag = {

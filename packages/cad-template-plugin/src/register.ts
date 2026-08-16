@@ -1,6 +1,7 @@
 import type { AcApPluginManager } from '@mlightcad/cad-simple-viewer'
 
 import { TEMPLATE_PLUGIN_NAME } from './AcApTemplatePlugin'
+import type { TemplateDialogOpener } from './dialogIntegration'
 
 /** Commands that pull this plugin in. */
 export const TEMPLATE_PLUGIN_TRIGGERS = ['template'] as const
@@ -12,7 +13,8 @@ export const TEMPLATE_PLUGIN_TRIGGERS = ['template'] as const
  * stays out of the application entry chunk until a template is actually run.
  */
 export function registerLazyTemplatePlugin(
-  pluginManager: AcApPluginManager
+  pluginManager: AcApPluginManager,
+  openDialog: TemplateDialogOpener
 ): void {
   pluginManager.registerLazyPlugin({
     name: TEMPLATE_PLUGIN_NAME,
@@ -27,7 +29,7 @@ export function registerLazyTemplatePlugin(
       // survived unit tests and a green build.
       const { createTemplatePlugin } =
         await import('@mlightcad/cad-template-plugin')
-      return createTemplatePlugin()
+      return createTemplatePlugin(openDialog)
     }
   })
 }

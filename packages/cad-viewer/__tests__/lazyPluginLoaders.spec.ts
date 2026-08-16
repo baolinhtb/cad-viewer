@@ -50,4 +50,36 @@ describe('lazy plugin loaders', () => {
       expect(dynamicImports).toEqual([])
     }
   )
+
+  /**
+   * The other half of the rule.
+   *
+   * Importing the package by name only works if rollup is told to leave that
+   * import alone. Resolving it means resolving `dist/`, which the build is
+   * what produces — so a package that self-imports without externalising its
+   * own name builds fine wherever a stale `dist/` happens to exist and fails
+   * in a clean tree. That is a defect that reaches CI and never reaches a
+   * developer's machine.
+   */
+  test.each(files.map(([pkg]) => pkg))(
+    '%s externalises its own name in the vite config',
+    pkg => {
+      const source = files.find(([name]) => name === pkg)![1]
+      const selfImports = [...source.matchAll(/await import\(\s*'([^']+)'/g)]
+        .map(match => match[1])
+        .filter(specifier => specifier.startsWith('@mlightcad/'))
+      if (selfImports.length === 0) return
+
+      const config = readFileSync(
+        join(PACKAGES_DIR, pkg, 'vite.config.ts'),
+        'utf8'
+      )
+      const missing = selfImports.filter(
+        name => !config.includes(`'${name}'`) && !config.includes('packageName')
+      )
+
+      expect(missing).toEqual([])
+      expect(config).toMatch(/external:\s*\[/)
+    }
+  )
 })
