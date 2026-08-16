@@ -4,13 +4,6 @@ const config: Config = {
   verbose: true,
   preset: 'ts-jest',
   testEnvironment: 'node',
-  // Workers are reused across suites and this repo's suites are heavy: the
-  // renderer and data-model ones leave hundreds of megabytes behind. Without a
-  // ceiling the worker eventually dies with "Ineffective mark-compacts near
-  // heap limit", and the suite it happened to be running gets blamed for it.
-  // Recycling the worker instead keeps a full run from depending on how many
-  // suites exist.
-  workerIdleMemoryLimit: '1GB',
   transform: {
     // Transpile-only for the agent package — see tsconfig.jest.agent.json for
     // why. Listed first because jest takes the first pattern that matches.
