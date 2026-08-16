@@ -13,6 +13,7 @@ export default {
   templateDlg: {
     title: 'Sinh bản vẽ từ template',
     template: 'Template',
+    allCategories: 'Tất cả',
     showAll: 'Xem tất cả thông số trên một trang',
     back: 'Quay lại',
     next: 'Tiếp',

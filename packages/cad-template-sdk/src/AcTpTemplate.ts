@@ -47,7 +47,14 @@ export interface AcTpTemplateMeta {
   /** Author-declared version. Pinned into every drawing this template makes. */
   version: string
   name: string
-  /** Structure family, used for filtering in the template library. */
+  /**
+   * Structure family, used for filtering in the template library.
+   *
+   * A label an engineer reads, not a machine key — it is shown verbatim on
+   * the filter chips and on every card. `role` slugs are matched by machine
+   * and stay unaccented; this one is only ever displayed, so "Cầu bản" beats
+   * "cau_ban" on a screen a Vietnamese engineer is looking at.
+   */
   category: string
   description?: string
 }
@@ -65,7 +72,7 @@ export type AcTpParamValues = Record<string, number | string | boolean>
  * @example
  * ```ts
  * const template: AcTpTemplate = {
- *   meta: { id: 'cau_ban_btct', version: '1.0.0', name: 'Cầu bản BTCT', category: 'cau_ban' },
+ *   meta: { id: 'cau_ban_btct', version: '1.0.0', name: 'Cầu bản BTCT', category: 'Cầu bản' },
  *   params: [
  *     { key: 'L', label: 'Chiều dài nhịp', type: 'number', unit: 'm', min: 6, max: 24, default: 12 }
  *   ],
