@@ -2,6 +2,7 @@ export default {
   templateDlg: {
     title: 'Generate drawing from template',
     template: 'Template',
+    allCategories: 'All',
     showAll: 'Show all parameters on one page',
     back: 'Back',
     next: 'Next',
@@ -41,7 +42,7 @@ export default {
       dms: 'Deg/Min/Sec',
       gradians: 'Gradians',
       radians: 'Radians',
-      surveyors: 'Surveyor\'s Units'
+      surveyors: "Surveyor's Units"
     },
     insUnits: {
       _0: 'Unitless',

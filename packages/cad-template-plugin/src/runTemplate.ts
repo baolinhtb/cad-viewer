@@ -10,6 +10,8 @@ import {
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { markTemplateVerified } from './remoteTemplates'
+// Re-exported so `defaultValues` keeps its existing import path.
+export { defaultValues } from './templateValues'
 import { findRemoteSource, roleLayers } from './templateRegistry'
 
 /** Outcome of a run, enough to tell the user what was produced. */
@@ -83,13 +85,4 @@ export async function runTemplate(
   }
 
   return { entityCount, layers, errors: [] }
-}
-
-/** Values a template starts with, taken from its own declarations. */
-export function defaultValues(template: AcTpTemplate): AcTpParamValues {
-  const values: AcTpParamValues = {}
-  for (const spec of template.params) {
-    if (spec.default !== undefined) values[spec.key] = spec.default
-  }
-  return values
 }

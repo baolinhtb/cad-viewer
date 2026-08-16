@@ -5,9 +5,11 @@ import type {
   AcTpTemplate
 } from '@mlightcad/cad-template-plugin'
 import {
+  type AcApTemplatePreview,
   defaultValues,
   listTemplates,
   refreshTemplateLibrary,
+  renderTemplatePreview,
   runTemplate
 } from '@mlightcad/cad-template-plugin'
 // Imported explicitly, like every other component here. Without it Vue cannot
@@ -73,6 +75,58 @@ const syncTemplates = async () => {
 watch(visible, isOpen => {
   if (isOpen) void syncTemplates()
 })
+
+/** Structure categories present in the library, plus an "all" entry. */
+const category = ref<string>('')
+const categories = computed(() => {
+  const present = [
+    ...new Set(templates.value.map(item => item.meta.category).filter(Boolean))
+  ]
+  return present.length > 1
+    ? [{ value: '', label: t('dialog.templateDlg.allCategories') }].concat(
+        present.map(value => ({ value, label: value }))
+      )
+    : []
+})
+
+const visibleTemplates = computed(() =>
+  category.value
+    ? templates.value.filter(item => item.meta.category === category.value)
+    : templates.value
+)
+
+/**
+ * Thumbnails, computed once per template.
+ *
+ * Rendering runs the template, so doing it inside the card's render would
+ * redraw every cross-section on every keystroke in the form.
+ */
+const previews = new Map<string, AcApTemplatePreview>()
+const previewOf = (item: AcTpTemplate): AcApTemplatePreview => {
+  const key = `${item.meta.id}@${item.meta.version}`
+  const cached = previews.get(key)
+  if (cached) return cached
+  const preview = renderTemplatePreview(item, 72)
+  previews.set(key, preview)
+  return preview
+}
+
+/**
+ * The parameter ranges a card shows.
+ *
+ * Only the bounded numeric ones, and only the first few: the point is to let
+ * an engineer rule a template out before opening it, not to reproduce the
+ * form on the card.
+ */
+const rangeSummary = (item: AcTpTemplate): string =>
+  item.params
+    .filter(spec => spec.min !== undefined && spec.max !== undefined)
+    .slice(0, 3)
+    .map(
+      spec =>
+        `${spec.label} ${spec.min}–${spec.max}${spec.unit ? ' ' + spec.unit : ''}`
+    )
+    .join(' · ')
 
 const values = ref<Record<string, number | string | boolean>>({})
 const errors = ref<string[]>([])
@@ -173,14 +227,52 @@ async function generate() {
   >
     <el-form label-position="top" @submit.prevent>
       <el-form-item :label="t('dialog.templateDlg.template')">
-        <el-select v-model="selectedId" class="ml-template-dlg__select">
-          <el-option
-            v-for="item in templates"
-            :key="item.meta.id"
-            :label="item.meta.name"
-            :value="item.meta.id"
-          />
-        </el-select>
+        <div class="ml-template-dlg__library">
+          <div v-if="categories.length > 1" class="ml-template-dlg__filters">
+            <button
+              v-for="option in categories"
+              :key="option.value"
+              type="button"
+              class="ml-template-dlg__filter"
+              :class="{ 'is-active': category === option.value }"
+              @click="category = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+
+          <ul class="ml-template-dlg__cards">
+            <li v-for="item in visibleTemplates" :key="item.meta.id">
+              <button
+                type="button"
+                class="ml-template-dlg__card"
+                :class="{ 'is-active': item.meta.id === selectedId }"
+                :aria-pressed="item.meta.id === selectedId"
+                @click="selectedId = item.meta.id"
+              >
+                <span class="ml-template-dlg__thumb" aria-hidden="true">
+                  <span
+                    v-if="previewOf(item).svg"
+                    class="ml-template-dlg__thumb-svg"
+                    v-html="previewOf(item).svg"
+                  />
+                  <span v-else class="ml-template-dlg__thumb-empty">—</span>
+                </span>
+                <span class="ml-template-dlg__card-body">
+                  <span class="ml-template-dlg__card-name">{{
+                    item.meta.name
+                  }}</span>
+                  <span class="ml-template-dlg__card-cat">{{
+                    item.meta.category
+                  }}</span>
+                  <span class="ml-template-dlg__card-ranges">{{
+                    rangeSummary(item)
+                  }}</span>
+                </span>
+              </button>
+            </li>
+          </ul>
+        </div>
       </el-form-item>
 
       <p v-if="selected?.meta.description" class="ml-template-dlg__desc">
@@ -335,5 +427,115 @@ async function generate() {
   display: flex;
   justify-content: flex-end;
   gap: var(--cv-space-3);
+}
+
+/* --- Template library ---------------------------------------------------
+   DESIGN.md: card carries name, thumbnail and parameter ranges in mono;
+   hover draws an accent border. Cards are buttons rather than clickable divs
+   so the whole library is reachable from the keyboard, which the generate
+   flow requires. */
+.ml-template-dlg__filters {
+  display: flex;
+  gap: var(--cv-space-2);
+  margin-bottom: var(--cv-space-3);
+  flex-wrap: wrap;
+}
+
+.ml-template-dlg__filter {
+  padding: 3px 10px;
+  border: 1px solid var(--cv-border-hairline);
+  border-radius: var(--cv-radius-sm);
+  background: transparent;
+  color: var(--cv-ink-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ml-template-dlg__filter.is-active {
+  border-color: var(--cv-accent);
+  color: var(--cv-accent);
+}
+
+.ml-template-dlg__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--cv-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ml-template-dlg__card {
+  display: flex;
+  gap: var(--cv-space-4);
+  width: 100%;
+  padding: var(--cv-space-3);
+  border: 1px solid var(--cv-border-hairline);
+  border-radius: var(--cv-radius-lg);
+  background: var(--cv-surface-panel);
+  color: var(--cv-ink-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.ml-template-dlg__card:hover,
+.ml-template-dlg__card.is-active {
+  border-color: var(--cv-accent);
+  background: var(--cv-surface-raised);
+}
+
+.ml-template-dlg__thumb {
+  flex: 0 0 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cv-radius-sm);
+  background: var(--cv-surface-canvas);
+  color: var(--cv-ink-secondary);
+}
+
+.ml-template-dlg__card.is-active .ml-template-dlg__thumb,
+.ml-template-dlg__card:hover .ml-template-dlg__thumb {
+  color: var(--cv-ink-primary);
+}
+
+.ml-template-dlg__thumb-svg {
+  display: flex;
+}
+
+.ml-template-dlg__thumb-empty {
+  font-size: 18px;
+  color: var(--cv-ink-disabled);
+}
+
+.ml-template-dlg__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ml-template-dlg__card-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ml-template-dlg__card-cat {
+  font-size: 11px;
+  color: var(--cv-ink-secondary);
+}
+
+/* Ranges are exact values, so they read in the mono face. */
+.ml-template-dlg__card-ranges {
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--cv-ink-secondary);
 }
 </style>

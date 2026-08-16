@@ -29,7 +29,7 @@ const template: AcTpTemplate = {
     id: 'cau_ban_btct',
     version: '1.0.0',
     name: 'Cầu bản BTCT',
-    category: 'cau_ban',
+    category: 'Cầu bản',
     description:
       'Mặt cắt ngang cầu bản bê tông cốt thép: bản mặt cầu, lớp phủ có độ dốc ngang, ' +
       'gờ chắn bánh, lan can hai bên và ống thoát nước.'
