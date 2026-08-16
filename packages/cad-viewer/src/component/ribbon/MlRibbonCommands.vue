@@ -1777,9 +1777,16 @@ const fileMenuItems = computed<FileMenuItemModel[]>(() => {
       ]
     },
     {
-      id: 'About',
-      label: t('main.mainMenu.about'),
+      // Company-wide configuration rather than a drawing action, so it sits
+      // below the divider with About. An engineer who hits a term the
+      // assistant misreads should not have to remember a URL to fix it.
+      id: 'Standards',
+      label: t('main.mainMenu.standards'),
       divided: true
+    },
+    {
+      id: 'About',
+      label: t('main.mainMenu.about')
     }
   ]
 })
@@ -1848,6 +1855,8 @@ const handleFileMenuSelect = async (command: string) => {
     await runLazyCommand('template')
   } else if (command === 'DrawingUnits') {
     AcApDocManager.instance.sendStringToExecute('units')
+  } else if (command === 'Standards') {
+    window.open('/standards', '_blank', 'noopener')
   } else if (command === 'About') {
     AcApDocManager.instance.sendStringToExecute('about')
   }

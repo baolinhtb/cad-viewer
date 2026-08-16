@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nền chuẩn hóa — CAD Editor</title>
+<link rel="stylesheet" href="/theme.css">
+<style>
+  header {
+    background: var(--cv-surface-panel);
+    border-bottom: 1px solid var(--cv-border-hairline);
+    padding: 12px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  h1 { font-size: 16px; font-weight: 600; }
+  header nav { display: flex; gap: 4px; }
+  header a, header button {
+    padding: 5px 12px; border: 1px solid transparent; border-radius: var(--cv-radius-md);
+    background: transparent; color: var(--cv-ink-secondary);
+    font: inherit; font-size: 13px; text-decoration: none; cursor: pointer;
+  }
+  header a:hover, header button:hover { color: var(--cv-ink-primary); border-color: var(--cv-border-hairline); }
+  main { max-width: 1080px; margin: 20px auto; padding: 0 16px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab {
+    padding: 6px 14px; border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-md); background: transparent;
+    color: var(--cv-ink-secondary); font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .tab.is-active { border-color: var(--cv-accent); color: var(--cv-accent); }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  input, textarea {
+    padding: 6px 10px; border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-sm); background: var(--cv-surface-raised);
+    color: var(--cv-ink-primary); font: inherit; font-size: 13px;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--cv-accent); outline-offset: 1px; }
+  input.slug { font-family: var(--cv-font-mono); }
+  .grow { flex: 1; min-width: 180px; }
+
+  button.primary {
+    padding: 6px 14px; border: 0; border-radius: var(--cv-radius-md);
+    background: var(--cv-accent); color: var(--cv-accent-foreground);
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  button.ghost {
+    padding: 4px 10px; border: 1px solid var(--cv-border-hairline);
+    border-radius: var(--cv-radius-sm); background: transparent;
+    color: var(--cv-ink-secondary); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  button.ghost:hover { color: var(--cv-ink-primary); }
+  button.ghost.danger:hover { color: var(--cv-danger); border-color: var(--cv-danger); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--cv-border-hairline); vertical-align: top; }
+  th { color: var(--cv-ink-secondary); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: 0; }
+  td.slug, td.when { font-family: var(--cv-font-mono); font-variant-numeric: tabular-nums; }
+  td.when { color: var(--cv-ink-secondary); font-size: 11px; white-space: nowrap; }
+  .aliases { display: flex; flex-wrap: wrap; gap: 4px; }
+  .alias {
+    padding: 1px 8px; border: 1px solid var(--cv-border-hairline);
+    border-radius: 20px; font-size: 11px; color: var(--cv-ink-secondary);
+  }
+  .empty { padding: 28px; text-align: center; color: var(--cv-ink-disabled); font-size: 13px; }
+
+  .note { margin: 10px 0 0; font-size: 12px; color: var(--cv-ink-secondary); }
+  .msg { margin-bottom: 12px; padding: 8px 12px; border-radius: var(--cv-radius-sm); font-size: 13px; display: none; }
+  .msg.show { display: block; }
+  .msg.error { border: 1px solid var(--cv-danger); color: var(--cv-danger); }
+  .msg.ok { border: 1px solid var(--cv-accent); color: var(--cv-accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Nền chuẩn hóa</h1>
+  <nav>
+    <a href="/cad-viewer/">Bản vẽ</a>
+    <a href="/admin" id="adminLink" hidden>Quản trị</a>
+    <button id="logout">Đăng xuất</button>
+  </nav>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab is-active" data-tab="terms">Thuật ngữ</button>
+    <button class="tab" data-tab="layers">Layer</button>
+  </div>
+
+  <div id="msg" class="msg"></div>
+
+  <!-- Terms -->
+  <section id="pane-terms">
+    <div class="toolbar">
+      <input id="q" class="grow" placeholder="Tìm theo tên chuẩn hoặc bí danh" autocomplete="off">
+    </div>
+    <div class="toolbar">
+      <input id="t-role" class="slug" placeholder="khóa (vd: dam_chu)" size="18" autocomplete="off">
+      <input id="t-label" placeholder="Tên chuẩn (vd: Dầm chủ)" size="22" autocomplete="off">
+      <input id="t-aliases" class="grow" placeholder="Bí danh, cách nhau bằng dấu phẩy" autocomplete="off">
+      <button id="t-add" class="primary">Thêm thuật ngữ</button>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Khóa</th><th>Tên chuẩn</th><th>Bí danh</th><th>Sửa lần cuối</th><th></th></tr></thead>
+        <tbody id="t-rows"></tbody>
+      </table>
+      <div id="t-empty" class="empty" hidden>Chưa có thuật ngữ nào.</div>
+    </div>
+    <p class="note">
+      Khóa là thứ máy dùng để khớp với lời nói, nên chỉ gồm a–z, 0–9 và gạch dưới, không dấu.
+      Bí danh là những cách gọi khác mà kỹ sư thật sự dùng — càng đủ, AI càng ít hiểu sai.
+    </p>
+  </section>
+
+  <!-- Layers -->
+  <section id="pane-layers" hidden>
+    <div class="toolbar">
+      <input id="l-name" class="slug" placeholder="Tên layer (vd: KC-DAMCHU)" size="22" autocomplete="off">
+      <input id="l-meaning" class="grow" placeholder="Ý nghĩa" autocomplete="off">
+      <button id="l-add" class="primary">Thêm layer</button>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Tên layer</th><th>Ý nghĩa</th><th>Sửa lần cuối</th><th></th></tr></thead>
+        <tbody id="l-rows"></tbody>
+      </table>
+      <div id="l-empty" class="empty" hidden>Chưa có layer nào.</div>
+    </div>
+    <p class="note">
+      Tên layer không phân biệt hoa thường, giống cách AutoCAD xử lý.
+      Template vẽ lên layer chưa khai ở đây sẽ bị cảnh báo khi nạp lên.
+    </p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id)
+const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML }
+
+/**
+ * Shows one message at a time.
+ *
+ * The timer handle is kept and cleared on every call. Without that, a success
+ * message's pending timer fires 2.5s later and wipes whatever is on screen by
+ * then — which is how an alias-conflict error appeared for an instant and
+ * vanished, leaving the engineer with a form that had silently refused to
+ * save.
+ */
+let messageTimer
+function say(text, kind = 'error') {
+  const box = $('msg')
+  clearTimeout(messageTimer)
+  box.textContent = text
+  box.className = `msg show ${kind}`
+  if (kind === 'ok') {
+    messageTimer = setTimeout(() => (box.className = 'msg'), 2500)
+  }
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, { credentials: 'same-origin', ...options })
+  if (response.status === 401) {
+    location.href = '/login?next=/standards'
+    throw new Error('unauthorized')
+  }
+  return response
+}
+
+/**
+ * Turns a server error into something an engineer can act on.
+ *
+ * The alias conflict is the one that matters: saying "trùng" is useless, and
+ * naming the term it clashes with is the whole point of checking on the
+ * server where the entire dictionary is visible.
+ */
+async function explain(response) {
+  const body = await response.json().catch(() => ({}))
+  if (body.code === 'standard_alias_conflict') {
+    const clashes = (body.detail?.conflicts ?? [])
+      .map(c => `${c.role} (${c.aliases.join(', ')})`)
+      .join('; ')
+    return `Bí danh đã thuộc về: ${clashes}`
+  }
+  if (body.code === 'standard_duplicate') return `Đã tồn tại: ${body.detail?.value ?? ''}`
+  if (body.code === 'standard_invalid') return body.detail?.reason ?? 'Dữ liệu không hợp lệ.'
+  return body.error || `Lỗi ${response.status}`
+}
+
+// --- terms ---
+async function loadTerms() {
+  const query = $('q').value.trim()
+  const response = await api('/api/standards/terms' + (query ? `?q=${encodeURIComponent(query)}` : ''))
+  const { terms } = await response.json()
+  $('t-empty').hidden = terms.length > 0
+  $('t-rows').innerHTML = terms.map(term => `
+    <tr data-role="${esc(term.role)}">
+      <td class="slug">${esc(term.role)}</td>
+      <td>${esc(term.label)}</td>
+      <td><div class="aliases">${term.aliases.map(a => `<span class="alias">${esc(a)}</span>`).join('')}</div></td>
+      <td class="when">${esc(term.updatedAt)}${term.updatedBy ? ` · #${term.updatedBy}` : ''}</td>
+      <td>
+        <button class="ghost" data-act="edit-term">Sửa bí danh</button>
+        <button class="ghost danger" data-act="del-term">Xóa</button>
+      </td>
+    </tr>`).join('')
+}
+
+$('t-add').addEventListener('click', async () => {
+  const payload = {
+    role: $('t-role').value.trim(),
+    label: $('t-label').value.trim(),
+    aliases: $('t-aliases').value.split(',').map(s => s.trim()).filter(Boolean)
+  }
+  const response = await api('/api/standards/terms', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  })
+  if (!response.ok) return say(await explain(response))
+  $('t-role').value = $('t-label').value = $('t-aliases').value = ''
+  say('Đã thêm thuật ngữ.', 'ok')
+  loadTerms()
+})
+
+$('t-rows').addEventListener('click', async event => {
+  const button = event.target.closest('button')
+  if (!button) return
+  const role = button.closest('tr').dataset.role
+
+  if (button.dataset.act === 'del-term') {
+    if (!confirm(`Xóa thuật ngữ "${role}"?`)) return
+    const response = await api(`/api/standards/terms/${encodeURIComponent(role)}`, { method: 'DELETE' })
+    if (!response.ok) return say(await explain(response))
+    say('Đã xóa.', 'ok')
+    return loadTerms()
+  }
+
+  if (button.dataset.act === 'edit-term') {
+    const current = [...button.closest('tr').querySelectorAll('.alias')].map(e => e.textContent)
+    const next = prompt(`Bí danh của "${role}", cách nhau bằng dấu phẩy:`, current.join(', '))
+    if (next === null) return
+    const response = await api(`/api/standards/terms/${encodeURIComponent(role)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aliases: next.split(',').map(s => s.trim()).filter(Boolean) })
+    })
+    if (!response.ok) return say(await explain(response))
+    say('Đã cập nhật bí danh.', 'ok')
+    loadTerms()
+  }
+})
+
+let searchTimer
+$('q').addEventListener('input', () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(loadTerms, 200)
+})
+
+// --- layers ---
+async function loadLayers() {
+  const { layers } = await (await api('/api/standards/layers')).json()
+  $('l-empty').hidden = layers.length > 0
+  $('l-rows').innerHTML = layers.map(layer => `
+    <tr data-name="${esc(layer.name)}">
+      <td class="slug">${esc(layer.name)}</td>
+      <td>${esc(layer.meaning)}</td>
+      <td class="when">${esc(layer.updatedAt)}${layer.updatedBy ? ` · #${layer.updatedBy}` : ''}</td>
+      <td><button class="ghost danger" data-act="del-layer">Xóa</button></td>
+    </tr>`).join('')
+}
+
+$('l-add').addEventListener('click', async () => {
+  const response = await api('/api/standards/layers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: $('l-name').value.trim(), meaning: $('l-meaning').value.trim() })
+  })
+  if (!response.ok) return say(await explain(response))
+  $('l-name').value = $('l-meaning').value = ''
+  say('Đã thêm layer.', 'ok')
+  loadLayers()
+})
+
+$('l-rows').addEventListener('click', async event => {
+  const button = event.target.closest('button[data-act="del-layer"]')
+  if (!button) return
+  const name = button.closest('tr').dataset.name
+  if (!confirm(`Xóa layer "${name}"?`)) return
+  const response = await api(`/api/standards/layers/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  if (!response.ok) return say(await explain(response))
+  say('Đã xóa.', 'ok')
+  loadLayers()
+})
+
+// --- shell ---
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('is-active', t === tab))
+    $('pane-terms').hidden = tab.dataset.tab !== 'terms'
+    $('pane-layers').hidden = tab.dataset.tab !== 'layers'
+  })
+})
+
+$('logout').addEventListener('click', async () => {
+  await api('/api/auth/logout', { method: 'POST' })
+  location.href = '/login'
+})
+
+async function start() {
+  const me = await (await api('/api/auth/me')).json().catch(() => ({}))
+  if (me?.role === 'admin') $('adminLink').hidden = false
+  await Promise.all([loadTerms(), loadLayers()])
+}
+start()
+</script>
+</body>
+</html>

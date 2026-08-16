@@ -1,0 +1,66 @@
+/**
+ * "Phòng kỹ thuật" tokens for the pages this service serves directly.
+ *
+ * Mirrors `packages/cad-viewer/src/style/design-tokens.scss`. Duplicated
+ * rather than imported for the same reason the seed dictionary is: this
+ * service runs on plain Node with no bundler and serves static HTML, so it
+ * cannot reach into a workspace package. `themeTokens.spec.ts` pins the two
+ * together, because a login page drifting away from the editor it leads into
+ * is exactly the kind of seam nobody notices until a user does.
+ */
+:root {
+  --cv-surface-canvas: #0d0f12;
+  --cv-surface-panel: #14171c;
+  --cv-surface-raised: #1b2028;
+  --cv-border-hairline: #262c35;
+
+  --cv-ink-primary: #e8ecf1;
+  --cv-ink-secondary: #9aa3ae;
+  --cv-ink-disabled: #6b7380;
+
+  --cv-accent: #35e0a1;
+  --cv-accent-foreground: #06130d;
+  --cv-selection: #54a9ff;
+  --cv-warning: #f5b942;
+  --cv-danger: #f26d5b;
+
+  --cv-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cv-font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas,
+    monospace;
+
+  --cv-radius-sm: 2px;
+  --cv-radius-md: 4px;
+  --cv-radius-lg: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  font-family: var(--cv-font-sans);
+  background: var(--cv-surface-canvas);
+  color: var(--cv-ink-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Depth comes from tone and a 1px hairline, never from a shadow. */
+.panel {
+  background: var(--cv-surface-panel);
+  border: 1px solid var(--cv-border-hairline);
+  border-radius: var(--cv-radius-lg);
+}
+
+/* Any exact value: ids, counts, timestamps, layer names. */
+.data {
+  font-family: var(--cv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+  border-radius: var(--cv-radius-sm);
+}
