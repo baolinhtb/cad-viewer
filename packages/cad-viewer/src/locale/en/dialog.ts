@@ -1,5 +1,10 @@
 export default {
   templateDlg: {
+    upload: 'Upload template…',
+    uploading: 'Running trial…',
+    uploadHint: 'The module is trialled before it is stored.',
+    uploaded: 'Uploaded {name} {version}: {count} entities drawn.',
+    uploadGaps: 'Not yet in the standards: {gaps}.',
     title: 'Generate drawing from template',
     template: 'Template',
     allCategories: 'All',
