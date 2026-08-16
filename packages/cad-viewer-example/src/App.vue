@@ -96,25 +96,6 @@ const createNewDrawing = async () => {
   })
   if (!success) {
     log.error('Failed to create new drawing')
-    return
-  }
-  renameTemplateLayouts()
-}
-
-/**
- * The stock `acadiso.dxf` template is fetched from the upstream CDN and ships
- * with its paper-space layouts named in Chinese, which then show up as the tab
- * labels of a brand-new drawing. Layout names are drawing data, not UI chrome,
- * so they are never translated on open — an imported drawing must keep the
- * names its author gave it. A drawing this app just created from its own
- * template is the one case where the names are ours to set.
- */
-const renameTemplateLayouts = () => {
-  const database = AcApDocManager.instance.curDocument?.database
-  if (!database) return
-  for (const layout of database.objects.layout.newIterator()) {
-    const match = /^布局(\d+)$/.exec(layout.layoutName)
-    if (match) layout.layoutName = `Layout ${match[1]}`
   }
 }
 
