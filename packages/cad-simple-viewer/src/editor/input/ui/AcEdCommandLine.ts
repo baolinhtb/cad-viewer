@@ -246,19 +246,28 @@ export class AcEdCommandLine {
     }
 
     const command = this.resolveCommand(cmdLine)
-    if (!command) {
+    // A lazy plugin's commands do not exist in the command stack until the
+    // plugin loads, and the plugin does not load until one of them is asked
+    // for. Looking only at the stack therefore rejects every lazy command as
+    // unknown — `cpdf`, `csvg`, `template` were all unreachable by typing,
+    // while the same commands worked from a ribbon button because that path
+    // calls `sendStringToExecute` directly. `sendStringToExecute` already
+    // resolves triggers; it just never got the chance.
+    const lazyTrigger = command ? undefined : this.resolveLazyTrigger(cmdLine)
+    if (!command && !lazyTrigger) {
       const unknown = this.localize('main.commandLine.unknownCommand')
       this.showMessage(`${unknown}: ${cmdLine}`, 'warning')
       return
     }
 
-    this.history.push(command.globalName)
+    const globalName = command?.globalName ?? lazyTrigger!
+    this.history.push(globalName)
     this.historyIndex = this.history.length
-    this.lastExecuted = command.globalName
+    this.lastExecuted = globalName
 
     this.printHistoryLine(cmdLine)
     const executed = this.localize('main.commandLine.executed')
-    this.showMessage(`${executed}: ${command.localName}`)
+    this.showMessage(`${executed}: ${command?.localName ?? lazyTrigger}`)
 
     AcApDocManager.instance.sendStringToExecute(cmdLine)
     this.clearInput()
@@ -887,10 +896,27 @@ export class AcEdCommandLine {
 
   /** Resolve command name */
   private resolveCommand(cmdLine: string) {
-    const parts = cmdLine.trim().split(/\s+/)
-    const cmdStr = parts[0].toUpperCase()
-    // TODO: Should look up local cmd too
-    return AcApDocManager.instance.lookupLocalCmd(cmdStr)
+    return AcApDocManager.instance.lookupLocalCmd(this.commandWord(cmdLine))
+  }
+
+  /**
+   * Returns the trigger word when it belongs to a lazy plugin.
+   *
+   * Kept separate from {@link resolveCommand} because the two answer different
+   * questions: one asks "is this command loaded", the other "will typing it
+   * load something". Merging them would make an unloaded plugin look like a
+   * registered command everywhere else in this class.
+   */
+  private resolveLazyTrigger(cmdLine: string): string | undefined {
+    const word = this.commandWord(cmdLine)
+    return AcApDocManager.instance.pluginManager.isLazyPluginTrigger(word)
+      ? word
+      : undefined
+  }
+
+  /** First word of the line, upper-cased, which is the command name. */
+  private commandWord(cmdLine: string): string {
+    return cmdLine.trim().split(/\s+/)[0].toUpperCase()
   }
 
   /** Show or hide popups */
