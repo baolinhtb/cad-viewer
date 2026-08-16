@@ -1,9 +1,9 @@
 // import dark theme
-@use "element-plus/theme-chalk/src/dark/css-vars.scss" as *;
+@use 'element-plus/theme-chalk/src/dark/css-vars.scss' as *;
 
 // "Phòng kỹ thuật" tokens. Must come after Element Plus' own dark css-vars so
 // the mappings in it win.
-@use "./design-tokens.scss" as *;
+@use './design-tokens.scss' as *;
 
 :root {
   --ml-status-bar-height: 30px;
@@ -25,4 +25,18 @@ code {
   padding: 2px 4px;
   background-color: var(--el-color-primary-light-9);
   color: var(--elcolor-primary);
+}
+
+// A ribbon group that sizes to its content measures only its buttons, so a
+// group holding one narrow button ends up narrower than its own label — "Ghi
+// chú" rendered as "G...". The cause is the percentage `max-width` the ribbon
+// puts on the title: a percentage makes the element's intrinsic contribution
+// indeterminate, so `width: max-content` on the group ignores it entirely.
+// Dropping the cap lets the label count towards the group's width again.
+//
+// Left unfixed this only worsens as labels get longer — English "Annotation"
+// already showed as "Ann...". Widening a group is the lesser cost: the ribbon
+// moves whatever no longer fits into its overflow menu on its own.
+.ml-ribbon-group--auto-width .ml-ribbon-group__title {
+  max-width: none;
 }

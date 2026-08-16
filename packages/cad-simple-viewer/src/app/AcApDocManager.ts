@@ -88,10 +88,7 @@ import {
   AcEdOpenMode
 } from '../editor'
 import { AcApPluginManager } from '../plugin/AcApPluginManager'
-import {
-  isScriptQuitCommand,
-  parseScriptLines
-} from '../util/AcApScriptParser'
+import { isScriptQuitCommand, parseScriptLines } from '../util/AcApScriptParser'
 import { acapWithSecondaryDatabase } from '../util/AcApSecondaryDatabase'
 import { AcTrView2d } from '../view'
 import type { AcTrLayout } from '../view/AcTrLayout'
@@ -122,6 +119,15 @@ import {
 const DEFAULT_BASE_URL = 'https://cdn.jsdelivr.net/gh/mlightcad/cad-data'
 /** Default ISO drawing template loaded by {@link AcApDocManager.newDocument}. */
 const DEFAULT_NEW_DRAWING_TEMPLATE = 'templates/acadiso.dxf'
+
+/** Options accepted by {@link AcApDocManager.newDocument}. */
+export interface AcApNewDocumentOptions extends AcApOpenDatabaseOptions {
+  /**
+   * Absolute or document-relative URL of the template to start from. Defaults
+   * to `acadiso.dxf` under {@link AcApDocManager.baseUrl}.
+   */
+  templateUrl?: string
+}
 /**
  * Built-in command alias table used when users do not provide explicit alias overrides.
  *
@@ -1024,12 +1030,18 @@ export class AcApDocManager {
   }
 
   /**
-   * Creates a new CAD document from the default ISO drawing template.
+   * Creates a new CAD document from a drawing template.
    *
-   * This method loads the predefined template (`acadiso.dxf`) from {@link baseUrl}
-   * and replaces the current document in write mode with default open options.
+   * By default this loads `acadiso.dxf` from {@link baseUrl} and replaces the
+   * current document in write mode. Pass `templateUrl` to start from a
+   * different template: the stock one carries its own layout names, text
+   * styles and units, and an application that needs different defaults should
+   * not have to host a full mirror of {@link baseUrl} — which also serves
+   * fonts — just to change them.
    *
-   * @param options - Optional database opening options merged with write mode
+   * @param options - Optional database opening options merged with write mode.
+   *   `templateUrl` overrides the template and is not passed on to the open
+   *   call.
    * @returns Promise that resolves to true if the document was successfully created
    *
    * @example
@@ -1037,13 +1049,15 @@ export class AcApDocManager {
    * const success = await docManager.newDocument();
    * ```
    */
-  async newDocument(options?: AcApOpenDatabaseOptions) {
+  async newDocument(options?: AcApNewDocumentOptions) {
     const baseUrl = this.baseUrl.endsWith('/')
       ? this.baseUrl
       : `${this.baseUrl}/`
-    const templateUrl = `${baseUrl}${DEFAULT_NEW_DRAWING_TEMPLATE}`
+    const { templateUrl: templateOverride, ...databaseOptions } = options ?? {}
+    const templateUrl =
+      templateOverride ?? `${baseUrl}${DEFAULT_NEW_DRAWING_TEMPLATE}`
     const openOptions = this.setOptions({
-      ...options,
+      ...databaseOptions,
       mode: AcEdOpenMode.Write
     })
     this.onBeforeOpenDocument(openOptions)
