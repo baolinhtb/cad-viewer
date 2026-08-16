@@ -11,7 +11,7 @@
     <!-- CAD viewer when a file is selected or a new drawing is created -->
     <div v-else>
       <MlCadViewer
-        locale="en"
+        locale="default"
         :local-file="store.selectedFile ?? undefined"
         :mode="selectedMode"
         :use-main-thread-draw="useMainThreadDraw"
@@ -42,8 +42,12 @@ import FileUpload from './components/FileUpload.vue'
 import { initializeLocale } from './locale'
 import { store } from './store'
 
+// Runs at setup, not on viewer create: the upload screen is shown before any
+// viewer exists and it now reads its own strings from the locale, so merging
+// them later would render raw key paths on the first screen anyone sees.
+initializeLocale()
+
 const initialize = () => {
-  initializeLocale()
   if (import.meta.env.DEV) {
     ;(
       window as Window & { AcApDocManager?: typeof AcApDocManager }
@@ -169,7 +173,9 @@ const handleNewDrawing = (
   justify-content: center;
   align-items: safe center;
   overflow-y: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* DESIGN.md: the canvas tone is the darkest layer and gradients are out.
+     The splash sits where the drawing will be, so it uses the same tone. */
+  background: var(--cv-surface-canvas, #0d0f12);
   margin: 0;
   padding: 16px;
   box-sizing: border-box;

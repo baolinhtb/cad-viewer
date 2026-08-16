@@ -9,6 +9,9 @@ import enMain from './en/main'
 import trCommand from './tr/command'
 import trJig from './tr/jig'
 import trMain from './tr/main'
+import viCommand from './vi/command'
+import viJig from './vi/jig'
+import viMain from './vi/main'
 import zhCommand from './zh/command'
 import zhJig from './zh/jig'
 import zhMain from './zh/main'
@@ -33,6 +36,11 @@ AcApI18n.mergeLocaleMessage('cs', {
   command: csCommand,
   jig: csJig,
   main: csMain
+})
+AcApI18n.mergeLocaleMessage('vi', {
+  command: viCommand,
+  jig: viJig,
+  main: viMain
 })
 
 export const cmdDescription = (groupName: string, cmdName: string) => {

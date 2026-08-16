@@ -1,4 +1,4 @@
-import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
+import { AcApDocManager, applyUiTheme } from '@mlightcad/cad-simple-viewer'
 import {
   type AcDbColorTheme,
   AcDbDatabase,
@@ -20,6 +20,35 @@ function applyThemeToDom(theme: AcDbColorTheme) {
 
   const html = document.documentElement
   html.classList.toggle('dark', theme === 'dark')
+
+  // The command bar, floating input, rubber band and grips are plain DOM drawn
+  // by the core editor, not Element Plus components — they read `--ml-ui-*`,
+  // which nothing sets until this call. Without it they keep their light
+  // fallbacks, which is why the command bar rendered as a white pill on the
+  // dark canvas. `applyUiTheme` maps those onto the `--el-*` variables the
+  // design tokens already own, so the bar inherits the theme rather than
+  // needing a second palette.
+  applyUiTheme(theme === 'dark' ? 'dark' : 'light', html)
+
+  // `applyUiTheme` points the canvas cues at `--el-color-primary`, which the
+  // design tokens map to the teal accent. On the canvas that would be wrong:
+  // DESIGN.md reserves teal for "AI is working" and gives selection its own
+  // blue, so that a rubber band never reads as something the AI did. These
+  // are re-pointed after the call because it writes inline styles, which a
+  // stylesheet cannot override without `!important`.
+  const selection = 'var(--cv-selection, #54a9ff)'
+  html.style.setProperty('--ml-ui-canvas-line', selection)
+  html.style.setProperty('--ml-ui-grip-normal', selection)
+  html.style.setProperty(
+    '--ml-ui-canvas-fill',
+    'color-mix(in srgb, var(--cv-selection, #54a9ff) 18%, transparent)'
+  )
+  html.style.setProperty(
+    '--ml-ui-canvas-fill-mix',
+    'color-mix(in srgb, var(--cv-selection, #54a9ff) 18%, transparent)'
+  )
+  // Hot grip: the one being dragged. Amber is DESIGN.md's "in progress".
+  html.style.setProperty('--ml-ui-grip-hot', 'var(--cv-warning, #f5b942)')
 }
 
 function updateCurrentTheme(theme: AcDbColorTheme) {
