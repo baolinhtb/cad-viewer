@@ -63,5 +63,6 @@ export const agentTr = {
   drawingScreenshot: 'Mevcut çizim ekran görüntüsü',
   unsavedSettings: 'Mesaj göndermeden önce ayarları kaydedin.',
   missingApiKey:
-    'Mesaj göndermeden önce ayarlardan bir API anahtarı yapılandırın.'
+    'Mesaj göndermeden önce ayarlardan bir API anahtarı yapılandırın.',
+  turnUndoLabelFallback: 'Yapay zekâ komutu'
 } as const
