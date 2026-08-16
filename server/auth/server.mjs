@@ -26,6 +26,16 @@ import {
   updateLayer,
   updateTerm
 } from './standards.mjs'
+import {
+  deleteTemplate,
+  ERRORS as TEMPLATE_ERRORS,
+  getTemplate,
+  listTemplates,
+  MAX_TEMPLATE_BYTES,
+  publishTemplate,
+  TemplateError,
+  uploadTemplate
+} from './templates.mjs'
 import { hasRoleAtLeast, migrate, ROLES } from './schema.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -351,6 +361,120 @@ const server = createServer(async (req, res) => {
         json(res, 200, { message: 'ok' })
         return
       }
+    }
+
+    // --- template library ---
+    //
+    // Reading is open to every member; uploading is not. An upload is code
+    // that will execute in everybody else's browser, which is why Story 2.4
+    // introduced a role for it rather than reusing the admin flag.
+    if (path === '/api/templates' || path.startsWith('/api/templates/')) {
+      const user = currentUser(req)
+      if (!user) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+
+      const rest = path.slice('/api/templates'.length).replace(/^\//, '')
+      const [templateId, version, action] = rest.split('/').map(part =>
+        part ? decodeURIComponent(part) : ''
+      )
+
+      const failTemplate = error => {
+        if (!(error instanceof TemplateError)) throw error
+        const status =
+          error.code === TEMPLATE_ERRORS.NOT_FOUND
+            ? 404
+            : error.code === TEMPLATE_ERRORS.FORBIDDEN
+              ? 403
+              : error.code === TEMPLATE_ERRORS.VERSION_CONFLICT
+                ? 409
+                : error.code === TEMPLATE_ERRORS.TOO_LARGE
+                  ? 413
+                  : 400
+        json(res, status, {
+          error: 'Không nạp được template.',
+          code: error.code,
+          detail: error.detail ?? null
+        })
+      }
+
+      if (req.method === 'GET' && !templateId) {
+        json(res, 200, { templates: listTemplates(db, user.id) })
+        return
+      }
+
+      if (req.method === 'GET' && templateId && version) {
+        const template = getTemplate(db, templateId, version)
+        if (!template) {
+          json(res, 404, {
+            error: 'Không tìm thấy template.',
+            code: TEMPLATE_ERRORS.NOT_FOUND
+          })
+          return
+        }
+        // A draft belongs to its author until it has been shown to work.
+        if (template.status !== 'published' && template.uploadedBy !== user.id) {
+          json(res, 404, {
+            error: 'Không tìm thấy template.',
+            code: TEMPLATE_ERRORS.NOT_FOUND
+          })
+          return
+        }
+        json(res, 200, { template })
+        return
+      }
+
+      // Everything below writes, and writing needs the author role. Checked
+      // here on the server: a client that hides the upload button is not a
+      // permission, it is a suggestion.
+      if (!hasRoleAtLeast(user.role, ROLES.AUTHOR)) {
+        json(res, 403, {
+          error: 'Chỉ tác giả template mới nạp được template.',
+          code: TEMPLATE_ERRORS.FORBIDDEN
+        })
+        return
+      }
+
+      if (req.method === 'POST' && !templateId) {
+        const body = await readBody(req, MAX_TEMPLATE_BYTES + 64 * 1024)
+        try {
+          const result = uploadTemplate(db, user.id, body, {
+            knownRoles: listTerms(db).map(term => term.role),
+            knownLayers: listLayers(db).map(layer => layer.name)
+          })
+          json(res, 201, result)
+        } catch (error) {
+          failTemplate(error)
+        }
+        return
+      }
+
+      if (req.method === 'POST' && templateId && version && action === 'publish') {
+        try {
+          json(res, 200, {
+            template: publishTemplate(db, user.id, templateId, version)
+          })
+        } catch (error) {
+          failTemplate(error)
+        }
+        return
+      }
+
+      if (req.method === 'DELETE' && templateId && version) {
+        if (!deleteTemplate(db, templateId, version)) {
+          json(res, 404, {
+            error: 'Không tìm thấy template.',
+            code: TEMPLATE_ERRORS.NOT_FOUND
+          })
+          return
+        }
+        json(res, 200, { message: 'ok' })
+        return
+      }
+
+      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      return
     }
 
     // --- standardisation layer ---
