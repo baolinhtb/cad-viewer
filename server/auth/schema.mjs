@@ -239,6 +239,43 @@ const MIGRATIONS = [
     for (const [role, seed] of Object.entries(SEED_STANDARDS)) {
       setLayer.run(seed.layer, role)
     }
+  },
+
+  // v7 — a log of every AI call.
+  //
+  // Two questions this has to answer, and they pull in different directions.
+  // The administrator's: what did this cost us this month. The engineer's:
+  // did the assistant do something I had to undo — which is the only honest
+  // measure of whether it is helping. `undone_within_30s` is that measure: an
+  // edit reverted within half a minute was not what the person asked for, and
+  // a rate nobody can see is a rate nobody fixes.
+  //
+  // The prompt is stored, the drawing is not. What an engineer typed is
+  // needed to tell a misunderstanding from a bad edit; the geometry is
+  // already in `drawings` and copying it here would double the blast radius
+  // of this table for no question it answers.
+  db => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ai_calls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        drawing_id TEXT,
+        command TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+        entities_touched INTEGER,
+        undone_within_30s INTEGER NOT NULL DEFAULT 0,
+        error_code TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_ai_calls_month
+        ON ai_calls(created_at);
+      CREATE INDEX IF NOT EXISTS idx_ai_calls_user
+        ON ai_calls(user_id, created_at DESC);
+    `)
   }
 ]
 

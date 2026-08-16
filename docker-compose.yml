@@ -22,6 +22,11 @@ services:
     environment:
       ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      # Optional. Without it the AI routes answer 503 saying so, and every
+      # other feature works unchanged — the assistant is an accelerator on a
+      # product that already does its job without one.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-claude-opus-5}
     volumes:
       - auth-data:/data
     healthcheck:

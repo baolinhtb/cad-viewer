@@ -29,6 +29,16 @@ import {
   updateTerm
 } from './standards.mjs'
 import {
+  AiError,
+  buildStandardsBlock,
+  ERRORS as AI_ERRORS,
+  isConfigured as isAiConfigured,
+  MAX_AI_REQUEST_BYTES,
+  monthlyUsage,
+  recordOutcome,
+  sendToProvider
+} from './ai.mjs'
+import {
   deleteTemplate,
   ERRORS as TEMPLATE_ERRORS,
   getTemplate,
@@ -387,6 +397,74 @@ const server = createServer(async (req, res) => {
         json(res, 200, { message: 'ok' })
         return
       }
+    }
+
+    // --- AI proxy ---
+    //
+    // The provider key stays here. A key handed to thirty engineers' laptops
+    // is a key that has left the company, and no amount of encrypting it in
+    // localStorage changes that — the browser has to decrypt it to use it.
+    if (path.startsWith('/api/ai/')) {
+      const user = currentUser(req)
+      if (!user) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+
+      if (req.method === 'GET' && path === '/api/ai/context') {
+        const standards = buildStandardsBlock(db)
+        json(res, 200, {
+          configured: isAiConfigured(),
+          standardsHash: standards.hash,
+          // The text itself so the client can show what the assistant was
+          // told, and check the hash it computes against the server's.
+          standards: standards.text
+        })
+        return
+      }
+
+      if (req.method === 'GET' && path === '/api/ai/usage') {
+        json(res, 200, { months: monthlyUsage(db) })
+        return
+      }
+
+      // `/messages` matches the provider's own path, so a client can set its
+      // Anthropic base URL to `/api/ai` and work with no other change.
+      if (req.method === 'POST' && path === '/api/ai/messages') {
+        try {
+          const body = await readBody(req, MAX_AI_REQUEST_BYTES + 16 * 1024)
+          const result = await sendToProvider(db, user, body)
+          res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'x-cad-call-id': String(result.callId),
+            'x-cad-standards-hash': result.standardsHash
+          })
+          res.end(JSON.stringify(result.body))
+        } catch (error) {
+          if (!(error instanceof AiError)) throw error
+          json(res, error.status ?? 400, {
+            error: 'Không gọi được trợ lý AI.',
+            code: error.code,
+            detail: error.detail ?? null
+          })
+        }
+        return
+      }
+
+      const outcomeMatch = path.match(/^\/api\/ai\/calls\/(\d+)\/outcome$/)
+      if (req.method === 'POST' && outcomeMatch) {
+        const body = await readBody(req)
+        if (!recordOutcome(db, user.id, Number(outcomeMatch[1]), body)) {
+          json(res, 404, { error: 'Không tìm thấy lượt gọi.', code: AI_ERRORS.INVALID })
+          return
+        }
+        json(res, 200, { message: 'ok' })
+        return
+      }
+
+      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      return
     }
 
     // --- template library ---
