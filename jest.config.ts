@@ -5,6 +5,14 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   transform: {
+    // Transpile-only for the agent package — see tsconfig.jest.agent.json for
+    // why. Listed first because jest takes the first pattern that matches.
+    'packages/cad-agent-plugin/.*\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/tsconfig.jest.agent.json'
+      }
+    ],
     '^.+\\.(ts|tsx)$': [
       'ts-jest',
       {

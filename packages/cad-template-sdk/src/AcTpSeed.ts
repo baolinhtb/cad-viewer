@@ -7,6 +7,8 @@
  * the SDK changes when that happens.
  */
 
+import type { AcTpTerm } from './AcTpSemanticQuery'
+
 /** Semantic roles the first template draws, with their Vietnamese names. */
 export const SEED_ROLES: Readonly<Record<string, string>> = {
   ban_mat_cau: 'Bản mặt cầu',
@@ -59,3 +61,26 @@ export function findRolesWithoutLayer(
 ): string[] {
   return Object.keys(roles).filter(role => !layers[role])
 }
+
+/**
+ * The seed dictionary, in the shape the standardisation layer serves.
+ *
+ * Derived from the two maps above rather than written out a third time: a
+ * third copy is a third thing to forget when a role is added, and the failure
+ * would be a term the assistant silently cannot resolve.
+ *
+ * Carries no aliases. `resolveTerm` matches the label directly, so "lan can"
+ * resolves without one; the company's own alternative names are exactly what
+ * the managed dictionary exists to add, and inventing a few here would make a
+ * deployment that never loaded its own terms look like it had.
+ */
+export const SEED_DICTIONARY: readonly AcTpTerm[] = Object.entries(SEED_ROLES)
+  .map(([role, label]) => ({
+    role,
+    label,
+    aliases: [] as string[],
+    layer: SEED_ROLE_LAYERS[role] ?? null
+  }))
+  // Sorted so the fallback dictionary is stable whatever the object literal's
+  // order becomes.
+  .sort((a, b) => a.role.localeCompare(b.role))

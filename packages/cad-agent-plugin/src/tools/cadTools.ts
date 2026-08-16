@@ -1,7 +1,27 @@
+import {
+  dictionary,
+  runSemanticTool,
+  SEMANTIC_TOOLS
+} from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 import { z } from 'zod'
 
 import { cadActionExecutor } from './CadActionExecutor'
+
+/**
+ * The description the model reads for a semantic tool, taken from the tool
+ * itself.
+ *
+ * Restating it here would let the two drift, and the drift is invisible: the
+ * model would be told one rule ("ambiguous means ask") while the code enforced
+ * another. Throwing on a missing name is deliberate — a tool silently
+ * described as `undefined` is worse than a build that stops.
+ */
+function semanticDescription(name: string): string {
+  const found = SEMANTIC_TOOLS.find(t => t.name === name)
+  if (!found) throw new Error(`semantic tool "${name}" is not declared`)
+  return found.description
+}
 
 /** Zod schema for 2D WCS points in agent tool arguments. */
 const pointSchema = z.object({
@@ -18,6 +38,45 @@ const pointSchema = z.object({
  */
 export function createCadTools() {
   return {
+    // The semantic group comes first because it is what the model should reach
+    // for first: the geometry tools below act on coordinates and object ids,
+    // and arriving at either without having located a part by name is how an
+    // assistant edits the wrong railing.
+    mo_ta_ban_ve: tool({
+      description: semanticDescription('mo_ta_ban_ve'),
+      inputSchema: z.object({}),
+      execute: async () => runSemanticTool('mo_ta_ban_ve', {}, dictionary())
+    }),
+    tim_bo_phan: tool({
+      description: semanticDescription('tim_bo_phan'),
+      inputSchema: z.object({
+        cum_tu: z
+          .string()
+          .min(1)
+          .describe('Nguyên văn cách người dùng gọi bộ phận, ví dụ "lan can".'),
+        ben: z
+          .enum(['trai', 'phai'])
+          .optional()
+          .describe('Bên trái hoặc phải theo hướng lý trình tăng dần, nếu có.'),
+        so_thu_tu: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('Số thứ tự dọc cầu, nếu người dùng nêu.')
+      }),
+      execute: async input => runSemanticTool('tim_bo_phan', input, dictionary())
+    }),
+    to_sang_bo_phan: tool({
+      description: semanticDescription('to_sang_bo_phan'),
+      inputSchema: z.object({
+        ma_bo_phan: z
+          .array(z.string().min(1))
+          .min(1)
+          .describe('Danh sách partId lấy từ tim_bo_phan.')
+      }),
+      execute: async input => runSemanticTool('to_sang_bo_phan', input, dictionary())
+    }),
     get_drawing_context: tool({
       description: 'Get current drawing context: units, layers, and extents',
       inputSchema: z.object({}),

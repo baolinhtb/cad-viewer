@@ -7,7 +7,11 @@ import {
 import packageJson from '../package.json'
 import { AcApTemplateCmd } from './command/AcApTemplateCmd'
 import { TemplateDialogOpener } from './dialogIntegration'
-import { refreshRoleLayers, refreshTemplateLibrary } from './remoteTemplates'
+import {
+  refreshDictionary,
+  refreshRoleLayers,
+  refreshTemplateLibrary
+} from './remoteTemplates'
 
 /** Registered name of the template plugin in the plugin manager. */
 export const TEMPLATE_PLUGIN_NAME = 'TemplatePlugin'
@@ -46,6 +50,7 @@ export class AcApTemplatePlugin implements AcApPlugin {
     // on a network round trip would make a company with no uploads pay for a
     // library it does not have.
     void refreshRoleLayers()
+    void refreshDictionary()
     void refreshTemplateLibrary()
   }
 

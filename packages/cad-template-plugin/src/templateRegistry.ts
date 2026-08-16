@@ -1,6 +1,6 @@
 import cauBanBtct from '@mlightcad/cad-template-cau-ban-btct'
-import type { AcTpTemplate } from '@mlightcad/cad-template-sdk'
-import { SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
+import type { AcTpTemplate, AcTpTerm } from '@mlightcad/cad-template-sdk'
+import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
 
 import type { AcApRemoteTemplate } from './remoteTemplates'
 
@@ -98,4 +98,26 @@ export function setRoleLayers(mapping: Readonly<Record<string, string>>) {
 
 export function roleLayers() {
   return roleLayerOverride ?? SEED_ROLE_LAYERS
+}
+
+/**
+ * The company dictionary the assistant maps spoken phrases through.
+ *
+ * Held here rather than fetched per tool call: a locate happens inside a
+ * conversation turn, and a round trip to the server on every phrase would put
+ * network latency between an engineer and the answer to "which railing".
+ *
+ * The fallback is the seed dictionary rather than nothing. An assistant that
+ * knows only the built-in terms still resolves "lan can"; one that knows no
+ * terms at all cannot answer anything, which is the worse failure when the
+ * standards service is briefly unreachable.
+ */
+let dictionaryOverride: readonly AcTpTerm[] | undefined
+
+export function setDictionary(terms: readonly AcTpTerm[]) {
+  dictionaryOverride = terms
+}
+
+export function dictionary(): readonly AcTpTerm[] {
+  return dictionaryOverride ?? SEED_DICTIONARY
 }

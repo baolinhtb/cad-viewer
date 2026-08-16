@@ -131,6 +131,9 @@ importers:
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer
+      '@mlightcad/cad-template-plugin':
+        specifier: workspace:*
+        version: link:../cad-template-plugin
       '@mlightcad/data-model':
         specifier: ^1.12.5
         version: 1.12.5

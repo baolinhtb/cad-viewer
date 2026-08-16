@@ -218,6 +218,66 @@ export async function refreshTemplateLibrary(): Promise<AcApRemoteTemplateLoad> 
 }
 
 /**
+ * Loads the company's dictionary and applies it.
+ *
+ * Separate from the layer mapping even though both come from the same page:
+ * layers decide what a template draws onto, terms decide what an engineer can
+ * call it, and a deployment can perfectly well have one without the other.
+ *
+ * `aliases` arrives as a JSON string from SQLite on some paths and as an array
+ * on others; a string that fails to parse costs that one term its alternative
+ * names rather than the whole dictionary.
+ */
+export async function refreshDictionary(
+  fetchImpl: AcApFetch = fetch as unknown as AcApFetch,
+  url = '/api/standards/terms'
+): Promise<boolean> {
+  const { setDictionary } = await import('./templateRegistry')
+  try {
+    const response = await fetchImpl(url, { credentials: 'same-origin' })
+    if (!response.ok) return false
+    const body = (await response.json()) as {
+      terms?: {
+        role?: string
+        label?: string
+        aliases?: string[] | string
+        layer?: string | null
+      }[]
+    }
+    // An empty dictionary is not an answer worth applying: it would leave the
+    // assistant unable to resolve any phrase at all, where the seed set at
+    // least resolves the roles every template draws.
+    if (!body.terms || body.terms.length === 0) return false
+
+    setDictionary(
+      body.terms
+        .filter(term => term.role && term.label)
+        .map(term => ({
+          role: term.role as string,
+          label: term.label as string,
+          aliases: parseAliases(term.aliases),
+          layer: term.layer ?? null
+        }))
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Alias list, whatever shape it arrived in. */
+function parseAliases(value: string[] | string | undefined): string[] {
+  if (Array.isArray(value)) return value.filter(a => typeof a === 'string')
+  if (typeof value !== 'string') return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter(a => typeof a === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/**
  * Loads the company's role → layer mapping and applies it.
  *
  * Until this lands the registry draws with the SDK's built-in pairing, which

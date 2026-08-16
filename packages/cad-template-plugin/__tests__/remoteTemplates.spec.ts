@@ -3,13 +3,16 @@ import {
   type AcApFetch,
   loadRemoteTemplates,
   markTemplateVerified,
+  refreshDictionary,
   refreshRoleLayers
 } from '../src/remoteTemplates'
 import {
   findTemplate,
   listRegisteredTemplates,
   listTemplates,
+  dictionary,
   roleLayers,
+  setDictionary,
   setRemoteTemplates,
   setRoleLayers
 } from '../src/templateRegistry'
@@ -30,7 +33,8 @@ jest.mock('@mlightcad/cad-template-cau-ban-btct', () => ({
 
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
-  SEED_ROLE_LAYERS: { lan_can: 'KC-LANCAN' }
+  SEED_ROLE_LAYERS: { lan_can: 'KC-LANCAN' },
+  SEED_DICTIONARY: [{ role: 'lan_can', label: 'Lan can', aliases: [], layer: 'KC-LANCAN' }]
 }))
 
 /** A template as the library returns it, without evaluating any module. */
@@ -294,5 +298,86 @@ describe('the company layer mapping', () => {
     })
     expect(applied).toBe(false)
     expect(roleLayers()).toEqual({ lan_can: 'KC-LANCAN' })
+  })
+})
+
+describe('the company dictionary', () => {
+  beforeEach(() => setDictionary(undefined as never))
+
+  test('until it loads, the seed terms still resolve', () => {
+    // A deployment whose standards service is briefly unreachable should still
+    // answer "lan can". An empty dictionary answers nothing at all.
+    expect(dictionary().map(term => term.role)).toEqual(['lan_can'])
+  })
+
+  test('the company terms replace the seed set', async () => {
+    const applied = await refreshDictionary(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        terms: [
+          { role: 'lan_can', label: 'Lan can', aliases: ['tay vịn'], layer: 'CTY-LANCAN' }
+        ]
+      })
+    }))
+    expect(applied).toBe(true)
+    expect(dictionary()[0].aliases).toEqual(['tay vịn'])
+  })
+
+  test('aliases stored as a JSON string are read, not dropped', async () => {
+    // SQLite hands them back as text on some paths and as an array on others.
+    await refreshDictionary(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        terms: [{ role: 'lan_can', label: 'Lan can', aliases: '["tay vịn"]' }]
+      })
+    }))
+    expect(dictionary()[0].aliases).toEqual(['tay vịn'])
+  })
+
+  test('one unreadable alias list costs that term its aliases, not the dictionary', async () => {
+    await refreshDictionary(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        terms: [
+          { role: 'lan_can', label: 'Lan can', aliases: 'không phải JSON' },
+          { role: 'lop_phu', label: 'Lớp phủ', aliases: ['bê tông nhựa'] }
+        ]
+      })
+    }))
+    expect(dictionary()).toHaveLength(2)
+    expect(dictionary()[0].aliases).toEqual([])
+    expect(dictionary()[1].aliases).toEqual(['bê tông nhựa'])
+  })
+
+  test('a term with no role is skipped rather than resolved to undefined', async () => {
+    await refreshDictionary(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        terms: [{ label: 'Không có role' }, { role: 'lan_can', label: 'Lan can' }]
+      })
+    }))
+    expect(dictionary().map(term => term.role)).toEqual(['lan_can'])
+  })
+
+  test('an empty dictionary is not applied', async () => {
+    const applied = await refreshDictionary(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ terms: [] })
+    }))
+    expect(applied).toBe(false)
+    expect(dictionary().map(term => term.role)).toEqual(['lan_can'])
+  })
+
+  test('a failed request leaves the seed terms in place', async () => {
+    const applied = await refreshDictionary(async () => {
+      throw new Error('mạng hỏng')
+    })
+    expect(applied).toBe(false)
+    expect(dictionary()).toHaveLength(1)
   })
 })

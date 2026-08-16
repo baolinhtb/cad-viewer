@@ -1,0 +1,15 @@
+{
+  // Transpile-only for the agent package under jest.
+  //
+  // ts-jest builds a full type program for whatever it transforms, and this
+  // package's imports reach `ai` and `@ai-sdk/*` — enough type to exhaust a
+  // 4 GB heap and abort the run with an OOM that reads like a hang.
+  // `isolatedModules` switches ts-jest to transpileModule, which does not.
+  //
+  // Nothing is lost: `pnpm build` runs vue-tsc over the same sources, and a
+  // type error should stop the build rather than a unit test.
+  "extends": "./tsconfig.jest.json",
+  "compilerOptions": {
+    "isolatedModules": true
+  }
+}

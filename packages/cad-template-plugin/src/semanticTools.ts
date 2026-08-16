@@ -246,6 +246,10 @@ export function highlightParts(input: {
 export function runSemanticTool(
   name: string,
   input: Record<string, unknown>,
+  // Passed in rather than read from the registry here: this file is the one
+  // place the tool contract lives, and reaching for the registry would drag
+  // the built-in template — and everything it imports — into every context
+  // that only wants to run a query.
   dictionary: readonly AcTpTerm[]
 ): AcApToolOutcome {
   switch (name) {
