@@ -11,7 +11,7 @@
     <!-- CAD viewer when a file is selected or a new drawing is created -->
     <div v-else>
       <MlCadViewer
-        locale="en"
+        locale="default"
         :local-file="store.selectedFile ?? undefined"
         :mode="selectedMode"
         :use-main-thread-draw="useMainThreadDraw"
@@ -42,8 +42,12 @@ import FileUpload from './components/FileUpload.vue'
 import { initializeLocale } from './locale'
 import { store } from './store'
 
+// Runs at setup, not on viewer create: the upload screen is shown before any
+// viewer exists and it now reads its own strings from the locale, so merging
+// them later would render raw key paths on the first screen anyone sees.
+initializeLocale()
+
 const initialize = () => {
-  initializeLocale()
   if (import.meta.env.DEV) {
     ;(
       window as Window & { AcApDocManager?: typeof AcApDocManager }
@@ -92,6 +96,25 @@ const createNewDrawing = async () => {
   })
   if (!success) {
     log.error('Failed to create new drawing')
+    return
+  }
+  renameTemplateLayouts()
+}
+
+/**
+ * The stock `acadiso.dxf` template is fetched from the upstream CDN and ships
+ * with its paper-space layouts named in Chinese, which then show up as the tab
+ * labels of a brand-new drawing. Layout names are drawing data, not UI chrome,
+ * so they are never translated on open — an imported drawing must keep the
+ * names its author gave it. A drawing this app just created from its own
+ * template is the one case where the names are ours to set.
+ */
+const renameTemplateLayouts = () => {
+  const database = AcApDocManager.instance.curDocument?.database
+  if (!database) return
+  for (const layout of database.objects.layout.newIterator()) {
+    const match = /^布局(\d+)$/.exec(layout.layoutName)
+    if (match) layout.layoutName = `Layout ${match[1]}`
   }
 }
 
@@ -169,7 +192,9 @@ const handleNewDrawing = (
   justify-content: center;
   align-items: safe center;
   overflow-y: auto;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* DESIGN.md: the canvas tone is the darkest layer and gradients are out.
+     The splash sits where the drawing will be, so it uses the same tone. */
+  background: var(--cv-surface-canvas, #0d0f12);
   margin: 0;
   padding: 16px;
   box-sizing: border-box;

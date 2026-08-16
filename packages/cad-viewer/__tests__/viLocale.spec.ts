@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
+import enDialog from '../src/locale/en/dialog'
+import enMain from '../src/locale/en/main'
 import viDialog from '../src/locale/vi/dialog'
 import viMain from '../src/locale/vi/main'
 
@@ -28,6 +30,46 @@ function leaves(
 }
 
 const all = [...leaves(viDialog, 'dialog'), ...leaves(viMain, 'main')]
+const englishLeaves = [...leaves(enDialog, 'dialog'), ...leaves(enMain, 'main')]
+
+describe('Vietnamese coverage', () => {
+  /**
+   * The gap this measures is the one users actually report.
+   *
+   * vue-i18n falls back to English silently, so an incomplete locale looks
+   * like a working app to every automated check while reading as a
+   * half-English screen to the person using it. Comparing key sets is the
+   * only way that gap shows up before a user has to point at it.
+   */
+  const keysOf = (tree: Record<string, unknown>) =>
+    new Set(leaves(tree).map(([key]) => key))
+
+  test.each([
+    ['main', enMain, viMain],
+    ['dialog', enDialog, viDialog]
+  ])('%s is translated in full', (_name, en, vi) => {
+    const translated = keysOf(vi as Record<string, unknown>)
+    const missing = [...keysOf(en as Record<string, unknown>)].filter(
+      key => !translated.has(key)
+    )
+
+    expect(missing).toEqual([])
+  })
+
+  test.each([
+    ['main', enMain, viMain],
+    ['dialog', enDialog, viDialog]
+  ])('%s has no key English does not have', (_name, en, vi) => {
+    // A key that outlived its English original is dead weight that will never
+    // render — and it makes the coverage figure above look better than it is.
+    const source = keysOf(en as Record<string, unknown>)
+    const orphans = [...keysOf(vi as Record<string, unknown>)].filter(
+      key => !source.has(key)
+    )
+
+    expect(orphans).toEqual([])
+  })
+})
 
 describe('Vietnamese locale', () => {
   test('the template dialog is translated in full', () => {
@@ -54,16 +96,58 @@ describe('Vietnamese locale', () => {
     }
   })
 
+  /**
+   * Words the trade uses in English and would not recognise translated.
+   * Keeping this list explicit is the point: it separates "we chose to leave
+   * this in English" from "we forgot to translate this", which a blanket
+   * ASCII exemption would blur.
+   */
+  const LOANWORDS = new Set([
+    'Layer',
+    'Layer:',
+    'Block',
+    'Block:',
+    'Big font:',
+    'Delta  \\U+0394',
+    '0-256, BYLAYER, BYBLOCK',
+    'Hatch',
+    'Offset',
+    'Spline',
+    'MLine',
+    'XLine',
+    'Elip',
+    'Layout',
+    'RGB: ',
+    'PARSE',
+    'db.read',
+    'CAD\nAgent',
+    'Template',
+    'DXF',
+    'PDF',
+    'SVG',
+    'HTML'
+  ])
+
   test('no string was left in English by accident', () => {
-    // A Vietnamese string that happens to be pure ASCII is suspicious: either
-    // it is untranslated, or it belongs in the fallback rather than here.
-    const suspicious = all.filter(
-      ([key, value]) =>
-        /^[\x20-\x7E]+$/.test(value) &&
-        !key.endsWith('.template') && // "Template" is the word engineers use
-        !/^(DXF|PDF|SVG|HTML)$/.test(value)
-    )
-    expect(suspicious).toEqual([])
+    // Compared against the English original rather than guessed from the
+    // shape of the string. "Tia", "Xoay" and "In" are ordinary Vietnamese
+    // words that happen to be pure ASCII — an ASCII heuristic calls those
+    // untranslated and is simply wrong. What actually signals a forgotten
+    // string is one that still equals its English source.
+    const english = new Map(englishLeaves)
+    const untranslated = all
+      .filter(([key, value]) => {
+        const source = english.get(key)
+        return (
+          source !== undefined &&
+          source === value &&
+          /\p{Letter}/u.test(value) &&
+          !LOANWORDS.has(value)
+        )
+      })
+      .map(([key, value]) => `${key} = ${value}`)
+
+    expect(untranslated).toEqual([])
   })
 
   test('no placeholder was dropped in translation', () => {
@@ -84,9 +168,23 @@ describe('Vietnamese locale', () => {
     expect(cheerful).toEqual([])
   })
 
-  test('strings are trimmed and non-empty', () => {
+  test('surrounding whitespace matches the English original', () => {
+    // Command prompts end in a deliberate space so the caret does not sit
+    // against the colon. Trimming is therefore not the rule — matching the
+    // original is, because that is what the caller's layout was built for.
+    const english = new Map(englishLeaves)
+    const padding = (s: string) => [
+      s.length - s.trimStart().length,
+      s.length - s.trimEnd().length
+    ]
+
     const malformed = all
-      .filter(([, value]) => value.length === 0 || value !== value.trim())
+      .filter(([key, value]) => {
+        if (value.length === 0) return true
+        const source = english.get(key)
+        if (source === undefined) return value !== value.trim()
+        return String(padding(value)) !== String(padding(source))
+      })
       .map(([key]) => key)
 
     expect(malformed).toEqual([])

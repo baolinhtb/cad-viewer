@@ -14,7 +14,9 @@ import trCommand from './tr/command'
 import trDialog from './tr/dialog'
 import trEntity from './tr/entity'
 import trMain from './tr/main'
+import viCommand from './vi/command'
 import viDialog from './vi/dialog'
+import viEntity from './vi/entity'
 import viMain from './vi/main'
 import zhCommand from './zh/command'
 import zhDialog from './zh/dialog'
@@ -67,10 +69,13 @@ const messages = {
     dialog: csDialog,
     entity: csEntity
   },
-  // Partial locale: untranslated keys fall back to English.
+  // `entity.color` is the one gap: the CSS colour-name list falls back to
+  // English on purpose. See the note in `vi/entity.ts`.
   vi: {
     main: viMain,
-    dialog: viDialog
+    command: viCommand,
+    dialog: viDialog,
+    entity: viEntity
   }
 }
 

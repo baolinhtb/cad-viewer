@@ -9,9 +9,9 @@
             </el-icon>
           </div>
           <div class="upload-hero-text">
-            <h1 class="upload-title">Select CAD File to View</h1>
+            <h1 class="upload-title">{{ t('fileUpload.title') }}</h1>
             <p class="upload-subtitle">
-              Import DWG or DXF drawings into the viewer
+              {{ t('fileUpload.subtitle') }}
             </p>
           </div>
         </section>
@@ -22,11 +22,11 @@
             class="new-drawing-button"
             @click="handleNewDrawing"
           >
-            New Drawing
+            {{ t('fileUpload.newDrawing') }}
           </button>
 
           <p class="upload-divider" aria-hidden="true">
-            <span>or</span>
+            <span>{{ t('fileUpload.or') }}</span>
           </p>
 
           <el-upload
@@ -39,7 +39,8 @@
           >
             <div class="dropzone-content">
               <p class="dropzone-title">
-                Drop file or <span class="dropzone-link">browse</span>
+                {{ t('fileUpload.dropFile') }}
+                <span class="dropzone-link">{{ t('fileUpload.browse') }}</span>
               </p>
               <div class="format-tags">
                 <span class="format-tag">DWG</span>
@@ -52,12 +53,12 @@
 
       <section class="settings-section">
         <header class="settings-header">
-          <h2 class="settings-title">Open options</h2>
+          <h2 class="settings-title">{{ t('fileUpload.openOptions') }}</h2>
         </header>
 
         <div class="settings-grid">
           <div class="setting-block setting-block--full">
-            <h3 class="setting-label">Initial view</h3>
+            <h3 class="setting-label">{{ t('fileUpload.initialView') }}</h3>
             <div
               class="pill-segment"
               role="radiogroup"
@@ -71,16 +72,16 @@
                 :class="{ 'is-active': selectedOpenViewMode === option.value }"
                 role="radio"
                 :aria-checked="selectedOpenViewMode === option.value"
-                :title="option.description"
+                :title="t(option.description)"
                 @click="selectedOpenViewMode = option.value"
               >
-                {{ option.label }}
+                {{ t(option.label) }}
               </button>
             </div>
           </div>
 
           <div class="setting-block setting-block--full">
-            <h3 class="setting-label">Access mode</h3>
+            <h3 class="setting-label">{{ t('fileUpload.accessMode') }}</h3>
             <div
               class="pill-segment"
               role="radiogroup"
@@ -94,16 +95,16 @@
                 :class="{ 'is-active': selectedMode === mode.value }"
                 role="radio"
                 :aria-checked="selectedMode === mode.value"
-                :title="mode.description"
+                :title="t(mode.description)"
                 @click="selectedMode = mode.value"
               >
-                {{ mode.label }}
+                {{ t(mode.label) }}
               </button>
             </div>
           </div>
 
           <div class="setting-block">
-            <h3 class="setting-label">Text rendering</h3>
+            <h3 class="setting-label">{{ t('fileUpload.textRendering') }}</h3>
             <div
               class="pill-segment"
               role="radiogroup"
@@ -115,10 +116,10 @@
                 :class="{ 'is-active': !useMainThreadDraw }"
                 role="radio"
                 :aria-checked="!useMainThreadDraw"
-                title="Faster, more memory"
+                :title="t('fileUpload.workerHint')"
                 @click="useMainThreadDraw = false"
               >
-                Worker
+                {{ t('fileUpload.worker') }}
               </button>
               <button
                 type="button"
@@ -126,16 +127,16 @@
                 :class="{ 'is-active': useMainThreadDraw }"
                 role="radio"
                 :aria-checked="useMainThreadDraw"
-                title="Slower, less memory"
+                :title="t('fileUpload.mainThreadHint')"
                 @click="useMainThreadDraw = true"
               >
-                Main thread
+                {{ t('fileUpload.mainThread') }}
               </button>
             </div>
           </div>
 
           <div class="setting-block">
-            <h3 class="setting-label">Progressive</h3>
+            <h3 class="setting-label">{{ t('fileUpload.progressive') }}</h3>
             <div
               class="pill-segment"
               role="radiogroup"
@@ -147,10 +148,10 @@
                 :class="{ 'is-active': progressiveRendering }"
                 role="radio"
                 :aria-checked="progressiveRendering"
-                title="Show geometry while loading"
+                :title="t('fileUpload.onHint')"
                 @click="progressiveRendering = true"
               >
-                On
+                {{ t('fileUpload.on') }}
               </button>
               <button
                 type="button"
@@ -158,16 +159,16 @@
                 :class="{ 'is-active': !progressiveRendering }"
                 role="radio"
                 :aria-checked="!progressiveRendering"
-                title="Wait until fully converted"
+                :title="t('fileUpload.offHint')"
                 @click="progressiveRendering = false"
               >
-                Off
+                {{ t('fileUpload.off') }}
               </button>
             </div>
           </div>
 
           <div class="setting-block">
-            <h3 class="setting-label">Non-plottable</h3>
+            <h3 class="setting-label">{{ t('fileUpload.nonPlottable') }}</h3>
             <div
               class="pill-segment"
               role="radiogroup"
@@ -179,10 +180,10 @@
                 :class="{ 'is-active': !drawNoPlotLayers }"
                 role="radio"
                 :aria-checked="!drawNoPlotLayers"
-                title="Web viewer default"
+                :title="t('fileUpload.hideHint')"
                 @click="drawNoPlotLayers = false"
               >
-                Hide
+                {{ t('fileUpload.hide') }}
               </button>
               <button
                 type="button"
@@ -190,10 +191,10 @@
                 :class="{ 'is-active': drawNoPlotLayers }"
                 role="radio"
                 :aria-checked="drawNoPlotLayers"
-                title="AutoCAD editor semantics"
+                :title="t('fileUpload.showHint')"
                 @click="drawNoPlotLayers = true"
               >
-                Show
+                {{ t('fileUpload.show') }}
               </button>
             </div>
           </div>
@@ -210,6 +211,7 @@ import { log } from '@mlightcad/data-model'
 import type { UploadFile, UploadProps } from 'element-plus'
 import { ElIcon, ElUpload } from 'element-plus'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   onFileSelect: (
@@ -230,6 +232,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 type OpenViewModeChoice = 'auto' | AcApOpenViewMode
 
@@ -239,21 +242,23 @@ const useMainThreadDraw = ref(false)
 const drawNoPlotLayers = ref(false)
 const progressiveRendering = ref(false)
 
+// Labels are resolved through `t` in the template rather than baked in here,
+// so switching language re-renders them instead of needing a reload.
 const openViewModes = [
   {
     value: 'auto' as const,
-    label: 'Auto',
-    description: 'Based on access mode'
+    label: 'fileUpload.auto',
+    description: 'fileUpload.autoHint'
   },
   {
     value: AcApOpenViewMode.Extents,
-    label: 'Extents',
-    description: 'Fit drawing'
+    label: 'fileUpload.extents',
+    description: 'fileUpload.extentsHint'
   },
   {
     value: AcApOpenViewMode.Saved,
-    label: 'Saved',
-    description: 'AutoCAD saved view'
+    label: 'fileUpload.saved',
+    description: 'fileUpload.savedHint'
   }
 ] as const
 
@@ -263,18 +268,18 @@ const resolveOpenViewMode = (): AcApOpenViewMode | undefined =>
 const accessModes = [
   {
     value: AcEdOpenMode.Read,
-    label: 'Read',
-    description: 'View only'
+    label: 'fileUpload.read',
+    description: 'fileUpload.readHint'
   },
   {
     value: AcEdOpenMode.Review,
-    label: 'Review',
-    description: 'View & review'
+    label: 'fileUpload.review',
+    description: 'fileUpload.reviewHint'
   },
   {
     value: AcEdOpenMode.Write,
-    label: 'Write',
-    description: 'Full access'
+    label: 'fileUpload.write',
+    description: 'fileUpload.writeHint'
   }
 ] as const
 
@@ -305,7 +310,7 @@ const handleNewDrawing = () => {
 
 const beforeUpload: UploadProps['beforeUpload'] = (rawFile: File) => {
   if (!isValidFile(rawFile)) {
-    log.warn('Invalid file type. Please upload DWG or DXF files.')
+    log.warn(t('fileUpload.invalidFile'))
     return false
   }
   return true
@@ -333,11 +338,9 @@ const isValidFile = (file: File): boolean => {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: auto;
   width: 100%;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow:
-    0 20px 40px rgba(15, 23, 42, 0.16),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+  border-radius: var(--cv-radius-lg, 6px);
+  background: var(--cv-surface-panel, #14171c);
+  border: 1px solid var(--cv-border-hairline, #262c35);
   overflow: hidden;
 }
 
@@ -363,9 +366,8 @@ const isValidFile = (file: File): boolean => {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #5b6fd6 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.28);
+  background: var(--cv-accent, #35e0a1);
+  color: var(--cv-accent-foreground, #06130d);
 }
 
 .upload-hero-text {
@@ -377,14 +379,14 @@ const isValidFile = (file: File): boolean => {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: var(--cv-ink-primary, #e8ecf1);
   line-height: 1.25;
 }
 
 .upload-subtitle {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--cv-ink-secondary, #9aa3ae);
   line-height: 1.35;
 }
 
@@ -400,22 +402,19 @@ const isValidFile = (file: File): boolean => {
   padding: 10px 14px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #5b6fd6 100%);
-  color: #ffffff;
+  background: var(--cv-accent, #35e0a1);
+  color: var(--cv-accent-foreground, #06130d);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(102, 126, 234, 0.26);
   transition:
     transform 0.15s ease,
-    box-shadow 0.2s ease,
     filter 0.2s ease;
 }
 
 .new-drawing-button:hover {
   filter: brightness(1.03);
-  box-shadow: 0 8px 18px rgba(102, 126, 234, 0.32);
 }
 
 .new-drawing-button:active {
@@ -429,7 +428,7 @@ const isValidFile = (file: File): boolean => {
   margin: 10px 0;
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--cv-ink-disabled, #6b7380);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -439,7 +438,7 @@ const isValidFile = (file: File): boolean => {
   content: '';
   flex: 1;
   height: 1px;
-  background: #e2e8f0;
+  background: var(--cv-border-hairline, #262c35);
 }
 
 .upload-dropzone {
@@ -459,19 +458,18 @@ const isValidFile = (file: File): boolean => {
   width: 100%;
   box-sizing: border-box;
   padding: 14px 12px;
-  border: 1.5px dashed #c7d2fe;
+  border: 1.5px dashed var(--cv-border-hairline, #262c35);
   border-radius: 10px;
-  background: #f8faff;
+  background: var(--cv-surface-raised, #1b2028);
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
-    box-shadow 0.2s ease;
+    border-color 0.2s ease;
 }
 
 .upload-dropzone :deep(.el-upload-dragger:hover) {
-  border-color: #667eea;
-  background: #f1f5ff;
-  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.08);
+  border-color: var(--cv-accent, #35e0a1);
+  background: var(--cv-surface-raised, #1b2028);
 }
 
 .dropzone-content {
@@ -485,11 +483,11 @@ const isValidFile = (file: File): boolean => {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--cv-ink-primary, #e8ecf1);
 }
 
 .dropzone-link {
-  color: #667eea;
+  color: var(--cv-accent, #35e0a1);
   font-weight: 600;
 }
 
@@ -501,8 +499,8 @@ const isValidFile = (file: File): boolean => {
 .format-tag {
   padding: 1px 7px;
   border-radius: 999px;
-  background: #e8edff;
-  color: #4f5fd0;
+  background: var(--cv-surface-raised, #1b2028);
+  color: var(--cv-accent, #35e0a1);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -513,8 +511,8 @@ const isValidFile = (file: File): boolean => {
   flex-direction: column;
   justify-content: center;
   padding: 18px 20px;
-  background: #f8fafc;
-  border-left: 1px solid #e8edf5;
+  background: var(--cv-surface-raised, #1b2028);
+  border-left: 1px solid var(--cv-border-hairline, #262c35);
 }
 
 .settings-header {
@@ -525,7 +523,7 @@ const isValidFile = (file: File): boolean => {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: var(--cv-ink-primary, #e8ecf1);
 }
 
 .settings-grid {
@@ -550,15 +548,16 @@ const isValidFile = (file: File): boolean => {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--cv-ink-disabled, #6b7380);
 }
 
 .pill-segment {
   display: flex;
   gap: 0;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 7px;
-  background: #ffffff;
+  /* DESIGN.md: hairlines are 1px and buttons are 4px. */
+  border: 1px solid var(--cv-border-hairline, #262c35);
+  border-radius: var(--cv-radius-md, 4px);
+  background: var(--cv-surface-panel, #14171c);
   overflow: hidden;
 }
 
@@ -569,27 +568,32 @@ const isValidFile = (file: File): boolean => {
   background: transparent;
   font-size: 11px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--cv-ink-secondary, #9aa3ae);
   cursor: pointer;
   text-align: center;
-  white-space: nowrap;
+  /* Vietnamese labels run longer than the English they replaced. With nowrap
+     the segment clipped "Luồng chính" to "Luồn"; wrapping makes the row taller
+     instead of eating the word, which holds for any language. */
+  white-space: normal;
+  line-height: 1.25;
+  min-width: 0;
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
 }
 
 .pill-option:not(:last-child) {
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid var(--cv-border-hairline, #262c35);
 }
 
 .pill-option:hover:not(.is-active) {
-  background: #f8fafc;
+  background: var(--cv-surface-raised, #1b2028);
   color: #475569;
 }
 
 .pill-option.is-active {
-  background: #f1f5ff;
-  color: #4f5fd0;
+  background: var(--cv-surface-raised, #1b2028);
+  color: var(--cv-accent, #35e0a1);
 }
 
 /* Narrow viewports: stack upload + settings as two vertical rows */
@@ -606,7 +610,7 @@ const isValidFile = (file: File): boolean => {
 
   .settings-section {
     border-left: none;
-    border-top: 1px solid #e8edf5;
+    border-top: 1px solid var(--cv-border-hairline, #262c35);
   }
 
   .settings-grid {

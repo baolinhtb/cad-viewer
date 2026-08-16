@@ -185,3 +185,30 @@ html.dark {
   font-family: var(--cv-font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* -------------------------------------------------------------------------
+   Command bar.
+
+   DESIGN.md calls this "trái tim của sản phẩm" and specifies mono type for
+   everything typed into it — a command is a value, not prose. The bar is
+   plain DOM drawn by the core editor rather than an Element Plus component,
+   so it cannot be reached through a variable; these three selectors are the
+   exception to the "no component is restyled by selector" rule above, and
+   they are deliberately limited to typography. Its colours still come from
+   `--ml-ui-*`, which useDark.ts points at the same `--el-*` tokens.
+   ------------------------------------------------------------------------- */
+
+html.dark {
+  .ml-cli-container,
+  .ml-cli-text,
+  .ml-cli-prompt {
+    font-family: var(--cv-font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The `›` that marks where a command goes. Accent is correct here: this is
+     the prompt the AI answers into. */
+  .ml-cli-prompt {
+    color: var(--cv-accent);
+  }
+}
