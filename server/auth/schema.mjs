@@ -40,6 +40,23 @@ export const SEED_STANDARDS = {
   ghi_chu: { label: 'Ghi chú', layer: 'GC-GHICHU', aliases: ['ghi chú', 'chú thích'] }
 }
 
+/**
+ * What a person is allowed to do, in increasing order of trust.
+ *
+ * `author` exists because uploading a template means uploading code that runs
+ * in other members' browsers. That is a different question from "may this
+ * person manage accounts", and one boolean cannot answer both.
+ */
+export const ROLES = { MEMBER: 'member', AUTHOR: 'author', ADMIN: 'admin' }
+
+/** Rank used for "at least this role" checks. */
+const ROLE_RANK = { member: 0, author: 1, admin: 2 }
+
+/** True when `role` is at least as trusted as `required`. */
+export function hasRoleAtLeast(role, required) {
+  return (ROLE_RANK[role] ?? -1) >= (ROLE_RANK[required] ?? Infinity)
+}
+
 /** Ordered migrations. Index + 1 is the resulting `user_version`. */
 const MIGRATIONS = [
   // v1 — accounts and sessions (the shape that shipped first).
@@ -145,6 +162,22 @@ const MIGRATIONS = [
       term.run(role, seed.label, JSON.stringify(seed.aliases ?? []))
       layer.run(seed.layer, seed.label)
     }
+  },
+
+  // v4 — three roles in place of one admin flag.
+  //
+  // `is_admin` answered one question: may this person manage accounts. Story
+  // 2.5 introduces a second, sharper one: may this person upload template
+  // *code* that will execute in everyone else's browser. Those are different
+  // permissions and a boolean cannot express both — with only a flag, either
+  // every member can push code or only the administrator can author templates.
+  //
+  // The flag is dropped rather than left behind. Two sources of truth for a
+  // privilege check is how one of them ends up stale and consulted.
+  db => {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`)
+    db.exec(`UPDATE users SET role = 'admin' WHERE is_admin = 1`)
+    db.exec(`ALTER TABLE users DROP COLUMN is_admin`)
   }
 ]
 

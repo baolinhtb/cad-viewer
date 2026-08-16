@@ -38,7 +38,7 @@
 <main>
   <div class="panel">
     <table>
-      <thead><tr><th>Họ tên</th><th>Email</th><th>Trạng thái</th><th>Ngày đăng ký</th><th></th></tr></thead>
+      <thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày đăng ký</th><th></th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
     <div id="empty" class="empty" style="display:none">Chưa có thành viên nào.</div>
@@ -64,23 +64,51 @@ async function api(path, opts) {
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
 
+// Roles are shown and set separately from activation: one answers "may this
+// person in at all", the other "how far are they trusted once inside".
+const ROLE_LABEL = {
+  member: 'Thành viên',
+  author: 'Tác giả template',
+  admin: 'Quản trị'
+}
+
 function render(users) {
   document.getElementById('empty').style.display = users.length ? 'none' : 'block'
   rows.innerHTML = users.map(u => {
-    const status = u.is_admin
-      ? '<span class="badge admin">Quản trị</span>'
-      : { pending: '<span class="badge pending">Chờ kích hoạt</span>',
-          active: '<span class="badge active">Đã kích hoạt</span>',
-          disabled: '<span class="badge disabled">Vô hiệu hóa</span>' }[u.status]
-    let action = ''
-    if (!u.is_admin) {
-      action = u.status === 'active'
-        ? `<button class="deact" data-id="${u.id}" data-a="deactivate">Vô hiệu hóa</button>`
-        : `<button class="act" data-id="${u.id}" data-a="activate">Kích hoạt</button>`
-    }
-    return `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${status}</td><td>${esc(u.created_at)}</td><td>${action}</td></tr>`
+    const status = { pending: '<span class="badge pending">Chờ kích hoạt</span>',
+      active: '<span class="badge active">Đã kích hoạt</span>',
+      disabled: '<span class="badge disabled">Vô hiệu hóa</span>' }[u.status] ?? ''
+
+    const roleCell = `<select class="role" data-id="${u.id}">` +
+      Object.entries(ROLE_LABEL).map(([value, label]) =>
+        `<option value="${value}"${u.role === value ? ' selected' : ''}>${label}</option>`
+      ).join('') + '</select>'
+
+    const action = u.role === 'admin' ? '' : (u.status === 'active'
+      ? `<button class="deact" data-id="${u.id}" data-a="deactivate">Vô hiệu hóa</button>`
+      : `<button class="act" data-id="${u.id}" data-a="activate">Kích hoạt</button>`)
+
+    return `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${roleCell}</td><td>${status}</td><td>${esc(u.created_at)}</td><td>${action}</td></tr>`
   }).join('')
 }
+
+rows.addEventListener('change', async event => {
+  const select = event.target.closest('select.role')
+  if (!select) return
+  const previous = select.dataset.previous
+  const response = await api(`/api/admin/users/${select.dataset.id}/role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: select.value })
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    alert(body.error || 'Không đổi được vai trò.')
+    if (previous) select.value = previous
+    return
+  }
+  await load()
+})
 
 async function load() {
   const r = await api('/api/admin/users')
