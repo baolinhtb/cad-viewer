@@ -58,6 +58,7 @@ function rowToTerm(row) {
     aliases: parseAliases(row.aliases),
     description: row.description ?? null,
     entityKind: row.entity_kind ?? null,
+    layer: row.layer ?? null,
     updatedBy: row.updated_by ?? null,
     updatedAt: row.updated_at
   }
@@ -153,14 +154,15 @@ export function createTerm(db, userId, input) {
 
   db.prepare(
     `INSERT INTO standard_terms
-       (role, label, aliases, description, entity_kind, updated_by, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+       (role, label, aliases, description, entity_kind, layer, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(
     role,
     label,
     JSON.stringify(aliases),
     input.description ?? null,
     input.entityKind ?? null,
+    input.layer ? String(input.layer).trim() : null,
     userId
   )
   return getTerm(db, role)
@@ -178,7 +180,7 @@ export function updateTerm(db, userId, role, input) {
 
   db.prepare(
     `UPDATE standard_terms
-        SET label = ?, aliases = ?, description = ?, entity_kind = ?,
+        SET label = ?, aliases = ?, description = ?, entity_kind = ?, layer = ?,
             updated_by = ?, updated_at = datetime('now')
       WHERE role = ?`
   ).run(
@@ -186,6 +188,9 @@ export function updateTerm(db, userId, role, input) {
     JSON.stringify(merged.aliases),
     input.description ?? existing.description,
     input.entityKind ?? existing.entityKind,
+    input.layer !== undefined
+      ? String(input.layer).trim() || null
+      : existing.layer,
     userId,
     role
   )
@@ -279,6 +284,55 @@ export function deleteLayer(db, name) {
     .prepare(`DELETE FROM standard_layers WHERE lower(name) = lower(?)`)
     .run(String(name ?? ''))
   return result.changes > 0
+}
+
+/**
+ * Role → layer mapping the client uses when drawing.
+ *
+ * Only terms that have been given a layer appear. A role with none cannot be
+ * drawn, and silently mapping it to something plausible would put geometry on
+ * a layer nobody chose.
+ */
+export function roleLayerMap(db) {
+  const mapping = {}
+  for (const term of listTerms(db)) {
+    if (term.layer) mapping[term.role] = term.layer
+  }
+  return mapping
+}
+
+/**
+ * Contradictions in the standardisation layer.
+ *
+ * Reported rather than refused. Every one of these is a legitimate midway
+ * state — a term added before its layer has been decided, a layer created
+ * before the terms that will use it — so blocking the save would force people
+ * to enter things in an order nobody would guess. What must not happen is
+ * that the state goes unnoticed and an assistant later fails to draw a part
+ * for a reason nobody can see.
+ */
+export function findContradictions(db) {
+  const terms = listTerms(db)
+  const layers = listLayers(db)
+  const known = new Set(layers.map(layer => layer.name.toLowerCase()))
+  const used = new Set(
+    terms.filter(term => term.layer).map(term => term.layer.toLowerCase())
+  )
+
+  return {
+    /** Terms with no layer at all: nothing can be drawn for them. */
+    rolesWithoutLayer: terms
+      .filter(term => !term.layer)
+      .map(term => ({ role: term.role, label: term.label })),
+    /** Terms pointing at a layer the catalogue does not have. */
+    rolesWithUnknownLayer: terms
+      .filter(term => term.layer && !known.has(term.layer.toLowerCase()))
+      .map(term => ({ role: term.role, layer: term.layer })),
+    /** Layers no term draws on: harmless, but usually a rename left behind. */
+    unusedLayers: layers
+      .filter(layer => !used.has(layer.name.toLowerCase()))
+      .map(layer => ({ name: layer.name, meaning: layer.meaning }))
+  }
 }
 
 /**

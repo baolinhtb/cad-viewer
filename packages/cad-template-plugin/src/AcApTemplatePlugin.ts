@@ -7,7 +7,7 @@ import {
 import packageJson from '../package.json'
 import { AcApTemplateCmd } from './command/AcApTemplateCmd'
 import { TemplateDialogOpener } from './dialogIntegration'
-import { refreshTemplateLibrary } from './remoteTemplates'
+import { refreshRoleLayers, refreshTemplateLibrary } from './remoteTemplates'
 
 /** Registered name of the template plugin in the plugin manager. */
 export const TEMPLATE_PLUGIN_NAME = 'TemplatePlugin'
@@ -45,6 +45,7 @@ export class AcApTemplatePlugin implements AcApPlugin {
     // awaited: the built-in templates already work, and blocking the command
     // on a network round trip would make a company with no uploads pay for a
     // library it does not have.
+    void refreshRoleLayers()
     void refreshTemplateLibrary()
   }
 
