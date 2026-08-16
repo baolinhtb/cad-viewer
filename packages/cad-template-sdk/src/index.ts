@@ -1,4 +1,6 @@
 export * from './AcTpDrawContext'
+export * from './AcTpDrawingDigest'
+export * from './AcTpPartId'
 export * from './AcTpSeed'
 export * from './AcTpSemanticTag'
 export * from './AcTpTemplate'

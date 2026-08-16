@@ -20,8 +20,23 @@ export const SEMANTIC_TAG_APP_ID = 'codeco33'
 /**
  * Version of the tag layout below. Bump when the field order changes so old
  * drawings stay readable instead of being silently misread.
+ *
+ * v2 appended {@link AcTpSemanticTag.params}. v1 tags are still read — a
+ * drawing generated before the bump stays fully addressable, it just has no
+ * recorded parameter values.
  */
-export const SEMANTIC_TAG_SCHEMA_VERSION = 1
+export const SEMANTIC_TAG_SCHEMA_VERSION = 2
+
+/** Schema versions this build can read. */
+const READABLE_SCHEMA_VERSIONS = new Set([1, 2])
+
+/**
+ * A DXF 1000 group holds at most 255 characters. Parameter records are meant
+ * to be the handful of numbers that define a part, not a place to park
+ * arbitrary state, so exceeding this is a template bug rather than a limit to
+ * work around.
+ */
+const MAX_PARAMS_JSON = 255
 
 /**
  * Semantic identity attached to every entity a template draws.
@@ -43,14 +58,37 @@ export interface AcTpSemanticTag {
   partId: string
   /** Template that drew the entity. */
   templateId: string
+  /**
+   * Values that define this part, as the template computed them — slab
+   * thickness, rail height, pipe spacing.
+   *
+   * Recorded so that "bản dày bao nhiêu" can be answered by reading the
+   * drawing instead of measuring geometry back. Measuring is not equivalent:
+   * a dimension derived from two picked points cannot tell a 600mm slab from
+   * a 600mm slab that was *meant* to be 650 and drawn wrong.
+   *
+   * Units are whatever the template drew in, which for these templates is
+   * millimetres.
+   */
+  params?: Readonly<Record<string, number | string | boolean>>
 }
 
 /**
  * Field order written into XData. Fixed on purpose: two templates writing the
  * same fields in a different order would both "have tags" yet only one would
- * be readable by the query tools.
+ * be readable by the query tools. Exported so a test can pin it — a silent
+ * reorder would make every existing drawing misread rather than unreadable.
  */
-const FIELD_ORDER = ['schemaVersion', 'role', 'partId', 'templateId'] as const
+export const FIELD_ORDER = [
+  'schemaVersion',
+  'role',
+  'partId',
+  'templateId',
+  'params'
+] as const
+
+/** Number of fields written by each schema version. */
+const FIELD_COUNT: Readonly<Record<number, number>> = { 1: 4, 2: 5 }
 
 /**
  * Registers the semantic-tag RegApp on a database, once.
@@ -101,7 +139,11 @@ export function writeSemanticTag(
     },
     { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.role },
     { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.partId },
-    { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.templateId }
+    { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.templateId },
+    {
+      code: AcDbDxfCode.ExtendedDataAsciiString,
+      value: encodeParams(tag.params)
+    }
   ]
 
   object.setXData(new AcDbResultBuffer(values))
@@ -126,12 +168,19 @@ export function readSemanticTag(
     .filter(v => v.code === AcDbDxfCode.ExtendedDataAsciiString)
     .map(v => String(v.value))
 
-  if (strings.length < FIELD_ORDER.length) return undefined
+  // Length is checked against the version the tag declares, not against the
+  // current one: a v1 tag has four fields and is complete at four.
+  if (strings.length < FIELD_COUNT[1]) return undefined
 
-  const [schemaVersion, role, partId, templateId] = strings
-  if (Number(schemaVersion) !== SEMANTIC_TAG_SCHEMA_VERSION) return undefined
+  const [schemaVersion, role, partId, templateId, rawParams] = strings
+  const version = Number(schemaVersion)
+  if (!READABLE_SCHEMA_VERSIONS.has(version)) return undefined
+  if (strings.length < FIELD_COUNT[version]) return undefined
 
-  return { role, partId, templateId }
+  const params = decodeParams(rawParams)
+  return params
+    ? { role, partId, templateId, params }
+    : { role, partId, templateId }
 }
 
 /**
@@ -139,6 +188,46 @@ export function readSemanticTag(
  */
 export function hasRole(object: AcDbObject, role: string): boolean {
   return readSemanticTag(object)?.role === role
+}
+
+/** Serialises the parameter record; an absent or empty record becomes ''. */
+function encodeParams(params: AcTpSemanticTag['params']): string {
+  if (!params) return ''
+  const keys = Object.keys(params)
+  if (keys.length === 0) return ''
+
+  // Sorted so the same values always produce the same string — otherwise two
+  // identical drawings diff against each other for no reason.
+  const ordered: Record<string, number | string | boolean> = {}
+  for (const key of keys.sort()) ordered[key] = params[key]
+
+  const json = JSON.stringify(ordered)
+  if (json.length > MAX_PARAMS_JSON) {
+    throw new Error(
+      `Bản ghi thông số của bộ phận dài ${json.length} ký tự, vượt giới hạn ` +
+        `${MAX_PARAMS_JSON} của một chuỗi XData. Chỉ ghi các giá trị định nghĩa ` +
+        'bộ phận, không dùng nó để lưu trạng thái.'
+    )
+  }
+  return json
+}
+
+/** Reads the parameter record back; anything unparseable is treated as absent. */
+function decodeParams(
+  raw: string | undefined
+): AcTpSemanticTag['params'] | undefined {
+  if (!raw) return undefined
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return undefined
+    }
+    return parsed as AcTpSemanticTag['params']
+  } catch {
+    // A tag whose other four fields are intact is still worth returning: the
+    // part stays addressable, it just has no recorded values.
+    return undefined
+  }
 }
 
 const SLUG = /^[a-z0-9_]+$/
