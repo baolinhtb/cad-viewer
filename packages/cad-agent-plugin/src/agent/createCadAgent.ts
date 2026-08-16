@@ -14,6 +14,7 @@ import type { AgentMode } from '../storage/AgentModeStore'
 import type { LlmSettings } from '../storage/LlmSettingsStore'
 import { createCadTools } from '../tools/cadTools'
 import { formatChatError } from '../ui/formatChatError'
+import { withTurnUndoMark } from './agentTurnEdit'
 import { extractConversationContext } from './conversationContext'
 import { createModelFromSettings } from './createModel'
 import { captureDrawingPreview } from './drawingPreviewCapture'
@@ -111,6 +112,11 @@ export function createAgentChatTransport(
         messages,
         tools: agent.tools
       })
+      // Read before the turn starts: the user's own words label the turn's one
+      // undo mark, and that mark is opened in both modes — not just the
+      // high-inference branch that also wants the reference images.
+      const { userRequest, referenceImages } =
+        extractConversationContext(validatedMessages)
 
       return new ReadableStream<InferUIMessageChunk<UIMessage>>({
         async start(controller) {
@@ -119,119 +125,133 @@ export function createAgentChatTransport(
           }
 
           try {
-            let workingMessages = validatedMessages
-            const { agentMode } = getOptions()
-
-            if (agentMode === 'simple') {
-              await streamAgentRound({
-                agent,
-                workingMessages,
-                abortSignal,
-                write
-              })
-              return
-            }
-
-            const settings = getSettings()
-            const { userRequest, referenceImages } =
-              extractConversationContext(validatedMessages)
-            let verificationAttempts = 0
-
-            while (!abortSignal?.aborted) {
-              workingMessages = await streamAgentRound({
-                agent,
-                workingMessages,
-                abortSignal,
-                write
-              })
-
-              if (abortSignal?.aborted) break
-
-              verificationAttempts += 1
-
-              const preview = await captureDrawingPreview()
-              if (!preview.ok) {
-                appendVerificationReview(write, {
-                  title: agentT('verificationTitle'),
-                  attempt: verificationAttempts,
-                  maxAttempts: MAX_VERIFICATION_ATTEMPTS,
-                  statusText: `${agentT('verificationSkipped')}: ${preview.reason}`,
-                  referenceImages,
-                  referenceLabel: agentT('referenceImages'),
-                  drawingLabel: agentT('drawingScreenshot')
-                })
-                break
-              }
-
-              appendVerificationReview(write, {
-                title: agentT('verificationTitle'),
-                attempt: verificationAttempts,
-                maxAttempts: MAX_VERIFICATION_ATTEMPTS,
-                statusText: agentT('verifying'),
-                referenceImages,
-                referenceLabel: agentT('referenceImages'),
-                drawingLabel: agentT('drawingScreenshot'),
-                drawingDataUrl: preview.dataUrl
-              })
-
-              let verification
+            // One turn, one undo mark. Inside the existing `try` on purpose: a
+            // failure has to roll the whole turn back before the catch below
+            // turns it into an error chunk, or the canvas keeps half a drawing
+            // that no single Ctrl+Z can remove.
+            await withTurnUndoMark(userRequest, async () => {
               try {
-                verification = await verifyDrawing(
-                  settings,
-                  userRequest,
-                  referenceImages,
-                  preview.dataUrl,
-                  abortSignal
-                )
-              } catch (error) {
-                if (wasAborted(abortSignal, error)) break
-                appendAssistantText(
-                  write,
-                  `\n${agentT('verificationError')}: ${
-                    error instanceof Error ? error.message : String(error)
-                  }`
-                )
-                break
-              }
+                let workingMessages = validatedMessages
+                const { agentMode } = getOptions()
 
-              if (abortSignal?.aborted) break
+                if (agentMode === 'simple') {
+                  await streamAgentRound({
+                    agent,
+                    workingMessages,
+                    abortSignal,
+                    write
+                  })
+                  return
+                }
 
-              if (verification.passed) {
-                appendAssistantText(write, `\n${agentT('verificationPassed')}`)
-                break
-              }
+                const settings = getSettings()
+                let verificationAttempts = 0
 
-              if (verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
-                appendAssistantText(
-                  write,
-                  `\n${agentT('verificationMaxAttempts')}\n\n${verification.feedback.trim()}`
-                )
-                break
-              }
+                while (!abortSignal?.aborted) {
+                  workingMessages = await streamAgentRound({
+                    agent,
+                    workingMessages,
+                    abortSignal,
+                    write
+                  })
 
-              appendAssistantText(
-                write,
-                `\n${agentT('verificationFailed')}\n${verification.feedback.trim()}\n\n${agentT('verificationContinuing')}`
-              )
+                  if (abortSignal?.aborted) break
 
-              workingMessages = [
-                ...workingMessages,
-                {
-                  id: generateId(),
-                  role: 'user',
-                  parts: [
+                  verificationAttempts += 1
+
+                  const preview = await captureDrawingPreview()
+                  if (!preview.ok) {
+                    appendVerificationReview(write, {
+                      title: agentT('verificationTitle'),
+                      attempt: verificationAttempts,
+                      maxAttempts: MAX_VERIFICATION_ATTEMPTS,
+                      statusText: `${agentT('verificationSkipped')}: ${preview.reason}`,
+                      referenceImages,
+                      referenceLabel: agentT('referenceImages'),
+                      drawingLabel: agentT('drawingScreenshot')
+                    })
+                    break
+                  }
+
+                  appendVerificationReview(write, {
+                    title: agentT('verificationTitle'),
+                    attempt: verificationAttempts,
+                    maxAttempts: MAX_VERIFICATION_ATTEMPTS,
+                    statusText: agentT('verifying'),
+                    referenceImages,
+                    referenceLabel: agentT('referenceImages'),
+                    drawingLabel: agentT('drawingScreenshot'),
+                    drawingDataUrl: preview.dataUrl
+                  })
+
+                  let verification
+                  try {
+                    verification = await verifyDrawing(
+                      settings,
+                      userRequest,
+                      referenceImages,
+                      preview.dataUrl,
+                      abortSignal
+                    )
+                  } catch (error) {
+                    if (wasAborted(abortSignal, error)) break
+                    appendAssistantText(
+                      write,
+                      `\n${agentT('verificationError')}: ${
+                        error instanceof Error ? error.message : String(error)
+                      }`
+                    )
+                    break
+                  }
+
+                  if (abortSignal?.aborted) break
+
+                  if (verification.passed) {
+                    appendAssistantText(
+                      write,
+                      `\n${agentT('verificationPassed')}`
+                    )
+                    break
+                  }
+
+                  if (verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
+                    appendAssistantText(
+                      write,
+                      `\n${agentT('verificationMaxAttempts')}\n\n${verification.feedback.trim()}`
+                    )
+                    break
+                  }
+
+                  appendAssistantText(
+                    write,
+                    `\n${agentT('verificationFailed')}\n${verification.feedback.trim()}\n\n${agentT('verificationContinuing')}`
+                  )
+
+                  workingMessages = [
+                    ...workingMessages,
                     {
-                      type: 'text',
-                      text: buildVerificationFeedbackMessage(
-                        verificationAttempts,
-                        MAX_VERIFICATION_ATTEMPTS,
-                        verification.feedback
-                      )
+                      id: generateId(),
+                      role: 'user',
+                      parts: [
+                        {
+                          type: 'text',
+                          text: buildVerificationFeedbackMessage(
+                            verificationAttempts,
+                            MAX_VERIFICATION_ATTEMPTS,
+                            verification.feedback
+                          )
+                        }
+                      ]
                     }
                   ]
                 }
-              ]
-            }
+              } catch (error) {
+                // Stop keeps what was already drawn. Leaving the group body
+                // normally lets the mark commit; rethrowing would roll the
+                // turn back and delete work the user asked to stop, not undo.
+                if (!wasAborted(abortSignal, error)) throw error
+              }
+            })
           } catch (error) {
             if (wasAborted(abortSignal, error)) return
             controller.enqueue({
