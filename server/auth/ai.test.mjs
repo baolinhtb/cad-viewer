@@ -461,3 +461,158 @@ test('an upstream error is still reported as an error when a stream was asked fo
   )
   assert.equal(code, ERRORS.UPSTREAM)
 })
+
+/** One step of an agent turn: the assistant's tool calls, then their results. */
+function step(n) {
+  return [
+    {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', id: `t${n}`, name: 'draw_line', input: {} }
+      ]
+    },
+    {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: `t${n}`, content: 'ok' }]
+    }
+  ]
+}
+
+/** Every breakpoint in a request, wherever it was placed. */
+function breakpoints(payload) {
+  const inSystem = (payload.system ?? []).filter(b => b.cache_control).length
+  const inMessages = (payload.messages ?? []).reduce(
+    (total, message) =>
+      total +
+      (Array.isArray(message.content)
+        ? message.content.filter(b => b?.cache_control).length
+        : 0),
+    0
+  )
+  return inSystem + inMessages
+}
+
+test('the conversation carries a breakpoint at its end', async () => {
+  // Without it the history is re-sent at full price on every step of the turn.
+  const db = freshDb()
+  const capture = {}
+  await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'vẽ lan can' }] },
+    fakeProvider(OK_REPLY, capture)
+  )
+  const last = capture.body.messages.at(-1)
+  assert.equal(last.content.at(-1).cache_control.type, 'ephemeral')
+})
+
+test('the anchor lands where the previous request ended', async () => {
+  // A breakpoint reaches back at most twenty blocks to find a cache entry, and
+  // one drawing step can emit more than twenty. Anchoring at distance zero —
+  // the message the previous request ended on — is what survives that.
+  const db = freshDb()
+  const capture = {}
+  const messages = [
+    { role: 'user', content: 'vẽ mặt cắt' },
+    ...step(1),
+    ...step(2)
+  ]
+  await sendToProvider(db, USER, { messages }, fakeProvider(OK_REPLY, capture))
+
+  const sent = capture.body.messages
+  const anchor = sent[sent.length - 3]
+  assert.equal(anchor.content.at(-1).cache_control.type, 'ephemeral')
+  // That message is exactly what the previous request would have ended on.
+  assert.equal(anchor.role, 'user')
+  assert.equal(anchor.content.at(-1).tool_use_id, 't1')
+})
+
+test('cache hints from the client are dropped, never honoured', async () => {
+  // Four breakpoints per request is the budget and system already spends two.
+  // A client marking its own blocks pushes the request over and the API
+  // rejects it outright.
+  const db = freshDb()
+  const capture = {}
+  await sendToProvider(
+    db,
+    USER,
+    {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'a', cache_control: { type: 'ephemeral' } },
+            { type: 'text', text: 'b', cache_control: { type: 'ephemeral' } }
+          ]
+        }
+      ]
+    },
+    fakeProvider(OK_REPLY, capture)
+  )
+  const content = capture.body.messages[0].content
+  assert.equal(content[0].cache_control, undefined)
+  // Only the deployment's own marker survives, on the last block.
+  assert.equal(content[1].cache_control.type, 'ephemeral')
+})
+
+test('a request never carries more than four breakpoints', async () => {
+  const db = freshDb()
+  const capture = {}
+  const messages = [
+    { role: 'user', content: 'vẽ' },
+    ...step(1),
+    ...step(2),
+    ...step(3)
+  ]
+  await sendToProvider(
+    db,
+    USER,
+    { messages, system: 'x'.repeat(2500) },
+    fakeProvider(OK_REPLY, capture)
+  )
+  assert.equal(breakpoints(capture.body), 4)
+})
+
+test('a one-message conversation spends only one breakpoint', async () => {
+  // The anchor and the end marker would land on the same block; doubling it
+  // would waste half the budget for nothing.
+  const db = freshDb()
+  const capture = {}
+  await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'vẽ' }] },
+    fakeProvider(OK_REPLY, capture)
+  )
+  const inMessages = capture.body.messages[0].content.filter(
+    b => b.cache_control
+  ).length
+  assert.equal(inMessages, 1)
+})
+
+test('string content becomes a block so it can carry the marker', async () => {
+  const db = freshDb()
+  const capture = {}
+  await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'vẽ lan can' }] },
+    fakeProvider(OK_REPLY, capture)
+  )
+  assert.deepEqual(capture.body.messages[0].content, [
+    { type: 'text', text: 'vẽ lan can', cache_control: { type: 'ephemeral' } }
+  ])
+})
+
+test("the caller's messages are left as they were", async () => {
+  // The proxy is handed the client's own array; marking it in place would
+  // leak this deployment's caching decisions back into the caller.
+  const db = freshDb()
+  const messages = [
+    { role: 'user', content: [{ type: 'text', text: 'vẽ' }] },
+    ...step(1)
+  ]
+  const before = JSON.stringify(messages)
+  await sendToProvider(db, USER, { messages }, fakeProvider(OK_REPLY, {}))
+  assert.equal(JSON.stringify(messages), before)
+})

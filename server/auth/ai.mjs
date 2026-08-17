@@ -136,6 +136,71 @@ export function buildStandardsBlock(db) {
   return { text, hash: createHash('sha256').update(text, 'utf8').digest('hex') }
 }
 
+/**
+ * Marks the conversation so a turn stops paying full price for its own history.
+ *
+ * The Messages API is stateless: every step of an agent turn resends the whole
+ * conversation, so a tool result produced at step 2 is paid for again at steps
+ * 3 through 10. Measured on this deployment, that history was 32% of the bill
+ * while the fixed prefix — larger, but cached — was 8%.
+ *
+ * Two breakpoints, and the position of the first one is the whole trick. A
+ * breakpoint only finds a cache entry within twenty content blocks behind it,
+ * and one drawing step can emit far more than twenty: the draw tools take one
+ * entity each, so a cross-section is thirty `tool_use` blocks and thirty
+ * `tool_result` blocks in a single step. A lone breakpoint at the end would
+ * miss on exactly the steps worth caching.
+ *
+ * So the anchor goes where the *previous* request put its end marker, at
+ * distance zero, which no step size can stretch. The agent appends exactly two
+ * messages per step — the assistant's tool calls, then their results — so a
+ * request holding n messages was preceded by one holding n-2, whose last
+ * message sits at index n-3. That is the anchor; the end marker is the seed
+ * for the next request.
+ *
+ * @param messages The caller's conversation, left unmodified.
+ * @returns A copy carrying this deployment's breakpoints and no one else's.
+ */
+export function cacheConversation(messages) {
+  if (!Array.isArray(messages)) return messages
+
+  // Hints from the client are dropped rather than honoured. The budget is four
+  // breakpoints per request and two are already spent on `system`; a client
+  // that also marks its own blocks pushes the request over and the API rejects
+  // it outright. One caching strategy, decided in one place.
+  const copy = messages.map(message => {
+    if (!message || typeof message !== 'object') return message
+    if (typeof message.content === 'string') {
+      return { ...message, content: [{ type: 'text', text: message.content }] }
+    }
+    if (!Array.isArray(message.content)) return message
+    return {
+      ...message,
+      content: message.content.map(block => {
+        if (!block || typeof block !== 'object' || !('cache_control' in block)) {
+          return block
+        }
+        const { cache_control: _dropped, ...rest } = block
+        return rest
+      })
+    }
+  })
+
+  // The end marker first, then the anchor two steps back. Deduplicated, because
+  // a short conversation lands both on the same message and a doubled marker
+  // wastes half the budget.
+  const positions = [...new Set([copy.length - 1, copy.length - 3])]
+  for (const index of positions) {
+    if (index < 0) continue
+    const content = copy[index]?.content
+    if (!Array.isArray(content) || content.length === 0) continue
+    const at = content.length - 1
+    content[at] = { ...content[at], cache_control: { type: 'ephemeral' } }
+  }
+
+  return copy
+}
+
 /** Rough cost of one call, in US dollars. */
 export function estimateCost(usage) {
   const m = 1_000_000
@@ -239,7 +304,7 @@ export async function sendToProvider(
     model,
     max_tokens: Math.min(Number(body.max_tokens) || 4096, 16_000),
     system,
-    messages: body.messages,
+    messages: cacheConversation(body.messages),
     // Adaptive thinking on the 4.6+ line; `budget_tokens` is rejected there.
     thinking: { type: 'adaptive' },
     ...(wantsStream ? { stream: true } : {}),
