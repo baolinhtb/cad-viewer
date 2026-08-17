@@ -313,7 +313,9 @@ function bm25Scores(corpus, query) {
     for (const [key, weight] of lookups) {
       const list = corpus.postings.get(key)
       if (!list) continue
-      const idf = Math.log(1 + (total - list.length + 0.5) / (list.length + 0.5))
+      const idf = Math.log(
+        1 + (total - list.length + 0.5) / (list.length + 0.5)
+      )
 
       for (const [index, count] of list) {
         const length = corpus.lengths[index]
@@ -340,8 +342,17 @@ export function searchTcvn(query, options = {}) {
   const text = String(query ?? '').trim()
   if (!text) throw new TcvnError(ERRORS.EMPTY_QUERY)
 
-  const limit = Math.min(Math.max(Number(options.limit) || 4, 1), 10)
-  const maxChars = Math.min(Math.max(Number(options.maxChars) || 1600, 200), 6000)
+  // Defaults are a budget, not a preference. A tool result stays in the
+  // conversation and is re-sent on every later call of the turn, so a generous
+  // default is paid for again and again: at four clauses of 1.600 characters,
+  // four lookups filled 96% of one turn's history. Three shorter clauses answer
+  // "chiều cao lan can cấp TL-4" just as well, and a caller that genuinely
+  // needs the long version can still ask for it.
+  const limit = Math.min(Math.max(Number(options.limit) || 3, 1), 10)
+  const maxChars = Math.min(
+    Math.max(Number(options.maxChars) || 700, 200),
+    6000
+  )
   const corpus = getCorpus(options.dir)
 
   const ranked = [...bm25Scores(corpus, text)]

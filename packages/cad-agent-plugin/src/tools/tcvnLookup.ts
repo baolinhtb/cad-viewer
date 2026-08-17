@@ -88,16 +88,19 @@ export async function lookupTcvn(
       ok: true,
       status: 'ready',
       message:
-        'Không có điều khoản nào khớp. Hãy hỏi lại bằng từ khoá khác, hoặc nói rõ là số liệu đang dùng không lấy từ TCVN.',
-      data: []
+        'Không có điều khoản nào khớp. Hãy hỏi lại bằng từ khoá khác, hoặc nói rõ là số liệu đang dùng không lấy từ TCVN.'
     }
   }
 
+  // Only `message`. Returning the clauses in `data` as well sent every one of
+  // them twice — measured at 5.655 tokens for a single lookup, of which 2.872
+  // were the duplicate — and a tool result stays in the conversation, so the
+  // copy was re-sent on every later call of the turn. Four lookups filled 96%
+  // of the history. Nothing read `data`; the model reads the message.
   return {
     ok: true,
     status: 'ready',
-    message: results.map(formatClause).join('\n\n---\n\n'),
-    data: results
+    message: results.map(formatClause).join('\n\n---\n\n')
   }
 }
 

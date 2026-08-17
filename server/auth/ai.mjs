@@ -204,14 +204,28 @@ export async function sendToProvider(
   if (typeof body.system === 'string' && body.system.trim()) {
     system.push({ type: 'text', text: body.system })
   } else if (Array.isArray(body.system)) {
-    // Clients built on an SDK send system as blocks. Their cache_control is
-    // dropped: a second cache breakpoint on a prompt that changes per request
-    // costs a cache write and buys nothing.
+    // Clients built on an SDK send system as blocks. Their own cache_control is
+    // dropped and re-decided here, so the caching strategy stays one decision
+    // in one place.
     for (const block of body.system) {
       if (block?.type === 'text' && block.text) {
         system.push({ type: 'text', text: block.text })
       }
     }
+  }
+
+  // A second breakpoint, after the caller's prompt.
+  //
+  // The drawing assistant's prompt is four thousand tokens and identical on
+  // every call, and one drawing turn makes nine or ten of them — paying full
+  // price for it each time was the second largest line in the bill after the
+  // conversation itself. The length test is what keeps this honest: a caller
+  // whose system prompt changes per request would pay a cache write for
+  // nothing, and a short prompt is not worth the risk either way.
+  const CACHEABLE_SYSTEM_CHARS = 2000
+  const last = system[system.length - 1]
+  if (system.length > 1 && last.text.length >= CACHEABLE_SYSTEM_CHARS) {
+    last.cache_control = { type: 'ephemeral' }
   }
 
   // Streaming is the caller's choice and has to be honoured, not silently

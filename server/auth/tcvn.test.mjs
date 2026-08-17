@@ -146,5 +146,7 @@ test('a long clause is cut on a line boundary and says that it was cut', () => {
 
 test('limit is clamped so one question cannot ask for the whole corpus', () => {
   assert.equal(searchTcvn('lan can', { limit: 999, dir: REAL_CORPUS }).length, 10)
-  assert.equal(searchTcvn('lan can', { limit: 0, dir: REAL_CORPUS }).length, 4)
+  // Three by default: a tool result is re-sent on every later call of the
+  // turn, so the default is a budget rather than a preference.
+  assert.equal(searchTcvn('lan can', { limit: 0, dir: REAL_CORPUS }).length, 3)
 })

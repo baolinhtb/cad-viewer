@@ -65,7 +65,10 @@ test('the clause comes back with the standard that makes it citable', async () =
   expect(outcome.ok).toBe(true)
   expect(outcome.message).toContain('TCVN 11823-13:2017')
   expect(outcome.message).toContain('810mm')
-  expect(outcome.data).toEqual([CLAUSE])
+  // Deliberately no `data`: carrying the clauses a second time doubled a tool
+  // result that then sat in the conversation and was re-sent on every later
+  // call — measured at 96% of one turn's history for four lookups.
+  expect(outcome.data).toBeUndefined()
 })
 
 test('an empty question is refused without calling the server', async () => {
@@ -86,7 +89,6 @@ test('finding nothing is a result, not a failure', async () => {
   const outcome = await lookupTcvn('màu sơn ưa thích của kỹ sư')
 
   expect(outcome.ok).toBe(true)
-  expect(outcome.data).toEqual([])
   expect(outcome.message).toMatch(/không/i)
 })
 
