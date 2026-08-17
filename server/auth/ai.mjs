@@ -214,6 +214,13 @@ export async function sendToProvider(
     }
   }
 
+  // Streaming is the caller's choice and has to be honoured, not silently
+  // dropped. A client that asked for `stream: true` is waiting for an event
+  // stream; hand it a single JSON object and its parser yields nothing at all —
+  // no text, no tool calls — so the assistant appears to think for a while and
+  // then do nothing, which is exactly what it did until this line existed.
+  const wantsStream = body.stream === true
+
   const payload = {
     model,
     max_tokens: Math.min(Number(body.max_tokens) || 4096, 16_000),
@@ -221,6 +228,7 @@ export async function sendToProvider(
     messages: body.messages,
     // Adaptive thinking on the 4.6+ line; `budget_tokens` is rejected there.
     thinking: { type: 'adaptive' },
+    ...(wantsStream ? { stream: true } : {}),
     ...(Array.isArray(body.tools) && body.tools.length
       ? { tools: body.tools }
       : {})
@@ -245,7 +253,11 @@ export async function sendToProvider(
     )
   }
 
-  const result = await response.json().catch(() => ({}))
+  // An upstream failure is JSON even when a stream was asked for, so the error
+  // path below stays common to both.
+  const result = response.ok && wantsStream
+    ? null
+    : await response.json().catch(() => ({}))
 
   if (!response.ok) {
     recordCall(db, {
@@ -263,6 +275,25 @@ export async function sendToProvider(
     )
   }
 
+  if (wantsStream) {
+    // The row is written before a single byte reaches the client, because the
+    // call id rides on a response header and headers go out first. Usage is
+    // only known when the stream ends, so it lands as an update.
+    const callId = recordCall(db, {
+      userId: user.id,
+      drawingId: body.drawingId ?? null,
+      command: body.command ?? '',
+      model,
+      usage: {}
+    })
+
+    return {
+      callId,
+      standardsHash: standards.hash,
+      stream: tapUsage(response.body, usage => updateCallUsage(db, callId, usage))
+    }
+  }
+
   const callId = recordCall(db, {
     userId: user.id,
     drawingId: body.drawingId ?? null,
@@ -272,6 +303,79 @@ export async function sendToProvider(
   })
 
   return { callId, standardsHash: standards.hash, body: result }
+}
+
+/**
+ * Passes an SSE stream through untouched while reading the usage out of it.
+ *
+ * Untouched matters: the client is an SDK parsing the provider's own event
+ * format, and re-encoding events here would make this proxy a second thing
+ * that can be wrong about them. So the bytes are forwarded verbatim and only
+ * *copied* for accounting.
+ *
+ * Anthropic reports usage in two places — `message_start` carries the input
+ * and cache counts, `message_delta` the running output count — so both are
+ * merged, and the last `message_delta` wins.
+ */
+export function tapUsage(source, onUsage) {
+  const decoder = new TextDecoder()
+  let pending = ''
+  let usage = {}
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of source) {
+          controller.enqueue(chunk)
+
+          pending += decoder.decode(chunk, { stream: true })
+          const lines = pending.split('\n')
+          // The last piece may be half a line; keep it for the next chunk.
+          pending = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue
+            let event
+            try {
+              event = JSON.parse(line.slice(5).trim())
+            } catch {
+              continue
+            }
+            const found = event?.message?.usage ?? event?.usage
+            if (found) usage = { ...usage, ...found }
+          }
+        }
+      } catch (error) {
+        controller.error(error)
+        return
+      }
+      controller.close()
+      try {
+        onUsage(usage)
+      } catch {
+        // Accounting must never take the answer down with it: the drawing the
+        // engineer is waiting for has already been delivered by this point.
+      }
+    },
+    cancel(reason) {
+      return source.cancel?.(reason)
+    }
+  })
+}
+
+/** Fills in the usage of a call whose row was written before the stream ran. */
+export function updateCallUsage(db, callId, usage = {}) {
+  db.prepare(
+    `UPDATE ai_calls
+        SET input_tokens = ?, output_tokens = ?,
+            cache_read_tokens = ?, cache_write_tokens = ?
+      WHERE id = ?`
+  ).run(
+    usage.input_tokens ?? 0,
+    usage.output_tokens ?? 0,
+    usage.cache_read_input_tokens ?? 0,
+    usage.cache_creation_input_tokens ?? 0,
+    callId
+  )
 }
 
 /** Writes one row of the call log. Returns its id. */

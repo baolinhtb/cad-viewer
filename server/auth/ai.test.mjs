@@ -263,3 +263,201 @@ test('cost counts cache reads at their own rate', () => {
     0.5
   )
 })
+
+// --- streaming --------------------------------------------------------------
+
+/** A provider that answers with a real SSE body, as Anthropic does. */
+function fakeStreamingProvider(events, capture = {}) {
+  return async (url, init) => {
+    capture.url = url
+    capture.body = JSON.parse(init.body)
+    return {
+      ok: true,
+      status: 200,
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder()
+          for (const event of events) {
+            controller.enqueue(
+              encoder.encode(
+                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+              )
+            )
+          }
+          controller.close()
+        }
+      })
+    }
+  }
+}
+
+const STREAM_EVENTS = [
+  {
+    type: 'message_start',
+    message: {
+      id: 'msg_1',
+      usage: {
+        input_tokens: 1200,
+        cache_read_input_tokens: 900,
+        cache_creation_input_tokens: 64
+      }
+    }
+  },
+  { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+  {
+    type: 'content_block_delta',
+    index: 0,
+    delta: { type: 'text_delta', text: 'Đã vẽ xong.' }
+  },
+  { type: 'content_block_stop', index: 0 },
+  {
+    type: 'message_delta',
+    delta: { stop_reason: 'end_turn' },
+    usage: { output_tokens: 321 }
+  },
+  { type: 'message_stop' }
+]
+
+async function collect(stream) {
+  const decoder = new TextDecoder()
+  let out = ''
+  for await (const chunk of stream) out += decoder.decode(chunk, { stream: true })
+  return out
+}
+
+test('a client asking for a stream gets one, not a single JSON blob', async () => {
+  // The failure this guards: the proxy built its own payload and dropped
+  // `stream`, so a browser SDK parsing an event stream received one JSON
+  // object, produced no text and no tool calls, and the assistant looked like
+  // it had thought for a while and done nothing.
+  const db = freshDb()
+  const capture = {}
+  const result = await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'vẽ cây cầu' }], stream: true },
+    fakeStreamingProvider(STREAM_EVENTS, capture)
+  )
+
+  assert.equal(capture.body.stream, true, 'phải chuyển tiếp stream lên nhà cung cấp')
+  assert.ok(result.stream, 'phải trả về luồng, không phải body')
+  assert.equal(result.body, undefined)
+})
+
+test('the provider’s own events are forwarded byte for byte', async () => {
+  // The client is an SDK parsing the provider's format. Re-encoding here would
+  // make this proxy a second thing that can be wrong about it.
+  const db = freshDb()
+  const result = await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'x' }], stream: true },
+    fakeStreamingProvider(STREAM_EVENTS)
+  )
+
+  const text = await collect(result.stream)
+  assert.match(text, /^event: message_start\ndata: \{/)
+  assert.match(text, /"text_delta"/)
+  assert.match(text, /event: message_stop/)
+})
+
+test('a streamed call is logged before the first byte, and its usage filled in after', async () => {
+  // The call id travels on a response header, so the row has to exist before
+  // the body starts; the token counts only exist once the stream ends.
+  const db = freshDb()
+  const result = await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'x' }], stream: true },
+    fakeStreamingProvider(STREAM_EVENTS)
+  )
+
+  const before = db
+    .prepare('SELECT input_tokens, output_tokens FROM ai_calls WHERE id = ?')
+    .get(result.callId)
+  assert.equal(before.output_tokens, 0, 'chưa chạy luồng thì chưa biết token')
+
+  await collect(result.stream)
+
+  const after = db
+    .prepare(
+      `SELECT input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+         FROM ai_calls WHERE id = ?`
+    )
+    .get(result.callId)
+  assert.equal(after.input_tokens, 1200)
+  assert.equal(after.output_tokens, 321)
+  assert.equal(after.cache_read_tokens, 900)
+  assert.equal(after.cache_write_tokens, 64)
+})
+
+test('usage is read correctly when events straddle chunk boundaries', async () => {
+  // A network hands over whatever it hands over; a parser that assumes one
+  // event per chunk loses the counts on a busy connection.
+  const db = freshDb()
+  const encoder = new TextEncoder()
+  const whole = STREAM_EVENTS.map(
+    event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+  ).join('')
+
+  const provider = async () => ({
+    ok: true,
+    status: 200,
+    body: new ReadableStream({
+      start(controller) {
+        for (let i = 0; i < whole.length; i += 7) {
+          controller.enqueue(encoder.encode(whole.slice(i, i + 7)))
+        }
+        controller.close()
+      }
+    })
+  })
+
+  const result = await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'x' }], stream: true },
+    provider
+  )
+  const text = await collect(result.stream)
+  assert.equal(text, whole, 'luồng ra phải giống hệt luồng vào')
+
+  const row = db
+    .prepare('SELECT output_tokens FROM ai_calls WHERE id = ?')
+    .get(result.callId)
+  assert.equal(row.output_tokens, 321)
+})
+
+test('a request without stream still gets the plain JSON answer', async () => {
+  // The route is a drop-in for the provider's own, and non-streaming callers
+  // must keep working exactly as before.
+  const db = freshDb()
+  const capture = {}
+  const result = await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'x' }] },
+    fakeProvider(OK_REPLY, capture)
+  )
+
+  assert.equal(capture.body.stream, undefined)
+  assert.equal(result.stream, undefined)
+  assert.equal(result.body.stop_reason, 'end_turn')
+})
+
+test('an upstream error is still reported as an error when a stream was asked for', async () => {
+  const db = freshDb()
+  const code = await codeOf(() =>
+    sendToProvider(
+      db,
+      USER,
+      { messages: [{ role: 'user', content: 'x' }], stream: true },
+      async () => ({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: { type: 'rate_limit_error', message: 'chậm lại' } })
+      })
+    )
+  )
+  assert.equal(code, ERRORS.UPSTREAM)
+})
