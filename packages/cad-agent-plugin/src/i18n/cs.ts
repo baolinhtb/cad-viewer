@@ -62,5 +62,7 @@ export const agentCs = {
   unsavedSettings: 'Před odesíláním zpráv uložte nastavení.',
   missingApiKey: 'Před odesíláním zpráv nastavte v nastavení API klíč.',
   turnUndoLabelFallback: 'Příkaz AI',
-  providerProxy: 'Toto nasazení (doporučeno)'
+  providerProxy: 'Toto nasazení (doporučeno)',
+  outputTruncated:
+    'Odpověď byla oříznuta limitem délky, část výkresu proto může chybět. Vyžádejte si menší část.'
 } as const

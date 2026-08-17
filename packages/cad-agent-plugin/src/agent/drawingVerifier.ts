@@ -1,5 +1,8 @@
 import { generateObject } from 'ai'
-import { z } from 'zod'
+// `zod/v4` for the same reason as in `cadTools.ts`: schemas handed to the AI
+// SDK must come from the v4 entry point or type-checking this package does not
+// terminate in any sane amount of memory.
+import { z } from 'zod/v4'
 
 import type { LlmSettings } from '../storage/LlmSettingsStore'
 import { createModelFromSettings } from './createModel'

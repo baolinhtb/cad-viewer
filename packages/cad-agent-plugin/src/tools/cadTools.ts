@@ -4,7 +4,12 @@ import {
   SEMANTIC_TOOLS
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
-import { z } from 'zod'
+// `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
+// handing it a v3-classic schema makes the checker relate the two model
+// hierarchies for every schema in this file: `tsc --noEmit` reached three
+// million types and died at 4 GB of heap, on an empty `z.object({})`. The v4
+// entry point is the same API and the same package — zod 3.25 ships both.
+import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
 
@@ -65,7 +70,8 @@ export function createCadTools() {
           .optional()
           .describe('Số thứ tự dọc cầu, nếu người dùng nêu.')
       }),
-      execute: async input => runSemanticTool('tim_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('tim_bo_phan', input, dictionary())
     }),
     to_sang_bo_phan: tool({
       description: semanticDescription('to_sang_bo_phan'),
@@ -75,7 +81,8 @@ export function createCadTools() {
           .min(1)
           .describe('Danh sách partId lấy từ tim_bo_phan.')
       }),
-      execute: async input => runSemanticTool('to_sang_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('to_sang_bo_phan', input, dictionary())
     }),
     get_drawing_context: tool({
       description: 'Get current drawing context: units, layers, and extents',

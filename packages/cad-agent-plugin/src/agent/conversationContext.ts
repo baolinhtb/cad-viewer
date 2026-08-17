@@ -1,11 +1,4 @@
-import type { UIMessage } from 'ai'
-
-/** Image file part on a {@link UIMessage}. */
-type ImageFilePart = {
-  type: 'file'
-  url: string
-  mediaType?: string
-}
+import type { FileUIPart, UIMessage } from 'ai'
 
 /**
  * Extracts the latest user request text and all user-attached reference images
@@ -30,8 +23,8 @@ export function extractConversationContext(messages: UIMessage[]): {
     }
     return message.parts
       .filter(
-        (part): part is ImageFilePart =>
-          part.type === 'file' && !!part.mediaType?.startsWith('image/')
+        (part): part is FileUIPart =>
+          part.type === 'file' && part.mediaType.startsWith('image/')
       )
       .map(part => part.url)
   })
