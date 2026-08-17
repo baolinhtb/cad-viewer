@@ -112,9 +112,61 @@ export function createCadTools() {
       execute: async input => lookupTcvn(input.cau_hoi, input.so_ket_qua)
     }),
     get_drawing_context: tool({
-      description: 'Get current drawing context: units, layers, and extents',
+      description:
+        'Đọc bản vẽ hiện tại: đơn vị, layer, số đối tượng trên từng layer, phạm vi, ' +
+        'và danh sách bộ phận đã mang nhãn ngữ nghĩa (kèm thông số đã ghi). ' +
+        'Gọi ở đầu mỗi lượt: đây là thứ cho biết bản vẽ đang có gì, thay vì phải nhớ lại từ hội thoại.',
       inputSchema: z.object({}),
       execute: async () => cadActionExecutor.getDrawingContext()
+    }),
+    // Declared before drawing, not after: a tag written onto geometry is what
+    // makes the geometry addressable later. Without it the next request about
+    // "lan can" has nothing to match, and the assistant is back to guessing
+    // from coordinates.
+    dat_bo_phan_hien_tai: tool({
+      description:
+        'Khai báo bộ phận sắp vẽ. Mọi đối tượng vẽ sau lệnh này sẽ mang nhãn đó cho tới khi khai báo lại — giống như layer hiện hành. ' +
+        'Bắt buộc gọi trước khi vẽ bất kỳ bộ phận nào có tên gọi trong nghề (bản mặt cầu, lan can, dầm, gờ chắn, ống thoát nước...). ' +
+        'Nhờ nhãn này mà lượt sau người dùng nói "nâng lan can lên" thì tìm được đúng đối tượng, kể cả sau khi tải lại bản vẽ. ' +
+        'Gọi không kèm tham số để quay lại vẽ hình học không nhãn (đường gióng, nháp).',
+      inputSchema: z.object({
+        bo_phan: z
+          .string()
+          .regex(/^[a-z0-9_]+$/)
+          .optional()
+          .describe(
+            'Khóa ngữ nghĩa không dấu theo danh mục công ty, ví dụ "lan_can", "ban_mat_cau", "dam_chu". Bỏ trống để thôi gắn nhãn.'
+          ),
+        ben: z
+          .enum(['trai', 'phai'])
+          .optional()
+          .describe(
+            'Bên trái/phải theo hướng lý trình tăng dần, nếu bộ phận có hai bên.'
+          ),
+        so_thu_tu: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('Số thứ tự khi có nhiều cái cùng loại, ví dụ dầm thứ 3.'),
+        thong_so: z
+          .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+          .optional()
+          .describe(
+            'Các số định nghĩa bộ phận, ví dụ {"chieu_cao": 810, "be_rong": 250}. Ghi vào bản vẽ để lượt sau đọc lại được thay vì đo lại.'
+          )
+      }),
+      execute: async input =>
+        cadActionExecutor.setCurrentPart(
+          input.bo_phan
+            ? {
+                role: input.bo_phan,
+                side: input.ben,
+                ordinal: input.so_thu_tu,
+                params: input.thong_so
+              }
+            : undefined
+        )
     }),
     draw_line: tool({
       description: 'Draw a straight line segment in model space',

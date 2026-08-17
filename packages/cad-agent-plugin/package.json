@@ -57,6 +57,7 @@
   "devDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-plugin": "workspace:*",
+    "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/data-model": "^1.12.5",
     "@vitejs/plugin-vue": "^6.0.8",
     "vue": "^3.4.21",
@@ -65,6 +66,7 @@
   "peerDependencies": {
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-plugin": "workspace:*",
+    "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/data-model": "^1.12.5",
     "vue": "^3.4.21"
   }

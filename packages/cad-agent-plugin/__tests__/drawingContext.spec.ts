@@ -17,13 +17,45 @@ const extents = {
   isEmpty: () => true
 }
 
+/** Model-space contents the fake database hands back. */
+let entities: { layer: string }[] = []
+
+/** What `readDrawingDigest` is made to report for these entities. */
+let digest = {
+  status: 'untagged' as 'untagged' | 'tagged' | 'schema-mismatch',
+  templateIds: [] as string[],
+  parts: [] as {
+    role: string
+    roleLabel?: string
+    partId: string
+    layers: string[]
+    entityCount: number
+    objectIds: string[]
+    params?: Record<string, number>
+  }[],
+  untaggedEntityCount: 0
+}
+
+jest.mock('@mlightcad/cad-template-sdk', () => ({
+  __esModule: true,
+  readDrawingDigest: () => digest
+}))
+
 jest.mock('@mlightcad/cad-simple-viewer', () => ({
   __esModule: true,
   AcApDocManager: {
     instance: {
       get curDocument() {
         return {
-          database: { extents, insunits: 4 },
+          database: {
+            extents,
+            insunits: 4,
+            tables: {
+              blockTable: {
+                modelSpace: { newIterator: () => entities[Symbol.iterator]() }
+              }
+            }
+          },
           layerStore: {
             getLayers: () => [{ name: '0' }],
             getCurrentLayerName: () => '0'
@@ -85,4 +117,106 @@ test('an infinite bound is treated the same as a missing one', () => {
   expect(context.extents.min.x).toBeNull()
   expect(context.extents.max.x).toBeNull()
   expect(context.extents.min.y).toBe(0)
+})
+
+// --- what the assistant is told about the drawing ---------------------------
+
+test('the parts of a tagged drawing are reported, with their recorded values', () => {
+  // The whole point of tagging: the next turn reads what the drawing *is*
+  // instead of reconstructing it from what the conversation said.
+  digest = {
+    status: 'tagged',
+    templateIds: ['tro_ly_ai'],
+    parts: [
+      {
+        role: 'lan_can',
+        roleLabel: 'Lan can',
+        partId: 'lan_can_trai',
+        layers: ['KC-LANCAN'],
+        entityCount: 4,
+        objectIds: ['1A', '1B', '1C', '1D'],
+        params: { chieu_cao: 810 }
+      }
+    ],
+    untaggedEntityCount: 2
+  }
+  entities = [{ layer: 'KC-LANCAN' }, { layer: '0' }]
+
+  const context = getDrawingContext()
+
+  expect(context.semanticStatus).toBe('tagged')
+  expect(context.parts).toEqual([
+    {
+      role: 'lan_can',
+      roleLabel: 'Lan can',
+      partId: 'lan_can_trai',
+      layers: ['KC-LANCAN'],
+      entityCount: 4,
+      params: { chieu_cao: 810 }
+    }
+  ])
+  expect(context.untaggedEntityCount).toBe(2)
+})
+
+test('object ids are left out of the per-turn context', () => {
+  // They grow with the drawing and are read on every turn; `tim_bo_phan`
+  // returns them when a part is actually being worked on.
+  digest = {
+    status: 'tagged',
+    templateIds: ['tro_ly_ai'],
+    parts: [
+      {
+        role: 'dam_chu',
+        partId: 'dam_chu_03',
+        layers: ['KC-DAM'],
+        entityCount: 9,
+        objectIds: Array.from({ length: 9 }, (_, i) => `E${i}`)
+      }
+    ],
+    untaggedEntityCount: 0
+  }
+  entities = []
+
+  expect(JSON.stringify(getDrawingContext())).not.toContain('E0')
+})
+
+test('an untagged drawing says so rather than reporting nothing found', () => {
+  // "No parts" and "this drawing cannot be asked about parts" are different
+  // answers, and only one of them means the assistant may draw fresh geometry.
+  digest = {
+    status: 'untagged',
+    templateIds: [],
+    parts: [],
+    untaggedEntityCount: 37
+  }
+  entities = []
+
+  const context = getDrawingContext()
+
+  expect(context.semanticStatus).toBe('untagged')
+  expect(context.parts).toEqual([])
+  expect(context.untaggedEntityCount).toBe(37)
+})
+
+test('entities are counted per layer', () => {
+  // Answers "is there already something on KC-LANCAN" without a tool call per
+  // layer — the question that decides draw-new versus edit-existing.
+  digest = {
+    status: 'untagged',
+    templateIds: [],
+    parts: [],
+    untaggedEntityCount: 3
+  }
+  entities = [
+    { layer: 'KC-BAN' },
+    { layer: 'KC-BAN' },
+    { layer: 'KC-LANCAN' },
+    { layer: '' }
+  ]
+
+  expect(getDrawingContext().entityCountByLayer).toEqual({
+    'KC-BAN': 2,
+    'KC-LANCAN': 1,
+    '0': 1
+  })
 })

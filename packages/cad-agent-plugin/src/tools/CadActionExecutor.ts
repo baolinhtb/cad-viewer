@@ -3,6 +3,12 @@ import {
   acapRunDatabaseEdit
 } from '@mlightcad/cad-simple-viewer'
 import {
+  type AcTpSide,
+  ensureSemanticTagRegApp,
+  formatPartId,
+  writeSemanticTag
+} from '@mlightcad/cad-template-sdk'
+import {
   AcDbArc,
   AcDbCircle,
   AcDbDatabase,
@@ -155,11 +161,128 @@ function runEdit<T>(label: string, fn: () => T): T {
 }
 
 /**
+ * Written into the tag of everything the assistant draws by hand.
+ *
+ * Distinct from a real template id so a later reader can tell "a template
+ * produced this part, and its parameters are recorded" apart from "the
+ * assistant drew this from a description, and the numbers behind it live in
+ * the conversation".
+ */
+const AGENT_TEMPLATE_ID = 'tro_ly_ai'
+
+/** What the assistant says it is drawing, until it says otherwise. */
+export interface CurrentPart {
+  /** Dictionary key — an ASCII slug such as `lan_can`. */
+  role: string
+  side?: AcTpSide
+  /** 1-based position along the structure, for parts there are several of. */
+  ordinal?: number
+  /** The numbers that define the part, as the assistant chose them. */
+  params?: Record<string, number | string | boolean>
+}
+
+/**
  * Executes CAD drawing operations on behalf of the LLM agent tools.
  *
  * All geometry is created in model space of the active document.
  */
 export class CadActionExecutor {
+  /**
+   * The part every subsequent draw call belongs to.
+   *
+   * Modelled on the current layer, and for the same reason: repeating the
+   * identity on each of the forty calls that make up one railing is both
+   * costly and something the model will forget halfway through, which would
+   * leave half a railing addressable.
+   */
+  private currentPart?: CurrentPart
+
+  /**
+   * Declares what the assistant is drawing from now on.
+   *
+   * @param part - The part, or `undefined` to go back to drawing untagged
+   * geometry.
+   * @returns The tag that will be written, so the model can see what it just
+   * committed to.
+   */
+  setCurrentPart(part?: CurrentPart): ToolResult {
+    if (!part) {
+      this.currentPart = undefined
+      return { success: true, message: 'Đã bỏ đánh dấu bộ phận hiện tại.' }
+    }
+
+    // `formatPartId` rejects a malformed role or ordinal. Letting it throw
+    // here — before anything is drawn — is the point: a tag written wrong is
+    // invisible until someone asks for that part and it is not there.
+    let partId: string
+    try {
+      partId = formatPartId({
+        role: part.role,
+        side: part.side,
+        ordinal: part.ordinal
+      })
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Không đặt được bộ phận hiện tại',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+
+    this.currentPart = part
+    return {
+      success: true,
+      message: `Đang vẽ bộ phận "${partId}". Mọi đối tượng vẽ sau đây sẽ mang nhãn này cho tới khi đổi.`
+    }
+  }
+
+  /** The part currently being drawn, if any. */
+  getCurrentPart(): CurrentPart | undefined {
+    return this.currentPart
+  }
+
+  /**
+   * Puts a finished entity into model space, on its layer and under whatever
+   * part was declared.
+   *
+   * Every draw call goes through here for the reason the template SDK gives
+   * for its own draw context: an entity that reaches `appendEntity` by another
+   * route carries no semantic tag, and nothing notices until someone asks the
+   * assistant to change "the railing" and the railing turns out to be a pile
+   * of anonymous polylines.
+   *
+   * This does not simply call the SDK's `createDrawContext` because that
+   * context draws five shapes and the assistant draws twelve; the tagging
+   * order — tag, then append — is copied from it deliberately.
+   */
+  private place(
+    entity: AcDbEntity,
+    layer: string | undefined,
+    entityIds: string[]
+  ): void {
+    const db = AcApDocManager.instance.curDocument.database
+    applyLayer(entity, layer)
+
+    if (this.currentPart) {
+      // Registering the RegApp here rather than at plugin start keeps it to
+      // the one path that actually writes tags; it is idempotent.
+      ensureSemanticTagRegApp(db)
+      writeSemanticTag(entity, {
+        role: this.currentPart.role,
+        partId: formatPartId({
+          role: this.currentPart.role,
+          side: this.currentPart.side,
+          ordinal: this.currentPart.ordinal
+        }),
+        templateId: AGENT_TEMPLATE_ID,
+        ...(this.currentPart.params ? { params: this.currentPart.params } : {})
+      })
+    }
+
+    db.tables.blockTable.modelSpace.appendEntity(entity)
+    entityIds.push(entity.objectId)
+  }
+
   /**
    * Returns a snapshot of the active drawing for the `get_drawing_context` tool.
    *
@@ -203,11 +326,8 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_line', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const line = new AcDbLine(toPoint3d(input.start), toPoint3d(input.end))
-        applyLayer(line, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(line)
-        entityIds.push(line.objectId)
+        this.place(line, input.layer, entityIds)
       })
       return {
         success: true,
@@ -245,11 +365,8 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_circle', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const circle = new AcDbCircle(toPoint3d(input.center), input.radius)
-        applyLayer(circle, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(circle)
-        entityIds.push(circle.objectId)
+        this.place(circle, input.layer, entityIds)
       })
       return {
         success: true,
@@ -289,16 +406,13 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_arc', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const arc = new AcDbArc(
           toPoint3d(input.center),
           input.radius,
           input.startAngleDeg,
           input.endAngleDeg
         )
-        applyLayer(arc, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(arc)
-        entityIds.push(arc.objectId)
+        this.place(arc, input.layer, entityIds)
       })
       return {
         success: true,
@@ -336,7 +450,6 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_rectangle', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const x1 = input.corner1.x
         const y1 = input.corner1.y
         const x2 = input.corner2.x
@@ -352,9 +465,7 @@ export class CadActionExecutor {
           polyline.addVertexAt(index, point)
         })
         polyline.closed = true
-        applyLayer(polyline, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(polyline)
-        entityIds.push(polyline.objectId)
+        this.place(polyline, input.layer, entityIds)
       })
       return {
         success: true,
@@ -399,7 +510,6 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_polyline', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const polyline = new AcDbPolyline()
         input.points.forEach((point, index) => {
           polyline.addVertexAt(index, new AcGePoint2d(point.x, point.y))
@@ -407,9 +517,7 @@ export class CadActionExecutor {
         if (input.closed) {
           polyline.closed = true
         }
-        applyLayer(polyline, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(polyline)
-        entityIds.push(polyline.objectId)
+        this.place(polyline, input.layer, entityIds)
       })
       return {
         success: true,
@@ -448,14 +556,11 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_text', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const mtext = new AcDbMText()
         mtext.location = toPoint3d(input.position)
         mtext.contents = input.text
         mtext.height = input.height ?? 2.5
-        applyLayer(mtext, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(mtext)
-        entityIds.push(mtext.objectId)
+        this.place(mtext, input.layer, entityIds)
       })
       return {
         success: true,
@@ -509,7 +614,6 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_ellipse', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const rotationRad = degToRad(input.rotationDeg ?? 0)
         const majorAxis = {
           x: Math.cos(rotationRad),
@@ -529,9 +633,7 @@ export class CadActionExecutor {
           startAngle,
           endAngle
         )
-        applyLayer(ellipse, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(ellipse)
-        entityIds.push(ellipse.objectId)
+        this.place(ellipse, input.layer, entityIds)
       })
       const isArc =
         input.startAngleDeg !== undefined && input.endAngleDeg !== undefined
@@ -594,9 +696,7 @@ export class CadActionExecutor {
         hatch.hatchStyle = AcDbHatchStyle.Normal
         hatch.isSolidFill = isSolidFill
         hatch.add(createClosedBoundaryLoop(input.boundary))
-        applyLayer(hatch, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(hatch)
-        entityIds.push(hatch.objectId)
+        this.place(hatch, input.layer, entityIds)
       })
       return {
         success: true,
@@ -630,12 +730,9 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_point', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const point = new AcDbPoint()
         point.position = toPoint3d(input.position)
-        applyLayer(point, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(point)
-        entityIds.push(point.objectId)
+        this.place(point, input.layer, entityIds)
       })
       return {
         success: true,
@@ -681,13 +778,10 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_ray', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const ray = new AcDbRay()
         ray.basePoint = toPoint3d(input.start)
         ray.unitDir = unitDir
-        applyLayer(ray, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(ray)
-        entityIds.push(ray.objectId)
+        this.place(ray, input.layer, entityIds)
       })
       return {
         success: true,
@@ -733,13 +827,10 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_xline', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const xline = new AcDbXline()
         xline.basePoint = toPoint3d(input.start)
         xline.unitDir = unitDir
-        applyLayer(xline, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(xline)
-        entityIds.push(xline.objectId)
+        this.place(xline, input.layer, entityIds)
       })
       return {
         success: true,
@@ -784,14 +875,11 @@ export class CadActionExecutor {
     try {
       const entityIds: string[] = []
       runEdit('Agent: draw_spline', () => {
-        const db = AcApDocManager.instance.curDocument.database
         const points3d = input.points.map(point => toPoint3d(point))
         const degree = Math.min(3, Math.max(1, points3d.length - 1))
         const isClosed = Boolean(input.closed && points3d.length >= 3)
         const spline = new AcDbSpline(points3d, 'Chord', degree, isClosed)
-        applyLayer(spline, input.layer)
-        db.tables.blockTable.modelSpace.appendEntity(spline)
-        entityIds.push(spline.objectId)
+        this.place(spline, input.layer, entityIds)
       })
       return {
         success: true,

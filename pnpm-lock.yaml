@@ -134,6 +134,9 @@ importers:
       '@mlightcad/cad-template-plugin':
         specifier: workspace:*
         version: link:../cad-template-plugin
+      '@mlightcad/cad-template-sdk':
+        specifier: workspace:*
+        version: link:../cad-template-sdk
       '@mlightcad/data-model':
         specifier: ^1.12.5
         version: 1.12.5

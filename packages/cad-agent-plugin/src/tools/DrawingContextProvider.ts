@@ -1,4 +1,19 @@
 import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
+import { readDrawingDigest } from '@mlightcad/cad-template-sdk'
+
+/** One part of the drawing, as the assistant needs to see it. */
+export interface DrawingPartSummary {
+  /** Dictionary key — `lan_can`, `ban_mat_cau`. */
+  role: string
+  /** Vietnamese display name, when the role is a known one. */
+  roleLabel?: string
+  /** Which one it is: `lan_can_trai`, `ong_thoat_nuoc_03`. */
+  partId: string
+  layers: string[]
+  entityCount: number
+  /** Values recorded when the part was drawn, if any. */
+  params?: Record<string, number | string | boolean>
+}
 
 /**
  * Snapshot of the active drawing passed to the LLM via `get_drawing_context`.
@@ -24,6 +39,33 @@ export interface DrawingContextSnapshot {
   }
   /** Human-readable document title. */
   documentTitle: string
+  /**
+   * How many entities sit on each layer.
+   *
+   * Cheap, and it answers "is there anything on KC-LANCAN" without a tool call
+   * per layer — which is the question that decides whether a request means
+   * "draw one" or "change the one that is there".
+   */
+  entityCountByLayer: Record<string, number>
+  /**
+   * The parts this drawing is made of, when it carries semantic tags.
+   *
+   * This is the difference between an assistant that reasons about a drawing
+   * and one that remembers what it did. A conversation is lost on reload, is
+   * truncated when it grows, and says nothing at all about a drawing somebody
+   * else made; the tags are in the file. Empty means the drawing carries no
+   * tags — which is a fact about the drawing, not a failure to find any.
+   */
+  parts: DrawingPartSummary[]
+  /** Entities carrying no semantic tag. */
+  untaggedEntityCount: number
+  /**
+   * `untagged` — nothing here can be addressed by name.
+   * `tagged` — at least one part can.
+   * `schema-mismatch` — tags exist but this build cannot read them, which is
+   * not the same as their absence and must not be reported as such.
+   */
+  semanticStatus: 'untagged' | 'tagged' | 'schema-mismatch'
 }
 
 /**
@@ -56,6 +98,13 @@ export function getDrawingContext(): DrawingContextSnapshot {
 
   const layers = doc.layerStore.getLayers().map(layer => layer.name)
   const extents = db.extents
+  const digest = readDrawingDigest(db)
+
+  const entityCountByLayer: Record<string, number> = {}
+  for (const entity of db.tables.blockTable.modelSpace.newIterator()) {
+    const layer = entity.layer || '0'
+    entityCountByLayer[layer] = (entityCountByLayer[layer] ?? 0) + 1
+  }
 
   return {
     currentLayer: doc.layerStore.getCurrentLayerName(),
@@ -74,6 +123,21 @@ export function getDrawingContext(): DrawingContextSnapshot {
       },
       isEmpty: extents.isEmpty()
     },
-    documentTitle: doc.docTitle
+    documentTitle: doc.docTitle,
+    entityCountByLayer,
+    // `objectIds` and `bounds` are deliberately dropped here: the context is
+    // read at the start of every turn, and a list of ids per part grows with
+    // the drawing for no benefit. `tim_bo_phan` returns them when a part is
+    // actually being worked on.
+    parts: digest.parts.map(part => ({
+      role: part.role,
+      ...(part.roleLabel ? { roleLabel: part.roleLabel } : {}),
+      partId: part.partId,
+      layers: part.layers,
+      entityCount: part.entityCount,
+      ...(part.params ? { params: part.params } : {})
+    })),
+    untaggedEntityCount: digest.untaggedEntityCount,
+    semanticStatus: digest.status
   }
 }
