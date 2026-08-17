@@ -155,9 +155,19 @@ export function createAgentChatTransport(
 
                 if (abortSignal?.aborted) break
 
+                const preview = await captureDrawingPreview()
+
+                // Nothing was drawn. That is a normal way for a turn to end —
+                // the assistant asked which kind of bridge, or answered a
+                // question — and there is no drawing to check against the
+                // request. Saying "verification skipped: no-entities" over the
+                // top of a perfectly good question tells the engineer that
+                // something failed, which is both wrong and the last thing to
+                // read under an answer they are supposed to reply to.
+                if (!preview.ok && preview.reason === 'no-entities') break
+
                 verificationAttempts += 1
 
-                const preview = await captureDrawingPreview()
                 if (!preview.ok) {
                   appendVerificationReview(write, {
                     title: agentT('verificationTitle'),

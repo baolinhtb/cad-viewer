@@ -3,6 +3,7 @@ import { AcApI18n, type AcApLocale } from '@mlightcad/cad-simple-viewer'
 import { agentCs } from './cs'
 import { agentEn } from './en'
 import { agentTr } from './tr'
+import { agentVi } from './vi'
 import { agentZh } from './zh'
 
 /** Vue i18n key prefix for all agent UI strings (`main.toolPalette.agent`). */
@@ -19,8 +20,14 @@ const agentMessagesByLocale = {
   en: agentEn,
   zh: agentZh,
   tr: agentTr,
-  cs: agentCs
+  cs: agentCs,
+  vi: agentVi
 } as const satisfies Record<AcApLocale, AgentChatLabels>
+
+/** Every locale the agent ships strings for. */
+export function agentLocales(): AcApLocale[] {
+  return Object.keys(agentMessagesByLocale) as AcApLocale[]
+}
 
 /** Guards {@link registerAgentI18n} against duplicate merges. */
 let isRegistered = false
@@ -48,10 +55,12 @@ function buildVueMessages(locale: AcApLocale) {
 export function registerAgentI18n(): void {
   if (isRegistered) return
 
-  AcApI18n.mergeLocaleMessage('en', buildVueMessages('en'))
-  AcApI18n.mergeLocaleMessage('zh', buildVueMessages('zh'))
-  AcApI18n.mergeLocaleMessage('tr', buildVueMessages('tr'))
-  AcApI18n.mergeLocaleMessage('cs', buildVueMessages('cs'))
+  // Driven by the table, not by a hand-written list. The list is how `vi`
+  // went missing: adding a locale meant remembering two call sites, and a
+  // forgotten one costs nothing at build time and shows the user raw keys.
+  for (const locale of agentLocales()) {
+    AcApI18n.mergeLocaleMessage(locale, buildVueMessages(locale))
+  }
   isRegistered = true
 }
 
@@ -64,10 +73,9 @@ export function mergeAgentI18nIntoVueI18n(
   mergeLocaleMessage: (locale: AcApLocale, message: object) => void
 ): void {
   registerAgentI18n()
-  mergeLocaleMessage('en', buildVueMessages('en'))
-  mergeLocaleMessage('zh', buildVueMessages('zh'))
-  mergeLocaleMessage('tr', buildVueMessages('tr'))
-  mergeLocaleMessage('cs', buildVueMessages('cs'))
+  for (const locale of agentLocales()) {
+    mergeLocaleMessage(locale, buildVueMessages(locale))
+  }
 }
 
 /**

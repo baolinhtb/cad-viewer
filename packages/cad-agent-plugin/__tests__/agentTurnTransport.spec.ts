@@ -12,6 +12,7 @@
 const turnCalls: { label: string | undefined }[] = []
 let turnOutcome: 'ok' | 'abort' | 'error' = 'ok'
 let roundStarts = 0
+let previewOutcome: 'no-entities' | 'scene-not-ready' = 'no-entities'
 
 jest.mock('../src/agent/agentTurnEdit', () => ({
   __esModule: true,
@@ -48,7 +49,7 @@ jest.mock('../src/agent/drawingPreviewCapture', () => ({
   __esModule: true,
   captureDrawingPreview: async () => ({
     ok: false as const,
-    reason: 'scene-not-ready' as const
+    reason: previewOutcome
   })
 }))
 
@@ -137,7 +138,13 @@ beforeEach(() => {
   turnCalls.length = 0
   turnOutcome = 'ok'
   roundStarts = 0
+  previewOutcome = 'no-entities'
 })
+
+/** Whether anything in the stream mentions the verification block. */
+function mentionsVerification(chunks: unknown[]) {
+  return JSON.stringify(chunks).includes('verificationTitle')
+}
 
 describe('every turn opens exactly one mark', () => {
   test('in simple mode', async () => {
@@ -178,5 +185,26 @@ describe('when the turn genuinely fails', () => {
     const chunks = await runTurn('simple', 'vẽ trụ cầu')
 
     expect(chunks.some(chunk => chunk.type === 'error')).toBe(true)
+  })
+})
+
+describe('high-inference verification', () => {
+  test('says nothing when the turn drew nothing', async () => {
+    previewOutcome = 'no-entities'
+
+    const chunks = await runTurn('high-inference', 'vẽ cây cầu')
+
+    // The assistant asking which kind of bridge is a normal end to a turn.
+    // Reporting "verification skipped: no-entities" under that answer reads
+    // as a failure and is the last thing the engineer sees.
+    expect(mentionsVerification(chunks)).toBe(false)
+  })
+
+  test('still reports a verification it genuinely could not run', async () => {
+    previewOutcome = 'scene-not-ready'
+
+    const chunks = await runTurn('high-inference', 'vẽ mặt cắt ngang')
+
+    expect(mentionsVerification(chunks)).toBe(true)
   })
 })
