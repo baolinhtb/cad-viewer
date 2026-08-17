@@ -88,6 +88,25 @@ function finite(value: number): number | null {
 }
 
 /**
+ * Keeps a coordinate only if it is a real number.
+ *
+ * An empty drawing has no extents, and the database reports that as `NaN`
+ * (`±Infinity` on some paths). Neither is JSON: `JSON.stringify` turns both
+ * into `null`, so the value looks harmless in a log and in the request that
+ * goes to the model — while the object kept in the chat history still holds
+ * `NaN`. On the next message that history is validated as a prompt, `NaN` is
+ * not a number as far as the schema is concerned, and the whole turn dies with
+ * "Invalid prompt: The messages must be a ModelMessage[]".
+ *
+ * That failure cost a session: the first message drew correctly and every
+ * correction after it was refused. So the conversion happens here, at the only
+ * place that knows the value came from an empty bounding box.
+ */
+function finite(value: number): number | null {
+  return Number.isFinite(value) ? value : null
+}
+
+/**
  * Collects layer, unit, and extent metadata from the active document.
  *
  * @returns A JSON-serializable context object for agent tool calls.
