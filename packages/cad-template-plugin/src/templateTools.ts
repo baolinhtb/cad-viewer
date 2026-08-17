@@ -71,6 +71,51 @@ function catalogue(): string {
 }
 
 /**
+ * One line per template: what it is called, and what it accepts.
+ *
+ * The catalogue has to travel with the tool rather than with the system prompt.
+ * The prompt's "Template đã công bố" section is built on the server from the
+ * uploaded-library table, which knows nothing about the templates compiled into
+ * this build — so on a deployment with an empty library the assistant was told
+ * there were none, and went back to drawing stroke by stroke with the tool
+ * sitting right there unused. That was measured, not guessed: a turn that
+ * should have been one template call spent eleven model calls and $0.35.
+ *
+ * Ranges are included because they are the standard: an assistant that can see
+ * `hLanCan=Chiều cao lan can (0.8–1.5 m)` does not need to look that up.
+ */
+function catalogueDetail(): string {
+  const lines = listTemplates().map(template => {
+    const params = template.params
+      .map(spec => {
+        const range =
+          spec.min !== undefined && spec.max !== undefined
+            ? ` (${spec.min}–${spec.max}${spec.unit ? ' ' + spec.unit : ''})`
+            : spec.choices
+              ? ` (${spec.choices.map(c => c.value).join('|')})`
+              : ''
+        return `${spec.key}=${spec.label}${range}`
+      })
+      .join(', ')
+    return `- ${template.meta.id}: ${template.meta.name}${params ? ` [${params}]` : ''}`
+  })
+  return lines.length
+    ? lines.join('\n')
+    : '(bản dựng này chưa có template nào)'
+}
+
+/**
+ * The description handed to the model, catalogue included.
+ *
+ * Built on demand rather than frozen into {@link TEMPLATE_TOOLS}: templates
+ * arrive from the library after this module loads, and a catalogue captured at
+ * import time would be permanently empty.
+ */
+export function templateToolDescription(): string {
+  return `${TEMPLATE_TOOLS[0].description}\n\nTemplate dùng được ngay:\n${catalogueDetail()}`
+}
+
+/**
  * Runs one template by id.
  *
  * Every failure is an outcome rather than an exception. A refusal that says

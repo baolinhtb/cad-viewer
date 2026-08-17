@@ -48,6 +48,9 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     calls.push({ name, input, terms })
     return { ok: true, status: 'ready', message: 'xong' }
   },
+  templateToolDescription: () =>
+    'Dựng một bộ phận từ template... ƯU TIÊN... đừng chuyển sang vẽ tay.\n\n' +
+    'Template dùng được ngay:\n- cau_ban_btct: Cầu bản BTCT [B=Bề rộng (4–20 m)]',
   runTemplateTool: (name: string, input: unknown) => {
     calls.push({ name, input })
     return Promise.resolve({ ok: true, status: 'ready', message: 'đã dựng' })
@@ -105,9 +108,17 @@ describe('the tool set offered to the model', () => {
     expect(names.indexOf('chay_template')).toBeLessThan(names.indexOf('draw_line'))
   })
 
-  test('the template description comes from the tool itself, unedited', () => {
+  test('the template description carries the runnable catalogue', () => {
+    // Without it the model is told there are no templates — the system
+    // prompt's catalogue is built server-side and does not know about the
+    // ones compiled into this build. Measured: it went back to drawing
+    // stroke by stroke with the tool sitting right there unused.
     expect(tools.chay_template.description).toContain('ƯU TIÊN')
     expect(tools.chay_template.description).toContain('đừng chuyển sang vẽ tay')
+    expect(tools.chay_template.description).toContain('Template dùng được ngay')
+    expect(tools.chay_template.description).toContain('cau_ban_btct')
+    // Ranges travel with it: a range the model can read is a lookup it can skip.
+    expect(tools.chay_template.description).toContain('4–20 m')
   })
 })
 

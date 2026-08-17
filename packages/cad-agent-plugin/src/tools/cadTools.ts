@@ -3,7 +3,8 @@ import {
   runSemanticTool,
   runTemplateTool,
   SEMANTIC_TOOLS,
-  TEMPLATE_TOOLS
+  TEMPLATE_TOOLS,
+  templateToolDescription
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 // `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
@@ -31,11 +32,19 @@ function semanticDescription(name: string): string {
   return found.description
 }
 
-/** Same rule for the template group, whose declarations live beside it. */
+/**
+ * Same rule for the template group, whose declarations live beside it.
+ *
+ * The catalogue is appended by the plugin rather than read from the system
+ * prompt: that section is built on the server from the uploaded-library table
+ * and does not know about templates compiled into this build. On a deployment
+ * with an empty library the model was told there were none and went back to
+ * drawing stroke by stroke, with the tool sitting right there unused.
+ */
 function templateDescription(name: string): string {
   const found = TEMPLATE_TOOLS.find(t => t.name === name)
   if (!found) throw new Error(`template tool "${name}" is not declared`)
-  return found.description
+  return name === 'chay_template' ? templateToolDescription() : found.description
 }
 
 /** Zod schema for 2D WCS points in agent tool arguments. */
