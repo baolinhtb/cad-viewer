@@ -17,6 +17,7 @@ import {
   type LlmProviderId,
   type LlmSettings,
   loadLlmSettings,
+  providerNeedsApiKey,
   saveLlmSettings
 } from '../storage/LlmSettingsStore'
 import {
@@ -199,7 +200,8 @@ const canSend = computed(
     settingsReady.value &&
     !settingsDirty.value &&
     !highInferenceBlocked.value &&
-    activeSettings.value.apiKey.trim().length > 0 &&
+    (!providerNeedsApiKey(activeSettings.value.provider) ||
+      activeSettings.value.apiKey.trim().length > 0) &&
     !isBusy.value &&
     (input.value.trim().length > 0 ||
       (supportsVision.value && pendingImages.value.length > 0))
@@ -215,7 +217,10 @@ const inputHint = computed(() => {
   if (highInferenceBlocked.value) {
     return labels.value.highInferenceRequiresVision
   }
-  if (!activeSettings.value.apiKey.trim()) {
+  if (
+    providerNeedsApiKey(activeSettings.value.provider) &&
+    !activeSettings.value.apiKey.trim()
+  ) {
     return labels.value.missingApiKey
   }
   return ''
@@ -457,6 +462,7 @@ function isVerificationMessage(message: UIMessage): boolean {
       <label>
         {{ labels.provider }}
         <select v-model="settings.provider">
+          <option value="proxy">{{ labels.providerProxy }}</option>
           <option value="deepseek">{{ labels.providerDeepseek }}</option>
           <option value="deepseek-vl">{{ labels.providerDeepseekVl }}</option>
           <option value="openai">{{ labels.providerOpenai }}</option>

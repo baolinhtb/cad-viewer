@@ -64,5 +64,6 @@ export const agentTr = {
   unsavedSettings: 'Mesaj göndermeden önce ayarları kaydedin.',
   missingApiKey:
     'Mesaj göndermeden önce ayarlardan bir API anahtarı yapılandırın.',
-  turnUndoLabelFallback: 'Yapay zekâ komutu'
+  turnUndoLabelFallback: 'Yapay zekâ komutu',
+  providerProxy: 'Bu kurulum (önerilir)'
 } as const
