@@ -189,9 +189,11 @@ const supportsVision = computed(() =>
 const highInferenceActive = computed(() => agentMode.value === 'high-inference')
 
 const agentModeHint = computed(() =>
-  highInferenceActive.value
+  agentMode.value === 'high-inference'
     ? labels.value.agentModeHighInferenceHint
-    : labels.value.agentModeSimpleHint
+    : agentMode.value === 'mot-lenh'
+      ? labels.value.agentModeOneCallHint
+      : labels.value.agentModeSimpleHint
 )
 
 const highInferenceBlocked = computed(
@@ -671,6 +673,7 @@ function isVerificationMessage(message: UIMessage): boolean {
             :title="labels.agentMode"
             @change="onAgentModeChange"
           >
+            <option value="mot-lenh">{{ labels.agentModeOneCall }}</option>
             <option value="simple">{{ labels.agentModeSimple }}</option>
             <option value="high-inference">
               {{ labels.agentModeHighInference }}

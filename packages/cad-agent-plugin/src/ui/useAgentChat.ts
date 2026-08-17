@@ -6,6 +6,7 @@ import {
   createAgentChatTransport,
   createCadAgent
 } from '../agent/createCadAgent'
+import { stepBudget } from '../storage/AgentModeStore'
 import type { AgentMode } from '../storage/AgentModeStore'
 import type { LlmSettings } from '../storage/LlmSettingsStore'
 
@@ -24,7 +25,14 @@ export interface AgentChatSessionConfig {
 export function createAgentChat(getConfig: () => AgentChatSessionConfig) {
   return new Chat({
     transport: createAgentChatTransport(
-      () => createCadAgent({ ...getConfig().settings }),
+      // The step budget is read per request, not frozen at session creation:
+      // switching mode has to take effect on the next message rather than on
+      // the next reload, and the budget is what the mode mostly is.
+      () =>
+        createCadAgent(
+          { ...getConfig().settings },
+          stepBudget(getConfig().options.agentMode)
+        ),
       () => ({ ...getConfig().settings }),
       () => ({ ...getConfig().options })
     )

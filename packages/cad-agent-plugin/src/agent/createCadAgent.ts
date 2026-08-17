@@ -65,15 +65,18 @@ type ValidateUIMessagesTools = Parameters<typeof validateUIMessages>[0]['tools']
  * Builds an AI SDK agent configured for CAD drawing with tool calling.
  *
  * @param settings - LLM provider credentials and model selection.
+ * @param steps - How many model calls one turn may make. Every step is a whole
+ * request carrying the entire conversation, so this number is the largest
+ * single factor in what a drawing costs — see {@link stepBudget}.
  * @returns An agent that streams responses and can invoke {@link createCadTools}.
  */
-export function createCadAgent(settings: LlmSettings) {
+export function createCadAgent(settings: LlmSettings, steps = 10) {
   return new Agent({
     model: createModelFromSettings(settings),
     system: CAD_AGENT_SYSTEM_PROMPT,
     tools: createCadTools(),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
-    stopWhen: stepCountIs(10)
+    stopWhen: stepCountIs(Math.max(1, steps))
   })
 }
 
@@ -131,6 +134,53 @@ async function streamAgentRound(options: {
 }
 
 /**
+ * Says what the tools did, without spending a model call to say it.
+ *
+ * A turn capped at one call never gets a second one, and the second is where
+ * the model would normally read the tool results and report them. Left alone,
+ * a refused template would be silent: the assistant's text says it drew the
+ * section, because that text was written before the tool ran.
+ *
+ * So the outcomes are read straight out of the finished message and written
+ * into the answer. This is only possible because the tools already speak to
+ * engineers — a refusal from `chay_template` names the field and the allowed
+ * range — so relaying one verbatim reads as an answer rather than as a log
+ * line leaking into the chat.
+ *
+ * @param messages - Messages the round finished with.
+ * @returns Text to append, or empty when every tool succeeded quietly.
+ */
+export function reportToolOutcomes(messages: UIMessage[]): string {
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return ''
+
+  const lines: string[] = []
+  for (const part of last.parts ?? []) {
+    const type = (part as { type?: string }).type ?? ''
+    if (!type.startsWith('tool-')) continue
+
+    const output = (part as { output?: unknown }).output as
+      | { ok?: boolean; message?: string }
+      | undefined
+
+    // A tool that threw, or one the step was cut off before finishing, has no
+    // outcome to relay — but silence there is exactly the failure this exists
+    // to prevent, so it is named.
+    if (!output || typeof output.message !== 'string') {
+      const state = (part as { state?: string }).state
+      if (state === 'output-error') {
+        lines.push(`⚠ ${type.slice(5)}: ${agentT('toolFailed')}`)
+      }
+      continue
+    }
+
+    lines.push(output.ok === false ? `⚠ ${output.message}` : output.message)
+  }
+
+  return lines.length ? lines.join('\n\n') : ''
+}
+
+/**
  * Creates a {@link ChatTransport} that runs the agent in-process (no HTTP server).
  *
  * In high-inference mode, captures a drawing screenshot after each agent round
@@ -172,6 +222,21 @@ export function createAgentChatTransport(
             await withTurnUndoMark(userRequest, async () => {
               let workingMessages = validatedMessages
               const { agentMode } = getOptions()
+
+              // One model call, and no second one to narrate it. The tools'
+              // own outcomes carry the report instead — see
+              // {@link reportToolOutcomes}.
+              if (agentMode === 'mot-lenh') {
+                const finished = await streamAgentRound({
+                  agent,
+                  workingMessages,
+                  abortSignal,
+                  write
+                })
+                const report = reportToolOutcomes(finished)
+                if (report) appendAssistantText(write, `\n\n${report}`)
+                return
+              }
 
               if (agentMode === 'simple') {
                 await streamAgentRound({
