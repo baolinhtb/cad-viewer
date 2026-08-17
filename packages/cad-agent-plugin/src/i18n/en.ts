@@ -62,5 +62,6 @@ export const agentEn = {
   drawingScreenshot: 'Current drawing screenshot',
   unsavedSettings: 'Save settings before sending messages.',
   missingApiKey: 'Configure an API key in settings before sending messages.',
-  turnUndoLabelFallback: 'AI command'
+  turnUndoLabelFallback: 'AI command',
+  providerProxy: 'This deployment (recommended)'
 } as const

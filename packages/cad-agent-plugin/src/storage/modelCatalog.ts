@@ -24,6 +24,30 @@ export const PROVIDER_MODEL_OPTIONS: Record<
   LlmProviderId,
   readonly LlmModelOption[]
 > = {
+  // The proxy speaks Anthropic and picks its own default when the client
+  // sends none, so these are the models a user may pick, not a contract.
+  // Vision matters here: high-inference mode verifies its own drawing from a
+  // screenshot, and offering a text-only model would disable that silently.
+  proxy: [
+    {
+      value: 'claude-opus-5',
+      labelEn: 'Claude Opus 5',
+      labelZh: 'Claude Opus 5',
+      supportsVision: true
+    },
+    {
+      value: 'claude-sonnet-5',
+      labelEn: 'Claude Sonnet 5',
+      labelZh: 'Claude Sonnet 5',
+      supportsVision: true
+    },
+    {
+      value: 'claude-haiku-4-5-20251001',
+      labelEn: 'Claude Haiku 4.5',
+      labelZh: 'Claude Haiku 4.5',
+      supportsVision: true
+    }
+  ],
   openai: [
     {
       value: 'gpt-4o',
@@ -153,6 +177,9 @@ const VISION_MODEL_PATTERNS = [
   /claude-sonnet-4/i,
   /claude-opus-4/i,
   /claude-haiku-4/i,
+  // The 5 family, so a hand-typed model id is not judged text-only and made
+  // to silently disable high-inference verification.
+  /claude-(opus|sonnet|haiku)-5/i,
   /gemini/i,
   /qwen.*vl/i,
   /deepseek-vl/i,
