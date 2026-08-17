@@ -41,6 +41,11 @@ async function openEditor(page: import('@playwright/test').Page) {
   await expect(page.locator('.ml-cad-container')).toBeVisible()
 }
 
+/** Opens the panel's settings form. */
+async function openSettings(page: import('@playwright/test').Page) {
+  await page.locator('.cad-agent-panel-root button[aria-label]').first().click()
+}
+
 /** The ribbon button that opens the agent palette. */
 function agentButton(page: import('@playwright/test').Page) {
   return page.getByRole('button', { name: /CAD\s*Agent/i })
@@ -84,14 +89,58 @@ test('the settings default to this deployment, not a third-party provider', asyn
   await openEditor(page)
   await agentButton(page).click()
 
-  await page
-    .locator('.cad-agent-panel-root button[aria-label*="etting" i]')
-    .first()
-    .click()
+  await openSettings(page)
 
   const provider = page.locator('.cad-agent-settings select').first()
   await expect(provider).toHaveValue('proxy')
 
   const baseUrl = page.locator('.cad-agent-settings input').first()
   await expect(baseUrl).toHaveValue('/api/ai')
+})
+
+test('a saved non-default model does not read as unsaved settings', async ({
+  page
+}) => {
+  // What the panel writes after the user picks Sonnet 5 and clicks save.
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'cad-agent-plugin.llm-settings',
+      JSON.stringify({
+        provider: 'proxy',
+        baseUrl: '/api/ai',
+        model: 'claude-sonnet-5',
+        apiKeyEnc: ''
+      })
+    )
+  })
+
+  await openEditor(page)
+  await agentButton(page).click()
+  await page.locator('.cad-agent-panel-root textarea').fill('vẽ mặt cắt ngang')
+
+  // Loading settings must not count as editing them. The provider watcher
+  // resets baseUrl and model to the provider's defaults whenever provider
+  // changes, and loading changes it from the ref's placeholder — which
+  // silently overwrote the saved model and left the panel permanently
+  // reporting "Lưu thiết lập trước khi gửi tin nhắn."
+  await expect(page.locator('.cad-agent-input-hint')).toHaveCount(0)
+  await expect(page.locator('.cad-agent-send-btn')).toBeEnabled()
+})
+
+test('choosing a provider by hand still loads that provider defaults', async ({
+  page
+}) => {
+  await openEditor(page)
+  await agentButton(page).click()
+  await openSettings(page)
+
+  const provider = page.locator('.cad-agent-settings select').first()
+  await expect(provider).toHaveValue('proxy')
+  await provider.selectOption('anthropic')
+
+  // The guard added for the load path must not disable the watcher for the
+  // case it exists to serve.
+  await expect(page.locator('.cad-agent-settings input').first()).toHaveValue(
+    'https://api.anthropic.com/v1'
+  )
 })
