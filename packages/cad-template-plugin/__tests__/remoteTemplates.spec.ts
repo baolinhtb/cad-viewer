@@ -17,19 +17,22 @@ import {
   setRoleLayers
 } from '../src/templateRegistry'
 
-jest.mock('@mlightcad/cad-template-cau-ban-btct', () => ({
-  __esModule: true,
-  default: {
-    meta: {
-      id: 'cau_ban_btct',
-      version: '1.0.0',
-      name: 'Cầu bản BTCT',
-      category: 'cau'
-    },
+jest.mock('@mlightcad/cad-template-cau-ban-btct', () => {
+  // Declared inside the factory: jest hoists the mock above the file's own
+  // consts, so anything it reaches for outside is still in the dead zone.
+  const stub = (id: string, name: string) => ({
+    meta: { id, version: '1.0.0', name, category: 'cau' },
     params: [],
     generate: () => undefined
+  })
+  return {
+    __esModule: true,
+    default: stub('cau_ban_btct', 'Cầu bản BTCT'),
+    banMatCauBtct: stub('ban_mat_cau_btct', 'Bản mặt cầu BTCT'),
+    goChanBanhTcvn: stub('go_chan_banh_tcvn', 'Gờ chắn bánh'),
+    lanCanTcvn: stub('lan_can_tcvn', 'Lan can cầu')
   }
-}))
+})
 
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
@@ -112,11 +115,19 @@ describe('recognising an uploaded module', () => {
 })
 
 describe('the registry', () => {
+  // The whole section plus the components it can also be assembled from.
+  const BUILT_IN_IDS = [
+    'cau_ban_btct',
+    'ban_mat_cau_btct',
+    'go_chan_banh_tcvn',
+    'lan_can_tcvn'
+  ]
+
   beforeEach(() => setRemoteTemplates([]))
 
   test('built-ins are available before anything has been uploaded', () => {
     // A library that starts empty gives a new deployment nothing to do.
-    expect(listTemplates().map(t => t.meta.id)).toEqual(['cau_ban_btct'])
+    expect(listTemplates().map(t => t.meta.id)).toEqual(BUILT_IN_IDS)
   })
 
   test('library templates join the built-ins', () => {
@@ -131,11 +142,11 @@ describe('the registry', () => {
       }
     ])
     expect(listTemplates().map(t => t.meta.id)).toEqual([
-      'cau_ban_btct',
+      ...BUILT_IN_IDS,
       'cau_dam_i'
     ])
     expect(listRegisteredTemplates().map(t => t.origin)).toEqual([
-      'built-in',
+      ...BUILT_IN_IDS.map(() => 'built-in'),
       'library'
     ])
   })

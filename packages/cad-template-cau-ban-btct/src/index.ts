@@ -249,3 +249,11 @@ const template: AcTpTemplate = {
 }
 
 export default template
+
+// Components of the same section, published separately so a drawing can be
+// assembled part by part rather than regenerated whole. The monolithic template
+// above stays: it is one call for the ordinary case, and these are for when the
+// engineer wants a deck at one width and a railing at another test level.
+export { default as banMatCauBtct } from './components/banMatCau'
+export { default as goChanBanhTcvn } from './components/goChanBanh'
+export { default as lanCanTcvn } from './components/lanCan'

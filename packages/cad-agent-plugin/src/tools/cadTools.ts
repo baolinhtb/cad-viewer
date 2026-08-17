@@ -1,7 +1,9 @@
 import {
   dictionary,
   runSemanticTool,
-  SEMANTIC_TOOLS
+  runTemplateTool,
+  SEMANTIC_TOOLS,
+  TEMPLATE_TOOLS
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 // `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
@@ -26,6 +28,13 @@ import { lookupTcvn } from './tcvnLookup'
 function semanticDescription(name: string): string {
   const found = SEMANTIC_TOOLS.find(t => t.name === name)
   if (!found) throw new Error(`semantic tool "${name}" is not declared`)
+  return found.description
+}
+
+/** Same rule for the template group, whose declarations live beside it. */
+function templateDescription(name: string): string {
+  const found = TEMPLATE_TOOLS.find(t => t.name === name)
+  if (!found) throw new Error(`template tool "${name}" is not declared`)
   return found.description
 }
 
@@ -84,6 +93,30 @@ export function createCadTools() {
       }),
       execute: async input =>
         runSemanticTool('to_sang_bo_phan', input, dictionary())
+    }),
+    // Templates before strokes. A part named and parameterised is one call
+    // whose numbers are checked against declared ranges; the same part drawn
+    // stroke by stroke is seventy calls, and every regulated dimension in it
+    // rests on the model having looked the standard up and read it right.
+    chay_template: tool({
+      description: templateDescription('chay_template'),
+      inputSchema: z.object({
+        ma_template: z
+          .string()
+          .min(1)
+          .describe('Mã template, ví dụ "cau_ban_btct".'),
+        thong_so: z
+          .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+          .optional()
+          .describe(
+            'Giá trị tham số theo đúng khóa và đơn vị đã khai trong danh mục. Bỏ trống để dùng mặc định.'
+          )
+      }),
+      execute: async input =>
+        runTemplateTool('chay_template', {
+          ma_template: input.ma_template,
+          thong_so: input.thong_so ?? {}
+        })
     }),
     // Reference before geometry: nearly every dimension in a bridge or road
     // drawing is already decided by a standard, and a number the model
