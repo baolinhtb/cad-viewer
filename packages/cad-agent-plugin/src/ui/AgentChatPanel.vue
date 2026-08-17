@@ -87,14 +87,30 @@ const modelSelection = ref(
 )
 const agentMode = ref<AgentMode>('high-inference')
 
+/**
+ * True while stored settings are being applied to the form.
+ *
+ * Loading is not editing. Without this the provider watcher below treats the
+ * jump from the ref's placeholder provider to the stored one as a user
+ * choice, overwrites the stored base URL and model with the provider's
+ * defaults, and leaves the form permanently different from what was saved —
+ * so the panel reports unsaved settings and refuses to send, for anyone whose
+ * saved model is not the default one.
+ */
+let applyingLoadedSettings = false
+
 watch(
   () => settings.value.provider,
   (provider: LlmProviderId) => {
+    if (applyingLoadedSettings) return
     const defaults = getProviderDefaults(provider)
     settings.value.baseUrl = defaults.baseUrl
     settings.value.model = defaults.model
     modelSelection.value = resolveModelSelection(provider, defaults.model)
-  }
+  },
+  // Synchronous so the guard above still holds when it runs: a deferred
+  // callback would fire after the load block had already cleared the flag.
+  { flush: 'sync' }
 )
 
 watch(modelSelection, selection => {
@@ -123,10 +139,15 @@ const { chat, resetChat } = useAgentChatRef(() => ({
 
 onMounted(async () => {
   const loaded = await loadLlmSettings()
-  settings.value = { ...loaded }
-  activeSettings.value = { ...loaded }
-  agentMode.value = loadAgentMode()
-  modelSelection.value = resolveModelSelection(loaded.provider, loaded.model)
+  applyingLoadedSettings = true
+  try {
+    settings.value = { ...loaded }
+    activeSettings.value = { ...loaded }
+    agentMode.value = loadAgentMode()
+    modelSelection.value = resolveModelSelection(loaded.provider, loaded.model)
+  } finally {
+    applyingLoadedSettings = false
+  }
   settingsReady.value = true
   resetChat()
 })
