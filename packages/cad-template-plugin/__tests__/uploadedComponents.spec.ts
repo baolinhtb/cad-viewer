@@ -37,6 +37,8 @@ const ROLE_LAYERS: Record<string, string> = {
   lan_can: 'KC-LANCAN',
   go_chan_banh: 'KC-GOCHAN',
   ban_mat_cau: 'KC-BAN',
+  be_coc: 'KC-BECOC',
+  coc_khoan_nhoi: 'KC-COC',
   ghi_chu: 'GC-GHICHU',
   duong_tim: 'TRUC-TIM'
 }
@@ -80,7 +82,8 @@ function run(template: any, values: Record<string, unknown>) {
 const FILES = [
   ['lan_can_nguoi_di_bo.js', 'lan_can_nguoi_di_bo_tcvn'],
   ['le_bo_hanh.js', 'le_bo_hanh_tcvn'],
-  ['tuong_phong_ho.js', 'tuong_phong_ho_btct']
+  ['tuong_phong_ho.js', 'tuong_phong_ho_btct'],
+  ['be_coc_khoan_nhoi.js', 'be_coc_khoan_nhoi']
 ] as const
 
 describe('every uploadable component', () => {
@@ -208,5 +211,82 @@ describe('tường phòng hộ bê tông', () => {
     }
     expect(span(right).max).toBeGreaterThan(0)
     expect(span(left).min).toBeLessThan(0)
+  })
+})
+
+describe('bệ cọc khoan nhồi', () => {
+  // TCVN 11823-10:2017 điều 8.1.2 gives three numbers at two different levels
+  // of force, and the whole point of this template is not to flatten them.
+  const load4 = () => load('be_coc_khoan_nhoi.js')
+
+  test('refuses an edge distance under 300 mm — that one is a prohibition', () => {
+    const t = load4()
+    const { errors, drawn } = run(t, { cuLyMepBe: 299 })
+    expect(errors.length).toBeGreaterThan(0)
+    expect(drawn).toHaveLength(0)
+  })
+
+  test('draws at spacing under 4D, and records what that obliges', () => {
+    // "phải đánh giá ảnh hưởng tương tác" is extra work, not a ban. Turning it
+    // into an error would block a legitimate layout on a cramped site.
+    const t = load4()
+    const { drawn, errors } = run(t, { D: 1000, khoangCach: 3000, soCoc: 3 })
+    expect(errors).toEqual([])
+    expect(drawn.length).toBeGreaterThan(0)
+
+    const cap = drawn
+      .map(e => readSemanticTag(e as never))
+      .find(tag => tag?.role === 'be_coc')
+    // The tag carries the ratio — a defining value, short enough for XData.
+    expect(cap?.params?.tyLeTimD).toBe(3)
+    expect(String(cap?.params?.dieuKhoan)).toContain('8.1.2')
+    // The obligation itself is on the drawing, where an engineer reads it.
+    const notes = drawn
+      .map(e => readSemanticTag(e as never))
+      .filter(tag => tag?.role === 'ghi_chu')
+    expect(notes.length).toBe(2)
+  })
+
+  test('spacing at or over 6D obliges nothing, and says so', () => {
+    const t = load4()
+    const { drawn } = run(t, { D: 1000, khoangCach: 6000, soCoc: 3 })
+    const cap = drawn
+      .map(e => readSemanticTag(e as never))
+      .find(tag => tag?.role === 'be_coc')
+    expect(cap?.params?.tyLeTimD).toBe(6)
+    // No obligation means no note cluttering the drawing.
+    expect(drawn.map(e => readSemanticTag(e as never)?.role)).not.toContain(
+      'ghi_chu'
+    )
+  })
+
+  test('between 4D and 6D only the drilling-sequence note applies', () => {
+    const t = load4()
+    const { drawn } = run(t, { D: 1000, khoangCach: 5000, soCoc: 3 })
+    const cap = drawn
+      .map(e => readSemanticTag(e as never))
+      .find(tag => tag?.role === 'be_coc')
+    expect(cap?.params?.tyLeTimD).toBe(5)
+    const notes = drawn
+      .map(e => readSemanticTag(e as never))
+      .filter(tag => tag?.role === 'ghi_chu')
+    expect(notes.length).toBe(1)
+  })
+
+  test('refuses piles that would overlap', () => {
+    // Not a clause — just geometry that cannot be built.
+    const t = load4()
+    expect(() => run(t, { D: 1500, khoangCach: 1400 })).toThrow(/chồng lên nhau/)
+  })
+
+  test('every pile is separately addressable', () => {
+    // "cọc số 2 sâu thêm 3 m" has to find one pile, not the group.
+    const t = load4()
+    const { drawn } = run(t, { soCoc: 4, D: 1000, khoangCach: 6000 })
+    const ids = drawn
+      .map(e => readSemanticTag(e as never))
+      .filter(tag => tag?.role === 'coc_khoan_nhoi')
+      .map(tag => tag!.partId)
+    expect(new Set(ids).size).toBe(4)
   })
 })
