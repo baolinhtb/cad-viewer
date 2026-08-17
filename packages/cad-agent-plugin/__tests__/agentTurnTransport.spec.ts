@@ -13,6 +13,8 @@ const turnCalls: { label: string | undefined }[] = []
 let turnOutcome: 'ok' | 'abort' | 'error' = 'ok'
 let roundStarts = 0
 let previewOutcome: 'no-entities' | 'scene-not-ready' = 'no-entities'
+let finishReason: string = 'stop'
+const agentOptions: Record<string, unknown>[] = []
 
 jest.mock('../src/agent/agentTurnEdit', () => ({
   __esModule: true,
@@ -63,9 +65,13 @@ jest.mock('../src/agent/drawingVerifier', () => ({
 jest.mock('ai', () => {
   class StubAgent {
     tools = {}
+    constructor(options: Record<string, unknown> = {}) {
+      agentOptions.push(options)
+    }
     stream() {
       return {
-        toUIMessageStream: () => stubStream()
+        toUIMessageStream: () => stubStream(),
+        finishReason: Promise.resolve(finishReason)
       }
     }
   }
@@ -98,7 +104,8 @@ import { Experimental_Agent } from 'ai'
 
 import {
   type AgentChatOptions,
-  createAgentChatTransport
+  createAgentChatTransport,
+  createCadAgent
 } from '../src/agent/createCadAgent'
 
 /** Drains the transport's stream and reports what reached the UI. */
@@ -139,6 +146,7 @@ beforeEach(() => {
   turnOutcome = 'ok'
   roundStarts = 0
   previewOutcome = 'no-entities'
+  finishReason = 'stop'
 })
 
 /** Whether anything in the stream mentions the verification block. */
@@ -206,5 +214,40 @@ describe('high-inference verification', () => {
     const chunks = await runTurn('high-inference', 'vẽ mặt cắt ngang')
 
     expect(mentionsVerification(chunks)).toBe(true)
+  })
+})
+
+describe('a step cut off by the output limit', () => {
+  test('is reported instead of ending in silence', async () => {
+    // The model stops partway through emitting its tool calls, so nothing is
+    // drawn. Without this the turn looks like it worked and the drawing is
+    // empty, which is exactly how it reached a user.
+    finishReason = 'length'
+
+    const chunks = await runTurn('simple', 'vẽ cây cầu')
+
+    expect(JSON.stringify(chunks)).toContain('outputTruncated')
+  })
+
+  test('says nothing when the step finished normally', async () => {
+    finishReason = 'stop'
+
+    const chunks = await runTurn('simple', 'vẽ cây cầu')
+
+    expect(JSON.stringify(chunks)).not.toContain('outputTruncated')
+  })
+})
+
+describe('the agent the transport drives', () => {
+  test('is given room to emit a whole drawing step', () => {
+    agentOptions.length = 0
+
+    createCadAgent({ provider: 'proxy' } as never)
+
+    // A drawing step is reasoning plus a dozen tool calls carrying
+    // coordinates. At the SDK default it is cut off partway through emitting
+    // them, the truncated call never runs, and the drawing stays empty — the
+    // exact report that led here.
+    expect(agentOptions[0].maxOutputTokens).toBeGreaterThanOrEqual(16_000)
   })
 })

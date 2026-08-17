@@ -59,5 +59,11 @@ export const agentZh = {
   unsavedSettings: '请先保存设置后再发送消息。',
   missingApiKey: '请先在设置中配置 API Key 后再发送消息。',
   turnUndoLabelFallback: 'AI 命令',
-  providerProxy: '本部署（推荐）'
+  providerProxy: '本部署（推荐）',
+  toolFailed: '工具运行出错，结果未知',
+  agentModeOneCall: '单次调用',
+  agentModeOneCallHint:
+    '单次调用 —— 最省。助手只执行一轮就停止，不会读取结果自行修正。',
+  outputTruncated:
+    '回复因长度上限被截断，图纸可能缺失一部分。请分成更小的部分逐步请求。'
 } as const

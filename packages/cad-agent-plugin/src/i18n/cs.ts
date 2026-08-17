@@ -62,5 +62,11 @@ export const agentCs = {
   unsavedSettings: 'Před odesíláním zpráv uložte nastavení.',
   missingApiKey: 'Před odesíláním zpráv nastavte v nastavení API klíč.',
   turnUndoLabelFallback: 'Příkaz AI',
-  providerProxy: 'Toto nasazení (doporučeno)'
+  providerProxy: 'Toto nasazení (doporučeno)',
+  toolFailed: 'nástroj selhal; výsledek není známý',
+  agentModeOneCall: 'Jedno volání',
+  agentModeOneCallHint:
+    'Jedno volání — nejlevnější. Asistent provede jedno kolo a skončí; nečte výsledky, aby se opravil.',
+  outputTruncated:
+    'Odpověď byla oříznuta limitem délky, část výkresu proto může chybět. Vyžádejte si menší část.'
 } as const

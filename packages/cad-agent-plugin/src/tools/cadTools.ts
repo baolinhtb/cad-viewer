@@ -1,12 +1,21 @@
 import {
   dictionary,
   runSemanticTool,
-  SEMANTIC_TOOLS
+  runTemplateTool,
+  SEMANTIC_TOOLS,
+  TEMPLATE_TOOLS,
+  templateToolDescription
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
-import { z } from 'zod'
+// `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
+// handing it a v3-classic schema makes the checker relate the two model
+// hierarchies for every schema in this file: `tsc --noEmit` reached three
+// million types and died at 4 GB of heap, on an empty `z.object({})`. The v4
+// entry point is the same API and the same package — zod 3.25 ships both.
+import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import { lookupTcvn } from './tcvnLookup'
 
 /**
  * The description the model reads for a semantic tool, taken from the tool
@@ -21,6 +30,21 @@ function semanticDescription(name: string): string {
   const found = SEMANTIC_TOOLS.find(t => t.name === name)
   if (!found) throw new Error(`semantic tool "${name}" is not declared`)
   return found.description
+}
+
+/**
+ * Same rule for the template group, whose declarations live beside it.
+ *
+ * The catalogue is appended by the plugin rather than read from the system
+ * prompt: that section is built on the server from the uploaded-library table
+ * and does not know about templates compiled into this build. On a deployment
+ * with an empty library the model was told there were none and went back to
+ * drawing stroke by stroke, with the tool sitting right there unused.
+ */
+function templateDescription(name: string): string {
+  const found = TEMPLATE_TOOLS.find(t => t.name === name)
+  if (!found) throw new Error(`template tool "${name}" is not declared`)
+  return name === 'chay_template' ? templateToolDescription() : found.description
 }
 
 /** Zod schema for 2D WCS points in agent tool arguments. */
@@ -65,7 +89,8 @@ export function createCadTools() {
           .optional()
           .describe('Số thứ tự dọc cầu, nếu người dùng nêu.')
       }),
-      execute: async input => runSemanticTool('tim_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('tim_bo_phan', input, dictionary())
     }),
     to_sang_bo_phan: tool({
       description: semanticDescription('to_sang_bo_phan'),
@@ -75,12 +100,115 @@ export function createCadTools() {
           .min(1)
           .describe('Danh sách partId lấy từ tim_bo_phan.')
       }),
-      execute: async input => runSemanticTool('to_sang_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('to_sang_bo_phan', input, dictionary())
+    }),
+    // Templates before strokes. A part named and parameterised is one call
+    // whose numbers are checked against declared ranges; the same part drawn
+    // stroke by stroke is seventy calls, and every regulated dimension in it
+    // rests on the model having looked the standard up and read it right.
+    chay_template: tool({
+      description: templateDescription('chay_template'),
+      inputSchema: z.object({
+        ma_template: z
+          .string()
+          .min(1)
+          .describe('Mã template, ví dụ "cau_ban_btct".'),
+        thong_so: z
+          .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+          .optional()
+          .describe(
+            'Giá trị tham số theo đúng khóa và đơn vị đã khai trong danh mục. Bỏ trống để dùng mặc định.'
+          )
+      }),
+      execute: async input =>
+        runTemplateTool('chay_template', {
+          ma_template: input.ma_template,
+          thong_so: input.thong_so ?? {}
+        })
+    }),
+    // Reference before geometry: nearly every dimension in a bridge or road
+    // drawing is already decided by a standard, and a number the model
+    // remembers is indistinguishable, on screen, from one it read.
+    tra_cuu_tieu_chuan: tool({
+      description:
+        'Tra cứu điều khoản trong bộ tiêu chuẩn TCVN về cầu đường (TCVN 11823 các phần, TCVN 4054, TCVN 13592) đã cài trên máy chủ. ' +
+        'Gọi trước khi chọn bất kỳ kích thước nào mà tiêu chuẩn quy định: bề rộng làn, chiều cao lan can, chiều dày bản mặt cầu, tĩnh không, tải trọng thiết kế. ' +
+        'Trả về nguyên văn điều khoản kèm số hiệu tiêu chuẩn để trích dẫn. ' +
+        'Hỏi bằng tiếng Việt có dấu, nêu rõ đối tượng và điều kiện, ví dụ "chiều cao lan can cấp thử nghiệm TL-4".',
+      inputSchema: z.object({
+        cau_hoi: z
+          .string()
+          .min(1)
+          .describe(
+            'Câu hỏi tra cứu bằng tiếng Việt có dấu, càng cụ thể càng tốt.'
+          ),
+        so_ket_qua: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Số điều khoản muốn lấy về, mặc định 4.')
+      }),
+      execute: async input => lookupTcvn(input.cau_hoi, input.so_ket_qua)
     }),
     get_drawing_context: tool({
-      description: 'Get current drawing context: units, layers, and extents',
+      description:
+        'Đọc bản vẽ hiện tại: đơn vị, layer, số đối tượng trên từng layer, phạm vi, ' +
+        'và danh sách bộ phận đã mang nhãn ngữ nghĩa (kèm thông số đã ghi). ' +
+        'Gọi ở đầu mỗi lượt: đây là thứ cho biết bản vẽ đang có gì, thay vì phải nhớ lại từ hội thoại.',
       inputSchema: z.object({}),
       execute: async () => cadActionExecutor.getDrawingContext()
+    }),
+    // Declared before drawing, not after: a tag written onto geometry is what
+    // makes the geometry addressable later. Without it the next request about
+    // "lan can" has nothing to match, and the assistant is back to guessing
+    // from coordinates.
+    dat_bo_phan_hien_tai: tool({
+      description:
+        'Khai báo bộ phận sắp vẽ. Mọi đối tượng vẽ sau lệnh này sẽ mang nhãn đó cho tới khi khai báo lại — giống như layer hiện hành. ' +
+        'Bắt buộc gọi trước khi vẽ bất kỳ bộ phận nào có tên gọi trong nghề (bản mặt cầu, lan can, dầm, gờ chắn, ống thoát nước...). ' +
+        'Nhờ nhãn này mà lượt sau người dùng nói "nâng lan can lên" thì tìm được đúng đối tượng, kể cả sau khi tải lại bản vẽ. ' +
+        'Gọi không kèm tham số để quay lại vẽ hình học không nhãn (đường gióng, nháp).',
+      inputSchema: z.object({
+        bo_phan: z
+          .string()
+          .regex(/^[a-z0-9_]+$/)
+          .optional()
+          .describe(
+            'Khóa ngữ nghĩa không dấu theo danh mục công ty, ví dụ "lan_can", "ban_mat_cau", "dam_chu". Bỏ trống để thôi gắn nhãn.'
+          ),
+        ben: z
+          .enum(['trai', 'phai'])
+          .optional()
+          .describe(
+            'Bên trái/phải theo hướng lý trình tăng dần, nếu bộ phận có hai bên.'
+          ),
+        so_thu_tu: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('Số thứ tự khi có nhiều cái cùng loại, ví dụ dầm thứ 3.'),
+        thong_so: z
+          .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+          .optional()
+          .describe(
+            'Các số định nghĩa bộ phận, ví dụ {"chieu_cao": 810, "be_rong": 250}. Ghi vào bản vẽ để lượt sau đọc lại được thay vì đo lại.'
+          )
+      }),
+      execute: async input =>
+        cadActionExecutor.setCurrentPart(
+          input.bo_phan
+            ? {
+                role: input.bo_phan,
+                side: input.ben,
+                ordinal: input.so_thu_tu,
+                params: input.thong_so
+              }
+            : undefined
+        )
     }),
     draw_line: tool({
       description: 'Draw a straight line segment in model space',

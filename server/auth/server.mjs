@@ -39,6 +39,11 @@ import {
   sendToProvider
 } from './ai.mjs'
 import {
+  ERRORS as TCVN_ERRORS,
+  listTcvnDocuments,
+  searchTcvn
+} from './tcvn.mjs'
+import {
   deleteTemplate,
   ERRORS as TEMPLATE_ERRORS,
   getTemplate,
@@ -485,6 +490,58 @@ const server = createServer(async (req, res) => {
       }
 
       json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      return
+    }
+
+    // --- TCVN lookup ---
+    //
+    // Read-only and open to every member: these are published national
+    // standards, and the assistant reaches for them mid-drawing, so a
+    // permission check here would only mean the drawing gets invented numbers
+    // instead. It stays behind the session because everything under /api does.
+    if (path === '/api/tcvn/search' || path === '/api/tcvn/docs') {
+      if (!currentUser(req)) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+      if (req.method !== 'GET') {
+        json(res, 405, {
+          error: 'Phương thức không hỗ trợ.',
+          code: 'method_not_allowed'
+        })
+        return
+      }
+
+      try {
+        if (path === '/api/tcvn/docs') {
+          json(res, 200, { documents: listTcvnDocuments() })
+          return
+        }
+        json(res, 200, {
+          results: searchTcvn(url.searchParams.get('q'), {
+            limit: url.searchParams.get('limit'),
+            maxChars: url.searchParams.get('maxChars')
+          })
+        })
+      } catch (error) {
+        if (error.code === TCVN_ERRORS.EMPTY_QUERY) {
+          json(res, 400, {
+            error: 'Cần có câu hỏi để tra cứu.',
+            code: error.code
+          })
+          return
+        }
+        if (error.code === TCVN_ERRORS.NO_CORPUS) {
+          // The service runs without the corpus rather than refusing to start:
+          // every other feature works, and this one says plainly why it cannot.
+          json(res, 503, {
+            error: 'Bộ tiêu chuẩn chưa được cài đặt trên máy chủ.',
+            code: error.code
+          })
+          return
+        }
+        throw error
+      }
       return
     }
 

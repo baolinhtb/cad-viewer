@@ -1,4 +1,8 @@
-import cauBanBtct from '@mlightcad/cad-template-cau-ban-btct'
+import cauBanBtct, {
+  banMatCauBtct,
+  goChanBanhTcvn,
+  lanCanTcvn
+} from '@mlightcad/cad-template-cau-ban-btct'
 import type { AcTpTemplate, AcTpTerm } from '@mlightcad/cad-template-sdk'
 import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
 
@@ -10,8 +14,20 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
  * The first one ships with the application so the generate flow works before
  * anything has been uploaded — a library that starts empty gives a new
  * deployment nothing to do.
+ *
+ * The whole section comes first because it is one call for the ordinary case.
+ * The components after it exist for the case the whole section cannot serve:
+ * a deck at one width carrying a railing at a different test level, or a part
+ * added to a drawing that already exists. Assembling from them is what keeps
+ * the assistant off the stroke-by-stroke path, where every regulated dimension
+ * rests on it having looked the standard up and read it right.
  */
-const BUILT_IN: readonly AcTpTemplate[] = [cauBanBtct]
+const BUILT_IN: readonly AcTpTemplate[] = [
+  cauBanBtct,
+  banMatCauBtct,
+  goChanBanhTcvn,
+  lanCanTcvn
+]
 
 /** Templates fetched from the library, keyed by `id@version`. */
 const remote = new Map<string, AcApRemoteTemplate>()

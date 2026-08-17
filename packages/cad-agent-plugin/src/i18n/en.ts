@@ -63,5 +63,10 @@ export const agentEn = {
   unsavedSettings: 'Save settings before sending messages.',
   missingApiKey: 'Configure an API key in settings before sending messages.',
   turnUndoLabelFallback: 'AI command',
-  providerProxy: 'This deployment (recommended)'
+  providerProxy: 'This deployment (recommended)',
+  toolFailed: 'the tool failed; outcome unknown',
+  agentModeOneCall: 'One call',
+  agentModeOneCallHint: 'One call — cheapest. The assistant acts once and stops; it does not read the results back to correct itself.',
+  outputTruncated:
+    'The answer was cut off by the output limit, so part of the drawing may be missing. Ask for a smaller piece at a time.'
 } as const

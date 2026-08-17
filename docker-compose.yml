@@ -15,7 +15,11 @@ services:
       retries: 3
 
   auth:
-    build: ./server/auth
+    # Built from the repository root so the image can carry `assets/tcvn`; the
+    # Dockerfile's own paths are repo-relative to match.
+    build:
+      context: .
+      dockerfile: server/auth/Dockerfile
     image: cad-viewer-auth:latest
     container_name: cad-viewer-auth
     restart: unless-stopped
