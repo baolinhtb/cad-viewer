@@ -1,5 +1,5 @@
 /**
- * One request, one model call.
+ * The compact mode: a short step budget, and outcomes that still reach the user.
  *
  * A turn is not one call — it is one call per step, and every step resends the
  * whole conversation. Capping the budget at one is the largest single lever on
@@ -47,8 +47,11 @@ function assistantWith(parts: unknown[]) {
 }
 
 describe('stepBudget', () => {
-  test('one call means one call', () => {
-    expect(stepBudget('mot-lenh')).toBe(1)
+  test('the compact mode gets three steps, not one', () => {
+    // One was tried and measured on production: the assistant spent its single
+    // step on a standards lookup and the turn ended with nothing drawn. Three
+    // is act, correct, report.
+    expect(stepBudget('gon')).toBe(3)
   })
 
   test('the other modes keep the full budget', () => {

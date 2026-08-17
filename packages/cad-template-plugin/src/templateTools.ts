@@ -34,12 +34,14 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
     name: 'chay_template',
     description:
       'Dựng một bộ phận công trình từ template đã công bố, thay vì vẽ từng nét. ' +
-      'ƯU TIÊN dùng công cụ này trước khi nghĩ tới các lệnh vẽ: template đã mã hóa sẵn ' +
-      'kích thước theo TCVN dưới dạng dải cho phép, nên không cần tra cứu tiêu chuẩn ' +
-      'cho những kích thước nó đã quản. ' +
-      'Danh mục template và tham số của từng cái nằm trong phần "Template đã công bố" ' +
-      'ở đầu hội thoại. Tham số không truyền sẽ lấy giá trị mặc định của template. ' +
-      'Giá trị ngoài dải cho phép sẽ bị từ chối kèm dải đúng — hãy sửa số rồi gọi lại, ' +
+      'GỌI NGAY công cụ này khi yêu cầu khớp một template trong danh mục dưới đây — ' +
+      'không cần bước tìm hiểu nào trước đó. ' +
+      'ĐỪNG gọi tra_cuu_tieu_chuan cho những kích thước template đã quản: ' +
+      'dải giá trị ghi trong danh mục CHÍNH LÀ tiêu chuẩn, đã được kỹ sư đối chiếu ' +
+      'và ghi kèm số hiệu điều khoản trong dấu «...». Trích dẫn số hiệu đó thẳng ' +
+      'trong câu trả lời; tra cứu lại chỉ tốn thêm một lượt mà ra cùng con số. ' +
+      'Tham số không truyền sẽ lấy giá trị mặc định. ' +
+      'Giá trị ngoài dải sẽ bị từ chối kèm dải đúng — sửa số rồi gọi lại, ' +
       'đừng chuyển sang vẽ tay.',
     input_schema: {
       type: 'object',
@@ -94,7 +96,14 @@ function catalogueDetail(): string {
             : spec.choices
               ? ` (${spec.choices.map(c => c.value).join('|')})`
               : ''
-        return `${spec.key}=${spec.label}${range}`
+        // The clause the range came from, carried here rather than left in the
+        // template's own hint. Without it the assistant sees a bound with no
+        // provenance and goes and looks the standard up — measured on
+        // production: it spent its whole turn on `tra_cuu_tieu_chuan` and drew
+        // nothing. A citation it can already read is a lookup it does not make,
+        // and it can quote the clause number in its answer either way.
+        const source = citedStandard(spec.hint)
+        return `${spec.key}=${spec.label}${range}${source ? ` «${source}»` : ''}`
       })
       .join(', ')
     return `- ${template.meta.id}: ${template.meta.name}${params ? ` [${params}]` : ''}`
@@ -102,6 +111,20 @@ function catalogueDetail(): string {
   return lines.length
     ? lines.join('\n')
     : '(bản dựng này chưa có template nào)'
+}
+
+/**
+ * The standard a parameter's bound came from, if its author named one.
+ *
+ * Only hints that actually cite a standard travel into the catalogue. The rest
+ * are drafting conventions ("dương là về phía phải") — useful in a form, noise
+ * in a description that rides on every request.
+ */
+function citedStandard(hint?: string): string | undefined {
+  if (!hint) return undefined
+  return /TCVN|AASHTO|ISO|QCVN/.test(hint)
+    ? hint.replace(/\.$/, '')
+    : undefined
 }
 
 /**

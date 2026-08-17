@@ -65,8 +65,9 @@ export const agentEn = {
   turnUndoLabelFallback: 'AI command',
   providerProxy: 'This deployment (recommended)',
   toolFailed: 'the tool failed; outcome unknown',
-  agentModeOneCall: 'One call',
-  agentModeOneCallHint: 'One call — cheapest. The assistant acts once and stops; it does not read the results back to correct itself.',
+  agentModeCompact: 'Compact',
+  agentModeCompactHint:
+    'Compact — cheapest. The assistant works in at most 3 steps and stops; it does not loop to check itself.',
   outputTruncated:
     'The answer was cut off by the output limit, so part of the drawing may be missing. Ask for a smaller piece at a time.'
 } as const

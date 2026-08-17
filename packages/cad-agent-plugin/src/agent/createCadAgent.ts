@@ -223,10 +223,11 @@ export function createAgentChatTransport(
               let workingMessages = validatedMessages
               const { agentMode } = getOptions()
 
-              // One model call, and no second one to narrate it. The tools'
-              // own outcomes carry the report instead — see
-              // {@link reportToolOutcomes}.
-              if (agentMode === 'mot-lenh') {
+              // A short budget, and the tools' own outcomes carried into the
+              // answer so a refusal is never silent — see
+              // {@link reportToolOutcomes}. Cheap enough to matter and long
+              // enough to recover from one wrong move.
+              if (agentMode === 'gon') {
                 const finished = await streamAgentRound({
                   agent,
                   workingMessages,

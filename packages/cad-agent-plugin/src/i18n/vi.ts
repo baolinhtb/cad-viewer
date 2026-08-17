@@ -67,8 +67,9 @@ export const agentVi = {
   turnUndoLabelFallback: 'Lệnh AI',
   providerProxy: 'Máy chủ của hệ thống (khuyến nghị)',
   toolFailed: 'công cụ chạy lỗi, chưa rõ kết quả',
-  agentModeOneCall: 'Một lời gọi',
-  agentModeOneCallHint: 'Một lời gọi — rẻ nhất. Trợ lý làm một lượt rồi dừng, không đọc lại kết quả để tự sửa.',
+  agentModeCompact: 'Gọn',
+  agentModeCompactHint:
+    'Gọn — rẻ nhất. Trợ lý làm tối đa 3 bước rồi dừng, không lặp lại để tự kiểm.',
   outputTruncated:
     'Câu trả lời bị cắt vì chạm giới hạn độ dài, nên có thể thiếu một phần hình. Hãy yêu cầu từng phần nhỏ hơn.'
 } as const

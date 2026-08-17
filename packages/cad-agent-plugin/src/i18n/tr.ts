@@ -67,9 +67,9 @@ export const agentTr = {
   turnUndoLabelFallback: 'Yapay zekâ komutu',
   providerProxy: 'Bu kurulum (önerilir)',
   toolFailed: 'araç hata verdi; sonuç bilinmiyor',
-  agentModeOneCall: 'Tek çağrı',
-  agentModeOneCallHint:
-    'Tek çağrı — en ucuzu. Asistan bir tur çalışıp durur; sonuçları okuyup kendini düzeltmez.',
+  agentModeCompact: 'Kısa',
+  agentModeCompactHint:
+    'Kısa — en ucuzu. Asistan en fazla 3 adımda çalışır ve durur; kendini denetlemek için döngüye girmez.',
   outputTruncated:
     'Yanıt uzunluk sınırı nedeniyle kesildi, çizimin bir kısmı eksik olabilir. Daha küçük parçalar hâlinde isteyin.'
 } as const

@@ -2,35 +2,43 @@
  * Agent execution mode for the CAD drawing assistant.
  *
  * The three differ in how many times the model is called for one request, which
- * is what the bill is made of: a turn is not one call, it is one call per step.
- * Measured on a bridge cross-section — `mot-lenh` 1, `simple` 6, and
- * `high-inference` those plus a vision call per verification round.
+ * is what the bill is made of: a turn is not one call, it is one call per step,
+ * and every step resends the whole conversation.
+ *
+ * Measured on production, same request each time: `gon` — the compact mode —
+ * against `simple` at ten steps and `high-inference` at ten plus a vision call
+ * per verification round.
  */
-export type AgentMode = 'mot-lenh' | 'simple' | 'high-inference'
+export type AgentMode = 'gon' | 'simple' | 'high-inference'
 
 const STORAGE_KEY = 'cad-agent-plugin.agent-mode'
 
-const MODES: readonly AgentMode[] = ['mot-lenh', 'simple', 'high-inference']
+const MODES: readonly AgentMode[] = ['gon', 'simple', 'high-inference']
+
+/** What an earlier build called the compact mode, kept so a saved choice survives. */
+const RENAMED: Readonly<Record<string, AgentMode>> = { 'mot-lenh': 'gon' }
 
 const DEFAULT_MODE: AgentMode = 'high-inference'
 
 /**
  * How many model calls one turn may make, per mode.
  *
- * One is the floor, not a tuning choice: after the tools run, the model has to
- * be called again before it can say anything about what happened. A turn capped
- * at one call therefore never gets to report, so `mot-lenh` surfaces the tools'
- * own outcomes instead — which is why those outcomes are written in Vietnamese
- * an engineer can read, rather than as machine status.
+ * Three, not one. One was tried and measured: the assistant spent its single
+ * step on `tra_cuu_tieu_chuan` and the turn ended with nothing drawn — a step
+ * budget only helps if the assistant knows what to spend it on, and one step
+ * leaves no room to recover from spending it wrongly. Three is act, correct,
+ * report: enough to place a template, fix a value the range refused, and say
+ * what happened, with nothing left over for wandering.
  */
 export function stepBudget(mode: AgentMode): number {
-  return mode === 'mot-lenh' ? 1 : 10
+  return mode === 'gon' ? 3 : 10
 }
 
 /** Loads the persisted agent mode from `localStorage`. */
 export function loadAgentMode(): AgentMode {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw && RENAMED[raw]) return RENAMED[raw]
     if (MODES.includes(raw as AgentMode)) {
       return raw as AgentMode
     }

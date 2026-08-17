@@ -135,3 +135,28 @@ describe('chay_template', () => {
     expect(JSON.stringify(outcome).length).toBeLessThan(600)
   })
 })
+
+describe('the catalogue in the tool description', () => {
+  test('carries the clause a regulated bound came from', async () => {
+    // Without it the assistant sees a bound with no provenance and goes and
+    // looks the standard up. Measured on production: it spent its whole turn
+    // on `tra_cuu_tieu_chuan` and drew nothing.
+    const { templateToolDescription } = await import('../src/templateTools')
+    const text = templateToolDescription()
+    expect(text).toContain('TCVN 11823-13:2017')
+    expect(text).toContain('«')
+  })
+
+  test('leaves drafting conventions out of it', async () => {
+    // A hint like "dương là về phía phải" belongs in a form, not in a
+    // description that rides on every request.
+    const { templateToolDescription } = await import('../src/templateTools')
+    expect(templateToolDescription()).not.toContain('lý trình tăng dần')
+  })
+
+  test('tells the assistant not to re-look-up what it already has', async () => {
+    const { TEMPLATE_TOOLS } = await import('../src/templateTools')
+    expect(TEMPLATE_TOOLS[0].description).toContain('ĐỪNG gọi tra_cuu_tieu_chuan')
+    expect(TEMPLATE_TOOLS[0].description).toContain('GỌI NGAY')
+  })
+})

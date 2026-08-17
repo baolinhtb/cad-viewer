@@ -64,9 +64,9 @@ export const agentCs = {
   turnUndoLabelFallback: 'Příkaz AI',
   providerProxy: 'Toto nasazení (doporučeno)',
   toolFailed: 'nástroj selhal; výsledek není známý',
-  agentModeOneCall: 'Jedno volání',
-  agentModeOneCallHint:
-    'Jedno volání — nejlevnější. Asistent provede jedno kolo a skončí; nečte výsledky, aby se opravil.',
+  agentModeCompact: 'Úsporný',
+  agentModeCompactHint:
+    'Úsporný — nejlevnější. Asistent provede nejvýše 3 kroky a skončí; neopakuje se, aby se zkontroloval.',
   outputTruncated:
     'Odpověď byla oříznuta limitem délky, část výkresu proto může chybět. Vyžádejte si menší část.'
 } as const

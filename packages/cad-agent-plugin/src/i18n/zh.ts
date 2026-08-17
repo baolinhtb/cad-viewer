@@ -61,9 +61,9 @@ export const agentZh = {
   turnUndoLabelFallback: 'AI 命令',
   providerProxy: '本部署（推荐）',
   toolFailed: '工具运行出错，结果未知',
-  agentModeOneCall: '单次调用',
-  agentModeOneCallHint:
-    '单次调用 —— 最省。助手只执行一轮就停止，不会读取结果自行修正。',
+  agentModeCompact: '精简',
+  agentModeCompactHint:
+    '精简 —— 最省。助手最多执行 3 步就停止，不会反复自检。',
   outputTruncated:
     '回复因长度上限被截断，图纸可能缺失一部分。请分成更小的部分逐步请求。'
 } as const
