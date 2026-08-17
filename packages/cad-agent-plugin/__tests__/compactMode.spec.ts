@@ -35,7 +35,7 @@ jest.mock('../src/tools/cadTools', () => ({
   createCadTools: () => ({})
 }))
 
-import { reportToolOutcomes } from '../src/agent/createCadAgent'
+import { drewSomething, reportToolOutcomes } from '../src/agent/createCadAgent'
 import { stepBudget } from '../src/storage/AgentModeStore'
 
 /** A finished assistant message carrying one tool part. */
@@ -135,5 +135,55 @@ describe('reportToolOutcomes', () => {
         { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'vẽ' }] }
       ] as never)
     ).toBe('')
+  })
+})
+
+describe('drewSomething', () => {
+  test('a template that placed entities counts', () => {
+    // The count rides in `data`, not on the outcome itself. Reading the wrong
+    // level would leave the view unmoved and the engineer staring at what
+    // looks like an empty drawing.
+    expect(
+      drewSomething(
+        assistantWith([
+          {
+            type: 'tool-chay_template',
+            state: 'output-available',
+            output: { ok: true, message: 'xong', data: { soDoiTuong: 3 } }
+          }
+        ])
+      )
+    ).toBe(true)
+  })
+
+  test('a refused template does not', () => {
+    expect(
+      drewSomething(
+        assistantWith([
+          {
+            type: 'tool-chay_template',
+            state: 'output-available',
+            output: { ok: false, message: 'ngoài dải', data: { soDoiTuong: 0 } }
+          }
+        ])
+      )
+    ).toBe(false)
+  })
+
+  test('a turn that only read the drawing does not move the view', () => {
+    // Answering a question is a normal turn, and rezooming on one would take
+    // the engineer away from what they were looking at.
+    expect(
+      drewSomething(
+        assistantWith([
+          {
+            type: 'tool-get_drawing_context',
+            state: 'output-available',
+            output: { ok: true, message: '2 layer' }
+          },
+          { type: 'text', text: 'Bản vẽ có 2 layer.' }
+        ])
+      )
+    ).toBe(false)
   })
 })

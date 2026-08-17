@@ -12,6 +12,7 @@ import {
 import { agentT } from '../i18n'
 import type { AgentMode } from '../storage/AgentModeStore'
 import type { LlmSettings } from '../storage/LlmSettingsStore'
+import { cadActionExecutor } from '../tools/CadActionExecutor'
 import { createCadTools } from '../tools/cadTools'
 import { formatChatError } from '../ui/formatChatError'
 import { withTurnUndoMark } from './agentTurnEdit'
@@ -181,6 +182,32 @@ export function reportToolOutcomes(messages: UIMessage[]): string {
 }
 
 /**
+ * Whether the turn put anything on the drawing.
+ *
+ * Read from the tools' own outcomes rather than by counting entities before
+ * and after: a tool that refused says so, and a turn that only answered a
+ * question should not move the engineer's view.
+ */
+export function drewSomething(messages: UIMessage[]): boolean {
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return false
+
+  return (last.parts ?? []).some(part => {
+    const type = (part as { type?: string }).type ?? ''
+    if (!type.startsWith('tool-')) return false
+    const output = (part as { output?: unknown }).output as
+      | { ok?: boolean; data?: { soDoiTuong?: number } }
+      | undefined
+    if (output?.ok === false) return false
+    // The drawing tools report how many entities they placed; the query ones
+    // do not, which is exactly the distinction wanted here. The count rides in
+    // `data` rather than on the outcome itself — see `runTemplateTool`.
+    const drawn = output?.data?.soDoiTuong
+    return typeof drawn === 'number' && drawn > 0
+  })
+}
+
+/**
  * Creates a {@link ChatTransport} that runs the agent in-process (no HTTP server).
  *
  * In high-inference mode, captures a drawing screenshot after each agent round
@@ -236,6 +263,16 @@ export function createAgentChatTransport(
                 })
                 const report = reportToolOutcomes(finished)
                 if (report) appendAssistantText(write, `\n\n${report}`)
+                // Bring the view to what was just drawn, without spending a
+                // step on it. Measured: a three-step turn placed a deck and a
+                // kerb correctly and then ran out of budget before calling
+                // `zoom_extents`, so the drawing sat outside the viewport and
+                // the engineer saw an empty screen — indistinguishable from a
+                // turn that drew nothing. Framing the view is a display
+                // decision, not one worth a model call.
+                if (drewSomething(finished)) {
+                  cadActionExecutor.zoomExtents()
+                }
                 return
               }
 
