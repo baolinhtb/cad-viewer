@@ -434,6 +434,27 @@ const server = createServer(async (req, res) => {
         try {
           const body = await readBody(req, MAX_AI_REQUEST_BYTES + 16 * 1024)
           const result = await sendToProvider(db, user, body)
+
+          if (result.stream) {
+            res.writeHead(200, {
+              'Content-Type': 'text/event-stream; charset=utf-8',
+              'Cache-Control': 'no-store',
+              Connection: 'keep-alive',
+              // Every nginx between here and the browser buffers a proxied
+              // response by default, which turns a stream into one late lump —
+              // the failure this route is being fixed for. This header is how
+              // an upstream tells nginx not to.
+              'X-Accel-Buffering': 'no',
+              'x-cad-call-id': String(result.callId),
+              'x-cad-standards-hash': result.standardsHash
+            })
+            for await (const chunk of result.stream) {
+              res.write(chunk)
+            }
+            res.end()
+            return
+          }
+
           res.writeHead(200, {
             'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
