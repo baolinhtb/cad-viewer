@@ -4,9 +4,15 @@ import {
   SEMANTIC_TOOLS
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
-import { z } from 'zod'
+// `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
+// handing it a v3-classic schema makes the checker relate the two model
+// hierarchies for every schema in this file: `tsc --noEmit` reached three
+// million types and died at 4 GB of heap, on an empty `z.object({})`. The v4
+// entry point is the same API and the same package — zod 3.25 ships both.
+import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import { lookupTcvn } from './tcvnLookup'
 
 /**
  * The description the model reads for a semantic tool, taken from the tool
@@ -65,7 +71,8 @@ export function createCadTools() {
           .optional()
           .describe('Số thứ tự dọc cầu, nếu người dùng nêu.')
       }),
-      execute: async input => runSemanticTool('tim_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('tim_bo_phan', input, dictionary())
     }),
     to_sang_bo_phan: tool({
       description: semanticDescription('to_sang_bo_phan'),
@@ -75,7 +82,34 @@ export function createCadTools() {
           .min(1)
           .describe('Danh sách partId lấy từ tim_bo_phan.')
       }),
-      execute: async input => runSemanticTool('to_sang_bo_phan', input, dictionary())
+      execute: async input =>
+        runSemanticTool('to_sang_bo_phan', input, dictionary())
+    }),
+    // Reference before geometry: nearly every dimension in a bridge or road
+    // drawing is already decided by a standard, and a number the model
+    // remembers is indistinguishable, on screen, from one it read.
+    tra_cuu_tieu_chuan: tool({
+      description:
+        'Tra cứu điều khoản trong bộ tiêu chuẩn TCVN về cầu đường (TCVN 11823 các phần, TCVN 4054, TCVN 13592) đã cài trên máy chủ. ' +
+        'Gọi trước khi chọn bất kỳ kích thước nào mà tiêu chuẩn quy định: bề rộng làn, chiều cao lan can, chiều dày bản mặt cầu, tĩnh không, tải trọng thiết kế. ' +
+        'Trả về nguyên văn điều khoản kèm số hiệu tiêu chuẩn để trích dẫn. ' +
+        'Hỏi bằng tiếng Việt có dấu, nêu rõ đối tượng và điều kiện, ví dụ "chiều cao lan can cấp thử nghiệm TL-4".',
+      inputSchema: z.object({
+        cau_hoi: z
+          .string()
+          .min(1)
+          .describe(
+            'Câu hỏi tra cứu bằng tiếng Việt có dấu, càng cụ thể càng tốt.'
+          ),
+        so_ket_qua: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Số điều khoản muốn lấy về, mặc định 4.')
+      }),
+      execute: async input => lookupTcvn(input.cau_hoi, input.so_ket_qua)
     }),
     get_drawing_context: tool({
       description: 'Get current drawing context: units, layers, and extents',

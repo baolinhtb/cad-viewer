@@ -38,11 +38,28 @@ function wasAborted(
   return error instanceof Error && error.name === 'AbortError'
 }
 
+/**
+ * Output budget for one model step.
+ *
+ * A drawing step is long: reasoning, then a dozen tool calls carrying
+ * coordinates. Left at the SDK default the response is cut off partway
+ * through emitting them, and a truncated tool call is never executed — so the
+ * engineer watches it work and ends up with an empty drawing and no error.
+ * Matches the ceiling the deployment's proxy enforces.
+ */
+const MAX_OUTPUT_TOKENS = 16_000
+
 /** Runtime options that affect agent behavior beyond LLM settings. */
 export interface AgentChatOptions {
   /** When `high-inference`, screenshot verification runs after each drawing round. */
   agentMode: AgentMode
 }
+
+/** The agent {@link createCadAgent} builds, tools and all. */
+export type CadAgent = ReturnType<typeof createCadAgent>
+
+/** The shape `validateUIMessages` will accept for a plain {@link UIMessage}. */
+type ValidateUIMessagesTools = Parameters<typeof validateUIMessages>[0]['tools']
 
 /**
  * Builds an AI SDK agent configured for CAD drawing with tool calling.
@@ -55,6 +72,7 @@ export function createCadAgent(settings: LlmSettings) {
     model: createModelFromSettings(settings),
     system: CAD_AGENT_SYSTEM_PROMPT,
     tools: createCadTools(),
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     stopWhen: stepCountIs(10)
   })
 }
@@ -63,7 +81,7 @@ export function createCadAgent(settings: LlmSettings) {
  * Streams one agent round and returns the updated UI messages when finished.
  */
 async function streamAgentRound(options: {
-  agent: Agent
+  agent: CadAgent
   workingMessages: UIMessage[]
   abortSignal: AbortSignal | undefined
   write: UIMessageChunkWriter
@@ -72,10 +90,15 @@ async function streamAgentRound(options: {
   const modelMessages = await convertToModelMessages(workingMessages, {
     tools: agent.tools
   })
+  // The SDK types `Agent.stream` as taking only a `Prompt`, but its body is
+  // `streamText({ ...this.settings, ...options })` — so `abortSignal` does
+  // reach the request, and dropping it to satisfy the type would quietly break
+  // the stop button. Cast to the SDK's own parameter type rather than removing
+  // a live argument.
   const result = agent.stream({
     prompt: modelMessages,
     abortSignal
-  })
+  } as Parameters<CadAgent['stream']>[0])
 
   let finishedMessages = workingMessages
   const uiStream = result.toUIMessageStream({
@@ -91,6 +114,19 @@ async function streamAgentRound(options: {
     write(chunk)
   }
 
+  // A step cut off by the output limit stops mid-way through emitting its tool
+  // calls, and a truncated tool call is never executed. Silence here is how a
+  // turn ends up looking like it worked and drawing nothing, so say it.
+  try {
+    const finishReason = await result.finishReason
+    if (finishReason === 'length') {
+      appendAssistantText(write, `\n${agentT('outputTruncated')}`)
+    }
+  } catch {
+    // The reason is a convenience, not the result. An aborted or failed
+    // stream has already been reported through the stream itself.
+  }
+
   return finishedMessages
 }
 
@@ -101,16 +137,21 @@ async function streamAgentRound(options: {
  * and loops until verification passes or {@link MAX_VERIFICATION_ATTEMPTS} is reached.
  */
 export function createAgentChatTransport(
-  getAgent: () => Agent,
+  getAgent: () => CadAgent,
   getSettings: () => LlmSettings,
   getOptions: () => AgentChatOptions
 ): ChatTransport<UIMessage> {
   return {
     sendMessages: async ({ messages, abortSignal }) => {
       const agent = getAgent()
+      // `validateUIMessages` types `tools` against the message type's own tool
+      // map, which for a plain `UIMessage` is `unknown`-shaped; `Tool` is
+      // invariant in its input, so the concrete map is not assignable. These
+      // are the very tools the messages were produced with, so widen rather
+      // than drop the argument — without it, tool parts go unvalidated.
       const validatedMessages = await validateUIMessages({
         messages,
-        tools: agent.tools
+        tools: agent.tools as unknown as ValidateUIMessagesTools
       })
       // Read before the turn starts: the user's own words label the turn's one
       // undo mark, and that mark is opened in both modes — not just the
