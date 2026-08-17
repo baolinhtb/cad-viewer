@@ -12,6 +12,7 @@ import { tool } from 'ai'
 import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import { lookupTcvn } from './tcvnLookup'
 
 /**
  * The description the model reads for a semantic tool, taken from the tool
@@ -83,6 +84,32 @@ export function createCadTools() {
       }),
       execute: async input =>
         runSemanticTool('to_sang_bo_phan', input, dictionary())
+    }),
+    // Reference before geometry: nearly every dimension in a bridge or road
+    // drawing is already decided by a standard, and a number the model
+    // remembers is indistinguishable, on screen, from one it read.
+    tra_cuu_tieu_chuan: tool({
+      description:
+        'Tra cứu điều khoản trong bộ tiêu chuẩn TCVN về cầu đường (TCVN 11823 các phần, TCVN 4054, TCVN 13592) đã cài trên máy chủ. ' +
+        'Gọi trước khi chọn bất kỳ kích thước nào mà tiêu chuẩn quy định: bề rộng làn, chiều cao lan can, chiều dày bản mặt cầu, tĩnh không, tải trọng thiết kế. ' +
+        'Trả về nguyên văn điều khoản kèm số hiệu tiêu chuẩn để trích dẫn. ' +
+        'Hỏi bằng tiếng Việt có dấu, nêu rõ đối tượng và điều kiện, ví dụ "chiều cao lan can cấp thử nghiệm TL-4".',
+      inputSchema: z.object({
+        cau_hoi: z
+          .string()
+          .min(1)
+          .describe(
+            'Câu hỏi tra cứu bằng tiếng Việt có dấu, càng cụ thể càng tốt.'
+          ),
+        so_ket_qua: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Số điều khoản muốn lấy về, mặc định 4.')
+      }),
+      execute: async input => lookupTcvn(input.cau_hoi, input.so_ket_qua)
     }),
     get_drawing_context: tool({
       description: 'Get current drawing context: units, layers, and extents',

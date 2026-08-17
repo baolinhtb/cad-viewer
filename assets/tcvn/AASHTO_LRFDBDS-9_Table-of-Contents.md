@@ -1,0 +1,5948 @@
+---
+tieu_chuan: "AASHTO LRFD Bridge Design Specifications, 9th Edition"
+ten: "AASHTO LRFD Bridge Design Specifications, Ninth Edition — Table of Contents"
+ten_tieng_anh: "AASHTO LRFD Bridge Design Specifications, Ninth Edition — Table of Contents"
+xuat_ban: "Ninth Edition, 2020"
+nguon: "LRFDBDS-9_TableOfContents.pdf"
+ghi_chu: "Chuyển đổi nguyên văn sang Markdown. Phần mục lục giữ dạng danh sách phân cấp, đã bỏ dấu chấm leader và số trang theo SPEC mục 3. Phần INDEX (chỉ mục cuối sách) giữ nguyên số trang tham chiếu vì đó là nội dung của mục từ. Dòng bản quyền lặp ở chân mỗi trang (© 2020 by the American Association of State Highway and Transportation Officials. All rights reserved. Duplication is a violation of applicable law.) và tiêu đề chạy đầu trang đã được lược bỏ."
+---
+
+# AASHTO LRFD Bridge Design Specifications, Ninth Edition — Table of Contents
+
+© 2020 by the American Association of State Highway and Transportation Officials.
+All rights reserved. Duplication is a violation of applicable law.
+
+## FOREWORD
+
+The first broadly recognized national standard for the design and construction of bridges in the United States was published in 1931 by the American Association of State Highway Officials (AASHO), the predecessor to AASHTO. With the advent of the automobile and the establishment of highway departments in all of the American states dating back to just before the turn of the century, the design, construction, and maintenance of most U.S. bridges was the responsibility of these departments and, more specifically, the chief bridge engineer within each department. It was natural, therefore, that these engineers, acting collectively as the AASHTO Highway Subcommittee on Bridges and Structures (now the Committee on Bridges and Structures), would become the author and guardian of this first bridge standard.
+
+This first publication was entitled Standard Specifications for Highway Bridges and Incidental Structures. It quickly became the de facto national standard and, as such, was adopted and used by not only the state highway departments but also other bridge-owning authorities and agencies in the United States and abroad. Rather early on, the last three words of the original title were dropped and it has been reissued in consecutive editions at approximately four-year intervals ever since as Standard Specifications for Highway Bridges, with the final 17th edition appearing in 2002.
+
+The body of knowledge related to the design of highway bridges has grown enormously since 1931 and continues to do so. Theory and practice have evolved greatly, reflecting advances through research in understanding the properties of materials, in improved materials, in more rational and accurate analysis of structural behavior, in the advent of computers and rapidly advancing computer technology, in the study of external events representing particular hazards to bridges such as seismic events and stream scour, and in many other areas. The pace of advances in these areas has, if anything, stepped up in recent years.
+
+In 1986, the Subcommittee submitted a request to the AASHTO Standing Committee on Research to undertake an assessment of U.S. bridge design specifications, to review foreign design specifications and codes, to consider design philosophies alternative to those underlying the Standard Specifications, and to render recommendations based on these investigations. This work was accomplished under the National Cooperative Highway Research Program (NCHRP), an applied research program directed by the AASHTO Standing Committee on Research and administered on behalf of AASHTO by the Transportation Research Board (TRB). The work was completed in 1987, and, as might be expected with a standard incrementally adjusted over the years, the Standard Specifications were judged to include discernible gaps, inconsistencies, and even some conflicts. Beyond this, the specification did not reflect or incorporate the most recently developing design philosophy, load-and-resistance factor design (LRFD), a philosophy which has been gaining ground in other areas of structural engineering and in other parts of the world such as Canada and Europe.
+
+From its inception until the early 1970s, the sole design philosophy embedded within the Standard Specifications was one known as working stress design (WSD). WSD establishes allowable stresses as a fraction or percentage of a given material’s load-carrying capacity, and requires that calculated design stresses not exceed those allowable stresses. Beginning in the early 1970s, WSD began to be adjusted to reflect the variable predictability of certain load types, such as vehicular loads and wind forces, through adjusting design factors, a design philosophy referred to as load factor design (LFD).
+
+A further philosophical extension results from considering the variability in the properties of structural elements, in similar fashion to load variabilities. While considered to a limited extent in LFD, the design philosophy of load-and-resistance factor design (LRFD) takes variability in the behavior of structural elements into account in an explicit manner. LRFD relies on extensive use of statistical methods, but sets forth the results in a manner readily usable by bridge designers and analysts.
+
+Starting with the Eighth Edition of the AASHTO LRFD Bridge Design Specifications, interim changes to the Specifications were discontinued, and new editions are published on a three-year cycle.  Changes are balloted and approved by at least two-thirds of the members of the Committee on Bridges and Structures. AASHTO members include the 50 State Highway or Transportation Departments, the District of Columbia, and Puerto Rico.  Each member has one vote.  The U.S. Department of Transportation is a non-voting member.
+
+Orders for Specifications may be placed by visiting the AASHTO Store, store.transportation.org; calling the AASHTO Publication Sales Office toll free (within the U.S. and Canada), 1-800-231-3475; or mailing to P.O. Box 933538, Atlanta, GA 31193-3538. A free copy of the current publication catalog can be downloaded from the AASHTO Store.
+
+For additional publications prepared and published by the Committee on Bridges and Structures and by other AASHTO Committees, please look online in the AASHTO Store (store.transportation.org) under “Bridges and Structures.”
+
+Suggestions for the improvement of the AASHTO LRFD Bridge Design Specifications are welcomed, just as they were for the Standard Specifications for Highway Bridges before them, at www.transportation.org.
+
+The following have served as chair of the Committee on Bridges and Structures since its inception in 1921: E. F. Kelley, who pioneered the work of the Committee; Albin L. Gemeny; R. B. McMinn; Raymond Archiband; G. S. Paxson; E. M. Johnson; Ward Goodman; Charles Matlock; Joseph S. Jones; Sidney Poleynard; Jack Freidenrich; Henry W. Derthick; Robert C. Cassano; Clellon Loveall; James E. Siebels; David Pope; Tom Lulay; Malcolm T. Kerley; Gregg Fredrick; and Carmen Swanwick. The Committee expresses its sincere appreciation of the work of these individuals and of those active members of the past, whose names, because of retirement, are no longer on the roll.
+
+The Committee would also like to thank John M. Kulicki, Ph.D., and his associates at Modjeski and Masters for their valuable assistance in the preparation of the AASHTO LRFD Bridge Design Specifications.
+
+## PREFACE AND ABBREVIATED TABLE OF CONTENTS
+
+The AASHTO LRFD Bridge Design Specifications, Ninth Edition contains the following 15 sections and an index:
+
+1. Introduction
+2. General Design and Location Features
+3. Loads and Load Factors
+4. Structural Analysis and Evaluation
+5. Concrete Structures
+6. Steel Structures
+7. Aluminum Structures
+8. Wood Structures
+9. Decks and Deck Systems
+10. Foundations
+11. Abutments, Piers, and Walls
+12. Buried Structures and Tunnel Liners
+13. Railings
+14. Joints and Bearings
+15. Design of Sound Barriers
+Index
+
+Detailed Tables of Contents precede each section. The last article of each section is a list of references displayed alphabetically by author.
+
+Figures, tables, and equations are denoted by their home article number and an extension, for example 1.2.3.4.5-1 wherever they are cited. In early editions, when they were referenced in their home article or its commentary, these objects were identified only by the extension. For example, in Article 1.2.3.4.5, Eq. 1.2.3.4.5-2 would simply have been called “Eq. 2.” The same convention applies to figures and tables. Starting with this edition, these objects are identified by their whole nomenclature throughout the text, even within their home articles. This change was to increase the speed and accuracy of electronic production (i.e., CDs and downloadable files) with regard to linking citations to objects.
+
+Please note that the AASHTO materials standards (starting with M or T) cited throughout the LRFD Bridge Design Specifications can be found in Standard Specifications for Transportation Materials and Methods of Sampling and Testing, adopted by the AASHTO Highway Subcommittee on Materials. The individual standards are also available as downloads on the AASHTO Store, https://store.transportation.org. Unless otherwise indicated, these citations refer to the current edition. ASTM materials specifications are also cited and have been updated to reflect ASTM’s revised coding system, i.e., spaces removed between the letter and number.
+
+## CHANGED AND DELETED ARTICLES, 2020
+
+### SUMMARY OF AFFECTED SECTIONS
+
+The revisions included in the AASHTO LRFD Bridge Design Specifications, Ninth Edition affect the following sections:
+
+1. Introduction
+3. Loads and Load Factors
+4. Structural Analysis and Evaluation
+5. Concrete Structures
+6. Steel Structures
+8. Wood Structures
+10. Foundations
+11. Walls, Abutments, and Piers
+12. Buried Structures and Tunnel Liners
+15. Design of Sound Barriers
+
+
+### SECTION 1 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 1 contain changes or additions to the specifications, the commentary, or both:
+
+- 1.3.5
+
+**Deleted Articles**
+
+No Articles were deleted from Section 1.
+
+
+### SECTION 3 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 3 contain changes or additions to the specifications, the commentary, or both:
+
+- 3.3.1
+- 3.4.1
+- 3.6.1.2.6a
+- 3.6.5.1
+- 3.6.5.2
+- 3.11.5.4
+- 3.11.5.6
+- 3.11.5.8.2
+- 3.11.5.9
+- 3.16
+
+**Deleted Articles**
+
+No Articles were deleted from Section 3.
+
+
+### SECTION 4 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 4 contain changes or additions to the specifications, the commentary, or both:
+
+- 4.5.3.2.2b
+- 4.6.2.2.1
+- 4.6.2.2.2b
+- 4.6.2.10.2
+- 4.9
+
+**Deleted Articles**
+
+No Articles were deleted from Section 4.
+
+
+### SECTION 5 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 5 contain changes or additions to the specifications, the commentary, or both:
+
+- 5.3
+- 5.4.3.1
+- 5.4.6.2
+- 5.5.3.1
+- 5.5.4.3
+- 5.7.2.1
+- 5.7.2.8
+- 5.7.3.3
+- 5.7.3.5
+- 5.7.3.6.2
+- 5.8.4.3.5
+- 5.9.4.3.3
+- 5.9.4.5
+- 5.9.5.6.1
+- 5.10.1
+- 5.10.4.3
+- 5.10.8.2.5
+- 5.10.8.5.1
+- 5.10.8.5.2
+- 5.12.3.2.1
+- 5.12.9.5.2
+- 5.14.1
+- 5.14.4
+- 5.15
+
+**Deleted Articles**
+
+No Articles were deleted from Section 5.
+
+
+### SECTION 6 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 6 contain changes or additions to the specifications, the commentary, or both:
+
+- 6.1
+- 6.2
+- 6.3
+- 6.4.9
+- 6.5.3
+- 6.5.4.2
+- 6.5.5
+- 6.6.1.2.3
+- 6.6.1.2.5
+- 6.6.2.1
+- 6.6.2.2
+- 6.7.2
+- 6.7.4.3
+- 6.7.4.4
+- 6.7.4.4.1
+- 6.7.4.4.2
+- 6.7.4.4.3
+- 6.7.4.5
+- 6.7.8
+- 6.8.2.2
+- 6.8.2.3
+- 6.8.2.3.1
+- 6.8.2.3.2
+- 6.8.2.3.3
+- 6.8.6.2
+- 6.9.2.2
+- 6.9.2.2.1
+- 6.9.2.2.2
+- 6.9.4.1.1
+- 6.9.4.1.2
+- 6.9.4.1.3
+- 6.9.4.2
+- 6.9.4.2.1
+- 6.9.4.2.2
+- 6.9.4.2.2a
+- 6.9.4.2.2b
+- 6.9.4.2.2c
+- 6.9.4.3.1
+- 6.9.4.4
+- 6.9.4.5
+- 6.9.6.1
+- 6.9.6.2
+- 6.10.1.1.1a
+- 6.10.1.4
+- 6.10.1.10.1
+- 6.10.1.10.2
+- 6.10.2.2
+- 6.10.3.3
+- 6.10.3.4.1
+- 6.10.3.4.2
+- 6.10.5.2
+- 6.10.6.1
+- 6.10.6.2.3
+- 6.10.8.1.1
+- 6.10.8.2.3
+- 6.10.8.3
+- 6.10.9.1
+- 6.10.10.2
+- 6.10.11
+- 6.10.11.1
+- 6.10.11.1.1
+- 6.10.11.2.2
+- 6.10.11.2.4b
+- 6.10.11.3
+- 6.10.11.3.1
+- 6.10.11.3.3
+- 6.11
+- 6.11.1.1
+- 6.11.3.2
+- 6.11.5
+- 6.11.6.2.1
+- 6.11.8.2.2
+- 6.11.8.3
+- 6.12.1
+- 6.12.1.1
+- 6.12.1.2.1
+- 6.12.1.2.2
+- 6.12.1.2.3
+- 6.12.1.2.3a
+- 6.12.1.2.3b
+- 6.12.1.2.4
+- 6.12.2
+- 6.12.2.1
+- 6.12.2.2.2
+- 6.12.2.2.2a
+- 6.12.2.2.2b
+- 6.12.2.2.2c
+- 6.12.2.2.2d
+- 6.12.2.2.2e
+- 6.12.2.2.2f
+- 6.12.2.2.2g
+- 6.12.2.2.3
+- 6.12.2.2.4a
+- 6.12.2.2.4b
+- 6.12.2.2.4c
+- 6.12.2.2.4d
+- 6.12.2.2.4e
+- 6.12.2.2.5
+- 6.12.2.3.3
+- 6.12.3.2.2
+- 6.13.2.3.2
+- 6.13.2.5
+- 6.13.2.7
+- 6.13.2.9
+- 6.13.2.10.2
+- 6.13.2.11
+- 6.13.3.6
+- 6.13.3.7
+- 6.13.6.1.3a
+- 6.13.6.1.3b
+- 6.13.6.1.3c
+- 6.13.6.1.4
+- 6.14.2.4
+- 6.14.4.1
+- 6.14.4.2
+- 6.14.4.3
+- 6.14.4.4
+- 6.14.4.5
+- 6.14.4.6
+- 6.16.1
+- 6.16.2
+- 6.16.4.1
+- 6.17
+- A6
+- A6.1
+- A6.2.1
+- A6.2.2
+- A6.3.3
+- C6.4
+- C6.4.4
+- C6.4.7
+- C6.5.1
+- C6.5.2
+- D6.2.1
+- D6.3.1
+- E6.1
+- E6.1.1
+- E6.1.2
+- E6.1.3
+- E6.1.4
+- E6.1.5
+- E6.1.5.1
+- E6.1.5.2
+
+**Deleted Articles**
+
+- 6.12.1.2.3c
+
+### SECTION 8 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 8 contain changes or additions to the specifications, the commentary, or both:
+
+- 8.2
+- 8.4.1.1.4
+- 8.4.1.2.1
+- 8.4.1.2.2
+- 8.4.1.2.3
+- 8.4.1.3.1
+- 8.4.4.9
+- 8.13
+- 8.14
+
+**Deleted Articles**
+
+No Articles were deleted from Section 8.
+
+
+### SECTION 10 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 10 contain changes or additions to the specifications, the commentary, or both:
+
+- 10.3
+- 10.5.2.1
+- 10.5.2.2
+- 10.5.2.2.1
+- 10.5.2.2.2
+- 10.5.2.4
+- 10.5.3.1
+- 10.5.5.1
+- 10.5.5.2.1
+- 10.6.2.1
+- 10.6.2.4.1
+- 10.6.2.4.2a
+- 10.6.2.4.2b
+- 10.6.2.4.2c
+- 10.6.2.4.4
+- 10.6.3.1.2a
+- 10.6.3.1.2c
+- 10.6.3.2.1
+- 10.6.3.5
+- 10.7.2.1
+- 10.7.3.1
+- 10.7.8
+- 10.8.3.5.1b
+- 10.8.3.5.2b
+- 10.9.3.5.4
+- 10.10
+
+**Deleted Articles**
+
+- 10.5.2.3
+- 10.6.2.5
+
+### SECTION 11 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 11 contain changes or additions to the specifications, the commentary, or both:
+
+- 11.1
+- 11.2
+- 11.3.1
+- 11.5.2
+- 11.5.3
+- 11.5.4.2
+- 11.5.5
+- 11.5.7
+- 11.5.8
+- 11.6.2
+- 11.6.3.1
+- 11.6.3.7
+- 11.6.5.1
+- 11.8.3
+- 11.8.4.1
+- 11.8.6.1
+- 11.9.3
+- 11.9.4.3
+- 11.9.4.4
+- 11.10.1
+- 11.10.2.3.1
+- 11.10.4
+- 11.10.4.2
+- 11.10.4.3
+- 11.10.5.2
+- 11.10.5.6
+- 11.10.6.1
+- 11.10.6.2
+- 11.10.6.2.1
+- 11.10.6.2.1a
+- 11.10.6.2.1b
+- 11.10.6.2.1c
+- 11.10.6.2.1d
+- 11.10.6.2.1e
+- 11.10.6.2.2
+- 11.10.6.3.2
+- 11.10.6.4.1
+- 11.10.6.4.2a
+- 11.10.6.4.2b
+- 11.10.6.4.3b
+- 11.10.6.4.4a
+- 11.10.6.4.4b
+- 11.10.7.2
+- 11.10.7.3
+- 11.10.7.4
+- 11.10.8
+- 11.10.10.1
+- 11.10.10.2
+- 11.10.10.3
+- 11.10.11
+- 11.11.4.6
+- 11.12
+- 11.12.7.2
+- 11.12.9
+- 11.13
+- A11.5.3
+- B11.1
+- B11.2
+- B11.3
+
+**Deleted Articles**
+
+- 11.6.2.3
+- 11.8.3.2
+- 11.9.3.2
+
+### SECTION 12 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 12 contain changes or additions to the specifications, the commentary, or both:
+
+- 12.1
+- 12.2
+- 12.4.2.3
+- 12.4.2.10
+- 12.5.4
+- 12.6.4
+- 12.6.9
+- 12.7.2.1
+- 12.7.2.7
+- 12.8.5.3
+- 12.8.9.3.1
+- 12.10.1
+- 12.10.2.1
+- 12.10.4.3.1
+- 12.12.2.1
+- 12.12.3.5
+- 12.12.3.10.2b
+- 12.16
+- A12
+
+**Deleted Articles**
+
+No Articles were deleted from Section 12.
+
+
+### SECTION 15 REVISIONS
+
+
+**Changed Articles**
+
+The following Articles in Section 15 contain changes or additions to the specifications, the commentary, or both:
+
+- 15.9.3
+- 15.9.7
+- 15.9.8
+
+**Deleted Articles**
+
+- 15.9.7.1
+
+AASHTO Publications Staff
+
+April 2020
+
+
+
+## SECTION 1: INTRODUCTION
+
+TABLE OF CONTENTS
+
+- 1.1—SCOPE OF THE SPECIFICATIONS
+- 1.2—DEFINITIONS
+- 1.3—DESIGN PHILOSOPHY
+  - 1.3.1—General
+  - 1.3.2—Limit States
+    - 1.3.2.1—General
+    - 1.3.2.2—Service Limit State
+    - 1.3.2.3—Fatigue and Fracture Limit State
+    - 1.3.2.4—Strength Limit State
+    - 1.3.2.5—Extreme Event Limit States
+  - 1.3.3—Ductility
+  - 1.3.4—Redundancy
+  - 1.3.5—Operational Importance
+- 1.4—REFERENCES
+
+## SECTION 2: GENERAL DESIGN AND LOCATION FEATURES
+
+TABLE OF CONTENTS
+
+- 2.1—SCOPE
+- 2.2—DEFINITIONS
+- 2.3—LOCATION FEATURES
+  - 2.3.1—Route Location
+    - 2.3.1.1—General
+    - 2.3.1.2—Waterway and Floodplain Crossings
+  - 2.3.2—Bridge Site Arrangement
+    - 2.3.2.1—General
+    - 2.3.2.2—Traffic Safety
+      - 2.3.2.2.1—Protection of Structures
+      - 2.3.2.2.2—Protection of Users
+      - 2.3.2.2.3—Geometric Standards
+      - 2.3.2.2.4—Road Surfaces
+      - 2.3.2.2.5—Vessel Collisions
+  - 2.3.3—Clearances
+    - 2.3.3.1—Navigational
+    - 2.3.3.2—Highway Vertical
+    - 2.3.3.3—Highway Horizontal
+    - 2.3.3.4—Railroad Overpass
+  - 2.3.4—Environment
+- 2.4—FOUNDATION INVESTIGATION
+  - 2.4.1—General
+  - 2.4.2—Topographic Studies
+- 2.5—DESIGN OBJECTIVES
+  - 2.5.1—Safety
+    - 2.5.1.1—Structural Survival
+    - 2.5.1.2—Limited Serviceability
+    - 2.5.1.3—Immediate Use
+  - 2.5.2—Serviceability
+    - 2.5.2.1—Durability
+      - 2.5.2.1.1—Materials
+      - 2.5.2.1.2—Self-Protecting Measures
+    - 2.5.2.2—Inspectability
+    - 2.5.2.3—Maintainability
+    - 2.5.2.4—Rideability
+    - 2.5.2.5—Utilities
+    - 2.5.2.6—Deformations
+      - 2.5.2.6.1—General
+      - 2.5.2.6.2—Criteria for Deflection
+      - 2.5.2.6.3—Optional Criteria for Span-to-Depth Ratios
+    - 2.5.2.7—Consideration of Future Widening
+      - 2.5.2.7.1—Exterior Beams on Girder System Bridges
+      - 2.5.2.7.2—Substructure
+  - 2.5.3—Constructability
+  - 2.5.4—Economy
+    - 2.5.4.1—General
+    - 2.5.4.2—Alternative Plans
+  - 2.5.5—Bridge Aesthetics
+- 2.6—HYDROLOGY AND HYDRAULICS
+  - 2.6.1—General
+  - 2.6.2—Site Data
+  - 2.6.3—Hydrologic Analysis
+  - 2.6.4—Hydraulic Analysis
+    - 2.6.4.1—General
+    - 2.6.4.2—Stream Stability
+    - 2.6.4.3—Bridge Waterway
+    - 2.6.4.4—Bridge Foundations
+      - 2.6.4.4.1—General
+      - 2.6.4.4.2—Bridge Scour
+    - 2.6.4.5—Roadway Approaches to Bridge
+  - 2.6.5—Culvert Location, Length, and Waterway Area
+  - 2.6.6—Roadway Drainage
+    - 2.6.6.1—General
+    - 2.6.6.2—Design Storm
+    - 2.6.6.3—Type, Size, and Number of Drains
+    - 2.6.6.4—Discharge from Deck Drains
+    - 2.6.6.5—Drainage of Structures
+- 2.7—BRIDGE SECURITY
+  - 2.7.1—General
+  - 2.7.2—Design Demand
+- 2.8—REFERENCES
+
+## SECTION 3: LOADS AND LOAD FACTORS
+
+TABLE OF CONTENTS
+
+- 3.1—SCOPE
+- 3.2—DEFINITIONS
+- 3.3—NOTATION
+  - 3.3.1—General
+  - 3.3.2—Load and Load Designation
+- 3.4—LOAD FACTORS AND COMBINATIONS
+  - 3.4.1—Load Factors and Load Combinations
+  - 3.4.2—Load Factors for Construction Loads
+    - 3.4.2.1—Evaluation at the Strength Limit State
+    - 3.4.2.2—Evaluation of Deflection at the Service Limit State
+  - 3.4.3—Load Factors for Jacking and Post-Tensioning Forces
+    - 3.4.3.1—Jacking Forces
+    - 3.4.3.2—Force for Post-Tensioning Anchorage Zones
+  - 3.4.4—Load Factors for Orthotropic Decks
+- 3.5—PERMANENT LOADS
+  - 3.5.1—Dead Loads: DC, DW, and EV
+  - 3.5.2—Earth Loads: EH, ES, and DD
+- 3.6—LIVE LOADS
+  - 3.6.1—Gravity Loads: LL and PL
+    - 3.6.1.1—Vehicular Live Load
+      - 3.6.1.1.1—Number of Design Lanes
+      - 3.6.1.1.2—Multiple Presence of Live Load
+    - 3.6.1.2—Design Vehicular Live Load
+      - 3.6.1.2.1—General
+      - 3.6.1.2.2—Design Truck
+      - 3.6.1.2.3—Design Tandem
+      - 3.6.1.2.4—Design Lane Load
+      - 3.6.1.2.5—Tire Contact Area
+      - 3.6.1.2.6—Distribution of Wheel Load through Earth Fills
+        - 3.6.1.2.6a—General
+        - 3.6.1.2.6b—Traffic Parallel to the Culvert Span
+        - 3.6.1.2.6c—Traffic Perpendicular to the Culvert Span
+    - 3.6.1.3—Application of Design Vehicular Live Loads
+      - 3.6.1.3.1—General
+      - 3.6.1.3.2—Loading for Optional Live Load Deflection Evaluation
+      - 3.6.1.3.3—Design Loads for Decks, Deck Systems, and the Top Slabs of Box Culverts
+      - 3.6.1.3.4—Deck Overhang Load
+    - 3.6.1.4—Fatigue Load
+      - 3.6.1.4.1—Magnitude and Configuration
+      - 3.6.1.4.2—Frequency
+      - 3.6.1.4.3—Load Distribution for Fatigue
+        - 3.6.1.4.3a—Refined Methods
+        - 3.6.1.4.3b—Approximate Methods
+    - 3.6.1.5—Rail Transit Load
+    - 3.6.1.6—Pedestrian Loads
+    - 3.6.1.7—Loads on Railings
+  - 3.6.2—Dynamic Load Allowance: IM
+    - 3.6.2.1—General
+    - 3.6.2.2—Buried Components
+    - 3.6.2.3—Wood Components
+  - 3.6.3—Centrifugal Forces: CE
+  - 3.6.4—Braking Force: BR
+  - 3.6.5—Vehicular Collision Force: CT
+    - 3.6.5.1—Protection of Structures
+    - 3.6.5.2—Vehicle Collision with Barriers
+- 3.7—WATER LOADS: WA
+  - 3.7.1—Static Pressure
+  - 3.7.2—Buoyancy
+  - 3.7.3—Stream Pressure
+    - 3.7.3.1—Longitudinal
+    - 3.7.3.2—Lateral
+  - 3.7.4—Wave Load
+  - 3.7.5—Change in Foundations Due to Limit State for Scour
+- 3.8—WIND LOAD: WL AND WS
+  - 3.8.1—Horizontal Wind Load
+    - 3.8.1.1—Exposure Conditions
+      - 3.8.1.1.1—General
+      - 3.8.1.1.2—Wind Speed
+      - 3.8.1.1.3—Wind Direction for Determining Wind Exposure Category
+      - 3.8.1.1.4—Ground Surface Roughness Categories
+      - 3.8.1.1.5—Wind Exposure Categories
+    - 3.8.1.2—Wind Load on Structures: WS
+      - 3.8.1.2.1—General
+      - 3.8.1.2.2—Loads on the Superstructure
+      - 3.8.1.2.3—Loads on the Substructure
+        - 3.8.1.2.3a—Loads from the Superstructure
+        - 3.8.1.2.3b—Loads Applied Directly to the Substructure
+      - 3.8.1.2.4—Wind Loads on Sound Barriers
+    - 3.8.1.3—Wind Load on Live Load: WL
+  - 3.8.2—Vertical Wind Load
+  - 3.8.3—Wind-Induced Bridge Motions
+    - 3.8.3.1—General
+    - 3.8.3.2—Wind-Induced Motions
+    - 3.8.3.3—Control of Dynamic Responses
+  - 3.8.4—Site-Specific and Structure-Specific Studies
+- 3.9—ICE LOADS: IC
+  - 3.9.1—General
+  - 3.9.2—Dynamic Ice Forces on Piers
+    - 3.9.2.1—Effective Ice Strength
+    - 3.9.2.2—Crushing and Flexing
+    - 3.9.2.3—Small Streams
+    - 3.9.2.4—Combination of Longitudinal and Transverse Forces
+      - 3.9.2.4.1—Piers Parallel to Flow
+      - 3.9.2.4.2—Piers Skewed to Flow
+    - 3.9.2.5—Slender and Flexible Piers
+  - 3.9.3—Static Ice Loads on Piers
+  - 3.9.4—Hanging Dams and Ice Jams
+  - 3.9.5—Vertical Forces Due to Ice Adhesion
+  - 3.9.6—Ice Accretion and Snow Loads on Superstructures
+- 3.10—EARTHQUAKE EFFECTS: EQ
+  - 3.10.1—General
+  - 3.10.2—Seismic Hazard
+    - 3.10.2.1—General Procedure
+    - 3.10.2.2—Site-Specific Procedure
+  - 3.10.3—Site Effects
+    - 3.10.3.1—Site Class Definitions
+    - 3.10.3.2—Site Factors
+  - 3.10.4—Seismic Hazard Characterization
+    - 3.10.4.1—Design Response Spectrum
+    - 3.10.4.2—Elastic Seismic Response Coefficient
+  - 3.10.5—Operational Classification
+  - 3.10.6—Seismic Performance Zones
+  - 3.10.7—Response Modification Factors
+    - 3.10.7.1—General
+    - 3.10.7.2—Application
+  - 3.10.8—Combination of Seismic Force Effects
+  - 3.10.9—Calculation of Design Forces
+    - 3.10.9.1—General
+    - 3.10.9.2—Seismic Zone 1
+    - 3.10.9.3—Seismic Zone 2
+    - 3.10.9.4—Seismic Zones 3 and 4
+      - 3.10.9.4.1—General
+      - 3.10.9.4.2—Modified Design Forces
+      - 3.10.9.4.3—Inelastic Hinging Forces
+        - 3.10.9.4.3a—General
+        - 3.10.9.4.3b—Single Columns and Piers
+        - 3.10.9.4.3c—Piers with Two or More Columns
+        - 3.10.9.4.3d—Column and Pile Bent Design Forces
+        - 3.10.9.4.3e—Pier Design Forces
+        - 3.10.9.4.3f—Foundation Design Forces
+    - 3.10.9.5—Longitudinal Restrainers
+    - 3.10.9.6—Hold-Down Devices
+  - 3.10.10—Requirements for Temporary Bridges and Stage Construction
+- 3.11—EARTH PRESSURE: EH, ES, LS, AND DD
+  - 3.11.1—General
+  - 3.11.2—Compaction
+  - 3.11.3—Presence of Water
+  - 3.11.4—Effect of Earthquake
+  - 3.11.5—Earth Pressure: EH
+    - 3.11.5.1—Lateral Earth Pressure
+    - 3.11.5.2—At-Rest Lateral Earth Pressure Coefficient, ko
+    - 3.11.5.3—Active Lateral Earth Pressure Coefficient, ka
+    - 3.11.5.4—Passive Lateral Earth Pressure Coefficient, kp
+    - 3.11.5.5—Equivalent-fluid Method of Estimating Rankine Lateral Earth Pressures
+    - 3.11.5.6—Lateral Earth Pressures for Nongravity Cantilevered Walls
+    - 3.11.5.7—Apparent Earth Pressure (AEP) for Anchored Walls
+      - 3.11.5.7.1—Cohesionless Soils
+      - 3.11.5.7.2—Cohesive Soils
+        - 3.11.5.7.2a—Stiff to Hard
+        - 3.11.5.7.2b—Soft to Medium Stiff
+    - 3.11.5.8—Lateral Earth Pressures for Mechanically Stabilized Earth Walls
+      - 3.11.5.8.1—General
+      - 3.11.5.8.2—Internal Stability
+    - 3.11.5.9—Lateral Earth Pressures for Prefabricated Modular Walls
+    - 3.11.5.10—Lateral Earth Pressures for Sound Barriers Supported on Discrete and Continuous Vertical Embedded Elements
+  - 3.11.6—Surcharge Loads: ES and LS
+    - 3.11.6.1—Uniform Surcharge Loads (ES)
+    - 3.11.6.2—Point, Line, and Strip Loads (ES): Walls Restrained from Movement
+    - 3.11.6.3—Strip Loads (ES): Flexible Walls
+    - 3.11.6.4—Live Load Surcharge (LS)
+    - 3.11.6.5—Reduction of Surcharge
+  - 3.11.7—Reduction Due to Earth Pressure
+  - 3.11.8—Downdrag
+- 3.12—FORCE EFFECTS DUE TO SUPERIMPOSED DEFORMATIONS: TU, TG, SH, CR, SE, PS
+  - 3.12.1—General
+  - 3.12.2—Uniform Temperature
+    - 3.12.2.1—Temperature Range for Procedure A
+    - 3.12.2.2—Temperature Range for Procedure B
+    - 3.12.2.3—Design Thermal Movements
+  - 3.12.3—Temperature Gradient
+  - 3.12.4—Differential Shrinkage
+  - 3.12.5—Creep
+  - 3.12.6—Settlement
+  - 3.12.7—Secondary Forces from Post-Tensioning, PS
+- 3.13—FRICTION FORCES: FR
+- 3.14—VESSEL COLLISION: CV
+  - 3.14.1—General
+  - 3.14.2—Owner’s Responsibility
+  - 3.14.3—Operational Classification
+  - 3.14.4—Design Vessel
+  - 3.14.5—Annual Frequency of Collapse
+    - 3.14.5.1—Vessel Frequency Distribution
+    - 3.14.5.2—Probability of Aberrancy
+      - 3.14.5.2.1—General
+      - 3.14.5.2.2—Statistical Method
+      - 3.14.5.2.3—Approximate Method
+    - 3.14.5.3—Geometric Probability
+    - 3.14.5.4—Probability of Collapse
+    - 3.14.5.5 Protection Factor
+  - 3.14.6—Design Collision Velocity
+  - 3.14.7—Vessel Collision Energy
+  - 3.14.8—Ship Collision Force on Pier
+  - 3.14.9—Ship Bow Damage Length
+  - 3.14.10—Ship Collision Force on Superstructure
+    - 3.14.10.1—Collision with Bow
+    - 3.14.10.2—Collision with Deck House
+    - 3.14.10.3—Collision with Mast
+  - 3.14.11—Barge Collision Force on Pier
+  - 3.14.12—Barge Bow Damage Length
+  - 3.14.13—Damage at the Extreme Limit State
+  - 3.14.14—Application of Impact Force
+    - 3.14.14.1—Substructure Design
+    - 3.14.14.2—Superstructure Design
+  - 3.14.15—Protection of Substructures
+  - 3.14.16—Security Considerations
+- 3.15—BLAST LOADING: BL
+  - 3.15.1—Introduction
+- 3.16—REFERENCES
+- APPENDIX A3—SEISMIC DESIGN FLOWCHARTS
+- APPENDIX B3—OVERSTRENGTH RESISTANCE
+
+## SECTION 4: STRUCTURAL ANALYSIS AND EVALUATION
+
+TABLE OF CONTENTS
+
+- 4.1—SCOPE
+- 4.2—DEFINITIONS
+- 4.3—NOTATION
+- 4.4—ACCEPTABLE METHODS OF STRUCTURAL ANALYSIS
+- 4.5—MATHEMATICAL MODELING
+  - 4.5.1—General
+  - 4.5.2—Structural Material Behavior
+    - 4.5.2.1—Elastic Versus Inelastic Behavior
+    - 4.5.2.2—Elastic Behavior
+    - 4.5.2.3—Inelastic Behavior
+  - 4.5.3—Geometry
+    - 4.5.3.1—Small Deflection Theory
+    - 4.5.3.2—Large Deflection Theory
+      - 4.5.3.2.1—General
+      - 4.5.3.2.2—Approximate Methods
+        - 4.5.3.2.2a—General
+        - 4.5.3.2.2b—Moment Magnification—Beam Columns
+        - 4.5.3.2.2c—Moment Magnification—Arches
+      - 4.5.3.2.3—Refined Methods
+  - 4.5.4—Modeling Boundary Conditions
+  - 4.5.5—Equivalent Members
+- 4.6—STATIC ANALYSIS
+  - 4.6.1—Influence of Plan Geometry
+    - 4.6.1.1—Plan Aspect Ratio
+    - 4.6.1.2—Structures Curved in Plan
+      - 4.6.1.2.1—General
+      - 4.6.1.2.2—Single-Girder Torsionally Stiff Superstructures
+      - 4.6.1.2.3—Concrete Box Girder Bridges
+      - 4.6.1.2.4—Steel Multiple-Beam Superstructures
+        - 4.6.1.2.4a—General
+        - 4.6.1.2.4b—I-Girders
+        - 4.6.1.2.4c—Closed Box and Tub Girders
+  - 4.6.2—Approximate Methods of Analysis
+    - 4.6.2.1—Decks
+      - 4.6.2.1.1—General
+      - 4.6.2.1.2—Applicability
+      - 4.6.2.1.3—Width of Equivalent Interior Strips
+      - 4.6.2.1.4—Width of Equivalent Strips at Edges of Slabs
+        - 4.6.2.1.4a—General
+        - 4.6.2.1.4b—Longitudinal Edges
+        - 4.6.2.1.4c—Transverse Edges
+      - 4.6.2.1.5—Distribution of Wheel Loads
+      - 4.6.2.1.6—Calculation of Force Effects
+      - 4.6.2.1.7—Cross-Sectional Frame Action
+      - 4.6.2.1.8—Live Load Force Effects for Fully and Partially Filled Grids and for Unfilled Grid Decks Composite with Reinforced Concrete Slabs
+      - 4.6.2.1.9—Inelastic Analysis
+    - 4.6.2.2—Beam-Slab Bridges
+      - 4.6.2.2.1—Application
+      - 4.6.2.2.2—Distribution Factor Method for Moment and Shear
+        - 4.6.2.2.2a—Interior Beams with Wood Decks
+        - 4.6.2.2.2b—Interior Beams with Concrete Decks
+        - 4.6.2.2.2c—Interior Beams with Corrugated Steel Decks
+        - 4.6.2.2.2d—Exterior Beams
+        - 4.6.2.2.2e—Skewed Bridges
+        - 4.6.2.2.2f—Flexural Moments and Shear in Transverse Floorbeams
+      - 4.6.2.2.3—Distribution Factor Method for Shear
+        - 4.6.2.2.3a—Interior Beams
+        - 4.6.2.2.3b—Exterior Beams
+        - 4.6.2.2.3c—Skewed Bridges
+      - 4.6.2.2.4—Curved Steel Bridges
+      - 4.6.2.2.5—Special Loads with Other Traffic
+    - 4.6.2.3—Equivalent Strip Widths for Slab-Type Bridges
+    - 4.6.2.4—Truss and Arch Bridges
+    - 4.6.2.5—Effective Length Factor, K
+    - 4.6.2.6—Effective Flange Width
+      - 4.6.2.6.1—General
+      - 4.6.2.6.2—Segmental Concrete Box Beams and Single-Cell, Cast-in-Place Box Beams
+      - 4.6.2.6.3—Cast-in-Place Multicell Superstructures
+      - 4.6.2.6.4—Orthotropic Steel Decks
+      - 4.6.2.6.5—Transverse Floorbeams and Integral Bent Caps
+    - 4.6.2.7—Lateral Wind Load Distribution in Girder System Bridges
+      - 4.6.2.7.1—I-Sections
+      - 4.6.2.7.2—Box Sections
+      - 4.6.2.7.3—Construction
+    - 4.6.2.8—Seismic Lateral Load Distribution
+      - 4.6.2.8.1—Applicability
+      - 4.6.2.8.2—Design Criteria
+      - 4.6.2.8.3—Load Distribution
+    - 4.6.2.9—Analysis of Segmental Concrete Bridges
+      - 4.6.2.9.1—General
+      - 4.6.2.9.2—Strut-and-Tie Models
+      - 4.6.2.9.3—Effective Flange Width
+      - 4.6.2.9.4—Transverse Analysis
+      - 4.6.2.9.5—Longitudinal Analysis
+        - 4.6.2.9.5a—General
+        - 4.6.2.9.5b—Erection Analysis
+        - 4.6.2.9.5c—Analysis of the Final Structural System
+    - 4.6.2.10—Equivalent Strip Widths for Box Culverts
+      - 4.6.2.10.1—General
+      - 4.6.2.10.2—Case 1: Traffic Travels Parallel to Span
+      - 4.6.2.10.3—Case 2: Traffic Travels Perpendicular to Span
+      - 4.6.2.10.4—Precast Box Culverts
+  - 4.6.3—Refined Methods of Analysis
+    - 4.6.3.1—General
+    - 4.6.3.2—Decks
+      - 4.6.3.2.1—General
+      - 4.6.3.2.2—Isotropic Plate Model
+      - 4.6.3.2.3—Orthotropic Plate Model
+      - 4.6.3.2.4—Refined Orthotropic Deck Model
+    - 4.6.3.3—Beam-Slab Bridges
+      - 4.6.3.3.1—General
+      - 4.6.3.3.2—Grid and Plate and Eccentric Beam Analyses of Curved and/or Skewed Steel I-Girder Bridges
+      - 4.6.3.3.3—Curved Steel Bridges
+      - 4.6.3.3.4—Cross-Frames and Diaphragms
+    - 4.6.3.4—Cellular and Box Bridges
+    - 4.6.3.5—Truss Bridges
+    - 4.6.3.6—Arch Bridges
+    - 4.6.3.7—Cable-Stayed Bridges
+    - 4.6.3.8—Suspension Bridges
+  - 4.6.4—Redistribution of Negative Moments in Continuous Beam Bridges
+    - 4.6.4.1—General
+    - 4.6.4.2—Refined Method
+    - 4.6.4.3—Approximate Procedure
+  - 4.6.5—Stability
+  - 4.6.6—Analysis for Temperature Gradient
+- 4.7—DYNAMIC ANALYSIS
+  - 4.7.1—Basic Requirements of Structural Dynamics
+    - 4.7.1.1—General
+    - 4.7.1.2—Distribution of Masses
+    - 4.7.1.3—Stiffness
+    - 4.7.1.4—Damping
+    - 4.7.1.5—Natural Frequencies
+  - 4.7.2—Elastic Dynamic Responses
+    - 4.7.2.1—Vehicle-Induced Vibration
+    - 4.7.2.2—Wind-Induced Vibration
+      - 4.7.2.2.1—Wind Velocities
+      - 4.7.2.2.2—Dynamic Effects
+      - 4.7.2.2.3—Design Considerations
+  - 4.7.3—Inelastic Dynamic Responses
+    - 4.7.3.1—General
+    - 4.7.3.2—Plastic Hinges and Yield Lines
+  - 4.7.4—Analysis for Earthquake Loads
+    - 4.7.4.1—General
+    - 4.7.4.2—Single-Span Bridges
+    - 4.7.4.3—Multispan Bridges
+      - 4.7.4.3.1—Selection of Method
+      - 4.7.4.3.2—Single-Mode Methods of Analysis
+        - 4.7.4.3.2a—General
+        - 4.7.4.3.2b—Single-Mode Spectral Method
+        - 4.7.4.3.2c—Uniform Load Method
+      - 4.7.4.3.3—Multimode Spectral Method
+      - 4.7.4.3.4—Time-History Method
+        - 4.7.4.3.4a—General
+        - 4.7.4.3.4b—Acceleration Time Histories
+    - 4.7.4.4—Minimum Support Length Requirements
+    - 4.7.4.5—P-∆ Requirements
+  - 4.7.5—Analysis for Collision Loads
+  - 4.7.6—Analysis of Blast Effects
+- 4.8—ANALYSIS BY PHYSICAL MODELS
+  - 4.8.1—Scale Model Testing
+  - 4.8.2—Bridge Testing
+- 4.9—REFERENCES
+- APPENDIX A4—DECK SLAB DESIGN TABLE
+
+## SECTION 5: CONCRETE STRUCTURES
+
+TABLE OF CONTENTS
+
+- 5.1—SCOPE
+- 5.2—DEFINITIONS
+- 5.3—NOTATION
+- 5.4—MATERIAL PROPERTIES
+  - 5.4.1—General
+  - 5.4.2—Normal Weight and Lightweight Concrete
+    - 5.4.2.1—Compressive Strength
+    - 5.4.2.2—Coefficient of Thermal Expansion
+    - 5.4.2.3—Creep and Shrinkage
+      - 5.4.2.3.1—General
+      - 5.4.2.3.2—Creep
+      - 5.4.2.3.3—Shrinkage
+    - 5.4.2.4—Modulus of Elasticity
+    - 5.4.2.5—Poisson’s Ratio
+    - 5.4.2.6—Modulus of Rupture
+    - 5.4.2.7—Tensile Strength
+    - 5.4.2.8—Concrete Density Modification Factor
+  - 5.4.3—Reinforcing Steel
+    - 5.4.3.1—General
+    - 5.4.3.2—Modulus of Elasticity
+    - 5.4.3.3—Special Applications
+  - 5.4.4—Prestressing Steel
+    - 5.4.4.1—General
+    - 5.4.4.2—Modulus of Elasticity
+  - 5.4.5—Post-Tensioning Anchorages and Couplers
+  - 5.4.6—Post-Tensioning Ducts
+    - 5.4.6.1—General
+    - 5.4.6.2—Size of Ducts
+    - 5.4.6.3—Ducts at Deviation Saddles
+- 5.5—LIMIT STATES AND DESIGN METHODOLOGIES
+  - 5.5.1—General
+    - 5.5.1.1—Limit-State Applicability
+    - 5.5.1.2—Design Methodologies
+      - 5.5.1.2.1—General
+      - 5.5.1.2.2—B-Regions
+      - 5.5.1.2.3—D-Regions
+  - 5.5.2—Service Limit State
+  - 5.5.3—Fatigue Limit State
+    - 5.5.3.1—General
+    - 5.5.3.2—Reinforcing Bars and Welded Wire Reinforcement
+    - 5.5.3.3—Prestressing Steel
+    - 5.5.3.4—Welded or Mechanical Splices of Reinforcement
+  - 5.5.4—Strength Limit State
+    - 5.5.4.1—General
+    - 5.5.4.2—Resistance Factors
+    - 5.5.4.3—Stability
+  - 5.5.5—Extreme Event Limit State
+    - 5.5.5.1—General
+    - 5.5.5.2—Special Requirements for Seismic Zones 2, 3, and 4
+- 5.6—DESIGN FOR FLEXURAL AND AXIAL FORCE EFFECTS—B REGIONS
+  - 5.6.1—Assumptions for Service and Fatigue Limit States
+  - 5.6.2—Assumptions for Strength and Extreme Event Limit States
+    - 5.6.2.1—General
+    - 5.6.2.2—Rectangular Stress Distribution
+  - 5.6.3—Flexural Members
+    - 5.6.3.1—Stress in Prestressing Steel at Nominal Flexural Resistance
+      - 5.6.3.1.1—Components with Bonded Tendons
+      - 5.6.3.1.2—Components with Unbonded Tendons
+      - 5.6.3.1.3—Components with Both Bonded and Unbonded Tendons
+        - 5.6.3.1.3a—Detailed Analysis
+        - 5.6.3.1.3b—Simplified Analysis
+    - 5.6.3.2—Flexural Resistance
+      - 5.6.3.2.1—Factored Flexural Resistance
+      - 5.6.3.2.2—Flanged Sections
+      - 5.6.3.2.3—Rectangular Sections
+      - 5.6.3.2.4—Other Cross Sections
+      - 5.6.3.2.5—Strain Compatibility Approach
+      - 5.6.3.2.6—Composite Girder Sections
+    - 5.6.3.3—Minimum Reinforcement
+    - 5.6.3.4—Moment Redistribution
+    - 5.6.3.5—Deformations
+      - 5.6.3.5.1—General
+      - 5.6.3.5.2—Deflection and Camber
+      - 5.6.3.5.3—Axial Deformation
+  - 5.6.4—Compression Members
+    - 5.6.4.1—General
+    - 5.6.4.2—Limits for Reinforcement
+    - 5.6.4.3—Approximate Evaluation of Slenderness Effects
+    - 5.6.4.4—Factored Axial Resistance
+    - 5.6.4.5—Biaxial Flexure
+    - 5.6.4.6—Spirals, Hoops, and Ties
+    - 5.6.4.7—Hollow Rectangular Compression Members
+      - 5.6.4.7.1—Wall Slenderness Ratio
+      - 5.6.4.7.2—Limitations on the Use of the Rectangular Stress Block Method
+        - 5.6.4.7.2a—General
+        - 5.6.4.7.2b—Refined Method for Adjusting Maximum Usable Strain Limit
+        - 5.6.4.7.2c—Approximate Method for Adjusting Factored Resistance
+  - 5.6.5—Bearing
+  - 5.6.6—Tension Members
+    - 5.6.6.1—Resistance to Tension
+    - 5.6.6.2—Resistance to Combined Tension and Flexure
+  - 5.6.7—Control of Cracking by Distribution of Reinforcement
+- 5.7—DESIGN FOR SHEAR AND TORSION—B-REGIONS
+  - 5.7.1—Design Procedures
+    - 5.7.1.1—Flexural Regions
+    - 5.7.1.2—Regions near Discontinuities
+    - 5.7.1.3—Interface Regions
+    - 5.7.1.4—Slabs and Footings
+    - 5.7.1.5—Webs of Curved Post-Tensioned Box Girder Bridges
+  - 5.7.2—General Requirements
+    - 5.7.2.1—General
+    - 5.7.2.2—Transfer and Development Lengths
+    - 5.7.2.3—Regions Requiring Transverse Reinforcement
+    - 5.7.2.4—Types of Transverse Reinforcement
+    - 5.7.2.5—Minimum Transverse Reinforcement
+    - 5.7.2.6—Maximum Spacing of Transverse Reinforcement
+    - 5.7.2.7—Design and Detailing Requirements
+    - 5.7.2.8—Shear Stress on Concrete
+  - 5.7.3—Sectional Design Model
+    - 5.7.3.1—General
+    - 5.7.3.2—Sections near Supports
+    - 5.7.3.3—Nominal Shear Resistance
+    - 5.7.3.4—Procedures for Determining Shear Resistance Parameters β and θ
+      - 5.7.3.4.1—Simplified Procedure for Nonprestressed Sections
+      - 5.7.3.4.2—General Procedure
+    - 5.7.3.5—Longitudinal Reinforcement
+    - 5.7.3.6—Sections Subjected to Combined Shear and Torsion
+      - 5.7.3.6.1—Transverse Reinforcement
+      - 5.7.3.6.2—Torsional Resistance
+      - 5.7.3.6.3—Longitudinal Reinforcement
+  - 5.7.4—Interface Shear Transfer—Shear Friction
+    - 5.7.4.1—General
+    - 5.7.4.2—Minimum Area of Interface Shear Reinforcement
+    - 5.7.4.3—Interface Shear Resistance
+    - 5.7.4.4—Cohesion and Friction Factors
+    - 5.7.4.5—Computation of the Factored Interface Shear Force for Girder/Slab Bridges
+    - 5.7.4.6—Interface Shear in Box Girder Bridges
+- 5.8—DESIGN OF D-REGIONS
+  - 5.8.1—General
+  - 5.8.2—Strut-and-Tie Method (STM)
+    - 5.8.2.1—General
+    - 5.8.2.2—Structural Modeling
+    - 5.8.2.3—Factored Resistance
+    - 5.8.2.4—Proportioning of Ties
+      - 5.8.2.4.1—Strength of Tie
+      - 5.8.2.4.2—Anchorage of Tie
+    - 5.8.2.5—Proportioning of Node Regions
+      - 5.8.2.5.1—Strength of a Node Face
+      - 5.8.2.5.2—Effective Cross-Sectional Area of the Node Face
+      - 5.8.2.5.3—Limiting Compressive Stress at the Node Face
+        - 5.8.2.5.3a—General
+        - 5.8.2.5.3b—Back Face of a CCT Node
+    - 5.8.2.6—Crack Control Reinforcement
+    - 5.8.2.7—Application to the Design of the General Zones of Post-Tensioning Anchorages
+      - 5.8.2.7.1—General
+      - 5.8.2.7.2—Nodes
+      - 5.8.2.7.3—Struts
+      - 5.8.2.7.4—Ties
+    - 5.8.2.8—Application to the Design of Pier Diaphragms
+    - 5.8.2.9—Application to the Design of Brackets and Corbels
+  - 5.8.3—Elastic Stress Analysis
+    - 5.8.3.1—General
+    - 5.8.3.2—General Zones of Post-Tensioning Anchorages
+  - 5.8.4—Approximate Stress Analysis and Design
+    - 5.8.4.1—Deep Components
+    - 5.8.4.2—Brackets and Corbels
+      - 5.8.4.2.1—General
+      - 5.8.4.2.2—Alternative to Strut-and-Tie Model
+    - 5.8.4.3—Beam Ledges
+      - 5.8.4.3.1—General
+      - 5.8.4.3.2—Design for Shear
+      - 5.8.4.3.3—Design for Flexure and Horizontal Force
+      - 5.8.4.3.4—Design for Punching Shear
+      - 5.8.4.3.5—Design of Hanger Reinforcement
+      - 5.8.4.3.6—Design for Bearing
+    - 5.8.4.4—Local Zones
+      - 5.8.4.4.1—Dimensions of Local Zone
+      - 5.8.4.4.2—Bearing Resistance
+      - 5.8.4.4.3—Special Anchorage Devices
+    - 5.8.4.5—General Zone of Post-Tensioning Anchorages
+      - 5.8.4.5.1—Limitations of Application
+      - 5.8.4.5.2—Compressive Stresses
+      - 5.8.4.5.3—Bursting Forces
+      - 5.8.4.5.4—Edge Tension Forces
+      - 5.8.4.5.5—Multiple Slab Anchorages
+- 5.9—PRESTRESSING
+  - 5.9.1—General Design Considerations
+    - 5.9.1.1—General
+    - 5.9.1.2—Design Concrete Strengths
+    - 5.9.1.3—Section Properties
+    - 5.9.1.4—Crack Control
+    - 5.9.1.5—Buckling
+    - 5.9.1.6—Tendons with Angle Points or Curves
+  - 5.9.2—Stress Limitations
+    - 5.9.2.1—Stresses Due to Imposed Deformation
+    - 5.9.2.2—Stress Limitations for Prestressing Steel
+    - 5.9.2.3—Stress Limits for Concrete
+      - 5.9.2.3.1—For Temporary Stresses before Losses
+        - 5.9.2.3.1a—Compressive Stresses
+        - 5.9.2.3.1b—Tensile Stresses
+      - 5.9.2.3.2—For Stresses at Service Limit State after Losses
+        - 5.9.2.3.2a—Compressive Stresses
+        - 5.9.2.3.2b—Tensile Stresses
+      - 5.9.2.3.3—Principal Tensile Stresses in Webs
+  - 5.9.3—Prestress Losses
+    - 5.9.3.1—Total Prestress Loss
+    - 5.9.3.2—Instantaneous Losses
+      - 5.9.3.2.1—Anchorage Set
+      - 5.9.3.2.2—Friction
+        - 5.9.3.2.2a—Pretensioned Members
+        - 5.9.3.2.2b—Post-Tensioned Members
+      - 5.9.3.2.3—Elastic Shortening
+        - 5.9.3.2.3a—Pretensioned Members
+        - 5.9.3.2.3b—Post-Tensioned Members
+        - 5.9.3.2.3c—Combined Pretensioning and Post-Tensioning
+    - 5.9.3.3—Approximate Estimate of Time-Dependent Losses
+    - 5.9.3.4—Refined Estimates of Time-Dependent Losses
+      - 5.9.3.4.1—General
+      - 5.9.3.4.2—Losses: Time of Transfer to Time of Deck Placement
+        - 5.9.3.4.2a—Shrinkage of Girder Concrete
+        - 5.9.3.4.2b—Creep of Girder Concrete
+        - 5.9.3.4.2c—Relaxation of Prestressing Strands
+      - 5.9.3.4.3—Losses: Time of Deck Placement to  Final Time
+        - 5.9.3.4.3a—Shrinkage of Girder Concrete
+        - 5.9.3.4.3b—Creep of Girder Concrete
+        - 5.9.3.4.3c—Relaxation of Prestressing Strands
+        - 5.9.3.4.3d—Shrinkage of Deck Concrete
+      - 5.9.3.4.4—Precast Pretensioned Girders without Composite Topping
+      - 5.9.3.4.5—Post-Tensioned Nonsegmental Girders
+    - 5.9.3.5—Losses in Multi-Stage Prestressing
+    - 5.9.3.6—Losses for Deflection Calculations
+  - 5.9.4—Details for Pretensioning
+    - 5.9.4.1—Minimum Spacing of Pretensioning Strand
+    - 5.9.4.2—Maximum Spacing of Pretensioning Strand in Slabs
+    - 5.9.4.3—Development of Pretensioning Strand
+      - 5.9.4.3.1—General
+      - 5.9.4.3.2—Bonded Strand
+      - 5.9.4.3.3—Debonded Strands
+    - 5.9.4.4—Pretensioned Anchorage Zones
+      - 5.9.4.4.1—Splitting Resistance
+      - 5.9.4.4.2—Confinement Reinforcement
+    - 5.9.4.5—Temporary Strands
+  - 5.9.5—Details for Post-Tensioning
+    - 5.9.5.1—Minimum Spacing of Post-Tensioning Tendons and Ducts
+      - 5.9.5.1.1—Post-Tensioning Ducts—Girders Straight in Plane
+      - 5.9.5.1.2—Post-Tensioning Ducts—Girders Curved in Plan
+    - 5.9.5.2—Maximum Spacing of Post-Tensioning Ducts in Slabs
+    - 5.9.5.3—Couplers in Post-Tensioning Tendons
+    - 5.9.5.4—Tendon Confinement
+      - 5.9.5.4.1—General
+      - 5.9.5.4.2—Wobble Effect in Slabs
+      - 5.9.5.4.3—Effects of Curved Tendons
+      - 5.9.5.4.4—Design for In-Plane Force Effects
+        - 5.9.5.4.4a—In-Plane Force Effects
+        - 5.9.5.4.4b—Shear Resistance to Pullout
+        - 5.9.5.4.4c—Cracking of Cover Concrete
+        - 5.9.5.4.4d—Regional Bending
+      - 5.9.5.4.5—Out-of-Plane Force Effects
+    - 5.9.5.5—External Tendon Supports
+    - 5.9.5.6—Post-Tensioned Anchorage Zones
+      - 5.9.5.6.1—General
+      - 5.9.5.6.2—General Zone
+      - 5.9.5.6.3—Local Zone
+      - 5.9.5.6.4—Responsibilities
+      - 5.9.5.6.5—Design of the General Zone
+        - 5.9.5.6.5a—Design Methods
+        - 5.9.5.6.5b—Design Principles
+      - 5.9.5.6.6—Special Anchorage Devices
+      - 5.9.5.6.7—Intermediate Anchorages
+        - 5.9.5.6.7a—General
+        - 5.9.5.6.7b—Crack Control behind Intermediate Anchors
+        - 5.9.5.6.7c—Blister and Rib Reinforcement
+      - 5.9.5.6.8—Diaphragms
+      - 5.9.5.6.9—Deviation Saddles
+- 5.10—REINFORCEMENT
+  - 5.10.1—Concrete Cover
+  - 5.10.2—Hooks and Bends
+    - 5.10.2.1—Standard Hooks
+    - 5.10.2.2—Seismic Hooks
+    - 5.10.2.3—Minimum Bend Diameters
+  - 5.10.3—Spacing of Reinforcement
+    - 5.10.3.1 Minimum Spacing of Reinforcing Bars
+      - 5.10.3.1.1—Cast-in-Place Concrete
+      - 5.10.3.1.2—Precast Concrete
+      - 5.10.3.1.3—Multilayers
+      - 5.10.3.1.4—Splices
+      - 5.10.3.1.5—Bundled Bars
+    - 5.10.3.2—Maximum Spacing of Reinforcing Bars
+  - 5.10.4—Transverse Reinforcement for Compression Members
+    - 5.10.4.1—General
+    - 5.10.4.2—Spirals
+    - 5.10.4.3—Ties
+  - 5.10.5—Transverse Reinforcement for Flexural Members
+  - 5.10.6—Shrinkage and Temperature Reinforcement
+  - 5.10.7—Reinforcement for Hollow Rectangular Compression Members
+    - 5.10.7.1—General
+    - 5.10.7.2—Spacing of Reinforcement
+    - 5.10.7.3—Ties
+    - 5.10.7.4—Splices
+    - 5.10.7.5—Hoops
+  - 5.10.8—Development and Splices of Reinforcement
+    - 5.10.8.1—General
+      - 5.10.8.1.1—Basic Requirements
+      - 5.10.8.1.2—Flexural Reinforcement
+        - 5.10.8.1.2a—General
+        - 5.10.8.1.2b—Positive Moment Reinforcement
+        - 5.10.8.1.2c—Negative Moment Reinforcement
+        - 5.10.8.1.2d—Moment Resisting Joints
+    - 5.10.8.2—Development of Reinforcement
+      - 5.10.8.2.1—Deformed Bars and Deformed Wire in Tension
+        - 5.10.8.2.1a—Tension Development Length
+        - 5.10.8.2.1b—Modification Factors which Increase ℓd
+        - 5.10.8.2.1c—Modification Factors which Decrease ℓd
+      - 5.10.8.2.2—Deformed Bars in Compression
+        - 5.10.8.2.2a—Compressive Development Length
+        - 5.10.8.2.2b—Modification Factors
+      - 5.10.8.2.3—Bundled Bars
+      - 5.10.8.2.4—Standard Hooks in Tension
+        - 5.10.8.2.4a—Basic Hook Development Length
+        - 5.10.8.2.4b—Modification Factors
+        - 5.10.8.2.4c—Hooked-Bar Tie Requirements
+      - 5.10.8.2.5—Welded Wire Reinforcement
+      - 5.10.8.2.6—Shear Reinforcement
+        - 5.10.8.2.6a—General
+        - 5.10.8.2.6b—Anchorage of Deformed Reinforcement
+        - 5.10.8.2.6c—Anchorage of Wire Fabric Reinforcement
+        - 5.10.8.2.6d—Closed Stirrups
+    - 5.10.8.3—Development by Mechanical Anchorages
+    - 5.10.8.4—Splices of Bar Reinforcement
+      - 5.10.8.4.1—Detailing
+      - 5.10.8.4.2—General Requirements
+        - 5.10.8.4.2a—Lap Splices
+        - 5.10.8.4.2b—Mechanical Connections
+        - 5.10.8.4.2c—Welded Splices
+      - 5.10.8.4.3—Splices of Reinforcement in Tension
+        - 5.10.8.4.3a—Lap Splices in Tension
+        - 5.10.8.4.3b—Mechanical Connections or Welded Splices in Tension
+      - 5.10.8.4.4—Splices in Tie Members
+      - 5.10.8.4.5—Splices of Bars in Compression
+        - 5.10.8.4.5a—Lap Splices in Compression
+        - 5.10.8.4.5b—Mechanical Connections or Welded Splices in Compression
+        - 5.10.8.4.5c—End-Bearing Splices
+    - 5.10.8.5—Splices of Welded Wire Reinforcement
+      - 5.10.8.5.1—Splices of Deformed Welded Wire Reinforcement in Tension
+      - 5.10.8.5.2—Splices of Plain Welded Wire Reinforcement in Tension
+- 5.11—SEISMIC DESIGN AND DETAILS
+  - 5.11.1—General
+  - 5.11.2—Seismic Zone 1
+  - 5.11.3—Seismic Zone 2
+    - 5.11.3.1—General
+    - 5.11.3.2—Concrete Piles
+      - 5.11.3.2.1—General
+      - 5.11.3.2.2—Cast-in-Place Piles
+      - 5.11.3.2.3—Precast Reinforced Piles
+      - 5.11.3.2.4—Precast Prestressed Piles
+  - 5.11.4—Seismic Zones 3 and 4
+    - 5.11.4.1—Column Requirements
+      - 5.11.4.1.1—Longitudinal Reinforcement
+      - 5.11.4.1.2—Flexural Resistance
+      - 5.11.4.1.3—Column Shear and Transverse Reinforcement
+      - 5.11.4.1.4—Transverse Reinforcement for Confinement at Plastic Hinges
+      - 5.11.4.1.5—Spacing of Transverse Reinforcement for Confinement
+      - 5.11.4.1.6—Splices
+    - 5.11.4.2—Requirements for Wall-Type Piers
+    - 5.11.4.3—Column Connections
+    - 5.11.4.4—Construction Joints in Piers and Columns
+    - 5.11.4.5—Concrete Piles
+      - 5.11.4.5.1—General
+      - 5.11.4.5.2—Confinement Length
+      - 5.11.4.5.3—Volumetric Ratio for Confinement
+      - 5.11.4.5.4—Cast-in-Place Piles
+      - 5.11.4.5.5—Precast Piles
+- 5.12—PROVISIONS FOR STRUCTURE COMPONENTS AND TYPES
+  - 5.12.1—Deck Slabs
+  - 5.12.2—Slab Superstructures
+    - 5.12.2.1—Cast-in-Place Solid Slab Superstructures
+    - 5.12.2.2—Cast-in-Place Voided Slab Superstructures
+      - 5.12.2.2.1—Cross Section Dimensions
+      - 5.12.2.2.2—Minimum Number of Bearings
+      - 5.12.2.2.3—Solid End Sections
+      - 5.12.2.2.4—General Design Requirements
+      - 5.12.2.2.5—Compressive Zones in Negative Moment Area
+      - 5.12.2.2.6—Drainage of Voids
+    - 5.12.2.3—Precast Deck Bridges
+      - 5.12.2.3.1—General
+      - 5.12.2.3.2—Shear Transfer Joints
+      - 5.12.2.3.3—Shear-Flexure Transfer Joints
+        - 5.12.2.3.3a—General
+        - 5.12.2.3.3b—Design
+        - 5.12.2.3.3c—Post-Tensioning
+        - 5.12.2.3.3d—Longitudinal Construction Joints
+        - 5.12.2.3.3e—Cast-in-Place Closure Joints
+        - 5.12.2.3.3f—Structural Overlay
+  - 5.12.3—Beams and Girders
+    - 5.12.3.1—General
+    - 5.12.3.2—Precast Beams
+      - 5.12.3.2.1—Preservice Conditions
+      - 5.12.3.2.2—Extreme Dimensions
+      - 5.12.3.2.3—Lifting Devices
+      - 5.12.3.2.4—Detail Design
+      - 5.12.3.2.5—Concrete Strength
+    - 5.12.3.3—Bridges Composed of Simple Span Precast Girders Made Continuous
+      - 5.12.3.3.1—General
+      - 5.12.3.3.2—Restraint Moments
+      - 5.12.3.3.3—Material Properties
+      - 5.12.3.3.4—Age of Girder When Continuity Is Established
+      - 5.12.3.3.5—Degree of Continuity at Various Limit States
+      - 5.12.3.3.6—Service Limit State
+      - 5.12.3.3.7—Strength Limit State
+      - 5.12.3.3.8—Negative Moment Connections
+      - 5.12.3.3.9—Positive Moment Connections
+        - 5.12.3.3.9a—General
+        - 5.12.3.3.9b—Positive Moment Connection Using Nonprestressed Reinforcement
+        - 5.12.3.3.9c—Positive Moment Connection Using Prestressing Strand
+        - 5.12.3.3.9d—Details of Positive Moment Connection
+      - 5.12.3.3.10—Continuity Diaphragms
+    - 5.12.3.4—Spliced Precast Girders
+      - 5.12.3.4.1—General
+      - 5.12.3.4.2—Joints Between Spliced Girders
+        - 5.12.3.4.2a—General
+        - 5.12.3.4.2b—Details of Closure Joints
+        - 5.12.3.4.2c—Details of Match-Cast Joints
+        - 5.12.3.4.2d—Joint Design
+      - 5.12.3.4.3—Girder Segment Design
+      - 5.12.3.4.4—Post-Tensioning
+    - 5.12.3.5—Cast-in-Place Box Girders and T-Beams
+      - 5.12.3.5.1—Flange and Web Thickness
+        - 5.12.3.5.1a—Top Flange
+        - 5.12.3.5.1b—Bottom Flange
+        - 5.12.3.5.1c—Web
+      - 5.12.3.5.2—Reinforcement
+        - 5.12.3.5.2a—Deck Slab Reinforcement Cast-in-Place in T-Beams and Box Girders
+        - 5.12.3.5.2b—Bottom Slab Reinforcement in Cast-in-Place Box Girders
+  - 5.12.4—Diaphragms
+  - 5.12.5—Segmental Concrete Bridges
+    - 5.12.5.1—General
+    - 5.12.5.2—Analysis of Segmental Bridges
+      - 5.12.5.2.1—General
+      - 5.12.5.2.2—Construction Analysis
+      - 5.12.5.2.3—Analysis of the Final Structural System
+    - 5.12.5.3—Design
+      - 5.12.5.3.1—Loads
+      - 5.12.5.3.2—Construction Loads
+      - 5.12.5.3.3—Construction Load Combinations at the Service Limit State
+      - 5.12.5.3.4—Construction Load Combinations at Strength Limit States
+        - 5.12.5.3.4a—Superstructure Load Effects and Structural Stability
+        - 5.12.5.3.4b—Substructures
+      - 5.12.5.3.5—Thermal Effects During Construction
+      - 5.12.5.3.6—Creep and Shrinkage
+      - 5.12.5.3.7—Prestress Losses
+      - 5.12.5.3.8—Alternative Shear Design Procedure
+        - 5.12.5.3.8a—General
+        - 5.12.5.3.8b—Loading
+        - 5.12.5.3.8c—Nominal Shear Resistance
+        - 5.12.5.3.8d—Torsional Reinforcement
+        - 5.12.5.3.8e—Reinforcement Details
+      - 5.12.5.3.9—Provisional Post-Tensioning Ducts and Anchorages
+        - 5.12.5.3.9a—General
+        - 5.12.5.3.9b—Bridges with Internal Ducts
+        - 5.12.5.3.9c—Provision for Future Dead Load or Deflection Adjustment
+      - 5.12.5.3.10—Plan Presentation
+      - 5.12.5.3.11—Box Girder Cross section Dimensions and Details
+        - 5.12.5.3.11a—Minimum Flange Thickness
+        - 5.12.5.3.11b—Minimum Web Thickness
+        - 5.12.5.3.11c—Length of Top Flange Cantilever
+        - 5.12.5.3.11d—Overall Cross Section Dimensions
+      - 5.12.5.3.12—Seismic Design
+    - 5.12.5.4—Types of Segmental Bridges
+      - 5.12.5.4.1—General
+      - 5.12.5.4.2—Details for Precast Construction
+      - 5.12.5.4.3—Details for Cast-in-Place Construction
+      - 5.12.5.4.4—Cantilever Construction
+      - 5.12.5.4.5—Span-by-Span Construction
+      - 5.12.5.4.6—Incrementally Launched Construction
+        - 5.12.5.4.6a—General
+        - 5.12.5.4.6b—Force Effects Due to Construction Tolerances
+        - 5.12.5.4.6c—Design Details
+        - 5.12.5.4.6d—Design of Construction Equipment
+    - 5.12.5.5—Use of Alternative Construction Methods
+    - 5.12.5.6—Segmentally Constructed Bridge Substructures
+      - 5.12.5.6.1—General
+      - 5.12.5.6.2—Construction Load Combinations
+      - 5.12.5.6.3—Longitudinal Reinforcement of Hollow, Rectangular Precast Segmental Piers
+  - 5.12.6—Arches
+    - 5.12.6.1—General
+    - 5.12.6.2—Arch Ribs
+  - 5.12.7—Culverts
+    - 5.12.7.1—General
+    - 5.12.7.2—Design for Flexure
+    - 5.12.7.3—Design for Shear in Slabs of Box Culverts
+  - 5.12.8—Footings
+    - 5.12.8.1—General
+    - 5.12.8.2—Loads and Reactions
+    - 5.12.8.3—Resistance Factors
+    - 5.12.8.4—Moment in Footings
+    - 5.12.8.5—Distribution of Moment Reinforcement
+    - 5.12.8.6—Shear in Slabs and Footings
+      - 5.12.8.6.1—Critical Sections for Shear
+      - 5.12.8.6.2—One-Way Action
+      - 5.12.8.6.3—Two-Way Action
+    - 5.12.8.7—Development of Reinforcement
+    - 5.12.8.8—Transfer of Force at Base of Column
+  - 5.12.9—Concrete Piles
+    - 5.12.9.1—General
+    - 5.12.9.2—Splices
+    - 5.12.9.3—Precast Reinforced Piles
+      - 5.12.9.3.1—Pile Dimensions
+      - 5.12.9.3.2—Reinforcement
+    - 5.12.9.4—Precast Prestressed Piles
+      - 5.12.9.4.1—Pile Dimensions
+      - 5.12.9.4.2—Concrete Quality
+      - 5.12.9.4.3—Reinforcement
+    - 5.12.9.5—Cast-in-Place Piles
+      - 5.12.9.5.1—Pile Dimensions
+      - 5.12.9.5.2—Reinforcement
+- 5.13—ANCHORS
+  - 5.13.1—General
+  - 5.13.2—General Strength Requirements
+    - 5.13.2.1—Failure Modes to be Considered
+    - 5.13.2.2—Resistance Factors
+    - 5.13.2.3—Determination of Anchor Resistance
+  - 5.13.3—Seismic Design Requirements
+  - 5.13.4—Installation
+- 5.14—DURABILITY
+  - 5.14.1—Design Concepts
+  - 5.14.2—Major Chemical and Mechanical Factors Affecting Durability
+    - 5.14.2.1—General
+    - 5.14.2.2—Corrosion Resistance
+    - 5.14.2.3—Freeze–Thaw Resistance
+    - 5.14.2.4—External Sulfate Attack
+    - 5.14.2.5—Delayed Ettringite Formation
+    - 5.14.2.6—Alkali–Silica Reactive Aggregates
+    - 5.14.2.7—Alkali–Carbonate Reactive Aggregates
+  - 5.14.3—Concrete Cover
+  - 5.14.4—Corrosion-Resistant Reinforcement
+  - 5.14.5—Deck Protection Systems
+  - 5.14.6—Protection for Prestressing Tendons
+- 5.15—REFERENCES
+- APPENDIX A5—BASIC STEPS FOR CONCRETE BRIDGES
+  - A5.1—GENERAL
+  - A5.2—GENERAL CONSIDERATIONS
+  - A5.3—BEAM AND GIRDER SUPERSTRUCTURE DESIGN
+  - A5.4—SLAB BRIDGES
+  - A5.5—SUBSTRUCTURE DESIGN
+- APPENDIX B5—GENERAL PROCEDURE FOR SHEAR DESIGN WITH TABLES
+  - B5.1—BACKGROUND
+  - B5.2—SECTIONAL DESIGN MODEL—GENERAL PROCEDURE
+- APPENDIX C5—UPPER LIMITS FOR ARTICLES AFFECTED BY CONCRETE COMPRESSIVE STRENGTH
+- APPENDIX D5—ARTICLES MODIFIED TO ALLOW THE USE OF REINFORCEMENT WITH A SPECIFIED MINIMUM YIELD STRENGTH UP TO 100 KSI
+- APPENDIX E5—CROSSWALK BETWEEN 7TH AND 8TH EDITIONS
+
+## SECTION 6: STEEL STRUCTURES
+
+TABLE OF CONTENTS
+
+- 6.1—SCOPE
+- 6.2—DEFINITIONS
+- 6.3—NOTATION
+- 6.4—MATERIALS
+  - 6.4.1—Structural Steels
+  - 6.4.2—Pins, Rollers, and Rockers
+  - 6.4.3—Bolts, Nuts, and Washers
+    - 6.4.3.1—High-Strength Structural Fasteners
+      - 6.4.3.1.1—High-Strength Bolts
+      - 6.4.3.1.2—Nuts Used with ASTM F3125 Bolts
+      - 6.4.3.1.3—Washers Used with ASTM F3125 Bolts
+      - 6.4.3.1.4—Direct Tension Indicators
+    - 6.4.3.2—Low-Strength Steel Bolts
+    - 6.4.3.3—Fasteners for Structural Anchorage
+      - 6.4.3.3.1—Anchor Rods
+      - 6.4.3.3.2—Nuts Used with Anchor Rods
+  - 6.4.4—Stud Shear Connectors
+  - 6.4.5—Weld Metal
+  - 6.4.6—Cast Metal
+    - 6.4.6.1—Cast Steel and Ductile Iron
+    - 6.4.6.2—Malleable Castings
+    - 6.4.6.3—Cast Iron
+  - 6.4.7—Stainless Steel
+  - 6.4.8—Cables
+    - 6.4.8.1—Bright Wire
+    - 6.4.8.2—Galvanized Wire
+    - 6.4.8.3—Epoxy-Coated Wire
+    - 6.4.8.4—Bridge Strand
+  - 6.4.9—Dissimilar Metals
+- 6.5—LIMIT STATES
+  - 6.5.1—General
+  - 6.5.2—Service Limit State
+  - 6.5.3—Fatigue and Fracture Limit State
+  - 6.5.4—Strength Limit State
+    - 6.5.4.1—General
+    - 6.5.4.2—Resistance Factors
+  - 6.5.5—Extreme Event Limit State
+- 6.6—FATIGUE AND FRACTURE CONSIDERATIONS
+  - 6.6.1—Fatigue
+    - 6.6.1.1—General
+    - 6.6.1.2—Load-Induced Fatigue
+      - 6.6.1.2.1—Application
+      - 6.6.1.2.2—Design Criteria
+      - 6.6.1.2.3—Detail Categories
+      - 6.6.1.2.4—Detailing to Reduce Constraint
+      - 6.6.1.2.5—Fatigue Resistance
+    - 6.6.1.3—Distortion-Induced Fatigue
+      - 6.6.1.3.1—Transverse Connection Plates
+      - 6.6.1.3.2—Lateral Connection Plates
+      - 6.6.1.3.3—Orthotropic Decks
+  - 6.6.2—Fracture
+    - 6.6.2.1—Member or Component Designations and Charpy V-Notch Testing Requirements
+    - 6.6.2.2—Fracture-Critical Members
+- 6.7—GENERAL DIMENSION AND DETAIL REQUIREMENTS
+  - 6.7.1—Effective Length of Span
+  - 6.7.2—Dead Load Camber and Detailing of Structural Components
+  - 6.7.3—Minimum Thickness of Steel
+  - 6.7.4—Diaphragms and Cross-Frames
+    - 6.7.4.1—General
+    - 6.7.4.2—I-Section Members
+    - 6.7.4.3—Composite Box-Section Members
+    - 6.7.4.4—Noncomposite Box-Section Members
+      - 6.7.4.4.1—General
+      - 6.7.4.4.2—Square and Rectangular HSS Members
+      - 6.7.4.4.3—Welded and Nonwelded Built-Up Noncomposite Box-Section Members
+    - 6.7.4.5—Trusses and Arches
+  - 6.7.5—Lateral Bracing
+    - 6.7.5.1—General
+    - 6.7.5.2—I-Section Members
+    - 6.7.5.3—Tub Section Members
+    - 6.7.5.4—Trusses
+  - 6.7.6—Pins
+    - 6.7.6.1—Location
+    - 6.7.6.2—Resistance
+      - 6.7.6.2.1—Combined Flexure and Shear
+      - 6.7.6.2.2—Bearing
+    - 6.7.6.3—Minimum Size Pin for Eyebars
+    - 6.7.6.4—Pins and Pin Nuts
+  - 6.7.7—Heat-Curved Rolled Beams and Welded Plate Girders
+    - 6.7.7.1—Scope
+    - 6.7.7.2—Geometric Limitations
+  - 6.7.8—Bent Plates
+- 6.8—TENSION MEMBERS
+  - 6.8.1—General
+  - 6.8.2—Tensile Resistance
+    - 6.8.2.1—General
+    - 6.8.2.2—Reduction Factor, U
+    - 6.8.2.3—Combined Axial Tension, Flexure, and Flexural and/or Torsional Shear
+      - 6.8.2.3.1—General
+      - 6.8.2.3.2—Interaction with Torsional and/or Flexural Shear
+      - 6.8.2.3.3—Tension Rupture under Axial Tension or Compression Combined with Flexure
+  - 6.8.3—Net Area
+  - 6.8.4—Limiting Slenderness Ratio for Tension Members
+  - 6.8.5—Builtup Members
+    - 6.8.5.1—General
+    - 6.8.5.2—Perforated Plates
+  - 6.8.6—Eyebars
+    - 6.8.6.1—Factored Resistance
+    - 6.8.6.2—Proportions
+    - 6.8.6.3—Packing
+  - 6.8.7—Pin-Connected Plates
+    - 6.8.7.1—General
+    - 6.8.7.2—Pin Plates
+    - 6.8.7.3—Proportions
+    - 6.8.7.4—Packing
+- 6.9—COMPRESSION MEMBERS
+  - 6.9.1—General
+  - 6.9.2—Compressive Resistance
+    - 6.9.2.1—Axial Compression
+    - 6.9.2.2—Combined Axial Compression, Flexure, and Flexural and/or Torsional Shear
+      - 6.9.2.2.1—General
+      - 6.9.2.2.2—Interaction with Torsional and/or Flexural Shear
+  - 6.9.3—Limiting Slenderness Ratio for Compression Members
+  - 6.9.4—Noncomposite Members
+    - 6.9.4.1—Nominal Compressive Resistance
+      - 6.9.4.1.1—General
+      - 6.9.4.1.2—Elastic Flexural Buckling Resistance
+      - 6.9.4.1.3—Elastic Torsional Buckling and Flexural–Torsional Buckling Resistance
+    - 6.9.4.2—Effects of Local Buckling on the Nominal Compressive Resistance
+      - 6.9.4.2.1—Classification of Cross-Section Elements
+      - 6.9.4.2.2—Slender Longitudinally Unstiffened Cross-Section Elements
+        - 6.9.4.2.2a—General
+        - 6.9.4.2.2b—Effective Width of Slender Elements
+        - 6.9.4.2.2c—Effective Area of Circular Tubes and Round HSS
+    - 6.9.4.3—Built-Up Members
+      - 6.9.4.3.1—General
+      - 6.9.4.3.2—Perforated Plates
+    - 6.9.4.4—Single-Angle Members
+    - 6.9.4.5—Plate Buckling under Service and Construction Loads
+  - 6.9.5—Composite Members
+    - 6.9.5.1—Nominal Compressive Resistance
+    - 6.9.5.2—Limitations
+      - 6.9.5.2.1—General
+      - 6.9.5.2.2—Concrete-Filled Tubes
+      - 6.9.5.2.3—Concrete-Encased Shapes
+  - 6.9.6—Composite Concrete-Filled Steel Tubes (CFSTs)
+    - 6.9.6.1—General
+    - 6.9.6.2—Limitations
+    - 6.9.6.3—Combined Axial Compression and Flexure
+      - 6.9.6.3.1—General
+      - 6.9.6.3.2—Axial Compressive Resistance
+      - 6.9.6.3.3—Nominal Flexural Composite Resistance
+      - 6.9.6.3.4—Nominal Stability-Based Interaction Curve
+- 6.10—I-SECTION FLEXURAL MEMBERS
+  - 6.10.1—General
+    - 6.10.1.1—Composite Sections
+      - 6.10.1.1.1—Stresses
+        - 6.10.1.1.1a—Sequence of Loading
+        - 6.10.1.1.1b—Stresses for Sections in Positive Flexure
+        - 6.10.1.1.1c—Stresses for Sections in Negative Flexure
+        - 6.10.1.1.1d—Concrete Deck Stresses
+        - 6.10.1.1.1e—Effective Width of Concrete Deck
+    - 6.10.1.2—Noncomposite Sections
+    - 6.10.1.3—Hybrid Sections
+    - 6.10.1.4—Variable Web Depth Members
+    - 6.10.1.5—Stiffness
+    - 6.10.1.6—Flange Stresses and Member Bending Moments
+    - 6.10.1.7—Minimum Negative Flexure Concrete Deck Reinforcement
+    - 6.10.1.8—Tension Flanges with Holes
+    - 6.10.1.9—Web Bend-Buckling Resistance
+      - 6.10.1.9.1—Webs without Longitudinal Stiffeners
+      - 6.10.1.9.2—Webs with Longitudinal Stiffeners
+    - 6.10.1.10—Flange-Strength Reduction Factors
+      - 6.10.1.10.1—Hybrid Factor, Rh
+      - 6.10.1.10.2—Web Load-Shedding Factor, Rb
+  - 6.10.2—Cross-Section Proportion Limits
+    - 6.10.2.1—Web Proportions
+      - 6.10.2.1.1—Webs without Longitudinal Stiffeners
+      - 6.10.2.1.2—Webs with Longitudinal Stiffeners
+    - 6.10.2.2—Flange Proportions
+  - 6.10.3—Constructibility
+    - 6.10.3.1—General
+    - 6.10.3.2—Flexure
+      - 6.10.3.2.1—Discretely Braced Flanges in Compression
+      - 6.10.3.2.2—Discretely Braced Flanges in Tension
+      - 6.10.3.2.3—Continuously Braced Flanges in Tension or Compression
+      - 6.10.3.2.4—Concrete Deck
+    - 6.10.3.3—Shear
+    - 6.10.3.4—Deck Placement
+      - 6.10.3.4.1—General
+      - 6.10.3.4.2—Global Displacement Amplification in Narrow I-Girder Bridge Units
+    - 6.10.3.5—Dead Load Deflections
+  - 6.10.4—Service Limit State
+    - 6.10.4.1—Elastic Deformations
+    - 6.10.4.2—Permanent Deformations
+      - 6.10.4.2.1—General
+      - 6.10.4.2.2—Flexure
+  - 6.10.5—Fatigue and Fracture Limit State
+    - 6.10.5.1—Fatigue
+    - 6.10.5.2—Fracture
+    - 6.10.5.3—Special Fatigue Requirement for Webs
+  - 6.10.6—Strength Limit State
+    - 6.10.6.1—General
+    - 6.10.6.2—Flexure
+      - 6.10.6.2.1—General
+      - 6.10.6.2.2—Composite Sections in Positive Flexure
+      - 6.10.6.2.3—Composite Sections in Negative Flexure and Noncomposite Sections
+    - 6.10.6.3—Shear
+    - 6.10.6.4—Shear Connectors
+  - 6.10.7—Flexural Resistance—Composite Sections in Positive Flexure
+    - 6.10.7.1—Compact Sections
+      - 6.10.7.1.1—General
+      - 6.10.7.1.2—Nominal Flexural Resistance
+    - 6.10.7.2—Noncompact Sections
+      - 6.10.7.2.1—General
+      - 6.10.7.2.2—Nominal Flexural Resistance
+    - 6.10.7.3—Ductility Requirement
+  - 6.10.8—Flexural Resistance—Composite Sections in Negative Flexure and Noncomposite Sections
+    - 6.10.8.1—General
+      - 6.10.8.1.1—Discretely Braced Flanges in Compression
+      - 6.10.8.1.2—Discretely Braced Flanges in Tension
+      - 6.10.8.1.3—Continuously Braced Flanges in Tension or Compression
+    - 6.10.8.2 Compression–Flange Flexural Resistance
+      - 6.10.8.2.1—General
+      - 6.10.8.2.2—Local Buckling Resistance
+      - 6.10.8.2.3—Lateral–Torsional buckling Resistance
+    - 6.10.8.3—Flexural Resistance Based on Tension Flange Yielding
+  - 6.10.9—Shear Resistance
+    - 6.10.9.1—General
+    - 6.10.9.2—Nominal Resistance of Unstiffened Webs
+    - 6.10.9.3—Nominal Resistance of Stiffened Webs
+      - 6.10.9.3.1—General
+      - 6.10.9.3.2—Interior Panels
+      - 6.10.9.3.3—End Panels
+  - 6.10.10—Shear Connectors
+    - 6.10.10.1—General
+      - 6.10.10.1.1—Types
+      - 6.10.10.1.2—Pitch
+      - 6.10.10.1.3—Transverse Spacing
+      - 6.10.10.1.4—Cover and Penetration
+    - 6.10.10.2—Fatigue Resistance
+    - 6.10.10.3—Special Requirements for Points of Permanent Load Contraflexure
+    - 6.10.10.4—Strength Limit State
+      - 6.10.10.4.1—General
+      - 6.10.10.4.2—Nominal Shear Force
+      - 6.10.10.4.3—Nominal Shear Resistance
+  - 6.10.11—Web Stiffeners
+    - 6.10.11.1—Web Transverse Stiffeners
+      - 6.10.11.1.1—General
+      - 6.10.11.1.2—Projecting Width
+      - 6.10.11.1.3—Moment of Inertia
+    - 6.10.11.2—Bearing Stiffeners
+      - 6.10.11.2.1—General
+      - 6.10.11.2.2—Minimum Thickness
+      - 6.10.11.2.3—Bearing Resistance
+      - 6.10.11.2.4—Axial Resistance of Bearing Stiffeners
+        - 6.10.11.2.4a—General
+        - 6.10.11.2.4b—Effective Section
+    - 6.10.11.3—Web Longitudinal Stiffeners
+      - 6.10.11.3.1—General
+      - 6.10.11.3.2—Projecting Width
+      - 6.10.11.3.3—Moment of Inertia and Radius of Gyration
+  - 6.10.12—Cover Plates
+    - 6.10.12.1—General
+    - 6.10.12.2—End Requirements
+      - 6.10.12.2.1—General
+      - 6.10.12.2.2—Welded Ends
+      - 6.10.12.2.3—Bolted Ends
+- 6.11—COMPOSITE BOX-SECTION FLEXURAL MEMBERS
+  - 6.11.1—General
+    - 6.11.1.1—Stress Determinations
+    - 6.11.1.2—Bearings
+    - 6.11.1.3—Flange-to-Web Connections
+    - 6.11.1.4—Access and Drainage
+  - 6.11.2—Cross-Section Proportion Limits
+    - 6.11.2.1—Web Proportions
+      - 6.11.2.1.1—General
+      - 6.11.2.1.2—Webs without Longitudinal Stiffeners
+      - 6.11.2.1.3—Webs with Longitudinal Stiffeners
+    - 6.11.2.2—Flange Proportions
+    - 6.11.2.3—Special Restrictions on Use of Live Load Distribution Factor for Multiple Box Sections
+  - 6.11.3—Constructibility
+    - 6.11.3.1—General
+    - 6.11.3.2—Flexure
+    - 6.11.3.3—Shear
+  - 6.11.4—Service Limit State
+  - 6.11.5—Fatigue and Fracture Limit State
+  - 6.11.6—Strength Limit State
+    - 6.11.6.1—General
+    - 6.11.6.2—Flexure
+      - 6.11.6.2.1—General
+      - 6.11.6.2.2—Sections in Positive Flexure
+      - 6.11.6.2.3—Sections in Negative Flexure
+    - 6.11.6.3—Shear
+    - 6.11.6.4—Shear Connectors
+  - 6.11.7—Flexural Resistance—Sections in Positive Flexure
+    - 6.11.7.1—Compact Sections
+      - 6.11.7.1.1—General
+      - 6.11.7.1.2—Nominal Flexural Resistance
+    - 6.11.7.2—Noncompact Sections
+      - 6.11.7.2.1—General
+      - 6.11.7.2.2—Nominal Flexural Resistance
+  - 6.11.8—Flexural Resistance—Sections in Negative Flexure
+    - 6.11.8.1—General
+      - 6.11.8.1.1—Box Flanges in Compression
+      - 6.11.8.1.2—Continuously Braced Flanges in Tension
+    - 6.11.8.2—Flexural Resistance of Box Flanges in Compression
+      - 6.11.8.2.1—General
+      - 6.11.8.2.2—Unstiffened Flanges
+      - 6.11.8.2.3—Longitudinally Stiffened Flanges
+    - 6.11.8.3—Flexural Resistance Based on Tension Flange Yielding
+  - 6.11.9—Shear Resistance
+  - 6.11.10—Shear Connectors
+  - 6.11.11—Stiffeners
+    - 6.11.11.1—Web Stiffeners
+    - 6.11.11.2—Longitudinal Compression–Flange Stiffeners
+- 6.12—MISCELLANEOUS FLEXURAL MEMBERS
+  - 6.12.1—General
+    - 6.12.1.1—Scope
+    - 6.12.1.2—Strength Limit State
+      - 6.12.1.2.1—Flexure
+      - 6.12.1.2.2—Combined Flexure, Axial Load, and Flexural and/or Torsional Shear
+      - 6.12.1.2.3—Flexural Shear and/or Torsion
+        - 6.12.1.2.3a—General
+        - 6.12.1.2.3b—Circular Tubes and Round HSS
+      - 6.12.1.2.4—Special Provisions for HSS Members
+  - 6.12.2—Nominal Flexural Resistance
+    - 6.12.2.1—General
+    - 6.12.2.2—Noncomposite Members
+      - 6.12.2.2.1—I- and H-Shaped Members
+      - 6.12.2.2.2—Rectangular Box-Section Members
+        - 6.12.2.2.2a—General
+        - 6.12.2.2.2b—Cross-Section Proportion Limits
+        - 6.12.2.2.2c—Classification of Sections with a Longitudinally Unstiffened Compression flange
+        - 6.12.2.2.2d—Classification of Sections with a Longitudinally Stiffened Compression Flange
+        - 6.12.2.2.2e—General Yielding, Compression–Flange Local Buckling and Lateral–Torsional Buckling
+        - 6.12.2.2.2f—Service and Fatigue Limit States and Constructibility
+        - 6.12.2.2.2g—Flange Effective Width or Area Accounting for Shear Lag Effects
+      - 6.12.2.2.3—Circular Tubes and Round HSS
+      - 6.12.2.2.4—Tees and Double Angles
+        - 6.12.2.2.4a—General
+        - 6.12.2.2.4b—Yielding
+        - 6.12.2.2.4c—Lateral–Torsional Buckling
+        - 6.12.2.2.4d—Flange Local Buckling
+        - 6.12.2.2.4e—Local Buckling of Tee Stems and Double Angle Web Legs
+      - 6.12.2.2.5—Channels
+      - 6.12.2.2.6—Single Angles
+      - 6.12.2.2.7—Rectangular Bars and Solid Rounds
+    - 6.12.2.3—Composite Members
+      - 6.12.2.3.1—Concrete-Encased Shapes
+      - 6.12.2.3.2—Concrete-Filled Tubes
+      - 6.12.2.3.3—Composite Concrete-Filled Steel Tubes (CFSTs)
+  - 6.12.3—Nominal Shear Resistance of Composite Members
+    - 6.12.3.1—Concrete-Encased Shapes
+    - 6.12.3.2—Concrete-Filled Tubes
+      - 6.12.3.2.1—Rectangular Tubes
+      - 6.12.3.2.2—Composite Concrete-Filled Steel Tubes
+- 6.13—CONNECTIONS AND SPLICES
+  - 6.13.1—General
+  - 6.13.2—Bolted Connections
+    - 6.13.2.1—General
+      - 6.13.2.1.1—Slip-Critical Connections
+      - 6.13.2.1.2—Bearing-Type Connections
+    - 6.13.2.2—Factored Resistance
+    - 6.13.2.3—Bolts, Nuts, and Washers
+      - 6.13.2.3.1—Bolts and Nuts
+      - 6.13.2.3.2—Washers
+    - 6.13.2.4—Holes
+      - 6.13.2.4.1—Type
+        - 6.13.2.4.1a—General
+        - 6.13.2.4.1b—Oversize Holes
+        - 6.13.2.4.1c—Short-Slotted Holes
+        - 6.13.2.4.1d—Long-Slotted Holes
+      - 6.13.2.4.2—Size
+    - 6.13.2.5—Size of Bolts
+    - 6.13.2.6—Spacing of Bolts
+      - 6.13.2.6.1—Minimum Spacing and Clear Distance
+      - 6.13.2.6.2—Maximum Spacing for Sealing Bolts
+      - 6.13.2.6.3—Maximum Pitch for Stitch Bolts
+      - 6.13.2.6.4—Maximum Pitch for Stitch Bolts at the End of Compression Members
+      - 6.13.2.6.5—End Distance
+      - 6.13.2.6.6—Edge Distances
+    - 6.13.2.7—Shear Resistance
+    - 6.13.2.8—Slip Resistance
+    - 6.13.2.9—Bearing Resistance at Bolt Holes
+    - 6.13.2.10—Tensile Resistance
+      - 6.13.2.10.1—General
+      - 6.13.2.10.2—Nominal Tensile Resistance
+      - 6.13.2.10.3—Fatigue Resistance
+      - 6.13.2.10.4—Prying Action
+    - 6.13.2.11—Combined Tension and Shear
+    - 6.13.2.12—Shear Resistance of Anchor Rods
+  - 6.13.3—Welded Connections
+    - 6.13.3.1—General
+    - 6.13.3.2—Factored Resistance
+      - 6.13.3.2.1—General
+      - 6.13.3.2.2—Complete Penetration Groove-Welded Connections
+        - 6.13.3.2.2a—Tension and Compression
+        - 6.13.3.2.2b—Shear
+      - 6.13.3.2.3—Partial Penetration Groove-Welded Connections
+        - 6.13.3.2.3a—Tension or Compression
+        - 6.13.3.2.3b—Shear
+      - 6.13.3.2.4—Fillet-Welded Connections
+    - 6.13.3.3—Effective Area
+    - 6.13.3.4—Size of Fillet Welds
+    - 6.13.3.5—Minimum Effective Length of Fillet Welds
+    - 6.13.3.6—Fillet Weld End Returns
+    - 6.13.3.7—Fillet Welds for Sealing
+  - 6.13.4—Block Shear Rupture Resistance
+  - 6.13.5—Connection Elements
+    - 6.13.5.1—General
+    - 6.13.5.2—Tension
+    - 6.13.5.3—Shear
+  - 6.13.6—Splices
+    - 6.13.6.1—Bolted Splices
+      - 6.13.6.1.1—Tension Members
+      - 6.13.6.1.2—Compression Members
+      - 6.13.6.1.3—Flexural Members
+        - 6.13.6.1.3a—General
+        - 6.13.6.1.3b—Flange Splices
+        - 6.13.6.1.3c—Web Splices
+      - 6.13.6.1.4—Fillers
+    - 6.13.6.2—Welded Splices
+  - 6.13.7—Rigid Frame Connections
+    - 6.13.7.1—General
+    - 6.13.7.2—Webs
+- 6.14—PROVISIONS FOR STRUCTURE TYPES
+  - 6.14.1—Through-Girder Spans
+  - 6.14.2—Trusses
+    - 6.14.2.1—General
+    - 6.14.2.2—Truss Members
+    - 6.14.2.3—Secondary Stresses
+    - 6.14.2.4—Diaphragms
+    - 6.14.2.5—Camber
+    - 6.14.2.6—Working Lines and Gravity Axes
+    - 6.14.2.7—Portal and Sway Bracing
+      - 6.14.2.7.1—General
+      - 6.14.2.7.2—Through-Truss Spans
+      - 6.14.2.7.3—Deck Truss Spans
+    - 6.14.2.8—Gusset Plates
+      - 6.14.2.8.1—General
+      - 6.14.2.8.2—Multilayered Gusset and Splice Plates
+      - 6.14.2.8.3—Shear Resistance
+      - 6.14.2.8.4—Compressive Resistance
+      - 6.14.2.8.5—Tensile Resistance
+      - 6.14.2.8.6—Chord Splices
+      - 6.14.2.8.7—Edge Slenderness
+    - 6.14.2.9—Half Through-Trusses
+    - 6.14.2.10—Factored Resistance
+  - 6.14.3—Orthotropic Deck Superstructures
+    - 6.14.3.1—General
+    - 6.14.3.2—Decks in Global Compression
+      - 6.14.3.2.1—General
+      - 6.14.3.2.2—Local Buckling
+      - 6.14.3.2.3—Panel Buckling
+    - 6.14.3.3—Effective Width of Deck
+    - 6.14.3.4—Superposition of Global and Local Effects
+  - 6.14.4—Solid Web Arches
+    - 6.14.4.1—General
+    - 6.14.4.2—Web Slenderness
+    - 6.14.4.3—Moment Amplification
+    - 6.14.4.4—Nominal Compressive Resistance
+    - 6.14.4.5—Nominal Flexural Resistance
+    - 6.14.4.6—Combined Axial Compression or Tension with Flexure and Torsion
+- 6.15—PILES
+  - 6.15.1—General
+  - 6.15.2—Structural Resistance
+  - 6.15.3—Compressive Resistance
+    - 6.15.3.1—Axial Compression
+    - 6.15.3.2—Combined Axial Compression and Flexure
+    - 6.15.3.3—Buckling
+  - 6.15.4—Maximum Permissible Driving Stresses
+- 6.16—PROVISIONS FOR SEISMIC DESIGN
+  - 6.16.1—General
+  - 6.16.2—Materials
+  - 6.16.3—Design Requirements for Seismic Zone 1
+  - 6.16.4—Design Requirements for Seismic Zones 2, 3, or 4
+    - 6.16.4.1—General
+    - 6.16.4.2—Deck
+    - 6.16.4.3—Shear Connectors
+    - 6.16.4.4—Elastic Superstructures
+- 6.17—REFERENCES
+- APPENDIX A6—FLEXURAL RESISTANCE OF COMPOSITE I-SECTIONS IN NEGATIVE FLEXURE AND NONCOMPOSITE I-SECTIONS WITH COMPACT OR NONCOMPACT WEBS IN STRAIGHT BRIDGES
+  - A6.1—GENERAL
+    - A6.1.1—Sections with Discretely Braced Compression Flanges
+    - A6.1.2—Sections with Discretely Braced Tension Flanges
+    - A6.1.3—Sections with Continuously Braced Compression Flanges
+    - A6.1.4—Sections with Continuously Braced Tension Flanges
+  - A6.2—WEB PLASTIFICATION FACTORS
+    - A6.2.1—Compact Web Sections
+    - A6.2.2—Noncompact Web Sections
+  - A6.3—FLEXURAL RESISTANCE BASED ON THE COMPRESSION FLANGE
+    - A6.3.1—General
+    - A6.3.2—Local Buckling Resistance
+    - A6.3.3—Lateral–Torsional buckling Resistance
+  - A6.4—FLEXURAL RESISTANCE BASED ON TENSION FLANGE YIELDING
+- APPENDIX B6—MOMENT REDISTRIBUTION FROM INTERIOR-PIER  I-SECTIONS IN STRAIGHT CONTINUOUS-SPAN BRIDGES
+  - B6.1—GENERAL
+  - B6.2—SCOPE
+    - B6.2.1—Web Proportions
+    - B6.2.2—Compression Flange Proportions
+    - B6.2.3—Section Transitions
+    - B6.2.4—Compression Flange Bracing
+    - B6.2.5—Shear
+    - B6.2.6—Bearing Stiffeners
+  - B6.3—SERVICE LIMIT STATE
+    - B6.3.1—General
+    - B6.3.2—Flexure
+      - B6.3.2.1—Adjacent to Interior-Pier Sections
+      - B6.3.2.2—At All Other Locations
+    - B6.3.3—Redistribution Moments
+      - B6.3.3.1—At Interior-Pier Sections
+      - B6.3.3.2—At All Other Locations
+  - B6.4—STRENGTH LIMIT STATE
+    - B6.4.1—Flexural Resistance
+      - B6.4.1.1—Adjacent to Interior-Pier Sections
+      - B6.4.1.2—At All Other Locations
+    - B6.4.2—Redistribution Moments
+      - B6.4.2.1—At Interior-Pier Sections
+      - B6.4.2.2—At All Other Sections
+  - B6.5—EFFECTIVE PLASTIC MOMENT
+    - B6.5.1—Interior-Pier Sections with Enhanced Moment-Rotation Characteristics
+    - B6.5.2—All Other Interior-Pier Sections
+  - B6.6—REFINED METHOD
+    - B6.6.1—General
+    - B6.6.2—Nominal Moment-Rotation Curves
+- APPENDIX C6—BASIC STEPS FOR STEEL BRIDGE SUPERSTRUCTURES
+  - C6.1—GENERAL
+  - C6.2—GENERAL CONSIDERATIONS
+  - C6.3—SUPERSTRUCTURE DESIGN
+  - C6.4—FLOWCHARTS FOR FLEXURAL DESIGN OF I-SECTION MEMBERS
+    - C6.4.1—Flowchart for LRFD Article 6.10.3
+    - C6.4.2—Flowchart for LRFD Article 6.10.4
+    - C6.4.3—Flowchart for LRFD Article 6.10.5
+    - C6.4.4—Flowchart for LRFD Article 6.10.6
+    - C6.4.5—Flowchart for LRFD Article 6.10.7
+    - C6.4.6—Flowchart for LRFD Article 6.10.8
+    - C6.4.7—Flowchart for Appendix A6
+    - C6.4.8—Flowchart for Article D6.4.1
+    - C6.4.9—Flowchart for Article D6.4.2
+    - C6.4.10—Moment Gradient Modifier, Cb (Sample Cases)
+  - C6.5—FLOWCHARTS FOR LRFD ARTICLES 6.9.4 AND 6.12.2.2.2
+    - C6.5.1—Flowchart for LRFD Article 6.9.4
+    - C6.5.2—Flowchart for LRFD Article 6.12.2.2.2
+- APPENDIX D6—FUNDAMENTAL CALCULATIONS FOR FLEXURAL MEMBERS
+  - D6.1—PLASTIC MOMENT
+  - D6.2—YIELD MOMENT
+    - D6.2.1—Noncomposite Sections
+    - D6.2.2—Composite Sections in Positive Flexure
+    - D6.2.3—Composite Sections in Negative Flexure
+    - D6.2.4—Sections with Cover Plates
+  - D6.3—DEPTH OF THE WEB IN COMPRESSION
+    - D6.3.1—In the Elastic Range (Dc)
+    - D6.3.2—At Plastic Moment (Dcp)
+  - D6.4—LATERAL–TORSIONAL BUCKLING EQUATIONS FOR CB > 1.0, WITH EMPHASIS ON UNBRACED LENGTH REQUIREMENTS FOR DEVELOPMENT OF THE MAXIMUM FLEXURAL RESISTANCE
+    - D6.4.1—By the Provisions of Article 6.10.8.2.3
+    - D6.4.2—By the Provisions of Article A6.3.3
+  - D6.5—CONCENTRATED LOADS APPLIED TO WEBS WITHOUT BEARING STIFFENERS
+    - D6.5.1—General
+    - D6.5.2—Web Local Yielding
+    - D6.5.3—Web Crippling
+- APPENDIX E6−NOMINAL COMPRESSIVE RESISTANCE OF NONCOMPOSITE MEMBERS CONTAINING LONGITUDINALLY STIFFENED PLATES
+  - E6.1—NOMINAL COMPRESSIVE RESISTANCE
+    - E6.1.1—General
+    - E6.1.2—Classification of Longitudinally Stiffened Plate Panels
+    - E6.1.3—Nominal Compressive Resistance and Effective Area of Plates with Equally-Spaced Equal-Size Longitudinal Stiffeners
+    - E6.1.4—Longitudinal Stiffeners
+    - E6.1.5—Transverse Stiffeners
+      - E6.1.5.1—General
+      - E6.1.5.2—Moment of Inertia
+
+## SECTION 7: ALUMINUM STRUCTURES
+
+TABLE OF CONTENTS
+
+- 7.1—SCOPE
+- 7.2—DEFINITIONS
+- 7.3—NOTATION
+- 7.4—MATERIALS
+  - 7.4.1—Aluminum Alloys
+  - 7.4.2—Pins, Rollers, and Rockers
+  - 7.4.3—Bolts, Nuts, and Washers
+    - 7.4.3.1—Bolts
+    - 7.4.3.2—Nuts Used with ASTM F3125 Bolts
+    - 7.4.3.3—Washers Used with ASTM F3125 Bolts
+    - 7.4.3.4—Direct Tension Indicators
+  - 7.4.4—Shear Connectors
+  - 7.4.5—Weld Metal
+- 7.5—LIMIT STATES
+  - 7.5.1—General
+  - 7.5.2—Service Limit State
+  - 7.5.3—Fatigue Limit State
+  - 7.5.4—Strength Limit State
+    - 7.5.4.1—General
+    - 7.5.4.2—Resistance Factors
+    - 7.5.4.3—Buckling Constants
+    - 7.5.4.4—Nominal Resistance of Elements in Uniform Compression
+      - 7.5.4.4.1—General
+      - 7.5.4.4.2—Flat Elements Supported on One Edge
+      - 7.5.4.4.3—Flat Elements Supported on Both Edges
+      - 7.5.4.4.4—Flat Elements Supported on One Edge and with a Stiffener on the Other Edge
+      - 7.5.4.4.5—Flat Elements Supported on Both Edges and with an Intermediate Stiffener
+      - 7.5.4.4.6—Round Hollow Elements and Curved Elements Supported on Both Edges
+      - 7.5.4.4.7—Alternative Method for Flat Elements
+    - 7.5.4.5—Nominal Resistance of Elements in Flexural Compression
+      - 7.5.4.5.1—General
+      - 7.5.4.5.2—Flat Elements Supported on Both Edges
+      - 7.5.4.5.3—Flat Elements Supported on Tension Edge, Compression Edge Free
+      - 7.5.4.5.4—Flat Elements Supported on Both Edges and with a Longitudinal Stiffener
+      - 7.5.4.5.5—Pipes and Round Tubes
+      - 7.5.4.5.6—Alternative Method for Flat Elements
+    - 7.5.4.6—Nominal Resistance of Elements in Shear
+      - 7.5.4.6.1—General
+      - 7.5.4.6.2—Flat Elements Supported on Both Edges
+      - 7.5.4.6.3—Flat Elements Supported on One Edge
+      - 7.5.4.6.4—Pipes and Round or Oval Tubes
+    - 7.5.4.7—Elastic Buckling Stress of Elements
+  - 7.5.5—Extreme Event Limit State
+- 7.6—FATIGUE
+  - 7.6.1—General
+  - 7.6.2—Load-Induced Fatigue
+    - 7.6.2.1—Application
+    - 7.6.2.2—Design Criteria
+    - 7.6.2.3—Detail Categories
+    - 7.6.2.4—Detailing to Reduce Constraint
+    - 7.6.2.5—Fatigue Resistance
+  - 7.6.3—Distortion-Induced Fatigue
+    - 7.6.3.1—Transverse Connection Plates
+    - 7.6.3.2—Lateral Connection Plates
+- 7.7—GENERAL DIMENSION AND DETAIL REQUIREMENTS
+  - 7.7.1—Effective Length of Span
+  - 7.7.2—Dead Load Camber
+  - 7.7.3—Minimum Thickness
+  - 7.7.4—Diaphragms and Cross-Frames
+  - 7.7.5—Lateral Bracing
+- 7.8—TENSION MEMBERS
+  - 7.8.1—General
+  - 7.8.2—Tensile Resistance
+    - 7.8.2.1—General
+    - 7.8.2.2—Effective Net Area
+    - 7.8.2.3—Combined Tension and Flexure
+  - 7.8.3—Net Area
+  - 7.8.4—Limiting Slenderness Ratio
+  - 7.8.5—Built-Up Members
+- 7.9—COMPRESSION MEMBERS
+  - 7.9.1—General
+  - 7.9.2—Axial Compression Resistance
+    - 7.9.2.1—Member Buckling
+      - 7.9.2.1.1—General
+      - 7.9.2.1.2—Flexural Buckling
+      - 7.9.2.1.3—Torsional and Flexural–Torsional Buckling
+    - 7.9.2.2—Local Buckling
+      - 7.9.2.2.1—General
+      - 7.9.2.2.2—Weighted Average Local Buckling Resistance
+      - 7.9.2.2.3—Alternative Local Buckling Resistance
+    - 7.9.2.3—Interaction between Member Buckling and Local Buckling
+  - 7.9.3—Limiting Slenderness Ratio
+  - 7.9.4—Combined Axial Compression and Flexure
+- 7.10—FLEXURAL MEMBERS
+  - 7.10.1—General
+  - 7.10.2—Yielding and Rupture
+  - 7.10.3—Local Buckling
+    - 7.10.3.1—Weighted Average Method
+    - 7.10.3.2—Direct Strength Method
+    - 7.10.3.3—Limiting Element Method
+  - 7.10.4—Lateral–Torsional Buckling
+    - 7.10.4.1—Bending Coefficient, Cb
+      - 7.10.4.1.1—Doubly Symmetric Shapes
+      - 7.10.4.1.2—Singly Symmetric Shapes
+    - 7.10.4.2—Slenderness for Lateral–Torsional Buckling
+      - 7.10.4.2.1—Shapes Symmetric about the Bending Axis
+      - 7.10.4.2.2—Singly Symmetric Open Shapes Asymmetric about the Bending Axis
+      - 7.10.4.2.3—Closed Shapes
+      - 7.10.4.2.4—Rectangular Bars
+      - 7.10.4.2.5—Any Shape
+    - 7.10.4.3—Interaction between Local Buckling and Lateral–Torsional Buckling
+- 7.11—MEMBERS IN SHEAR
+  - 7.11.1—General
+  - 7.11.2—Stiffeners
+    - 7.11.2.1—Crippling of Flat Webs
+    - 7.11.2.2—Bearing Stiffeners
+    - 7.11.2.3—Combined Crippling and Bending of Flat Webs
+- 7.12—CONNECTIONS AND SPLICES
+  - 7.12.1—General
+  - 7.12.2—Bolted Connections
+    - 7.12.2.1—General
+    - 7.12.2.2—Factored Resistance
+    - 7.12.2.3—Washers
+    - 7.12.2.4—Holes
+    - 7.12.2.5—Size of Bolts
+    - 7.12.2.6—Spacing of Bolts
+      - 7.12.2.6.1—Minimum Spacing and Clear Distance
+      - 7.12.2.6.2—Minimum Edge Distance
+    - 7.12.2.7—Shear Resistance
+    - 7.12.2.8—Slip Resistance
+    - 7.12.2.9—Bearing Resistance at Holes and Slots
+    - 7.12.2.10—Tensile Resistance
+    - 7.12.2.11—Combined Tension and Shear
+    - 7.12.2.12—Shear Resistance of Anchor Bolts
+  - 7.12.3—Welded Connections
+    - 7.12.3.1—General
+    - 7.12.3.2—Factored Resistance
+      - 7.12.3.2.1—General
+      - 7.12.3.2.2—Complete Penetration Groove-Welded Connections
+        - 7.12.3.2.2a—Tension and Compression
+        - 7.12.3.2.2b—Shear
+      - 7.12.3.2.3—Partial Penetration Groove-Welded Connections
+        - 7.12.3.2.3a—Tension and Compression
+        - 7.12.3.2.3b—Shear
+      - 7.12.3.2.4—Fillet-Welded Connections
+    - 7.12.3.3—Effective Area
+    - 7.12.3.4—Size of Fillet Welds
+    - 7.12.3.5—Fillet Weld End Returns
+  - 7.12.4—Block Shear Rupture Resistance
+  - 7.12.5—Connection Elements
+    - 7.12.5.1—General
+    - 7.12.5.2—Tension
+    - 7.12.5.3—Shear
+  - 7.12.6—Splices
+  - 7.12.7—Pins
+    - 7.12.7.1—Factored Resistance
+    - 7.12.7.2—Minimum Edge Distance
+    - 7.12.7.3—Holes
+    - 7.12.7.4—Shear Resistance
+    - 7.12.7.5—Flexural Resistance
+    - 7.12.7.6—Bearing Resistance
+    - 7.12.7.7—Combined Shear and Flexure
+- 7.13—PROVISIONS FOR STRUCTURE TYPES
+  - 7.13.1—Deck Superstructures
+    - 7.13.1.1—General
+    - 7.13.1.2—Equivalent Strips
+- 7.14—REFERENCES
+
+## SECTION 8: WOOD STRUCTURES
+
+TABLE OF CONTENTS
+
+- 8.1—SCOPE
+- 8.2—DEFINITIONS
+- 8.3—NOTATION
+- 8.4—MATERIALS
+  - 8.4.1—Wood Products
+    - 8.4.1.1—Sawn Lumber
+      - 8.4.1.1.1—General
+      - 8.4.1.1.2—Dimensions
+      - 8.4.1.1.3—Moisture Content
+      - 8.4.1.1.4—Reference Design Values
+    - 8.4.1.2—Structural Glued Laminated Timber (Glulam)
+      - 8.4.1.2.1—General
+      - 8.4.1.2.2—Dimensions
+      - 8.4.1.2.3—Reference Design Values
+    - 8.4.1.3—Tension-Reinforced Glulams
+      - 8.4.1.3.1—General
+      - 8.4.1.3.2—Dimensions
+      - 8.4.1.3.3—Fatigue
+      - 8.4.1.3.4—Reference Design Values for Tension-Reinforced Glulams
+      - 8.4.1.3.5—Volume Effect
+      - 8.4.1.3.6—Preservative Treatment
+    - 8.4.1.4—Piles
+  - 8.4.2—Metal Fasteners and Hardware
+    - 8.4.2.1—General
+    - 8.4.2.2—Minimum Requirements
+      - 8.4.2.2.1—Fasteners
+      - 8.4.2.2.2—Prestressing Bars
+      - 8.4.2.2.3—Split Ring Connectors
+      - 8.4.2.2.4—Shear Plate Connectors
+      - 8.4.2.2.5—Nails and Spikes
+      - 8.4.2.2.6—Drift Pins and Bolts
+      - 8.4.2.2.7—Spike Grids
+      - 8.4.2.2.8—Toothed Metal Plate Connectors
+    - 8.4.2.3—Corrosion Protection
+      - 8.4.2.3.1—Metallic Coating
+      - 8.4.2.3.2—Alternative Coating
+  - 8.4.3—Preservative Treatment
+    - 8.4.3.1—Requirement for Treatment
+    - 8.4.3.2—Treatment Chemicals
+    - 8.4.3.3—Inspection and Marking
+    - 8.4.3.4—Fire Retardant Treatment
+  - 8.4.4—Adjustment Factors for Reference Design Values
+    - 8.4.4.1—General
+    - 8.4.4.2—Format Conversion Factor, CKF
+    - 8.4.4.3—Wet Service Factor, CM
+    - 8.4.4.4—Size Factor, CF, for Sawn Lumber
+    - 8.4.4.5—Volume Factor, CV, (Glulam)
+    - 8.4.4.6—Flat-Use Factor, Cfu
+    - 8.4.4.7—Incising Factor, Ci
+    - 8.4.4.8—Deck Factor, Cd
+    - 8.4.4.9—Time Effect Factor, Cλ
+- 8.5—LIMIT STATES
+  - 8.5.1—Service Limit State
+  - 8.5.2—Strength Limit State
+    - 8.5.2.1—General
+    - 8.5.2.2—Resistance Factors
+    - 8.5.2.3—Stability
+  - 8.5.3—Extreme Event Limit State
+- 8.6—COMPONENTS IN FLEXURE
+  - 8.6.1—General
+  - 8.6.2—Rectangular Section
+  - 8.6.3—Circular Section
+- 8.7—COMPONENTS UNDER SHEAR
+- 8.8—COMPONENTS IN COMPRESSION
+  - 8.8.1—General
+  - 8.8.2—Compression Parallel to Grain
+  - 8.8.3—Compression Perpendicular to Grain
+- 8.9—COMPONENTS IN TENSION PARALLEL TO GRAIN
+- 8.10—COMPONENTS IN COMBINED FLEXURE AND AXIAL LOADING
+  - 8.10.1—Components in Combined Flexure and Tension
+  - 8.10.2—Components in Combined Flexure and Compression Parallel to Grain
+- 8.11—BRACING REQUIREMENTS
+  - 8.11.1—General
+  - 8.11.2—Sawn Wood Beams
+  - 8.11.3—Glued Laminated Timber Girders
+  - 8.11.4—Bracing of Trusses
+- 8.12—CAMBER REQUIREMENTS
+  - 8.12.1—Glued Laminated Timber Girders
+  - 8.12.2—Trusses
+  - 8.12.3—Stress Laminated Timber Deck Bridge
+- 8.13—CONNECTION DESIGN
+- 8.14—REFERENCES
+
+## SECTION 9: DECKS AND DECK SYSTEMS
+
+TABLE OF CONTENTS
+
+- 9.1—SCOPE
+- 9.2—DEFINITIONS
+- 9.3—NOTATION
+- 9.4—GENERAL DESIGN REQUIREMENTS
+  - 9.4.1—Interface Action
+  - 9.4.2—Deck Drainage
+  - 9.4.3—Concrete Appurtenances
+  - 9.4.4—Edge Supports
+  - 9.4.5—Stay-in-Place Formwork for Overhangs
+- 9.5—LIMIT STATES
+  - 9.5.1—General
+  - 9.5.2—Service Limit States
+  - 9.5.3—Fatigue and Fracture Limit State
+  - 9.5.4—Strength Limit States
+  - 9.5.5—Extreme Event Limit States
+- 9.6—ANALYSIS
+  - 9.6.1—Methods of Analysis
+  - 9.6.2—Loading
+- 9.7—CONCRETE DECK SLABS
+  - 9.7.1—General
+    - 9.7.1.1—Minimum Depth and Cover
+    - 9.7.1.2—Composite Action
+    - 9.7.1.3—Skewed Decks
+    - 9.7.1.4—Edge Support
+    - 9.7.1.5—Design of Cantilever Slabs
+  - 9.7.2—Empirical Design
+    - 9.7.2.1—General
+    - 9.7.2.2—Application
+    - 9.7.2.3—Effective Length
+    - 9.7.2.4—Design Conditions
+    - 9.7.2.5—Reinforcement Requirements
+    - 9.7.2.6—Deck with Stay-in-Place Formwork
+  - 9.7.3—Traditional Design
+    - 9.7.3.1—General
+    - 9.7.3.2—Distribution Reinforcement
+  - 9.7.4—Stay-in-Place Formwork
+    - 9.7.4.1—General
+    - 9.7.4.2—Steel Formwork
+    - 9.7.4.3—Concrete Formwork
+      - 9.7.4.3.1—Depth
+      - 9.7.4.3.2—Reinforcement
+      - 9.7.4.3.3—Creep and Shrinkage Control
+      - 9.7.4.3.4—Bedding of Panels
+  - 9.7.5—Precast Deck Slabs on Girders
+    - 9.7.5.1—General
+    - 9.7.5.2—Transversely Joined Precast Decks
+    - 9.7.5.3—Longitudinally Post-Tensioned Precast Decks
+  - 9.7.6—Deck Slabs in Segmental Construction
+    - 9.7.6.1—General
+    - 9.7.6.2—Joints in Decks
+- 9.8—METAL DECKS
+  - 9.8.1—General
+  - 9.8.2—Metal Grid Decks
+    - 9.8.2.1—General
+    - 9.8.2.2—Open Grid Floors
+    - 9.8.2.3—Filled and Partially Filled Grid Decks
+      - 9.8.2.3.1—General
+      - 9.8.2.3.2—Design Requirements
+      - 9.8.2.3.3—Fatigue and Fracture Limit State
+    - 9.8.2.4—Unfilled Grid Decks Composite with Reinforced Concrete Slabs
+      - 9.8.2.4.1—General
+      - 9.8.2.4.2—Design
+      - 9.8.2.4.3—Fatigue Limit State
+  - 9.8.3—Orthotropic Steel Decks
+    - 9.8.3.1—General
+    - 9.8.3.2—Wheel Load Distribution
+    - 9.8.3.3—Wearing Surface
+    - 9.8.3.4—Analysis of Orthotropic Decks
+      - 9.8.3.4.1—General
+      - 9.8.3.4.2—Level 1 Design
+      - 9.8.3.4.3—Level 2 Design
+        - 9.8.3.4.3a—General
+        - 9.8.3.4.3b—Decks with Open Ribs
+        - 9.8.3.4.3c—Decks with Closed Ribs
+      - 9.8.3.4.4—Level 3 Design
+    - 9.8.3.5—Design
+      - 9.8.3.5.1—Superposition of Local and Global Effects
+      - 9.8.3.5.2—Limit States
+        - 9.8.3.5.2a—General
+        - 9.8.3.5.2b—Service Limit State
+        - 9.8.3.5.2c—Strength Limit State
+        - 9.8.3.5.2d—Fatigue Limit State
+    - 9.8.3.6—Detailing Requirements
+      - 9.8.3.6.1—Minimum Plate Thickness
+      - 9.8.3.6.2—Closed Ribs
+      - 9.8.3.6.3—Welding to Orthotropic Decks
+      - 9.8.3.6.4—Deck and Rib Details
+  - 9.8.4—Orthotropic Aluminum Decks
+    - 9.8.4.1—General
+    - 9.8.4.2—Approximate Analysis
+    - 9.8.4.3—Limit States
+  - 9.8.5—Corrugated Metal Decks
+    - 9.8.5.1—General
+    - 9.8.5.2—Distribution of Wheel Loads
+    - 9.8.5.3—Composite Action
+- 9.9—WOOD DECKS AND DECK SYSTEMS
+  - 9.9.1—Scope
+  - 9.9.2—General
+  - 9.9.3—Design Requirements
+    - 9.9.3.1—Load Distribution
+    - 9.9.3.2—Shear Design
+    - 9.9.3.3—Deformation
+    - 9.9.3.4—Thermal Expansion
+    - 9.9.3.5—Wearing Surfaces
+    - 9.9.3.6—Skewed Decks
+  - 9.9.4—Glued Laminated Decks
+    - 9.9.4.1—General
+    - 9.9.4.2—Deck Tie-Downs
+    - 9.9.4.3—Interconnected Decks
+      - 9.9.4.3.1—Panels Parallel to Traffic
+      - 9.9.4.3.2—Panels Perpendicular to Traffic
+    - 9.9.4.4—Noninterconnected Decks
+  - 9.9.5—Stress-Laminated Decks
+    - 9.9.5.1—General
+    - 9.9.5.2—Nailing
+    - 9.9.5.3—Staggered Butt Joints
+    - 9.9.5.4—Holes in Laminations
+    - 9.9.5.5—Deck Tie-Downs
+    - 9.9.5.6—Stressing
+      - 9.9.5.6.1—Prestressing System
+      - 9.9.5.6.2—Prestressing Materials
+      - 9.9.5.6.3—Design Requirements
+      - 9.9.5.6.4—Corrosion Protection
+      - 9.9.5.6.5—Railings
+  - 9.9.6—Spike-Laminated Decks
+    - 9.9.6.1—General
+    - 9.9.6.2—Deck Tie-Downs
+    - 9.9.6.3—Panel Decks
+  - 9.9.7—Plank Decks
+    - 9.9.7.1—General
+    - 9.9.7.2—Deck Tie-Downs
+  - 9.9.8—Wearing Surfaces for Wood Decks
+    - 9.9.8.1—General
+    - 9.9.8.2—Plant Mix Asphalt
+    - 9.9.8.3—Chip Seal
+- 9.10—REFERENCES
+
+## SECTION 10: FOUNDATIONS
+
+- 10.1—SCOPE
+- 10.2—DEFINITIONS
+- 10.3—NOTATION
+- 10.4—SOIL AND ROCK PROPERTIES
+  - 10.4.1—Informational Needs
+  - 10.4.2—Subsurface Exploration
+  - 10.4.3—Laboratory Tests
+    - 10.4.3.1—Soil Tests
+    - 10.4.3.2—Rock Tests
+  - 10.4.4—In-Situ Tests
+  - 10.4.5—Geophysical Tests
+  - 10.4.6—Selection of Design Properties
+    - 10.4.6.1—General
+    - 10.4.6.2—Soil Strength
+      - 10.4.6.2.1—General
+      - 10.4.6.2.2—Undrained Strength of Cohesive Soils
+      - 10.4.6.2.3—Drained Strength of Cohesive Soils
+      - 10.4.6.2.4—Drained Strength of Granular Soils
+    - 10.4.6.3—Soil Deformation
+    - 10.4.6.4—Rock Mass Strength
+    - 10.4.6.5—Rock Mass Deformation
+    - 10.4.6.6—Erodibility of Rock
+- 10.5—LIMIT STATES AND RESISTANCE FACTORS
+  - 10.5.1—General
+  - 10.5.2—Service Limit States
+    - 10.5.2.1—General
+    - 10.5.2.2—Tolerable Movements and Movement Criteria
+      - 10.5.2.2.1—General
+      - 10.5.2.2.2—Assessment of Differential Movement and Its Effects
+    - 10.5.2.3—Abutment Transitions
+  - 10.5.3—Strength Limit States
+    - 10.5.3.1—General
+    - 10.5.3.2—Spread Footings
+    - 10.5.3.3—Driven Piles
+    - 10.5.3.4—Drilled Shafts
+    - 10.5.3.5—Micropiles
+  - 10.5.4—Extreme Events Limit States
+    - 10.5.4.1—Extreme Events Design
+    - 10.5.4.2—Liquefaction Design Requirements
+  - 10.5.5—Resistance Factors
+    - 10.5.5.1—Service Limit States
+    - 10.5.5.2—Strength Limit States
+      - 10.5.5.2.1—General
+      - 10.5.5.2.2—Spread Footings
+      - 10.5.5.2.3—Driven Piles
+      - 10.5.5.2.4—Drilled Shafts
+      - 10.5.5.2.5—Micropiles
+    - 10.5.5.3—Extreme Limit States
+      - 10.5.5.3.1—General
+      - 10.5.5.3.2—Scour
+      - 10.5.5.3.3—Other Extreme Limit States
+- 10.6—SPREAD FOOTINGS
+  - 10.6.1—General Considerations
+    - 10.6.1.1—General
+    - 10.6.1.2—Bearing Depth
+    - 10.6.1.3—Effective Footing Dimensions
+    - 10.6.1.4—Bearing Stress Distributions
+    - 10.6.1.5—Anchorage of Inclined Footings
+    - 10.6.1.6—Groundwater
+    - 10.6.1.7—Uplift
+    - 10.6.1.8—Nearby Structures
+  - 10.6.2—Service Limit State Design
+    - 10.6.2.1—General
+    - 10.6.2.2—Tolerable Movements
+    - 10.6.2.3—Loads
+    - 10.6.2.4—Settlement Analyses
+      - 10.6.2.4.1—General
+      - 10.6.2.4.2—Settlement of Footings on Cohesionless Soils
+        - 10.6.2.4.2a—General
+        - 10.6.2.4.2b—Hough Method
+        - 10.6.2.4.2c—Schmertmann Method
+      - 10.6.2.4.3—Settlement of Footings on Cohesive Soils
+      - 10.6.2.4.4—Settlement of Footings on Rock
+    - 10.6.2.5—Bearing Resistance at the Service Limit State
+      - 10.6.2.5.1—Presumptive Values for Bearing Resistance
+      - 10.6.2.5.2—Semiempirical Procedures for Bearing Resistance
+  - 10.6.3—Strength Limit State Design
+    - 10.6.3.1—Bearing Resistance of Soil
+      - 10.6.3.1.1—General
+      - 10.6.3.1.2—Theoretical Estimation
+        - 10.6.3.1.2a—Basic Formulation
+        - 10.6.3.1.2b—Considerations for Punching Shear
+        - 10.6.3.1.2c—Considerations for Footings on Slopes
+        - 10.6.3.1.2d—Considerations for Two-Layer Soil Systems—Critical Depth
+        - 10.6.3.1.2e—Two-Layered Soil System in Undrained Loading
+        - 10.6.3.1.2f—Two-Layered Soil System in Drained Loading
+      - 10.6.3.1.3—Semiempirical Procedures
+      - 10.6.3.1.4—Plate Load Tests
+    - 10.6.3.2—Bearing Resistance of Rock
+      - 10.6.3.2.1—General
+      - 10.6.3.2.2—Semiempirical Procedures
+      - 10.6.3.2.3—Analytic Method
+      - 10.6.3.2.4—Load Test
+    - 10.6.3.3—Eccentric Load Limitations
+    - 10.6.3.4—Failure by Sliding
+    - 10.6.3.5—Overall Stability
+  - 10.6.4—Extreme Event Limit State Design
+    - 10.6.4.1—General
+    - 10.6.4.2—Eccentric Load Limitations
+  - 10.6.5—Structural Design
+- 10.7—DRIVEN PILES
+  - 10.7.1—General
+    - 10.7.1.1—Application
+    - 10.7.1.2—Minimum Pile Spacing, Clearance, and Embedment into Cap
+    - 10.7.1.3—Piles through Embankment Fill
+    - 10.7.1.4—Batter Piles
+    - 10.7.1.5—Pile Design Requirements
+    - 10.7.1.6—Determination of Pile Loads
+      - 10.7.1.6.1—General
+      - 10.7.1.6.2—Downdrag
+      - 10.7.1.6.3—Uplift Due to Expansive Soils
+      - 10.7.1.6.4—Nearby Structures
+TABLE OF CONTENTS
+
+  - 10.7.2—Service Limit State Design
+    - 10.7.2.1—General
+    - 10.7.2.2—Tolerable Movements
+    - 10.7.2.3—Settlement
+      - 10.7.2.3.1—Equivalent Footing Analogy
+      - 10.7.2.3.2—Pile Groups in Cohesive Soil
+    - 10.7.2.4—Horizontal Pile Foundation Movement
+    - 10.7.2.5—Settlement Due to Downdrag
+    - 10.7.2.6—Lateral Squeeze
+  - 10.7.3—Strength Limit State Design
+    - 10.7.3.1—General
+    - 10.7.3.2—Point Bearing Piles on Rock
+      - 10.7.3.2.1—General
+      - 10.7.3.2.2—Piles Driven to Soft Rock
+      - 10.7.3.2.3—Piles Driven to Hard Rock
+    - 10.7.3.3—Pile Length Estimates for Contract Documents
+    - 10.7.3.4—Nominal Axial Resistance Change after Pile Driving
+      - 10.7.3.4.1—General
+      - 10.7.3.4.2—Relaxation
+      - 10.7.3.4.3—Setup
+    - 10.7.3.5—Groundwater Effects and Buoyancy
+    - 10.7.3.6—Scour
+    - 10.7.3.7—Downdrag
+    - 10.7.3.8—Determination of Nominal Bearing Resistance for Piles
+      - 10.7.3.8.1—General
+      - 10.7.3.8.2—Static Load Test
+      - 10.7.3.8.3—Dynamic Testing
+      - 10.7.3.8.4—Wave Equation Analysis
+      - 10.7.3.8.5—Dynamic Formula
+      - 10.7.3.8.6—Static Analysis
+        - 10.7.3.8.6a—General
+        - 10.7.3.8.6b—α-Method
+        - 10.7.3.8.6c—β-Method
+        - 10.7.3.8.6d—λ-Method
+        - 10.7.3.8.6e—Tip Resistance in Cohesive Soils
+        - 10.7.3.8.6f—Nordlund/Thurman Method in Cohesionless Soils
+        - 10.7.3.8.6g—Using SPT or CPT in Cohesionless Soils
+    - 10.7.3.9—Resistance of Pile Groups in Compression
+    - 10.7.3.10—Uplift Resistance of Single Piles
+    - 10.7.3.11—Uplift Resistance of Pile Groups
+    - 10.7.3.12—Nominal Lateral Resistance of Pile Foundations
+    - 10.7.3.13—Pile Structural Resistance
+      - 10.7.3.13.1—Steel Piles
+      - 10.7.3.13.2—Concrete Piles
+      - 10.7.3.13.3—Timber Piles
+      - 10.7.3.13.4—Buckling and Lateral Stability
+  - 10.7.4—Extreme Event Limit State
+  - 10.7.5—Corrosion and Deterioration
+  - 10.7.6—Determination of Minimum Pile Penetration
+  - 10.7.7—Determination of Rndr Used to Establish Contract Driving Criteria for Nominal Bearing Resistance
+  - 10.7.8—Drivability Analysis
+  - 10.7.9—Probe Piles
+- 10.8—DRILLED SHAFTS
+  - 10.8.1—General
+    - 10.8.1.1—Scope
+    - 10.8.1.2—Shaft Spacing, Clearance, and Embedment into Cap
+    - 10.8.1.3—Shaft Diameter and Enlarged Bases
+    - 10.8.1.4—Battered Shafts
+    - 10.8.1.5—Drilled Shaft Resistance
+    - 10.8.1.6—Determination of Shaft Loads
+      - 10.8.1.6.1—General
+      - 10.8.1.6.2—Downdrag
+      - 10.8.1.6.3—Uplift
+  - 10.8.2—Service Limit State Design
+    - 10.8.2.1—Tolerable Movements
+    - 10.8.2.2—Settlement
+      - 10.8.2.2.1—General
+      - 10.8.2.2.2—Settlement of Single-Drilled Shaft
+      - 10.8.2.2.3—Intermediate Geo Materials (IGMs)
+      - 10.8.2.2.4—Group Settlement
+    - 10.8.2.3—Horizontal Movement of Shafts and Shaft Groups
+    - 10.8.2.4—Settlement Due to Downdrag
+    - 10.8.2.5—Lateral Squeeze
+  - 10.8.3—Strength Limit State Design
+    - 10.8.3.1—General
+    - 10.8.3.2—Groundwater Table and Buoyancy
+    - 10.8.3.3—Scour
+    - 10.8.3.4—Downdrag
+    - 10.8.3.5—Nominal Axial Compression Resistance of Single Drilled Shafts
+      - 10.8.3.5.1—Estimation of Drilled Shaft Resistance in Cohesive Soils
+        - 10.8.3.5.1a—General
+        - 10.8.3.5.1b—Side Resistance
+        - 10.8.3.5.1c—Tip Resistance
+      - 10.8.3.5.2—Estimation of Drilled Shaft Resistance in Cohesionless Soils
+        - 10.8.3.5.2a—General
+        - 10.8.3.5.2b—Side Resistance
+        - 10.8.3.5.2c—Tip Resistance
+      - 10.8.3.5.3—Shafts in Strong Soil Overlying Weaker Compressible Soil
+      - 10.8.3.5.4—Estimation of Drilled Shaft Resistance in Rock
+        - 10.8.3.5.4a—General
+        - 10.8.3.5.4b—Side Resistance
+        - 10.8.3.5.4c—Tip Resistance
+        - 10.8.3.5.4d—Combined Side and Tip Resistance
+      - 10.8.3.5.5—Estimation of Drilled Shaft Resistance in Intermediate Geo Materials (IGMs)
+      - 10.8.3.5.6—Shaft Load Test
+    - 10.8.3.6—Shaft Group Resistance
+      - 10.8.3.6.1—General
+      - 10.8.3.6.2—Cohesive Soil
+      - 10.8.3.6.3—Cohesionless Soil
+      - 10.8.3.6.4—Shaft Groups in Strong Soil Overlying Weak Soil
+    - 10.8.3.7—Uplift Resistance
+      - 10.8.3.7.1—General
+      - 10.8.3.7.2—Uplift Resistance of Single Drilled Shaft
+      - 10.8.3.7.3—Group Uplift Resistance
+      - 10.8.3.7.4—Uplift Load Test
+    - 10.8.3.8—Nominal Horizontal Resistance of Shaft and Shaft Groups
+    - 10.8.3.9—Shaft Structural Resistance
+      - 10.8.3.9.1—General
+      - 10.8.3.9.2—Buckling and Lateral Stability
+      - 10.8.3.9.3—Reinforcement
+      - 10.8.3.9.4—Transverse Reinforcement
+      - 10.8.3.9.5—Concrete
+      - 10.8.3.9.6—Reinforcement into Superstructure
+      - 10.8.3.9.7—Enlarged Bases
+  - 10.8.4—Extreme Event Limit State
+- 10.9—MICROPILES
+  - 10.9.1—General
+    - 10.9.1.1—Scope
+    - 10.9.1.2—Minimum Micropile Spacing, Clearance, and Embedment into Cap
+    - 10.9.1.3—Micropiles through Embankment Fill
+    - 10.9.1.4—Battered Micropiles
+    - 10.9.1.5—Micropile Design Requirements
+    - 10.9.1.6—Determination of Micropile Loads
+      - 10.9.1.6.1—Downdrag
+      - 10.9.1.6.2—Uplift Due to Expansive Soils
+      - 10.9.1.6.3—Nearby Structures
+  - 10.9.2—Service Limit State Design
+    - 10.9.2.1—General
+    - 10.9.2.2—Tolerable Movements
+    - 10.9.2.3—Settlement
+      - 10.9.2.3.1—Micropile Groups in Cohesive Soil
+      - 10.9.2.3.2—Micropile Groups in Cohesionless Soil
+    - 10.9.2.4—Horizontal Micropile Foundation Movement
+    - 10.9.2.5—Settlement Due to Downdrag
+    - 10.9.2.6—Lateral Squeeze
+  - 10.9.3—Strength Limit State Design
+    - 10.9.3.1—General
+    - 10.9.3.2—Ground Water Table and Bouyancy
+    - 10.9.3.3—Scour
+    - 10.9.3.4—Downdrag
+    - 10.9.3.5—Nominal Axial Compression Resistance of a Single Micropile
+      - 10.9.3.5.1—General
+      - 10.9.3.5.2—Estimation of Grout-to-Ground Bond Resistance
+      - 10.9.3.5.3—Estimation of Micropile Tip Resistance in Rock
+      - 10.9.3.5.4—Micropile Load Test
+    - 10.9.3.6—Resistance of Micropile Groups in Compression
+    - 10.9.3.7—Nominal Uplift Resistance of a Single Micropile
+    - 10.9.3.8—Nominal Uplift Resistance of Micropile Groups
+    - 10.9.3.9—Nominal Horizontal Resistance of Micropiles and Micropile Groups
+    - 10.9.3.10—Structural Resistance
+      - 10.9.3.10.1—General
+      - 10.9.3.10.2—Axial Compressive Resistance
+        - 10.9.3.10.2a—Cased Length
+        - 10.9.3.10.2b—Uncased Length
+      - 10.9.3.10.3—Axial Tension Resistance
+        - 10.9.3.10.3a—Cased Length
+        - 10.9.3.10.3b—Uncased Length
+      - 10.9.3.10.4—Plunge Length Transfer Load
+      - 10.9.3.10.5—Grout-to-Steel Bond
+      - 10.9.3.10.6—Buckling and Lateral Stability
+      - 10.9.3.10.7—Reinforcement into Superstructure
+  - 10.9.4—Extreme Event Limit State
+  - 10.9.5—Corrosion and Deterioration
+- 10.10—REFERENCES
+- APPENDIX A10—SEISMIC ANALYSIS AND DESIGN OF FOUNDATIONS
+  - A10.1—INVESTIGATION
+  - A10.2—FOUNDATION DESIGN
+  - A10.3—SPECIAL PILE REQUIREMENTS
+
+## SECTION 11: WALLS, ABUTMENTS, AND PIERS
+
+TABLE OF CONTENTS
+
+- 11.1—SCOPE
+- 11.2—DEFINITIONS
+- 11.3—NOTATION
+  - 11.3.1—General
+- 11.4—SOIL PROPERTIES AND MATERIALS
+  - 11.4.1—General
+  - 11.4.2—Determination of Soil Properties
+- 11.5—LIMIT STATES AND RESISTANCE FACTORS
+  - 11.5.1—General
+  - 11.5.2—Service Limit States
+  - 11.5.3—Strength Limit State
+  - 11.5.4—Extreme Event Limit State
+    - 11.5.4.1—General Requirements
+    - 11.5.4.2—Extreme Event I, No Analysis
+  - 11.5.5—Resistance Requirement
+  - 11.5.6—Load Combinations and Load Factors
+  - 11.5.7—Resistance Factors—Service and Strength
+  - 11.5.8—Resistance Factors—Extreme Event Limit State
+- 11.6—ABUTMENTS AND CONVENTIONAL RETAINING WALLS
+  - 11.6.1—General Considerations
+    - 11.6.1.1—General
+    - 11.6.1.2—Loading
+    - 11.6.1.3—Integral Abutments
+    - 11.6.1.4 —Wingwalls
+    - 11.6.1.5—Reinforcement
+      - 11.6.1.5.1—Conventional Walls and Abutments
+      - 11.6.1.5.2—Wingwalls
+    - 11.6.1.6 —Expansion and Contraction Joints
+  - 11.6.2—Movement at the Service Limit State
+    - 11.6.2.1—Abutments
+    - 11.6.2.2—Conventional Retaining Walls
+  - 11.6.3—Bearing Resistance and Stability at the Strength Limit State
+    - 11.6.3.1—General
+    - 11.6.3.2—Bearing Resistance
+    - 11.6.3.3—Eccentricity Limits
+    - 11.6.3.4—Subsurface Erosion
+    - 11.6.3.5—Passive Resistance
+    - 11.6.3.6—Sliding
+    - 11.6.3.7—Overall Stability
+  - 11.6.4—Safety against Structural Failure
+  - 11.6.5—Seismic Design for Abutments and Conventional Retaining Walls
+    - 11.6.5.1—General
+    - 11.6.5.2—Calculation of Seismic Acceleration Coefficients for Wall Design
+      - 11.6.5.2.1—Characterization of Acceleration at Wall Base
+      - 11.6.5.2.2—Estimation of Acceleration Acting on Wall Mass
+    - 11.6.5.3—Calculation of Seismic Active Earth Pressures
+    - 11.6.5.4—Calculation of Seismic Earth Pressure for Nonyielding Abutments and Walls
+    - 11.6.5.5—Calculation of Seismic Passive Earth Pressure
+    - 11.6.5.6—Wall Details for Improved Seismic Performance
+  - 11.6.6—Drainage
+- 11.7—PIERS
+  - 11.7.1—Load Effects in Piers
+  - 11.7.2—Pier Protection
+    - 11.7.2.1—Collision
+    - 11.7.2.2—Collision Walls
+    - 11.7.2.3—Scour
+    - 11.7.2.4—Facing
+- 11.8—NONGRAVITY CANTILEVERED WALLS
+  - 11.8.1—General
+  - 11.8.2—Loading
+  - 11.8.3—Movement at the Service Limit State
+    - 11.8.3.1—Movement
+  - 11.8.4—Safety against Soil Failure at the Strength Limit State
+    - 11.8.4.1—Overall Stability
+  - 11.8.5—Safety against Structural Failure
+    - 11.8.5.1—Vertical Wall Elements
+    - 11.8.5.2—Facing
+  - 11.8.6—Seismic Design of Nongravity Cantilever Walls
+    - 11.8.6.1—General
+    - 11.8.6.2—Seismic Active Lateral Earth Pressure
+    - 11.8.6.3—Seismic Passive Lateral Earth Pressure
+    - 11.8.6.4—Wall Displacement Analyses to Determine Earth Pressures
+  - 11.8.7—Corrosion Protection
+  - 11.8.8—Drainage
+- 11.9—ANCHORED WALLS
+  - 11.9.1—General
+  - 11.9.2—Loading
+  - 11.9.3—Movement at the Service Limit State
+    - 11.9.3.1—Movement
+  - 11.9.4—Safety against Soil Failure
+    - 11.9.4.1—Bearing Resistance
+    - 11.9.4.2—Anchor Pullout Capacity
+    - 11.9.4.3—Passive Resistance
+    - 11.9.4.4—Overall Stability
+  - 11.9.5—Safety Against Structural Failure
+    - 11.9.5.1—Anchors
+    - 11.9.5.2—Vertical Wall Elements
+    - 11.9.5.3—Facing
+  - 11.9.6—Seismic Design
+  - 11.9.7—Corrosion Protection
+  - 11.9.8—Construction and Installation
+    - 11.9.8.1—Anchor Stressing and Testing
+  - 11.9.9—Drainage
+- 11.10—MECHANICALLY STABILIZED EARTH WALLS
+  - 11.10.1—General
+  - 11.10.2—Structure Dimensions
+    - 11.10.2.1—Minimum Length of Soil Reinforcement
+    - 11.10.2.2—Minimum Front Face Embedment
+    - 11.10.2.3—Facing
+      - 11.10.2.3.1—Stiff or Rigid Concrete, Steel, and Timber Facings
+      - 11.10.2.3.2—Flexible Wall Facings
+      - 11.10.2.3.3—Corrosion Issues for MSE Facing
+  - 11.10.3—Loading
+  - 11.10.4—Movement at the Service Limit State
+    - 11.10.4.1—Settlement
+    - 11.10.4.2—Lateral Displacement
+    - 11.10.4.3—Soil Failure (Internal Stability)
+  - 11.10.5—Safety against Soil Failure (External Stability)
+    - 11.10.5.1—General
+    - 11.10.5.2—Loading
+    - 11.10.5.3—Sliding
+    - 11.10.5.4—Bearing Resistance
+    - 11.10.5.5—Overturning
+    - 11.10.5.6—Overall and Compound Stability
+  - 11.10.6—Safety against Structural Failure (Internal Stability)
+    - 11.10.6.1—General
+    - 11.10.6.2—Loading (Internal Stability)
+      - 11.10.6.2.1—Maximum Reinforcement Loads
+        - 11.10.6.2.1a—Special Loading Conditions
+        - 11.10.6.2.1b—Reinforcement Spacing for Calculation of Tmax
+        - 11.10.6.2.1c—Calculation of Lateral Earth Pressure Coefficients for Determination of Tmax
+        - 11.10.6.2.1d—Coherent Gravity Method
+        - 11.10.6.2.1e—Stiffness Method
+      - 11.10.6.2.2—Reinforcement Loads at Connection to Wall Face
+    - 11.10.6.3—Reinforcement Pullout
+      - 11.10.6.3.1—Boundary between Active and Resistant Zones
+      - 11.10.6.3.2—Reinforcement Pullout Design
+    - 11.10.6.4—Reinforcement Strength
+      - 11.10.6.4.1—General
+      - 11.10.6.4.2—Design Life Considerations
+        - 11.10.6.4.2a—Steel Reinforcements
+        - 11.10.6.4.2b—Geosynthetic Reinforcements
+      - 11.10.6.4.3—Design Tensile Resistance
+        - 11.10.6.4.3a—Steel Reinforcements
+        - 11.10.6.4.3b—Geosynthetic Reinforcements
+      - 11.10.6.4.4—Reinforcement/Facing Connection Design Strength
+        - 11.10.6.4.4a—Steel Reinforcements
+        - 11.10.6.4.4b—Geosynthetic Reinforcements
+  - 11.10.7—Seismic Design of MSE Walls
+    - 11.10.7.1—External Stability
+    - 11.10.7.2—Internal Stability
+    - 11.10.7.3—Facing Reinforcement Connections
+    - 11.10.7.4—Wall Details for Improved Seismic Performance
+  - 11.10.8—Drainage
+  - 11.10.9—Subsurface Erosion
+  - 11.10.10—Special Loading Conditions
+    - 11.10.10.1—Concentrated Dead Loads
+    - 11.10.10.2—Traffic Loads and Barriers
+    - 11.10.10.3—Hydrostatic Pressures
+    - 11.10.10.4—Obstructions in the Reinforced Soil Zone
+  - 11.10.11—MSE Abutments
+- 11.11—PREFABRICATED MODULAR WALLS
+  - 11.11.1—General
+  - 11.11.2—Loading
+  - 11.11.3—Movement at the Service Limit State
+  - 11.11.4—Safety against Soil Failure
+    - 11.11.4.1—General
+    - 11.11.4.2—Sliding
+    - 11.11.4.3—Bearing Resistance
+    - 11.11.4.4—Overturning
+    - 11.11.4.5—Subsurface Erosion
+    - 11.11.4.6—Overall Stability
+    - 11.11.4.7—Passive Resistance and Sliding
+  - 11.11.5—Safety against Structural Failure
+    - 11.11.5.1—Module Members
+  - 11.11.6—Seismic Design for Prefabricated Modular Walls
+  - 11.11.7—Abutments
+  - 11.11.8—Drainage
+- 11.12—SOIL NAIL WALLS
+  - 11.12.1—General Considerations
+  - 11.12.2—Loading
+  - 11.12.3—Movement at the Service Limit State
+  - 11.12.4—Safety against Soil Failure (External and Overall Stability—Strength Limit State)
+    - 11.12.4.1—Sliding
+    - 11.12.4.2—Overall Stability
+  - 11.12.5—Safety against Soil Failure (Internal and Compound Stability—Strength Limit State)
+    - 11.12.5.1—Soil Shear Strength
+    - 11.12.5.2—Soil Nail Pullout
+  - 11.12.6—Safety against Structural Failure (Internal and Compound Stability—Strength Limit State)
+    - 11.12.6.1—Soil Nail in Tension
+    - 11.12.6.2—Soil Nail Wall Facing—Strength Limit State
+      - 11.12.6.2.1—General
+      - 11.12.6.2.2—Facing Flexure
+      - 11.12.6.2.3—Facing Punching Shear Resistance
+      - 11.12.6.2.4—Headed Stud in Tension
+  - 11.12.7—Seismic Design of Soil Nail Walls
+    - 11.12.7.1—External and Global Stability
+    - 11.12.7.2—Internal Stability
+  - 11.12.8—Corrosion Protection
+  - 11.12.9—Soil Nail Testing
+  - 11.12.10—Drainage
+- 11.13—REFERENCES
+- APPENDIX A11—SEISMIC DESIGN OF RETAINING STRUCTURES
+  - A11.1—GENERAL
+  - A11.2—PERFORMANCE OF WALLS IN PAST EARTHQUAKES
+  - A11.3—CALCULATION OF SEISMIC ACTIVE PRESSURE
+    - A11.3.1—Mononobe–Okabe Method
+    - A11.3.2—Modification of Mononobe–Okabe Method to Consider Cohesion
+    - A11.3.3—Generalized Limit Equilibrium (GLE) Method
+  - A11.4—SEISMIC PASSIVE PRESSURE
+  - A11.5—ESTIMATING WALL SEISMIC ACCELERATION CONSIDERING WAVE SCATTERING AND WALL DISPLACEMENT
+    - A11.5.1—Kavazanjian et al., (1997)
+    - A11.5.2—NCHRP Report 611—Anderson et al. (2008)
+    - A11.5.3—Bray et al. (2010), and Bray and Travasarou (2009)
+  - A11.6—APPENDIX REFERENCES
+- APPENDIX B11—DETERMINATION OF TMAX FOR MSE WALLS USING THE SIMPLIFIED METHOD
+  - B11.1—GENERAL
+  - B11.2—DETERMINATION OF TMAX
+  - B11.3—APPENDIX REFERENCE
+
+## SECTION 12: BURIED STRUCTURES AND TUNNEL LINERS
+
+TABLE OF CONTENTS
+
+- 12.1—SCOPE
+- 12.2—DEFINITIONS
+- 12.3—NOTATION
+  - 12.3.1—Abbreviations
+- 12.4—SOIL AND MATERIAL PROPERTIES
+  - 12.4.1—Determination of Soil Properties
+    - 12.4.1.1—General
+    - 12.4.1.2—Foundation Soils
+    - 12.4.1.3—Envelope Backfill Soils
+  - 12.4.2—Materials
+    - 12.4.2.1—Aluminum Pipe and Structural Plate Structures
+    - 12.4.2.2—Concrete
+    - 12.4.2.3—Precast Concrete Pipe
+    - 12.4.2.4—Precast Concrete Structures
+    - 12.4.2.5—Steel Pipe and Structural Plate Structures
+    - 12.4.2.6—Deep Corrugated Structures
+    - 12.4.2.7—Steel Reinforcement
+    - 12.4.2.8—Thermoplastic Pipe
+    - 12.4.2.9—Fiberglass Pipe
+    - 12.4.2.10—Steel-Reinforced Thermoplastic Culverts
+- 12.5—LIMIT STATES AND RESISTANCE FACTORS
+  - 12.5.1—General
+  - 12.5.2—Service Limit State
+  - 12.5.3—Strength Limit State
+  - 12.5.4—Load Modifiers and Load Factors
+  - 12.5.5—Resistance Factors
+  - 12.5.6—Flexibility Limits and Construction Stiffness
+    - 12.5.6.1—Corrugated Metal Pipe and Structural Plate Structures
+    - 12.5.6.2—Spiral Rib Metal Pipe and Pipe Arches
+    - 12.5.6.3—Thermoplastic and Fiberglass Pipe
+    - 12.5.6.4—Steel Tunnel Liner Plate
+- 12.6—GENERAL DESIGN FEATURES
+  - 12.6.1—Loading
+  - 12.6.2—Service Limit State
+    - 12.6.2.1—Tolerable Movement
+    - 12.6.2.2—Settlement
+      - 12.6.2.2.1—General
+      - 12.6.2.2.2—Longitudinal Differential Settlement
+      - 12.6.2.2.3—Differential Settlement between Structure and Backfill
+      - 12.6.2.2.4—Footing Settlement
+      - 12.6.2.2.5—Unbalanced Loading
+    - 12.6.2.3—Uplift
+  - 12.6.3—Safety Against Soil Failure
+    - 12.6.3.1—Bearing Resistance and Stability
+    - 12.6.3.2—Corner Backfill for Metal Pipe Arches
+  - 12.6.4—Hydraulic Design
+  - 12.6.5—Scour
+  - 12.6.6—Soil Envelope
+    - 12.6.6.1—Trench Installations
+    - 12.6.6.2—Embankment Installations
+    - 12.6.6.3—Minimum Cover
+  - 12.6.7—Minimum Spacing between Multiple Lines of Pipe
+  - 12.6.8—End Treatment
+    - 12.6.8.1—General
+    - 12.6.8.2—Flexible Culverts Constructed on Skew
+  - 12.6.9—Corrosive and Abrasive Conditions
+- 12.7—METAL PIPE, PIPE ARCH, ARCH STRUCTURES, AND STEEL-REINFORCED THERMOPLASTIC CULVERTS
+  - 12.7.1—General
+  - 12.7.2—Safety Against Structural Failure
+    - 12.7.2.1—Section Properties
+    - 12.7.2.2—Thrust
+    - 12.7.2.3—Wall Resistance
+    - 12.7.2.4—Resistance to Buckling
+    - 12.7.2.5—Seam Resistance
+    - 12.7.2.6—Handling and Installation Requirements
+    - 12.7.2.7—Profile Evaluation for Steel-Reinforced Thermoplastic Culverts
+  - 12.7.3—Smooth Lined Pipe
+  - 12.7.4—Stiffening Elements for Structural Plate Structures
+  - 12.7.5—Construction and Installation
+- 12.8—LONG-SPAN STRUCTURAL PLATE STRUCTURES
+  - 12.8.1—General
+  - 12.8.2—Service Limit State
+  - 12.8.3—Safety Against Structural Failure
+    - 12.8.3.1—Section Properties
+      - 12.8.3.1.1—Cross-Section
+      - 12.8.3.1.2—Shape Control
+      - 12.8.3.1.3—Mechanical and Chemical Requirements
+    - 12.8.3.2—Thrust
+    - 12.8.3.3—Wall Area
+    - 12.8.3.4—Seam Strength
+    - 12.8.3.5—Acceptable Special Features
+      - 12.8.3.5.1—Continuous Longitudinal Stiffeners
+      - 12.8.3.5.2—Reinforcing Ribs
+  - 12.8.4—Safety Against Structural Failure—Foundation Design
+    - 12.8.4.1—Settlement Limits
+    - 12.8.4.2—Footing Reactions in Arch Structures
+    - 12.8.4.3—Footing Design
+  - 12.8.5—Safety Against Structural Failure—Soil Envelope Design
+    - 12.8.5.1—General
+    - 12.8.5.2—Construction Requirements
+    - 12.8.5.3—Service Requirements
+  - 12.8.6—Safety Against Structural Failure—End Treatment Design
+    - 12.8.6.1—General
+    - 12.8.6.2—Standard Shell End Types
+    - 12.8.6.3—Balanced Support
+    - 12.8.6.4—Hydraulic Protection
+      - 12.8.6.4.1—General
+      - 12.8.6.4.2—Backfill Protection
+      - 12.8.6.4.3—Cut-Off (Toe) Walls
+      - 12.8.6.4.4—Hydraulic Uplift
+      - 12.8.6.4.5—Scour
+  - 12.8.7—Concrete Relieving Slabs
+  - 12.8.8—Construction and Installation
+  - 12.8.9—Deep Corrugated Structural Plate Structures
+    - 12.8.9.1—General
+    - 12.8.9.2—Width of Structural Backfill
+      - 12.8.9.2.1—Deep Corrugated Structures with Ratio of Crown Radius to Haunch Radius ≤5
+      - 12.8.9.2.2—Deep Corrugated Structures with Ratio of Crown Radius to Haunch Radius >5
+    - 12.8.9.3—Safety Against Structural Failure
+      - 12.8.9.3.1—Structural Plate Requirements
+      - 12.8.9.3.2—Structural Analysis
+    - 12.8.9.4—Minimum Depth of Fill
+    - 12.8.9.5—Combined Thrust and Moment
+    - 12.8.9.6—Global Buckling
+    - 12.8.9.7—Connections
+- 12.9—STRUCTURAL PLATE BOX STRUCTURES
+  - 12.9.1—General
+  - 12.9.2—Loading
+  - 12.9.3—Service Limit State
+  - 12.9.4—Safety Against Structural Failure
+    - 12.9.4.1—General
+    - 12.9.4.2—Moments Due to Factored Loads
+    - 12.9.4.3—Plastic Moment Resistance
+    - 12.9.4.4—Crown Soil Cover Factor, CH
+    - 12.9.4.5—Footing Reactions
+    - 12.9.4.6—Concrete Relieving Slabs
+  - 12.9.5—Construction and Installation
+- 12.10—REINFORCED CONCRETE PIPE
+  - 12.10.1—General
+  - 12.10.2 Loading
+    - 12.10.2.1 Standard Installations
+    - 12.10.2.2 Pipe Fluid Weight
+    - 12.10.2.3—Live Loads
+  - 12.10.3—Service Limit State
+  - 12.10.4—Safety Against Structural Failure
+    - 12.10.4.1—General
+    - 12.10.4.2—Direct Design Method
+      - 12.10.4.2.1—Loads and Pressure Distribution
+      - 12.10.4.2.2—Analysis for Force Effects with the Pipe Ring
+      - 12.10.4.2.3—Process and Material Factors
+      - 12.10.4.2.4—Flexural Resistance at the Strength Limit State
+        - 12.10.4.2.4a—Circumferential Reinforcement
+        - 12.10.4.2.4b—Minimum Reinforcement
+        - 12.10.4.2.4c—Maximum Flexural Reinforcement without Stirrups
+        - 12.10.4.2.4d—Reinforcement for Crack Width Control
+        - 12.10.4.2.4e—Minimum Concrete Cover
+      - 12.10.4.2.5 —Shear Resistance without Stirrups
+      - 12.10.4.2.6—Shear Resistance with Radial Stirrups
+      - 12.10.4.2.7—Stirrup Reinforcement Anchorage
+        - 12.10.4.2.7a—Radial Tension Stirrup Anchorage
+        - 12.10.4.2.7b—Shear Stirrup Anchorage
+        - 12.10.4.2.7c—Stirrup Embedment
+    - 12.10.4.3—Indirect Design Method
+      - 12.10.4.3.1—Bearing Resistance
+      - 12.10.4.3.2—Bedding Factor
+        - 12.10.4.3.2a—Earth Load Bedding Factor for Circular Pipe
+        - 12.10.4.3.2b—Earth Load Bedding Factor for Arch and Elliptical Pipe
+        - 12.10.4.3.2c—Live Load Bedding Factors
+    - 12.10.4.4—Development of Quadrant Mat Reinforcement
+      - 12.10.4.4.1—Minimum Cage Reinforcement
+      - 12.10.4.4.2—Development Length of Welded Wire Fabric
+      - 12.10.4.4.3—Development of Quadrant Mat Reinforcement Consisting of Welded Plain Wire Fabric
+      - 12.10.4.4.4—Development of Quadrant Mat Reinforcement Consisting of Deformed Bars, Deformed Wire, or Deformed Wire Fabric
+  - 12.10.5—Construction and Installation
+- 12.11—REINFORCED CONCRETE CAST-IN-PLACE AND PRECAST BOX CULVERTS AND REINFORCED CAST-IN-PLACE ARCHES
+  - 12.11.1—General
+  - 12.11.2—Loads and Live Load Distribution
+    - 12.11.2.1—General
+    - 12.11.2.2—Modification of Earth Loads for Soil–Structure Interaction
+      - 12.11.2.2.1—Embankment and Trench Conditions
+      - 12.11.2.2.2—Other Installations
+    - 12.11.2.3—Distribution of Concentrated Loads to Bottom Slab of Box Culvert
+    - 12.11.2.4—Distribution of Concentrated Loads in Skewed Box Culverts
+  - 12.11.3—Strength Limit State
+  - 12.11.4—Service Limit State
+  - 12.11.5—Safety Against Structural Failure
+    - 12.11.5.1—General
+    - 12.11.5.2—Design Moment for Box Culverts
+    - 12.11.5.3—Minimum Reinforcement
+      - 12.11.5.3.1—Cast-in-Place Structures
+      - 12.11.5.3.2—Precast Box Structures
+    - 12.11.5.4—Minimum Cover for Precast Box Structures
+  - 12.11.6—Construction and Installation
+- 12.12—THERMOPLASTIC PIPES
+  - 12.12.1—General
+  - 12.12.2—Service Limit States
+    - 12.12.2.1—General
+    - 12.12.2.2—Deflection Requirement
+  - 12.12.3—Safety Against Structural Failure
+    - 12.12.3.1—General
+    - 12.12.3.2—Section Properties
+    - 12.12.3.3—Chemical and Mechanical Requirements
+    - 12.12.3.4—Thrust
+    - 12.12.3.5—Factored and Service Loads
+    - 12.12.3.6—Handling and Installation Requirements
+    - 12.12.3.7—Soil Prism
+    - 12.12.3.8—Hydrostatic Pressure
+    - 12.12.3.9—Live Load
+    - 12.12.3.10—Wall Resistance
+      - 12.12.3.10.1—Resistance to Axial Thrust
+        - 12.12.3.10.1a—General
+        - 12.12.3.10.1b—Local Buckling Effective Area
+        - 12.12.3.10.1c—Compression Strain
+        - 12.12.3.10.1d—Thrust Strain Limits
+        - 12.12.3.10.1e—General Buckling Strain Limits
+      - 12.12.3.10.2—Bending and Thrust Strain Limits
+        - 12.12.3.10.2a—General
+        - 12.12.3.10.2b—Combined Strain
+  - 12.12.4—Construction and Installation
+- 12.13—STEEL TUNNEL LINER PLATE
+  - 12.13.1—General
+  - 12.13.2—Loading
+    - 12.13.2.1—Earth Loads
+    - 12.13.2.2—Live Loads
+    - 12.13.2.3—Grouting Pressure
+  - 12.13.3—Safety Against Structural Failure
+    - 12.13.3.1—Section Properties
+    - 12.13.3.2—Wall Area
+    - 12.13.3.3—Buckling
+    - 12.13.3.4—Seam Strength
+    - 12.13.3.5—Construction Stiffness
+- 12.14—PRECAST REINFORCED CONCRETE THREE-SIDED STRUCTURES
+  - 12.14.1—General
+  - 12.14.2—Materials
+    - 12.14.2.1—Concrete
+    - 12.14.2.2—Reinforcement
+  - 12.14.3—Concrete Cover for Reinforcement
+  - 12.14.4—Geometric Properties
+  - 12.14.5—Design
+    - 12.14.5.1—General
+    - 12.14.5.2—Distribution of Concentrated Load Effects in Top Slab and Sides
+    - 12.14.5.3—Distribution of Concentrated Loads in Skewed Culverts
+    - 12.14.5.4—Shear Transfer in Transverse Joints between Culvert Sections
+    - 12.14.5.5—Span Length
+    - 12.14.5.6—Resistance Factors
+    - 12.14.5.7—Crack Control
+    - 12.14.5.8—Minimum Reinforcement
+    - 12.14.5.9—Deflection Control at the Service Limit State
+    - 12.14.5.10—Footing Design
+    - 12.14.5.11—Structural Backfill
+    - 12.14.5.12—Scour Protection and Waterway Considerations
+- 12.15—FIBERGLASS PIPE
+  - 12.15.1—General
+  - 12.15.2—Section Properties
+  - 12.15.3—Mechanical Requirements
+    - 12.15.3.1—Circumferential Flexural Modulus
+    - 12.15.3.2—Long-Term Ring-Bending Strain
+  - 12.15.4—Total Allowable Deflection
+  - 12.15.5—Service Limit States
+    - 12.15.5.1—General
+    - 12.15.5.2—Deflection Requirement
+  - 12.15.6—Safety Against Structural Failure
+    - 12.15.6.1—General
+    - 12.15.6.2—Flexure
+    - 12.15.6.3—Global Buckling
+    - 12.15.6.4—Flexibility Limit
+  - 12.15.7—Construction and Installation
+- 12.16—REFERENCES
+- APPENDIX A12—PLATE, PIPE, AND PIPE ARCH PROPERTIES
+
+## SECTION 13: RAILINGS
+
+TABLE OF CONTENTS
+
+- 13.1—SCOPE
+- 13.2—DEFINITIONS
+- 13.3—NOTATION
+- 13.4—GENERAL
+- 13.5—MATERIALS
+- 13.6—LIMIT STATES AND RESISTANCE FACTORS
+  - 13.6.1—Strength Limit State
+  - 13.6.2—Extreme Event Limit State
+- 13.7—TRAFFIC RAILINGS
+  - 13.7.1—Railing System
+    - 13.7.1.1—General
+    - 13.7.1.2—Approach Railings
+    - 13.7.1.3—End Treatment
+  - 13.7.2—Test Level Selection Criteria
+  - 13.7.3—Railing Design
+    - 13.7.3.1—General
+      - 13.7.3.1.1—Application of Previously Tested Systems
+      - 13.7.3.1.2—New Systems
+    - 13.7.3.2—Height of Traffic Parapet or Railing
+- 13.8—PEDESTRIAN RAILINGS
+  - 13.8.1—Geometry
+  - 13.8.2—Design Loads
+- 13.9—BICYCLE RAILINGS
+  - 13.9.1—General
+  - 13.9.2—Geometry
+  - 13.9.3—Design Live Loads
+- 13.10—COMBINATION RAILINGS
+  - 13.10.1—General
+  - 13.10.2—Geometry
+  - 13.10.3—Design Live Loads
+- 13.11—CURBS AND SIDEWALKS
+  - 13.11.1—General
+  - 13.11.2—Sidewalks
+  - 13.11.3—End Treatment of Separation Railing
+- 13.12—REFERENCES
+- APPENDIX A13
+  - A13.1—GEOMETRY AND ANCHORAGES
+    - A13.1.1—Separation of Rail Elements
+    - A13.1.2—Anchorages
+  - A13.2—TRAFFIC RAILING DESIGN FORCES
+  - A13.3—DESIGN PROCEDURE FOR RAILING TEST SPECIMENS
+    - A13.3.1—Concrete Railings
+    - A13.3.2—Post-and-Beam Railings
+    - A13.3.3—Concrete Parapet and Metal Rail
+    - A13.3.4—Wood Barriers
+  - A13.4—DECK OVERHANG DESIGN
+    - A13.4.1—Design Cases
+    - A13.4.2—Decks Supporting Concrete Parapet Railings
+    - A13.4.3—Decks Supporting Post-and-Beam Railings
+      - A13.4.3.1—Overhang Design
+      - A13.4.3.2—Resistance to Punching Shear
+
+## SECTION 14: JOINTS AND BEARINGS
+
+TABLE OF CONTENTS
+
+- 14.1—SCOPE
+- 14.2—DEFINITIONS
+- 14.3—NOTATION
+- 14.4—MOVEMENTS AND LOADS
+  - 14.4.1—General
+  - 14.4.2—Design Requirements
+    - 14.4.2.1—Elastomeric Pads and Steel Reinforced Elastomeric Bearings
+    - 14.4.2.2—High Load Multirotational (HLMR) Bearings
+      - 14.4.2.2.1—Pot Bearings and Curved Sliding Surface Bearings
+      - 14.4.2.2.2—Disc Bearings
+- 14.5—BRIDGE JOINTS
+  - 14.5.1—Requirements
+    - 14.5.1.1—General
+    - 14.5.1.2—Structural Design
+    - 14.5.1.3—Geometry
+    - 14.5.1.4—Materials
+    - 14.5.1.5—Maintenance
+  - 14.5.2—Selection
+    - 14.5.2.1—Number of Joints
+    - 14.5.2.2—Location of Joints
+  - 14.5.3—Design Requirements
+    - 14.5.3.1—Movements during Construction
+    - 14.5.3.2—Design Movements
+    - 14.5.3.3—Protection
+    - 14.5.3.4—Bridging Plates
+    - 14.5.3.5—Armor
+    - 14.5.3.6—Anchors
+    - 14.5.3.7—Bolts
+  - 14.5.4—Fabrication
+  - 14.5.5—Installation
+    - 14.5.5.1—Adjustment
+    - 14.5.5.2—Temporary Supports
+    - 14.5.5.3—Field Splices
+  - 14.5.6—Considerations for Specific Joint Types
+    - 14.5.6.1—Open Joints
+    - 14.5.6.2—Closed Joints
+    - 14.5.6.3—Waterproofed Joints
+    - 14.5.6.4—Joint Seals
+    - 14.5.6.5—Poured Seals
+    - 14.5.6.6—Compression and Cellular Seals
+    - 14.5.6.7—Sheet and Strip Seals
+    - 14.5.6.8—Plank Seals
+    - 14.5.6.9—Modular Bridge Joint Systems (MBJS)
+      - 14.5.6.9.1—General
+      - 14.5.6.9.2—Performance Requirements
+      - 14.5.6.9.3—Testing and Calculation Requirements
+      - 14.5.6.9.4—Loads and Load Factors
+      - 14.5.6.9.5—Distribution of Wheel Loads
+      - 14.5.6.9.6—Strength Limit State Design Requirements
+      - 14.5.6.9.7—Fatigue Limit State Design Requirements
+        - 14.5.6.9.7a—General
+        - 14.5.6.9.7b—Design Stress Range
+- 14.6—REQUIREMENTS FOR BEARINGS
+  - 14.6.1—General
+  - 14.6.2—Characteristics
+  - 14.6.3—Force Effects Resulting from Restraint of Movement at the Bearing
+    - 14.6.3.1—Horizontal Force and Movement
+    - 14.6.3.2—Moment
+  - 14.6.4—Fabrication, Installation, Testing, and Shipping
+  - 14.6.5—Seismic and Other Extreme Event Provisions for Bearings
+    - 14.6.5.1—General
+    - 14.6.5.2—Applicability
+    - 14.6.5.3—Design Criteria
+- 14.7—SPECIAL DESIGN PROVISIONS FOR BEARINGS
+  - 14.7.1—Metal Rocker and Roller Bearings
+    - 14.7.1.1—General
+    - 14.7.1.2—Materials
+    - 14.7.1.3—Geometric Requirements
+    - 14.7.1.4—Contact Stresses
+  - 14.7.2—PTFE Sliding Surfaces
+    - 14.7.2.1—PTFE Surface
+    - 14.7.2.2—Mating Surface
+    - 14.7.2.3—Minimum Thickness
+      - 14.7.2.3.1—PTFE
+      - 14.7.2.3.2—Stainless Steel Mating Surfaces
+    - 14.7.2.4—Contact Pressure
+    - 14.7.2.5—Coefficient of Friction
+    - 14.7.2.6—Attachment
+      - 14.7.2.6.1—PTFE
+      - 14.7.2.6.2—Mating Surface
+  - 14.7.3—Bearings with Curved Sliding Surfaces
+    - 14.7.3.1—General
+    - 14.7.3.2—Bearing Resistance
+    - 14.7.3.3—Resistance to Lateral Load
+  - 14.7.4—Pot Bearings
+    - 14.7.4.1—General
+    - 14.7.4.2—Materials
+    - 14.7.4.3—Geometric Requirements
+    - 14.7.4.4—Elastomeric Disc
+    - 14.7.4.5—Sealing Rings
+      - 14.7.4.5.1—General
+      - 14.7.4.5.2—Rings with Rectangular Cross-Sections
+      - 14.7.4.5.3—Rings with Circular Cross-Sections
+    - 14.7.4.6—Pot
+    - 14.7.4.7—Piston
+  - 14.7.5—Steel-Reinforced Elastomeric Bearings—Method B
+    - 14.7.5.1—General
+    - 14.7.5.2—Material Properties
+    - 14.7.5.3—Design Requirements
+      - 14.7.5.3.1—Scope
+      - 14.7.5.3.2—Shear Deformations
+      - 14.7.5.3.3—Combined Compression, Rotation, and Shear
+      - 14.7.5.3.4—Stability of Elastomeric Bearings
+      - 14.7.5.3.5—Reinforcement
+      - 14.7.5.3.6—Compressive Deflection
+      - 14.7.5.3.7—Seismic and Other Extreme Event Provisions
+    - 14.7.5.4—Anchorage for Bearings without Bonded External Plates
+  - 14.7.6—Elastomeric Pads and Steel-Reinforced Elastomeric Bearings—Method A
+    - 14.7.6.1—General
+    - 14.7.6.2—Material Properties
+    - 14.7.6.3—Design Requirements
+      - 14.7.6.3.1—Scope
+      - 14.7.6.3.2—Compressive Stress
+      - 14.7.6.3.3—Compressive Deflection
+      - 14.7.6.3.4—Shear
+      - 14.7.6.3.5—Rotation
+        - 14.7.6.3.5a—General
+        - 14.7.6.3.5b—Rotation of CDP
+      - 14.7.6.3.6—Stability
+      - 14.7.6.3.7—Reinforcement
+      - 14.7.6.3.8—Seismic and Other Extreme Event Provisions
+  - 14.7.7—Bronze or Copper Alloy Sliding Surfaces
+    - 14.7.7.1—Materials
+    - 14.7.7.2—Coefficient of Friction
+    - 14.7.7.3—Limit on Load
+    - 14.7.7.4—Clearances and Mating Surfaces
+  - 14.7.8—Disc Bearings
+    - 14.7.8.1—General
+    - 14.7.8.2—Materials
+    - 14.7.8.3—Elastomeric Disc
+    - 14.7.8.4—Shear Resisting Mechanism
+    - 14.7.8.5—Steel Plates
+  - 14.7.9—Guides and Restraints
+    - 14.7.9.1—General
+    - 14.7.9.2—Design Loads
+    - 14.7.9.3—Materials
+    - 14.7.9.4—Geometric Requirements
+    - 14.7.9.5—Design Basis
+      - 14.7.9.5.1—Load Location
+      - 14.7.9.5.2—Contact Stress
+    - 14.7.9.6—Attachment of Low-Friction Material
+  - 14.7.10—Other Bearing Systems
+- 14.8—LOAD PLATES AND ANCHORAGE FOR BEARINGS
+  - 14.8.1—Plates for Load Distribution
+  - 14.8.2—Tapered Plates
+  - 14.8.3—Anchorage and Anchor Bolts
+    - 14.8.3.1—General
+    - 14.8.3.2—Seismic and Other Extreme Event Design and Detailing Requirements
+- 14.9—CORROSION PROTECTION
+- 14.10—REFERENCES
+
+## SECTION 15: DESIGN OF SOUND BARRIERS
+
+TABLE OF CONTENTS
+
+- 15.1—SCOPE
+- 15.2—DEFINITIONS
+- 15.3—NOTATION
+- 15.4—GENERAL FEATURES
+  - 15.4.1—Functional Requirements
+    - 15.4.1.1—General
+    - 15.4.1.2—Lateral Clearance
+  - 15.4.2—Drainage
+  - 15.4.3—Emergency Responders and Maintenance Access
+  - 15.4.4—Differential Settlement of Foundations
+- 15.5—LIMIT STATES AND RESISTANCE FACTORS
+  - 15.5.1—General
+  - 15.5.2—Service Limit State
+  - 15.5.3—Strength Limit State
+  - 15.5.4—Extreme Event Limit State
+- 15.6—EXPANSION DEVICES
+  - 15.6.1—General
+  - 15.6.2—Structure-Mounted Sound Barriers
+  - 15.6.3—Ground-Mounted Sound Barriers
+- 15.7—SOUND BARRIERS INSTALLED ON EXISTING BRIDGES
+- 15.8—LOADS
+  - 15.8.1—General
+  - 15.8.2—Wind Load
+  - 15.8.3—Earth Load
+  - 15.8.4—Vehicular Collision Forces
+- 15.9—FOUNDATION DESIGN
+  - 15.9.1—General
+  - 15.9.2—Determination of Soil and Rock Properties
+  - 15.9.3—Limit States
+  - 15.9.4—Resistance Requirements
+  - 15.9.5—Resistance Factors
+  - 15.9.6—Loading
+  - 15.9.7—Movement at the Service Limit State
+  - 15.9.8—Safety against Geotechnical Failure at the Strength Limit State
+  - 15.9.9—Seismic Design
+  - 15.9.10—Corrosion Protection
+  - 15.9.11—Drainage
+- 15.10—REFERENCES
+
+## INDEX
+
+- Abutments and retaining walls — See Earth Pressure, 11-19
+  - backfill — 11-7
+  - bearing resistance — 11-21
+  - conventional walls and abutments — 11-20
+  - drainage — 11-35
+  - dynamic load allowance — 3-34
+  - expansion and contraction joints — 11-21
+  - extreme event limit state — 11-18
+  - general considerations — 11-19
+  - integral abutments — 11-20
+  - loading — 11-19
+  - movement and stability — 11-21
+  - overturning — 11-24
+  - passive resistance — 11-24
+  - protection — 2-4
+  - reinforcement — 11-20
+  - safety against structural failure — 11-25
+  - seismic design — 11-25
+  - sliding — 11-24
+  - subsurface erosion — 11-24
+  - transitions — 10-32
+  - wingwalls — 11-20
+- Aeroelastic instability
+  - aeroelastic phenomena — 3-59
+  - control of dynamic responses — 3-60
+  - wind tunnel tests — 3-60
+- Alkali–silica reactive aggregates — 5-264
+- Aluminum
+  - camber — See Camber
+  - coefficient of thermal expansion — 7-6
+  - culverts — 12-8
+  - effective area — 7-39
+  - fracture — 7-24
+  - local buckling — 7-48
+  - minimum thickness — 7-34
+  - net section — 7-39
+  - nondestructive testing — 7-32
+  - orthotropic decks — See Orthotropic aluminum decks
+  - shear and torsion — 7-56
+  - slenderness ratios — 7-32
+  - tensile resistance — 7-35
+  - unit weight — 3-21
+  - welding procedures and requirements — 7-31
+- Anchor bolts
+  - bearings — 14-84
+  - elastomeric bearings — 3-109
+  - deck joints — 14-18
+  - seismic design — 14-85
+- Anchorages
+  - anchored walls — 11-45
+  - bearings — 14-84
+  - deck joints — 14-18
+  - design live loads — 13-11
+  - footings — 10-54
+  - geometry — 13-11
+  - parapets — 13-15
+  - post-tensioning — 5-23
+  - railings — 13-15
+  - seismic design — 14-85
+  - tension tie — 5-93
+- Anchored walls — 11-44
+  - anchor pullout capacity — 11-47
+  - anchor stressing and testing — 11-54
+  - anchors — 11-47, 11-50
+  - bearing resistance — 11-46
+  - construction and installation — 11-54
+  - corrosion protection — 11-54
+  - drainage — 11-55
+  - dynamic load allowance — 3-34
+  - earth pressure — 3-133
+  - facing — 11-52
+  - loading — 11-45
+  - movement and stability — 11-45
+  - passive resistance — 11-50
+  - safety against soil failure — 11-46
+  - safety against structural failure — 11-50
+  - seismic design — 11-53
+  - vertical wall elements — 11-52
+- Anchors — 5-256
+- Angles
+  - floorbeam/stringer end connection — 6-285
+  - shelf — 6-285
+  - thickness of metal — 6-285
+- Annual frequency of collapse
+  - geometric probability — 3-166
+  - probability of aberrancy — 3-163
+  - probability of collapse — 3-167
+  - vessel frequency distribution — 3-162
+- Approximate methods of analysis
+  - beam-slab bridges — 4-29
+  - decks — 4-22
+  - effective flange width — 4-54
+  - effective length factor — 4-49
+  - equivalent strip widths for slab-type bridges . 4-48
+  - moment magnification — 4-14, 4-16
+  - seismic lateral load distribution — 4-62
+  - truss and arch bridges — 4-49
+- Arches
+  - arch ribs — 5-247
+  - effective length factor — 4-16
+  - minimum reinforcement — 5-248
+  - moment magnification — 4-16
+  - splices — 6-304
+  - steel, diaphragms — 6-79
+- Backfill — See Abutments and retaining walls
+- Barriers
+  - anchorage — 3-109
+  - seismic forces — 3-109
+- Basic requirements of structural dynamics
+  - damping — 4-78
+  - distribution of masses — 4-77
+  - natural frequencies — 4-78
+  - stiffness — 4-78
+- Beam ledges
+  - design for bearing — 5-112
+  - design for flexure and horizontal force — 5-108
+  - design for punching shear — 5-108
+  - design for shear — 5-107
+  - design of hanger reinforcement — 5-110
+- Beam-slab bridges
+  - moment and shear — 4-35
+  - special loads with other traffic — 4-47
+- Bearing area
+  - brackets — 5-105
+  - concrete — 5-54
+  - fasteners — 6-295
+  - post-tensioning anchorage — 5-113
+- Bearing plates — See Bearings
+- Bearing stiffeners — 6-208
+  - axial resistance — 6-209
+  - bearing resistance — 6-209
+  - effective section — 6-209
+  - projecting width — 6-208
+  - steel — 6-370
+- Bearing-type connections — 6-286
+- Bearings
+  - See Disc bearings, Elastomeric bearings, Pot
+  - bearings, and Railing
+  - anchor bolts — 14-84
+  - anchorage — 14-84
+  - applicability — 14-41
+  - bearing plates — 5-67, 5-113
+  - bronze or copper alloy sliding surfaces — 14-77
+  - characteristics — 14-37
+  - curved sliding surfaces — 14-50
+  - design criteria — 14-41
+  - disc bearings — 14-78
+  - elastomeric bearings — 14-57, 14-68
+  - fabrication, installation, testing and shipping — 14-41
+  - force effects resulting from restraint of movement at the bearing — 14-38
+  - guides and restraints — 14-80
+  - horizontal force and movement — 14-38
+  - launching bearings — 5-242
+  - load plates — 14-83
+  - metal rocker and roller bearings — 14-43
+  - moment — 14-39
+  - movements and loads — 14-6
+  - other bearing systems — 14-82
+  - pot bearings — 14-52
+  - PTFE sliding surfaces — 14-45
+  - seismic provisions for bearings — 14-41
+  - special design provisions — 14-43
+  - suitability — 14-37
+  - tapered plates — 14-84
+  - uplift — 14-36, 14-80
+- Bearing resistance
+  - rock — 10-83
+  - semiempirical procedures — 10-68
+  - spread footings — 10-69, 10-70
+- Bicycles
+  - deck joint provisions — 14-17
+  - railing — 13-9, 13-11
+- Bolted connections — 6-285
+  - bearing-type connections — 6-286, 6-288
+  - eccentric — 6-285
+  - edge distance — 6-290
+  - end distance — 6-290
+  - holes — 6-288
+  - maximum pitch for stitch bolts — 6-289
+  - maximum spacing for sealing bolts — 6-289
+  - minimum number of bolts — 6-285
+  - minimum spacing and clear distance — 6-289
+  - minimum weld — 6-285
+  - nuts — 6-84
+  - slip-critical connections — 6-285, 6-288
+  - washers — 6-84, 6-287
+- Bolted splices
+  - compression members — 6-304
+  - fillers — 6-311
+  - flange splices — 6-308
+  - flexural members — 6-304
+  - tension members — 6-304
+  - web splices — 6-305
+- Bolts
+  - bearing resistance — 6-286, 6-295
+  - combined tension and shear — 6-297
+  - effective bearing area — 6-295
+  - fatigue resistance — 6-296
+  - gauge — 6-95, 6-289
+  - materials — 8-21
+  - minimum number in a connection — 6-285
+  - prying action — 6-296
+  - shear resistance — 6-286, 6-290, 6-303
+  - size — 6-288
+  - slip resistance — 6-291
+  - tensile resistance — 6-286, 6-296, 6-303
+- Box girders
+  - analysis — 4-36
+  - effective flange width — 4-59
+  - live load distribution factors — 4-36
+  - wind bracing — 4-62
+  - wind load distribution — 4-62
+- Bracing
+  - See Diaphragms and cross-frames, and Lateral
+  - bracing
+  - box sections — 4-62
+  - connections — 6-61, 6-286
+  - glued laminated timber girders — 8-37
+  - portal bracing — 8-37
+  - sawn wood beams — 8-36
+  - slenderness ratio — 6-96, 6-109
+  - sway bracing — 8-37
+  - temporary — 4-62, 5-210, 6-71
+  - trusses — 6-83
+  - wood trusses — 8-37
+- Brackets and corbels
+  - alternative to strut-and-tie model — 5-105
+- Braking force — 3-35
+- Bridge scour — See Scour
+- Bridge site arrangement
+  - traffic safety — 2-4
+- Bridge testing — 4-90
+- Bronze or copper alloy sliding surfaces
+  - clearances and mating surfaces — 14-78
+  - coefficient of friction — 14-78
+  - limit on load — 14-78
+  - materials — 14-77
+- Built-up members
+  - noncomposite sections — 6-121
+  - perforated plates — 6-96, 6-122
+  - steel tension members — 6-96
+- Bundled reinforcement
+  - development length — 5-183
+  - number of bars in a bundle — 5-171
+  - splices — 5-190
+  - termination — 5-171
+  - ties — 5-173
+- Buoyancy — 3-44
+- Buried structures
+  - bearing resistance and stability — 12-19
+  - corner backfill for metal pipe arches — 12-20
+  - corrosive and abrasive conditions — 12-24
+  - differential settlement of backfill — 12-15
+  - embankment installations — 12-21
+  - end treatment — 12-23
+  - flexibility limits and construction stiffness — 12-13
+  - flexible culverts constructed on skew — 12-23
+  - footing settlement — 12-15
+  - hydraulic design — 12-20
+  - loading — 12-14
+  - minimum soil cover — 12-21
+  - minimum spacing of pipe — 12-22
+  - safety against soil failure — 12-19
+  - scour — 12-20
+  - service limit state — 12-15
+  - settlement — 12-15
+  - soil envelope — 12-20
+  - tolerable movement — 12-15
+  - trench installations — 12-20
+  - unbalanced loading — 12-16
+  - uplift — 12-19
+- Cables
+  - bridge strand — 6-35
+  - bright wire — 6-35
+  - epoxy-coated wire — 6-35
+  - galvanized wire — 6-35
+  - modulus of elasticity — 4-74
+- Caissons — See Drilled shafts
+- Camber
+  - aluminum structures — 7-31
+  - concrete structures — 5-44, 5-121, 5-141, 5-242
+  - glued laminated timber girders — 8-37
+  - steel structures — 6-65
+  - stress laminated decks — 8-37
+  - wood structures — 8-12
+  - wood trusses — 8-37
+- Cantilever retaining walls — 11-36
+  - corrosion protection — 11-44
+  - drainage — 11-44
+  - earth pressure — 3-128
+  - facing — 11-38
+  - loading — 11-36
+  - movement — 11-36
+  - overall stability — 11-36
+  - safety against structural failure — 11-38
+  - seismic design — 11-39
+  - soil failure — 11-36
+  - vertical wall elements — 11-38
+- Cantilever slabs
+  - cantilever length — 3-28
+  - design — 3-28, 4-23, 9-9, 13-4, 13-5
+  - reinforcement, concrete boxes — 5-223
+  - strip width — 4-24
+  - thickness — 13-9
+  - wheel load position — 3-28
+- Cast metal
+  - cast iron — 6-34
+  - cast steel and ductile iron — 6-34
+  - malleable castings — 6-34
+- Cast-in-place box culverts and arches
+  - cast-in-place structures — 12-73
+  - concentrated loads — 12-71
+  - construction and installation — 12-74
+  - design moment for box culverts — 12-73
+  - distribution of concentrated loads in skewed box culverts — 12-72
+  - embankment and trench conditions — 12-69
+  - loads and live load distribution — 12-68
+  - minimum cover for precast box structures — 12-74
+  - minimum reinforcement — 12-73
+  - other installations — 12-71
+  - precast box structures — 12-73
+  - safety against structural failure — 12-73
+  - service limit state — 12-72
+  - soil structure interaction — 12-69
+- Cast-in-place girders and box and T-beams
+  - bottom flange — 5-223
+  - bottom slab reinforcement in box girders — 5-224
+  - deck slab reinforcement in T-beams/box girders — 5-223
+  - effective flange width — 4-55
+  - flange and web thickness — 5-223
+  - reinforcement — 5-223
+  - top flange — 5-223
+  - web — 5-223
+- Cast-in-place piles — See Concrete piles
+- Cast-in-place voided slab superstructures
+  - compressive zones in negative moment area5-207
+  - cross-section dimensions — 5-206
+  - drainage of voids — 5-208
+  - general design requirements — 5-207
+  - minimum number of bearings — 5-207
+  - solid end sections — 5-207
+- Centrifugal forces — 3-34
+- Charpy V-notch test
+  - temperature zones — 6-64
+- Clearances — 2-5
+  - drilled shafts — 10-129
+  - highway horizontal — 2-6
+  - highway vertical — 2-5
+  - navigational — 2-5
+  - pedestrian bridges — 2-6
+  - piles — 10-87
+  - railroad overpass — 2-6
+- Coefficient of thermal expansion
+  - aluminum — 7-6
+  - concrete — 5-17
+  - steel — 6-30
+  - wood — 9-30
+- Combination railing — 13-12
+  - design live loads — 13-12
+  - geometry — 13-12
+- Combined force effects
+  - concrete — 5-49, 5-55
+  - steel — 6-99, 6-129, 6-245
+  - wood — 8-35
+- Compact sections
+  - nominal flexural resistance — 6-178, 6-231
+- Composite box girders — 4-36, See also Box girders
+  - bracing — 6-80
+  - design conditions — 6-215
+  - diaphragms — 6-76, 6-78
+  - fatigue — 6-215
+  - lateral bracing — 6-80
+  - live load distribution factors — 4-36
+  - wind effects — 4-62
+- Composite sections
+  - concrete deck stresses — 6-138
+  - concrete-encased shapes — 6-130, 6-278
+  - concrete-filled tubes — 6-130, 6-279
+  - modular ratio — 6-138
+  - sequence of loading — 6-137
+  - steel — 6-128
+- Compression chords
+  - continuity — 6-315
+  - lateral bracing — 6-83
+  - splices — 6-304
+- Compression flange flexural resistance — 6-183
+  - lateral torsional buckling resistance . 6-186, 6-361
+  - local buckling resistance — 6-185, 6-360
+- Compression flange proportions — 6-368
+- Compression members
+  - concrete — 5-45, 5-48
+  - hollow rectangular compression members — 5-51
+  - steel — 6-99
+  - steel composite members — 6-128
+  - steel noncomposite members — 6-109
+  - wood — 8-33
+- Compressive resistance
+  - concrete — 5-48
+  - steel — 6-99
+  - steel composite members — 6-128
+  - steel noncomposite members — 6-109
+  - wood — 8-33
+- Concrete
+  - air-entrained — 5-260, 5-263
+  - bearing resistance — 5-30, 5-53, 5-252
+  - bearings — 5-242
+  - box girders — See Concrete box girders
+  - camber — See Camber
+  - coefficient of thermal expansion — 5-17
+  - combined force effects — 5-49, 5-55
+  - compressive strength — 5-15
+  - cover — 5-167, 5-265, 9-14
+  - creep — 5-17
+  - culverts — See Concrete culverts
+  - deck slabs — See Concrete slabs
+  - extreme event limit state — 5-32, 5-33, 5-291
+  - formwork — See Concrete formwork
+  - modulus of elasticity — 5-20, 5-291
+  - modulus of rupture — 5-20
+  - piles — See Concrete piles
+  - Poisson’s ratio — 5-20
+  - properties — 5-15
+  - shrinkage — 5-19
+  - slabs — See Concrete slabs
+  - stress limits — See Concrete stress limits
+  - strut-and-tie method — 5-85
+  - tensile strength — 5-21
+  - T-beams — See Concrete T-beams
+- Concrete box girders
+  - effective flange width — 4-59
+  - effective flange width — 4-55
+  - live load distribution factors — 4-36
+- Concrete culverts
+  - bottom slab — 5-210
+  - confinement reinforcement — 5-147
+  - dimensions, minimum — 5-210
+  - distribution reinforcement — 5-206
+  - dynamic load allowance — 3-34
+  - seismic effects — 3-69
+  - top slab — 5-210
+  - web thickness — 5-210
+- Concrete deck slabs — See Concrete slabs
+- Concrete formwork — See Stay-in-place formwork
+  - bedding of panels — 9-14
+  - creep and shrinkage control — 9-14
+  - depth — 9-13
+  - reinforcement — 9-13
+- Concrete piles
+  - anchorage — 5-196, 5-253
+  - cast-in-place piles — 5-255
+  - embedment — 5-196, 5-253
+  - end region — 5-198
+  - pile dimensions — 5-256
+  - precast prestressed piles — 5-254
+  - precast reinforced piles — 5-254
+  - reinforcement — 5-197, 5-205
+  - reinforcing steel — 5-256
+  - seismic requirements — 5-205
+  - shells for cast-in-place piles — 5-256
+  - spacing of transverse reinforcement — 5-256
+  - splices — 5-254
+  - structural resistance — 10-123
+  - tensile stresses, precast piles — 5-125
+  - tolerance — 5-249
+  - uplift — 5-197
+- Concrete slabs — 9-7
+  - abrasion — 5-167
+  - application of empirical design — 9-9
+  - composite action — 9-7
+  - concrete cover — 5-167
+  - design conditions — 9-10
+  - design of cantilever slabs — 9-8
+  - distribution reinforcement — 5-206
+  - edge support — 5-205, 9-8
+  - effective length — 9-9
+  - effective width — 6-139
+  - empirical design — 9-8
+  - minimum depth and cover — 9-7
+  - precast deck slabs on girders — 9-14
+  - reinforcement — 5-206, 9-11
+  - segmental construction — 9-15
+  - shear — 5-58
+  - skewed bridges — 4-49
+  - skewed decks — 9-7, 9-12
+  - slab bridges — 5-205
+  - stay-in-place formwork — 9-12
+  - stay-in-place formwork — 9-13
+  - top slab, box girders — 9-15
+  - traditional design — 9-12
+  - uplift and slip of deck slabs — 7-32
+- Concrete stress limits
+  - service stresses — 5-125
+  - stress limits for concrete — 5-123, 5-291
+  - temporary stresses before losses — 5-123
+- Concrete T-beams
+  - negative moment reinforcement — 5-57
+- Concrete-filled tubes
+  - circular tubes — 6-283
+  - rectangular tubes — 6-283
+- Cone Penetration Test — 10-82
+- Connections — 6-284
+  - See Bolted connections, Splices, and Welded
+  - connections
+  - block shear rupture resistance — 6-302
+  - bolted connections — 6-285
+  - rigid frame connections — 6-313
+  - splices — 6-304
+  - welded connections — 6-298
+- Connectors
+  - lacing bars — 6-96, 6-130
+  - tie plates — 6-96, 6-130
+- Constructibility
+  - dead load deflections — 6-167
+  - deck placement — 6-163
+  - flexure — 6-160, 6-224
+  - shear — 6-226
+- Continuously braced compression flanges — 6-356
+- Continuously braced tension flanges — 6-356
+- Corrosion
+  - prestressing systems, concrete — 5-23, 5-265
+  - steel structures — 6-71
+- Constructibility
+  - design objectives — 2-14
+- Continuous spans loading — 3-28
+- Corrosion
+  - bearings — 14-49
+  - MSE facing — 11-61
+  - piles — 10-125
+- Corrosion protection — 14-85
+  - alternative coating — 8-23
+  - metallic coating — 8-23
+- Corrugated metal decks
+  - composite action — 9-29
+  - distribution of wheel loads — 9-29
+- Cover plates — 6-214
+  - end requirements — 6-214
+- CPT — See Cone Penetration Test
+  - cohesionless soils — 10-115
+- Creep effect — 5-17, 5-122
+- Cross-section proportion limits
+  - flange proportions — 6-222
+  - web proportions — 6-222
+- Culverts
+  - additional provisions for culverts — 5-248
+  - aluminum — 12-8
+  - design for flexure — 5-248
+  - design for shear in slabs of box culverts — 5-248
+  - location, length, and waterway area — 2-23
+  - seismic effects — 3-69
+- Curbs and sidewalks — See Sidewalks
+  - end treatment of separation railing — 13-13
+  - sidewalks — 13-13
+- Curved structures
+  - deck joints — 14-15
+  - deflections — 2-12
+  - single girder superstructures — 4-18
+- Curved tendons
+  - effects of curved tendons — 5-150
+  - in-plane force effects — 5-151
+  - out-of-plane force effects — 5-155
+- Dead loads
+  - load factors — 3-17, 5-229
+  - unit weight of materials — 3-21
+- Deck analysis
+  - loading — 9-6
+  - methods of analysis — 9-6
+- Deck joints
+  - adjustment — 14-19
+  - anchors — 14-18
+  - armor — 14-18
+  - bolts — 14-18
+  - bridging plates — 14-17
+  - closed joints — 14-20
+  - compression and cellular seals — 14-21
+  - design requirements — 14-16
+  - fabrication — 14-18
+  - field splices — 14-19
+  - geometry — 14-14
+  - installation — 14-19
+  - joint seals — 14-21
+  - location of joints — 14-15
+  - maintenance — 14-14
+  - materials — 14-14
+  - modular bridge joint systems — 14-22
+  - movements during construction — 14-16
+  - number of joints — 14-15
+  - open joints — 14-20
+  - plank seals — 14-22
+  - poured seals — 14-21
+  - protection — 14-17
+  - requirements — 14-12
+  - selection — 14-15
+  - sheet and strip seals — 14-22
+  - structural design — 14-13
+  - temporary supports — 14-19
+  - waterproofed joints — 14-20
+- Deck overhang design — 9-9, 13-25
+  - decks supporting concrete parapet railings — 13-25
+  - decks supporting post-and-beam railings — 13-26
+  - design cases — 13-25
+  - resistance to punching shear — 13-27
+  - stay-in-place formwork — 9-5
+- Decks — See Deck joints, and Deck overhang design
+  - applicability — 4-23
+  - concrete appurtenances — 9-5
+  - deck drainage — 9-4
+  - distribution of wheel loads — 4-26
+  - edge supports — 9-5
+  - empirical design — 9-8
+  - inelastic analysis — 4-29
+  - interface action — 9-4
+  - isotropic plate model — 4-68
+  - live loads — 3-28
+  - live load effects on grids — 4-27
+  - longitudinal edges — 4-25
+  - orthotropic plate model — 4-68
+  - stay-in-place formwork — 9-5
+  - traditional design — 9-12
+  - transverse edges — 4-25
+  - unfilled composite grids — 9-18
+- Deep beams — 5-224
+- Deflection
+  - concrete — 5-44
+  - criteria — 2-11
+  - span-to-depth ratios — 2-13
+- Deformations
+  - axial deformation — 5-45
+  - concrete — 5-43
+  - steel — 6-168
+- Deformed bars and deformed wire in tension
+  - tension development length — 5-180
+- Deformed bars in compression
+  - compressive development length — 5-183
+  - modification factors — 5-183
+- Depth of the web in compression
+  - at plastic moment — 6-407
+  - in the elastic range — 6-406
+- Design lane load — 3-25
+- Design lanes
+  - width — 3-22
+- Design objectives
+  - bridge aesthetics — 2-15
+  - constructibility — 2-14
+  - economy — 2-15
+  - safety — 2-7
+  - serviceability — 2-8
+- Design philosophy — 1-3
+  - ductility — 1-5
+  - limit states — 1-3
+  - operational importance — 1-7
+  - redundancy — 1-6
+- Design tandem — 3-25
+- Design truck — 3-24
+- Development of reinforcement
+  - basic requirements — 5-176
+  - bonded strand — 5-143
+  - bundled bars — 5-183
+  - deformed bars and deformed wire in tension. — 5-180, 5-291
+  - development by mechanical anchorages — 5-189
+  - flexural reinforcement — 5-177
+  - modification factors — 5-181, 5-183, 5-185
+  - prestressing strand — 5-143
+  - shear reinforcement — 5-187
+  - standard hooks in tension — 5-184
+  - welded wire fabric — 5-187
+- Diaphragms and cross-frames
+  - aluminum structures — 7-34
+  - concrete structures — 5-243
+  - steel arches — 6-79
+  - steel box girders — 6-76
+  - steel I-girders — 6-72
+  - steel structures — 6-71
+  - steel trusses — 6-79, 6-316
+- Disc bearings — See Bearings
+  - elastomeric disc — 14-79
+  - materials — 14-79
+  - shear resisting mechanism — 14-80
+  - steel plates — 14-80
+  - suitability — 14-37
+- Discretely braced compression flanges — 6-354
+- Discretely braced tension flanges — 6-355
+- Distortion-induced fatigue
+  - lateral connection plates — 6-61
+  - orthotropic decks — 6-61, 9-29
+- Distribution of load
+  - cantilever slabs — 4-24
+  - concrete slabs — 4-24
+  - exterior beams — 4-39, 4-44
+  - interior beams — 4-35, 4-36, 4-38, 4-42
+  - skewed bridges — 4-40, 4-46
+  - steel grid flooring — 4-24
+  - transverse floorbeams — 4-41
+  - trusses — 4-49
+  - wheel loads through earth fills — 3-25
+  - wood flooring — 4-23
+- Dowels
+  - concrete columns — 5-253
+  - concrete interface — 5-204
+  - pile anchorage — 5-196, 5-253
+  - wood decks — 9-32, 9-38
+- Downdrag — 10-101, 10-102, 10-131, 10-136
+  - determination of pile loads — 10-88
+  - settlement due to — 10-95
+- Drainage
+  - sound barrier — 15-2, 15-10
+  - spandrel fill — 5-248
+- Drilled shafts — 10-128
+  - battered shafts — 10-130
+  - buckling — 10-150
+  - clearance — 10-129
+  - combined side and tip resistance — 10-145
+  - definition — 10-2
+  - design of — 10-33
+  - diameter — 10-129
+  - embedment into cap — 10-129
+  - enlarged bases — 10-129, 10-151
+  - estimation of resistance in IGMs — 10-146
+  - estimation of resistance in rock — 10-143
+  - group resistance — 10-147
+  - group resistance in cohesionless soil — 10-148
+  - group resistance in cohesive soil — 10-148
+  - group resistance in strong soil overlying weak soil — 10-149
+  - horizontal movement — 10-135
+  - horizontal resistance — 10-150
+  - lateral stability — 10-150
+  - reinforcement — 10-150
+  - resistance in cohesive Soils — 10-138
+  - service limit state design — 10-132
+  - settlement — 10-132
+  - shaft resistance — 10-130
+  - side resistance — 10-144
+  - spacing — 10-129
+  - strength limit state — 10-48
+  - structural resistance — 10-150
+  - tip resistance — 10-140, 10-142, 10-145
+  - transverse reinforcement — 10-151
+- Driven piles
+  - design of — 10-33
+- Ductility — 1-5
+- Ductility requirements
+  - reinforcing bars — 5-22
+- Ducts
+  - bundling — 5-148
+  - curvature, minimum — 5-23
+  - ducts at deviation saddles — 5-24
+  - grouting — 5-24, 5-150, 5-236
+  - materials — 5-23
+  - size of ducts — 5-24
+  - spacing — 5-148
+- Durability
+  - concrete cover — 5-167, 5-265
+  - materials — 2-8
+  - self-protecting measures — 2-8
+- Dynamic analysis — 4-77
+  - analysis for collision loads — 4-89
+  - analysis for earthquake loads — 4-80
+  - basic requirements — 4-77
+  - inelastic dynamic responses — 4-79
+- Dynamic load allowance — 3-33
+  - buried components — 3-34
+  - deck joints — 3-33
+  - wood components — 3-34
+- Earth loads
+  - sound barrier — 15-5
+  - steel tunnel liner plate — 12-90
+- Earth pressure — 3-116
+  - active — 3-120
+  - anchored walls — 3-133
+  - at-rest — 3-119
+  - buried structures — 12-14
+  - cantilevered walls — 3-128
+  - compaction — 3-117
+  - downdrag — 3-151
+  - effect of earthquake — 3-118
+  - equivalent-fluid method — 3-126
+  - lateral earth pressure — 3-118
+  - modular walls — 3-138
+  - MSE walls — 3-136
+  - passive — 3-123
+  - presence of water — 3-117
+  - reduction due to earth pressure — 3-151
+  - surcharge loads — 3-142
+- Earthquake effects — See Seismic loads
+- Economy
+  - alternative plans — 2-15
+- Edge distance — 6-290
+- Edge supports, slabs — 5-205, 9-5, 9-8, 9-17
+- Effective area
+  - aluminum — 7-39
+  - perforated plates — 6-315
+  - welds — 6-300
+- Effective flange width
+  - box girders — 4-59
+  - cast-in-place multicell superstructures — 4-59
+  - orthotropic steel decks — 4-59
+  - segmental box beams and CIP box beams — 4-55
+- Effective length
+  - slabs — 9-10
+  - span — 7-32
+- Effective plastic moment — 6-373
+  - all other interior-pier sections — 6-374
+  - interior-pier sections — 6-373
+- Effective width
+  - concrete slabs — 6-139
+  - orthotropic decks — 9-28
+- Elastic dynamic responses
+  - wind-induced vibration — 4-79
+- Elastomeric bearings — See Bearings
+  - anchorage — 3-109
+  - combined compression and rotation — 14-65
+  - compressive deflection — 14-61, 14-72
+  - compressive stress — 14-60, 14-71
+  - design method A — 14-68
+  - design method B — 14-57
+  - movements and loads — 14-11
+- Elastomeric pads — See Elastomeric bearings
+- Emergency responder access to sound barriers — 15-2
+- End distance — 6-290
+- End requirements
+  - bolted ends — 6-215
+  - welded ends — 6-215
+- Engineering News formula — 10-106
+- Erosion control — 11-20
+- Expansion — See Coefficient of thermal expansion
+- Expansion devices for sound barriers — 15-4
+- Exterior stringers
+  - capacity — 4-32
+  - distribution factors — 4-39, 4-44
+- Extreme event limit state — 1-5, 9-6, 10-33
+  - abutments, piers, and walls — 11-18
+  - concrete structures — 5-32, 5-33, 5-291
+  - drilled shafts — 10-124
+  - liquefaction design requirements — 10-34
+  - load combinations — 3-10, 3-17
+  - prestressing steel — 5-123
+  - railing — 13-5
+  - sound barrier — 15-3
+  - steel structures — 6-37
+  - wood structures — 8-31
+- Extreme limit states — 10-51
+- Eyebars
+  - factored resistance — 6-96
+  - packing — 6-97
+  - proportions — 6-96
+- Fasteners — See Bolts, and Connectors
+  - countersunk — 6-295
+- Fatigue
+  - distortion-induced — 6-60
+  - load-induced — 6-38
+- Fatigue and fracture limit state — 1-4, 9-5
+  - aluminum structures — 7-8
+  - concrete structures — 5-33
+  - decks — 9-19, 9-29
+  - elastomeric bearings — 14-65
+  - load combinations — 3-17
+  - modular bridge joint systems — 14-29
+  - prestressing steel — 5-28
+  - reinforcing bars — 5-27
+  - steel structures — 6-36
+  - welded or mechanical rebar splices — 5-28
+- Fatigue design
+  - cycles — 6-57
+  - deck joints — 14-6
+  - elastomeric bearings — 14-65
+  - metal grid decks — 9-19
+  - orthotropic decks — 9-28
+  - steel webs — 6-215
+- Fatigue load — 3-30
+  - approximate methods — 3-32
+  - frequency — 3-31
+  - load distribution for fatigue — 3-32
+  - refined methods — 3-32
+- FHWA Gates Formula — 10-105
+- Filled and partially filled grid decks
+  - design requirements — 9-18
+  - fatigue and fracture limit state — 9-18
+- Fillet-welded connections
+  - effective throat — 6-300
+  - size of weld — 6-300
+- Flange-strength reduction factors
+  - hybrid factor — 6-150
+  - web load-shedding factor — 6-151
+- Flexibility limits and construction stiffness
+  - corrugated metal pipe and structural plate structures — 12-13
+  - spiral rib metal pipe and pipe arches — 12-13
+  - steel tunnel liner plate — 12-14
+  - thermoplastic pipe — 12-14
+- Flexural members
+  - concrete — 5-37, 5-40
+  - steel — 6-229, 6-230, 6-370
+  - wood — 8-31
+- Flexural resistance
+  - composite members — 6-278
+  - noncomposite steel members — 6-248
+  - steel — 6-244, 6-372
+  - wood — 8-31
+- Footings — 5-249
+  - critical section for flexure — 5-250
+  - development of reinforcement — 5-252
+  - distribution of moment reinforcement — 5-250
+  - loads and reactions — 5-249
+  - moment in footings — 5-250
+  - reactions — 12-47
+  - resistance factors — 5-250
+  - shear in slabs and footings — 5-58, 5-251
+  - stepped — 5-249
+  - transfer of force at base of column — 5-252
+- Foundation design
+  - seismic design forces — 3-111
+- Foundation investigation — 2-7
+  - topographic studies — 2-7
+- Free-standing abutments — 11-144
+  - design for displacement — 11-146
+- Friction
+  - angle for dissimilar materials — 3-123
+  - coefficient — 14-48, 14-78
+- Friction forces — 3-158
+  - forces — 5-242
+  - post-tensioning tendons — 5-132
+- General zone — 5-158
+  - blister and rib reinforcement — 5-166
+  - design methods — 5-159
+  - design principles — 5-160
+  - deviation saddles — 5-167
+  - diaphragms — 5-166
+  - intermediate anchorages — 5-164
+  - multiple slab anchorages — 5-119
+  - responsibilities — 5-159
+  - special anchorage devices — 5-164
+  - tie-backs — 5-164
+- Geometry
+  - large deflection theory — 4-13
+  - small deflection theory — 4-12
+- Geophysical tests
+  - soil and rock — 10-12
+- Glued laminated decks
+  - deck tie-downs — 9-31
+  - interconnected decks — 9-31
+  - noninterconnected decks — 9-32
+  - thermal expansion — 9-30
+- Glued laminated timber — See Wood
+  - bracing — 8-37
+  - camber — 8-37
+  - dimensions — 8-13
+  - marking — 8-12
+- Groove-welded connections
+  - complete penetration — 6-299
+  - partial penetration — 6-299
+- Grout
+  - joints — 5-208
+  - prestressing ducts — 5-24, 5-150, 5-236
+- Guides and restraints
+  - attachment of low-friction material — 14-82
+  - contact stress — 14-82
+  - design basis — 14-81
+  - design loads — 14-81
+  - geometric requirements — 14-81
+  - load location — 14-81
+  - materials — 14-81
+- Gusset plates — 6-303, 6-314
+- Gravel
+  - unit weight — 3-21
+- Gravity loads
+  - design vehicular live load — 3-23
+  - fatigue load — 3-30
+  - pedestrian loads — 3-32
+  - rail transit load — 3-32
+- Groundwater
+  - effects and buoyancy — 10-100
+- Ground-mounted sound barriers — 15-4
+- Grout
+  - joints — 9-15
+- High load multirotational (HLMR) bearings — 14-12
+  - curved sliding surface bearings — 14-12
+  - disc bearings — 14-12
+  - pot bearings — 14-12
+- Holes — 6-288
+  - bolted connections — 6-288
+  - chains — 6-95
+  - long-slotted holes — 6-288
+  - oversize holes — 6-288
+  - pin holes — 6-97, 6-98
+  - short-slotted holes — 6-288
+  - size — 6-288
+  - type — 6-288
+- Hollow rectangular compression members
+  - hoops — 5-176
+  - rectangular stress block limitations — 5-52
+  - spacing of reinforcement — 5-175
+  - splices — 5-176
+  - ties — 5-175
+  - wall slenderness ratio — 5-51
+- Hooks and bends
+  - basic hook development length — 5-184
+  - hooked-bar tie requirements — 5-185
+  - minimum bend diameters — 5-170
+  - modification factors — 5-185
+  - seismic hooks — 5-170
+  - standard hooks — 5-169
+- Horizontal wind pressure
+  - wind pressure on structures — 3-52
+  - wind pressure on vehicles — 3-58
+- Hydraulic analysis
+  - approaches — 2-22
+  - bridge foundations — 2-20
+  - bridge waterway — 2-20
+  - stream stability — 2-19
+- Hydrology and hydraulics — 2-17
+  - drainage — 2-23
+  - hydraulic analysis — 2-19
+  - hydrologic analysis — 2-18
+  - site data — 2-18
+- Ice loads — 3-61
+  - adhesion — 3-66
+  - combination of forces — 3-65
+  - crushing and flexing — 3-63
+  - dynamic ice forces on piers — 3-62
+  - effective ice strength — 3-62
+  - hanging dams and ice jams — 3-66
+  - ice and snow load — 3-68
+  - slender and flexible piers — 3-66
+  - small streams — 3-64
+  - static ice loads on piers — 3-66
+- Idealization — See Mathematical modeling
+- IGMs — 10-135
+- Impact — See Dynamic load allowance
+- Inelastic dynamic responses
+  - plastic hinges and yield lines — 4-80
+- Influence of plan geometry
+  - curved structures — 4-17
+  - plan aspect ratio — 4-17
+- Instantaneous losses
+  - anchorage set — 5-130
+  - elastic shortening — 5-134
+  - friction — 5-130
+  - posttensioned members — 5-130, 5-133
+  - pretensioned members — 5-130, 5-132
+- Interconnected decks
+  - panels parallel to traffic — 9-31
+  - panels perpendicular to traffic — 9-31
+- Interior beams
+  - distribution factors — 4-35, 4-36, 4-38, 4-42
+- Intermediate Geo Materials — See IGMs
+- Interaction systems — See Culverts
+- Keys
+  - construction joints — 5-209
+  - precast decks — 5-208, 9-14
+  - segmental bridges — 5-240, 5-244
+- Laboratory tests
+  - geophysical tests — 10-12
+  - in-situ tests — 10-11
+  - rock tests — 10-11
+  - soil tests — 10-11
+- Lacing bars — 6-96, 6-130
+- Lap splices — 5-190
+  - bundled bars — 5-190
+  - non-contact splices — 5-190
+  - spiral reinforcement — 5-173
+- Large deflection theory
+  - approximate methods — 4-14
+  - moment magnification — 4-14
+  - refined methods — 4-16
+- Lateral bracing….See Bracing, and Diaphragms and
+  - cross-frames
+  - steel — 6-369
+  - straight I-sections — 6-80
+  - trusses — 6-83
+- Lateral clearance
+  - sound barrier — 15-2
+- Lateral–torsional buckling (LTB) — 6-408
+  - resistance — 6-186
+- Lightweight concrete — See Concrete
+  - development length — 5-181
+  - development length — 5-185
+  - resistance factors — 5-30
+  - shear resistance — 5-204
+  - shear resistance — 5-105
+  - unit weight — 3-21
+- Limit states………….See Extreme event limit state,
+  - Fatigue and fracture limit state, Service limit
+  - state, and Strength limit state
+  - resistance factors — 10-29
+  - sound barriers — 15-3
+- Live loads — See Distribution of load
+  - application — 3-28
+  - bicycle loads — 3-33
+  - braking force — 3-35
+  - centrifugal forces — 3-34
+  - continuous spans loading — 3-28
+  - deck overhang load — 3-30
+  - decks and box culverts — 3-29
+  - design lane load — 3-25
+  - design tandem — 3-25
+  - design truck — 3-24
+  - dynamic load allowance — 3-33
+  - gravity loads — 3-22
+  - live load deflection — 3-29
+  - multiple presence — 3-22
+  - tire contact area — 3-25
+  - vehicular collision force — 3-37
+- Load factors — 3-9
+  - abutments, piers, and walls — 11-11
+  - buried structures — 12-11
+  - combinations — 3-9, 3-17
+  - construction loads — 3-19, 5-229
+  - definition — 1-4
+  - jacking — 3-20
+  - post-tensioning — 3-20
+- Load-induced fatigue
+  - application — 6-38, 7-10, 7-11, 7-12
+  - design criteria — 6-39
+  - detail categories — 6-40
+  - fatigue resistance — 6-56
+- Loads — 10-55
+- Local zone — 5-158
+  - bearing resistance — 5-113
+  - dimensions of local zone — 5-112
+  - responsibilities — 5-159
+  - special anchorage devices — 5-114
+- Location features
+  - bridge site arrangement — 2-4
+  - environment — 2-6
+  - route location — 2-3
+- Long-span structural plate structures — 12-28
+  - acceptable special features — 12-31
+  - backfill protection — 12-38
+  - balanced support — 12-37
+  - construction and installation — 12-34, 12-39
+  - continuous longitudinal stiffeners — 12-31
+  - cross-section — 12-30
+  - cut-off (toe) walls — 12-38
+  - end treatment design — 12-35
+  - footing design — 12-33
+  - footing reactions in arch structures — 12-32
+  - foundation design — 12-31
+  - hydraulic protection — 12-37
+  - hydraulic uplift — 12-38
+  - mechanical and chemical requirements — 12-31
+  - reinforcing ribs — 12-30, 12-31
+  - relieving slabs — 12-38
+  - safety against structural failure — 12-29
+  - scour — 12-38
+  - seam strength — 12-31
+  - section properties — 12-30
+  - service limit state — 12-29
+  - service requirements — 12-34
+  - settlement limits — 12-31
+  - shape control — 12-31
+  - soil envelope design — 12-33
+  - standard shell end types — 12-35
+  - thrust — 12-31
+  - wall area — 12-31
+- Longitudinal stiffeners
+  - moment of inertia and radius of gyration — 6-213
+  - projecting width — 6-212
+- Long-slotted holes — 6-288
+- Loss of prestress
+  - approximate lump sum estimate — 5-135
+  - creep losses — 5-139
+  - instantaneous losses — 5-130
+  - losses for deflection calculations — 5-141
+  - refined estimate — 5-136
+  - relaxation losses — 5-141
+  - shrinkage losses — 5-137
+  - total prestress loss — 5-129
+- Maintenance access to sound barriers — ….See
+  - Emergency responder and maintenance access to
+  - sound barriers
+- Materials — 6-30
+  - aluminum and plate structures — 12-8
+  - aluminum sheet, plate, and shapes — 7-6
+  - bolts, nuts, and washers — 6-32
+  - bronze or copper alloy sliding surfaces — 14-77
+  - cables — 6-35
+  - cement — 5-16
+  - concrete — 5-15, 12-8
+  - disc bearings — 14-79
+  - elastomer — 14-58, 14-70
+  - glued laminated timber — 8-12
+  - metal fasteners and hardware — 8-21
+  - pins, rollers, and rockers — 6-32
+  - pot bearings — 14-52
+  - precast concrete pipe — 12-8
+  - precast concrete structures — 12-8
+  - preservative treatment — 8-23
+  - prestressing steel — 5-22
+  - PTFE sliding surface — 14-45
+  - reinforcing steel — 5-22
+  - sawn lumber — 8-6
+  - stainless steel — 6-34
+  - steel pipe and structural plate structures — 12-8
+  - steel reinforcement — 12-8
+  - structural steels — 6-30
+  - stud shear connectors — 6-33
+  - thermoplastic pipe — 12-9
+  - weld metal — 6-34
+- Mathematical modeling — 4-11
+  - equivalent members — 4-17
+  - geometry — 4-12
+  - modeling boundary conditions — 4-16
+  - structural material behavior — 4-11
+- Mechanically stabilized earth walls — See MSE walls
+- Metal decks — 9-15
+  - analysis — 4-27
+  - corrugated metal decks — 9-29
+  - limit states — 9-25
+  - metal grid decks — 9-16, 9-17, 9-18
+  - orthotropic aluminum decks — 9-28
+  - orthotropic steel decks — 9-20
+  - superposition of local and global effects — 9-25
+- Metal fasteners and hardware
+  - corrosion protection — 8-23
+  - drift pins and bolts — 8-22
+  - fasteners — 8-21
+  - minimum requirements — 8-21
+  - nails and spikes — 8-22
+  - prestressing bars — 8-22
+  - shear plate connectors — 8-22
+  - spike grids — 8-22
+  - split ring connectors — 8-22
+  - toothed metal plate connectors — 8-22
+- Metal pipe, pipe arch, and arch structures
+  - construction and installation — 12-28
+  - handling and installation — 12-27
+  - resistance to buckling — 12-26
+  - safety against structural failure — 12-24
+  - seam resistance — 12-27
+  - section properties — 12-25
+  - smooth lined pipe — 12-27
+  - stiffeners — 12-28
+  - thrust — 12-25
+  - wall resistance — 12-26
+- Methods of analysis…………See Dynamic analysis,
+  - Mathematical modeling, and static analysis
+- Micropiles — 10-152
+  - axial compressive resistance — 10-159
+  - axial tension resistance — 10-161
+  - battered — 10-153
+  - corrosion and deterioration — 10-163
+  - definition — 10-2
+  - design of — 10-33
+  - design requirements — 10-153
+  - determination of loads — 10-153
+  - downdrag — 10-153, 10-155
+  - estimation of grout-to-ground bond resistance — 10-156
+  - estimation of tip resistance in rock — 10-157
+  - extreme event limit state — 10-163
+  - ground water table and bouyancy — 10-155
+  - groups in cohesionless soil — 10-154
+  - groups in cohesive soil — 10-154
+  - grout-to-steel bond — 10-163
+  - horizontal foundation movement — 10-154
+  - lateral squeeze — 10-154
+  - load test — 10-158
+  - nearby structures — 10-154
+  - nominal axial compression resistance of single — 10-155
+  - nominal horizontal resistance of single and groups — 10-159
+  - nominal uplift resistance of a single micropile — 10-158
+  - nominal uplift resistance of groups — 10-158
+  - plunge length transfer load — 10-162
+  - resistance of groups in compression — 10-158
+  - scour — 10-155
+  - service limit state design — 10-154
+  - settlement — 10-154
+  - settlement due to downdrag — 10-154
+  - spacing, clearance, embedment — 10-153
+  - strength limit state design — 10-154
+  - strength limit states — 10-50
+  - structural resistance — 10-159
+  - through embankment fill — 10-153
+  - tolerable movements — 10-154
+  - types — 10-152
+  - uplift — 10-153
+- Modular bridge joint systems (MBJS)
+  - design stress range — 14-31
+  - distribution of wheel loads — 14-27
+  - fatigue limit state design requirements — 14-29
+  - loads and load factors — 14-25
+  - performance requirements — 14-24
+  - strength limit state design requirements — 14-28
+  - testing and calculation requirements — 14-25
+- Modular ratio
+  - long-term — 6-138
+  - short-term — 6-138
+- Modulus of elasticity
+  - cables — 4-74
+  - concrete — 5-20, 5-291
+  - prestressing steel — 5-23
+  - reinforcing steel — 5-22
+  - steel — 6-30
+  - wood piles — 8-21
+- Moment redistribution
+  - approximate procedure — 4-75
+  - concrete — 5-43
+  - refined method — 4-75
+  - steel — 6-371, 6-372, 6-373
+- Mononobe–Okabe analysis — 11-144
+- MSE walls — 11-55
+  - abutments — 11-112
+  - bearing resistance — 11-66
+  - boundary between active and resistant zones — 11-79
+  - concentrated dead loads — 11-106
+  - corrosion issues for MSE facing — 11-61
+  - design life considerations — 11-88
+  - design tensile resistance — 11-93
+  - drainage — 11-106
+  - dynamic load allowance — 3-34
+  - earth pressure — 3-136
+  - external stability — 11-97
+  - facing — 11-60
+  - facing reinforcement connections — 11-103
+  - geosynthetic reinforcements . 11-90, 11-94, 11-95
+  - hydrostatic pressures — 11-110
+  - internal stability — 3-137, 11-99
+  - lateral displacement — 11-62
+  - loading — 11-61, 11-64, 11-68
+  - minimum front face embedment — 11-59
+  - minimum length of soil reinforcement — 11-58
+  - obstructions in the reinforced soil zone — 11-111
+  - overall stability — 11-66
+  - overturning — 11-66
+  - reinforcement/facing connection design — 11-94
+  - reinforcement pullout — 11-79, 11-81
+  - reinforcement strength — 11-84
+  - safety against soil failure — 11-64
+  - safety against structural failure — 11-68
+  - seismic design — 11-97
+  - settlement — 11-61
+  - sliding — 11-65
+  - special loading conditions — 11-106
+  - steel reinforcements — 11-88, 11-93, 11-94
+  - structure dimensions — 11-57
+  - subsurface erosion — 11-106
+  - traffic loads and barriers — 11-109
+- Multiple presence of live load — 3-22
+- Multispan bridges
+  - general — 4-81
+  - multimode spectral method — 4-84
+  - selection of method — 4-80
+  - single-mode methods of analysis — 4-81
+  - single-mode spectral method — 4-81
+  - uniform load method — 4-83
+- Noncompact sections
+  - nominal flexural resistance — 6-181, 6-232
+- Noncomposite sections
+  - built-up members — 6-121
+  - channels, angles, tees, and bars — 6-269
+  - circular tubes — 6-253
+  - I- and H-shaped members — 6-248
+- Nondestructive testing
+  - aluminum — 7-32
+- Nordlund/Thurman Method — 10-110
+- Operational importance — 1-7
+- Orthotropic aluminum decks
+  - approximate analysis — 9-28
+  - limit states — 9-28
+- Orthotropic deck superstructures — 6-323
+  - effective width of deck — 6-325
+  - superposition of global and local effects — 6-325
+- Orthotropic decks… — See Orthotropic aluminum
+  - decks, and Orthotropic steel decks
+- Orthotropic steel decks
+  - design — 9-25
+  - detailing requirements — 9-26
+  - wearing surface — 9-20
+  - wheel load distribution — 9-20
+- Oversize holes — 6-288
+- Painting
+  - box sections — 6-215
+  - slip-critical joints — 6-293
+- Parapets — See Railing
+- Pedestrian loads — 3-32
+- Pedestrian railing — 8-23, 13-9
+  - design live loads — 13-10
+  - geometry — 13-9
+- Perforated plates
+  - effective area — 6-315
+- Permanent loads — 3-21
+  - dead loads — 3-21
+  - earth loads — 3-21
+- Piers — 11-35
+  - barge collision force — 3-173
+  - collision walls — 11-35
+  - facing — 11-36
+  - load effects in piers — 11-35
+  - protection — 2-4, 2-5, 3-176, 11-35
+  - reinforcement spacings — 5-203
+  - scour — 11-36
+  - seismic design — 3-107, 5-197
+  - ship collision force — 3-170
+- Pile bents — See Piles
+  - pile tolerance — 5-249
+- Pile foundations
+  - nominal lateral resistance — 10-122
+- Pile structural resistance
+  - buckling — 10-123
+  - lateral stability — 10-123
+- Piles
+  - α-Method — 10-107
+  - β-Method — 10-108
+  - λ-Method — 10-109
+  - batter — 10-87
+  - definition — 10-2
+  - design requirements — 10-88
+  - determination of loads — 10-88
+  - determination of nominal bearing resistance — 10-102
+  - downdrag — 10-88
+  - drivability analysis — 10-127
+  - driven — 10-86
+  - driven to hard rock — 10-96
+  - driven to soft rock — 10-96
+  - dynamic testing — 10-104
+  - embedment into cap — 10-87
+  - groups in cohesive soil — 10-92
+  - horizontal foundation movement — 10-93
+  - lateral squeeze — 10-95
+  - length estimates for contract documents — 10-97
+  - minimum penetration — 10-126
+  - nearby structures — 10-89
+  - nominal axial resistance change after driving — 10-99
+  - nominal bearing resistance — 10-126
+  - Nordlund/Thurman Method in cohesionless soils — 10-110
+  - probe — 10-128
+  - resistance of groups in compression — 10-118
+  - service limit state design — 10-89
+  - settlement — 10-90
+  - settlement due to downdrag — 10-95
+  - spacing — 10-87
+  - static analysis — 10-106
+  - static load test — 10-103
+  - strength limit state design — 10-95
+  - structural resistance — 10-123
+  - tip resistance in cohesive soils — 10-110
+  - tolerable movements — 10-90
+  - uplift due to expansive soils — 10-89
+  - uplift resistance of groups — 10-120
+  - uplift resistance of single — 10-119
+  - wave equation analysis — 10-105
+- Pin-connected plates
+  - packing — 6-98
+  - pin plates — 6-97
+  - proportions — 6-98
+- Pins
+  - holes — 6-97, 6-98
+  - length — 6-84
+  - location — 6-83
+  - materials — 6-32
+  - minimum size pin for eyebars — 6-84
+  - resistance — 6-83
+- Pipes — See also Culverts
+  - flexibility factor — 12-13
+- Plank decks — See Wood decks and deck systems
+- Plastic
+  - polyethylene pipes (PE) — 12-9
+  - polyvinyl chloride (PVC) — 12-9
+- Plastic moment — 6-401
+- Point bearing piles
+  - on rock — 10-96
+- Poisson’s Ratio
+  - intact rock — 10-28
+- Polytetrafluorethylene sliding surfaces — See PTFE sliding surfaces
+- Portal and sway bracing
+  - deck truss spans — 6-316
+  - through-truss spans — 6-316
+- Post-tensioned anchorage zones
+  - anchorages and couplers — 5-23
+  - bursting forces — 5-118
+  - compressive stresses — 5-117
+  - design of local zones — 5-112
+  - design of the general zone — 5-159
+  - edge tension forces — 5-119
+  - limitations of application — 5-115
+- Pot bearings — See Bearings
+  - elastomeric disc — 14-54
+  - geometric requirements — 14-52
+  - materials — 14-52
+  - piston — 14-56
+  - pot — 14-55
+  - sealing rings — 14-54
+  - suitability — 14-37
+  - reinforcement — 14-76
+  - rotation — 14-74
+  - seismic provisions — 14-67
+  - shape factor — 14-57, 14-72
+  - shear deformation — 14-64, 14-74
+  - shear modulus — 14-58, 14-70
+  - stability — 14-66, 14-76
+  - suitability — 14-37
+- Precast beams
+  - concrete strength — 5-211
+  - detail design — 5-211
+  - extreme dimensions — 5-210
+  - lifting devices — 5-211
+  - preservice conditions — 5-210
+- Precast deck bridges
+  - cast-in-place closure joints — 5-209
+  - design — 5-209
+  - longitudinal construction joints — 5-209
+  - longitudinally post-tensioned precast decks — 9-15
+  - post-tensioning — 5-209
+  - shear transfer joints — 5-208
+  - shear-flexure transfer joints — 5-208
+  - structural overlay — 5-209
+  - transversely joined precast decks — 9-14
+- Precast prestressed piles
+  - concrete quality — 5-255
+  - pile dimensions — 5-254
+  - reinforcement — 5-255
+- Precast RC three-sided structures — 12-93
+  - concrete — 12-93
+  - concrete cover for reinforcement — 12-93
+  - crack control — 12-95
+  - deflection — 12-95
+  - design — 12-93
+  - footing design — 12-95
+  - geometric properties — 12-93
+  - materials — 12-93
+  - minimum reinforcement — 12-95
+  - reinforcement — 12-93
+  - resistance factors — 12-95
+  - scour — 12-95
+  - shear transfer in joints — 12-94
+  - span length — 12-94
+  - structural backfill — 12-95
+- Precast reinforced piles
+  - pile dimensions — 5-254
+  - reinforcing steel — 5-254
+- Prefabricated modular walls — See Earth pressure
+  - abutments — 11-117
+  - bearing resistance — 11-115
+  - drainage — 11-118
+  - dynamic load allowance — 3-34
+  - earth pressure — 3-138
+  - limitations — 11-114
+  - loading — 11-114
+  - module members — 11-116
+  - movement at the service limit state — 11-114
+  - overall stability — 11-116
+  - overturning — 11-115
+  - passive resistance and sliding — 11-116
+  - safety against soil failure — 11-115
+  - safety against structural failure — 11-116
+  - seismic design — 11-117
+  - sliding — 11-115
+  - subsurface erosion — 11-116
+- Preservative treatment for wood
+  - fire retardant treatment — 8-24
+  - inspection and marking — 8-24
+  - requirement for treatment — 8-23
+  - treatment chemicals — 8-23
+- Prestressed concrete — See Prestressing steel
+  - buckling — 5-121
+  - concrete cover — 9-14
+  - construction load, formwork — 9-13
+  - crack control — 5-121
+  - curved tendons — 5-23
+  - design concrete strengths — 5-121
+  - eccentric prestressing — 5-48
+  - prestress loses — 5-129
+  - reinforcement limits — 5-198
+  - section properties — 5-121
+  - service stresses — 5-125
+  - stress limitations for prestressing steel — 5-122
+  - stresses due to imposed deformation — 5-122
+  - tendon confinement — 5-147
+  - tendons with angle points or curves — 5-121
+- Prestressing steel
+  - concrete cover — 9-14
+  - corrosion protection — 5-260, 5-265
+  - materials — 5-22
+  - modulus of elasticity — 5-23
+  - stress at nominal flexural resistance — 5-37
+- Pretensioned anchorage zones
+  - confinement reinforcement — 5-147
+  - factored bursting resistance — 5-146
+- Probability of aberrancy
+  - approximate method — 3-163
+  - statistical method — 3-163
+- Protective coatings — 5-265
+- Provisional ducts and anchorages
+  - bridges with internal ducts — 5-236
+  - provision for future dead load or deflection adjustment — 5-236
+- Provisions for structure types — 5-228
+  - arches — 5-247
+  - beams and girders — 5-210
+  - segmental construction — 5-224
+  - slab superstructures — 5-205
+- PTFE sliding surfaces — 14-45
+  - attachment — 14-49
+  - coefficient of friction — 14-48
+  - contact pressure — 14-47
+  - dimples — 14-45
+  - filler — 14-45
+  - mating surface — 14-46, 14-49
+  - minimum thickness — 14-46
+  - PTFE surface — 14-45
+  - stainless steel mating surfaces — 14-47
+- PVC pipes — See Plastic
+- Railing
+  - See Bicycle railing, Combination railing,
+  - Pedestrian railing, and Traffic railing
+- Railing design
+  - anchorages — 13-17
+  - application of previously tested systems — 13-8
+  - approach railings — 13-6
+  - end treatment — 13-6
+  - geometry — 13-15
+  - height of traffic parapet or railing — 13-9
+  - materials — 13-4
+  - new systems — 13-9
+  - protection of users — 2-4
+  - test specimens — 13-20
+- Railroad
+  - rail transit load — 3-32
+  - rails, dead load weight — 3-21
+- Redundancy — 1-6
+- Rectangular stress block limitations
+  - approximate method — 5-52
+  - refined method — 5-52
+- Refined method — 6-374
+  - nominal moment-rotation curves — 6-376
+- Refined methods of analysis
+  - arch bridges — 4-73
+  - beam-slab bridges — 4-69
+  - cable-stayed bridges — 4-73
+  - cellular and box bridges — 4-72
+  - decks — 4-67
+  - general — 4-67
+  - suspension bridges — 4-74
+  - truss bridges — 4-72
+- Reinforced concrete pipe — 12-49
+  - bearing resistance — 12-64
+  - bedding factor — 12-64
+  - circumferential reinforcement — 12-57
+  - concrete cover — 12-61
+  - construction and installation — 12-68
+  - crack width control — 12-59
+  - development of quadrant mat reinforcement 12-66
+  - direct design method — 12-55
+  - flexural resistance — 12-57
+  - indirect design method — 12-64
+  - live loads — 12-54
+  - loading — 12-50
+  - loads and pressure distribution — 12-55
+  - maximum reinforcement without stirrups — 12-58
+  - minimum reinforcement — 12-58
+  - pipe fluid weight — 12-54
+  - pipe ring analysis — 12-57
+  - process and material factors — 12-57
+  - safety against structural failure — 12-55
+  - service limit state — 12-54
+  - shear resistance — 12-61, 12-62
+  - standard installations — 12-50
+  - stirrup anchorage — 12-63
+  - stirrup embedment — 12-64
+- Reinforcement — See Spacing of reinforcement
+  - anchorage — 5-188
+  - closed stirrups — 5-189
+  - compression members — 5-46
+  - corrosion protection — 5-260
+  - crack control — 5-55
+  - development length — 5-183
+  - distribution, slabs — 5-206
+  - external tendon supports — 5-156
+  - footings — 5-250
+  - hollow rectangular compression members — 5-175
+  - hooks and bends — 5-169
+  - limits — 5-197, 5-256
+  - materials — 5-22
+  - modulus of elasticity — 5-22
+  - posttensioned anchorage zones — 5-156
+  - pretensioned anchorage zones — 5-146
+  - seismic requirements — 5-197
+  - shrinkage and temperature — 5-174
+  - spacing of reinforcement — 5-171
+  - spacing, longitudinal reinforcement — 5-57, 5-97, 5-171, 5-224
+  - spacing, transverse reinforcement — 5-63, 5-172, 5-173, 5-197, 5-201, 5-202, 5-205, 5-235, 5-255, 5-256
+  - special applications — 5-22
+  - spirals and ties — 5-50
+  - tendon confinement — 5-149
+  - transverse reinforcement . 5-61, 5-62, 5-63, 5-172, 5-174
+- Reinforcing steel — See Reinforcement
+- Relieving slabs — 12-38, 12-48
+- Resistance factors — 10-40
+  - abutments, piers, and walls — 11-15
+  - aluminum structures — 7-8
+  - buried structures — 12-11
+  - concrete structures — 5-198
+  - driven piles — 10-47
+  - geotechnical resistance of axially loaded micropiles — 10-51
+  - geotechnical resistance of drilled shafts — 10-50
+  - seismic zones 3 and 4 — 5-32
+  - steel — 6-36
+  - structural resistance of axially loaded micropiles — 10-51
+  - wood structures — 8-31
+- Retaining walls — See Abutments and retaining walls
+- Rigid frame connections
+  - webs — 6-313
+- Roadway
+  - width — 3-22, 13-12
+- Roadway drainage
+  - design storm — 2-23
+  - discharge from deck drains — 2-24
+  - drainage of structures — 2-24
+  - type, size and number of drains — 2-23
+- Rock properties
+  - analytic method — 10-83
+  - erodibility — 10-29
+  - informational needs — 10-8
+  - load test — 10-83
+  - mass deformation — 10-26
+  - mass strength — 10-21
+  - semiempirical procedures — 10-83
+  - sound barrier — 15-8
+- Rocker bearings
+  - alignment — 14-43
+  - contact stresses — 14-44
+  - geometric requirements — 14-44
+  - materials — 6-32
+  - suitability — 14-37
+- Roller bearings
+  - alignment — 14-43
+  - contact stresses — 14-44
+  - geometric requirements — 14-44
+  - materials — 6-32
+  - minimum diameter — 6-32
+  - suitability — 14-37
+- Route location — 2-3
+  - waterway and floodplain crossings — 2-3
+- Sawn lumber — See Wood
+  - base resistance — 8-7
+  - bracing — 8-36
+  - modulus of elasticity — 8-7
+  - moisture content — 8-7
+- Scour — 2-21, 10-51, 10-100, 11-36
+  - buried structures — 12-20
+  - change in foundations — 3-46
+  - long-span structural plate structures — 12-38
+  - micropiles — 10-155
+  - piers — 11-36
+  - precast RC three-sided structures — 12-93
+  - water loads — 3-46
+- Sealing rings
+  - rings with circular cross-sections — 14-55
+  - rings with rectangular cross-sections — 14-55
+- Section transitions — 6-369
+- Sectional design model
+  - combined shear and torsion — 5-77
+  - determination of β and θ — 5-69
+  - longitudinal reinforcement — 5-75
+  - nominal shear resistance — 5-67, 5-232
+  - sections near supports — 5-66
+- Segmental bridge analysis — 5-225
+  - analysis of the final structural system — 5-225
+  - construction analysis — 5-225
+  - erection analysis — 4-65
+  - final structural system — 4-65
+  - longitudinal analysis — 4-64
+  - strut-and-tie models — 4-64
+  - transverse analysis — 4-64
+- Segmental bridge design
+  - alternative construction methods — 5-245
+  - cantilever construction — 5-241
+  - construction loads — 5-226, 5-227, 5-230
+  - creep and shrinkage — 5-230
+  - deck joints — 9-15
+  - design — 5-226
+  - design details — 5-243
+  - design of construction equipment — 5-244
+  - details for cast-in-place construction — 5-241
+  - details for precast construction — 5-240
+  - effective flange width — 4-64
+  - force effects due to construction tolerances . 5-242
+  - incrementally launched construction — 5-242
+  - launching bearing — 5-242
+  - launching tendons — 5-244
+  - length of top flange cantilever — 5-238
+  - loads — 5-226
+  - minimum flange thickness — 5-237
+  - minimum web thickness — 5-237
+  - overall cross-section dimensions — 5-238
+  - post-tensioning — 5-236
+  - prestress losses — 5-231
+  - provisional ducts and anchorages — 5-235
+  - resistance factors — 5-230
+  - seismic design — 5-239
+  - span-by-span construction — 5-242
+  - substructures — 5-247
+  - tensile stresses at joint locations — 5-125, 5-127
+  - thermal effects during construction — 5-230
+  - types of segmental bridges — 5-239
+- Segmental bridge substructures
+  - construction load combinations — 5-247
+  - longitudinal pier reinforcement — 5-247
+- Seismic design
+  - acceleration coefficient — 3-70
+  - column connections — 5-203
+  - concrete columns — 5-196, 5-197
+  - confinement length — 5-204
+  - construction joints — 5-204
+  - elastomeric bearings — 14-67
+  - hold-down devices — 3-115
+  - importance categories — 3-106
+  - lateral load distribution — 4-62
+  - longitudinal restrainers — 3-115
+  - seismic performance zones — 3-107
+  - soil liquefaction — 3-69
+  - temporary bridges/stage construction — 3-115
+  - volumetric ratio for confinement — 5-205
+  - wall-type piers — 5-203
+- Seismic loads
+  - combination of seismic force effects — 3-108
+  - design forces — 3-109
+  - direction — 3-108
+  - orthogonal forces — 3-108
+  - response modification factors — 3-107
+  - seismic zone 1 — 3-109
+  - seismic zone 2 — 3-111
+  - seismic zones 3 and 4 — 3-111
+- Seismic requirements
+  - minimum displacement requirements — 4-87
+  - multispan bridges — 4-80
+  - single-span bridges — 4-80
+- Seismic zone 1 — 3-109
+- Seismic zone 2 — 3-111
+- Seismic zones 3 and 4
+  - column and pile bent design forces — 3-114
+  - foundation design forces — 3-114
+  - inelastic hinging forces — 3-112
+  - modified design forces — 3-112
+  - pier design forces — 3-114
+  - piers with two or more columns — 3-113
+  - single columns and piers — 3-112
+- Service limit states — 1-4, 9-5, 10-29, 10-40, 12-10
+  - abutments, piers, and walls — 11-8
+  - aluminum structures — 7-8
+  - concrete structures — 5-26, 5-33
+  - construction load combinations — 5-229
+  - decks — 9-28
+  - elastomeric bearings — 14-65
+  - load combinations — 3-9, 3-17
+  - prestressing steel — 5-122
+  - sound barrier — 15-3
+  - steel structures — 6-35
+  - wood structures — 8-30
+- Service limit state design
+  - micropiles — 10-154
+  - piles — 10-89
+  - spread footings — 10-54
+- Serviceability
+  - deformations — 2-10
+  - durability — 2-8
+  - inspectability — 2-9
+  - maintainability — 2-9
+  - rideability — 2-9
+  - utilities — 2-9
+  - widening — 2-14
+- Settlement — 12-15
+  - force effects — 3-158
+  - foundations — 15-3
+  - group — 10-135
+  - long-span structural plate structures — 12-31
+  - MSE walls — 11-61
+  - single-drilled shaft — 10-132
+- Settlement Analyses — 10-55
+- Shaft load tests — 10-147
+- Shaft loads
+  - determination of — 10-131
+- Shear and torsion
+  - aluminum — 7-56
+  - brackets — 5-104
+  - concrete — 5-58, 5-64, 5-67
+  - corbels — 5-104
+  - interface shear transfer—shear friction — 5-79
+  - longitudinal reinforcement — 5-78
+  - prestressed concrete — 5-67
+  - reinforcement, seismic design — 5-197
+  - skewed bridges — 4-49
+  - slabs and footings — 5-251
+  - steel — 6-369
+  - torsional resistance — 5-77
+  - transfer and development lengths — 5-61
+  - transverse reinforcement — 5-77
+- Shear connectors — 6-197
+  - cover and penetration — 6-199
+  - design force — 9-4
+  - fatigue resistance — 6-199
+  - nominal shear force — 9-4
+  - permanent load contraflexure — 6-200
+  - pitch — 6-197
+  - strength limit state — 6-201
+  - studs — 6-33
+  - transverse spacing — 6-199
+  - types — 6-197
+- Shear keys — See Keys
+- Shear resistance
+  - concrete — 5-67
+  - concrete-encased shapes — 6-283
+  - concrete-filled tubes — 6-283
+  - prestressed concrete — 5-67
+  - steel — 6-245
+  - wood — 8-33
+- Ship collision force — See Vessel collision
+- Shock transmission unit (STU) — 4-5, 4-87, 14-3, 14-43
+- Short-slotted holes — 6-288
+- Shrinkage — 5-19
+- Sidewalks
+  - curb height — 13-12, 13-13
+  - railing — 13-5, 13-9, 13-10
+  - thickness of plank decks — 9-29
+- Skewed bridges
+  - deck joints — 14-15, 14-21
+  - live load distribution — 4-40, 4-46, 4-49
+  - skewed decks — 9-12, 9-32, 9-34
+- Slab bridges — 5-280
+- Slab superstructures
+  - cast-in-place solid slab superstructures — 5-205
+  - cast-in-place voided slab superstructures — 5-206
+  - precast deck bridges — 5-208
+- Slabs — See Concrete slabs
+- Slenderness effects and limits
+  - concrete — 5-47
+  - ice load, piers — 3-61
+- Slenderness ratios — See Aluminum and Steel
+- Slip-critical connections — 6-285
+- Soil bearing resistance
+  - plate load tests — 10-82
+  - two-layered soil system in drained loading — 10-81
+  - two-layered soil system in undrained loading — 10-79
+- Soil liquefaction — 4-11
+- Soil properties
+  - deformation — 10-18
+  - determination — 11-7, 12-6
+  - drained strength of cohesive soils — 10-16
+  - drained strength of granular soils — 10-16
+  - envelope backfill soils — 12-7
+  - foundation soils — 12-7
+  - informational needs — 10-8
+  - laboratory tests — 10-11
+  - semiempirical procedures — 10-81
+  - sound barrier — 15-8
+  - strength — 10-15
+  - subsurface exploration — 10-8
+  - undrained strength of cohesive soils — 10-15
+  - unit weight — 3-21
+- Soil–structure interaction systems — See Culverts
+- Solid web arches — 6-325
+- Sound barrier
+  - corrosion protection — 15-10
+  - definition — 15-1
+  - drainage — 15-10
+  - earth loads — 15-5
+  - extreme event limit state — 15-3
+  - foundation design — 15-8
+  - functional requirements — 15-1
+  - ground-mounted — 15-4
+  - limit states and resistance factors — 15-3
+  - movement and stability at the service limit state — 15-9
+  - seismic desgin — 15-10
+  - structure-mounted — 15-4
+  - vehicular collision forces — 15-6
+  - wind load — 15-5
+- Sound barrier installation
+  - on existing bridges — 15-5
+- Spacing of reinforcement
+  - bundled bars — 5-171
+  - cast-in-place concrete — 5-171
+  - couplers in posttensioning tendons — 5-149
+  - curved posttensioning ducts — 5-149
+  - maximum spacing of prestressing tendons and ducts in slabs — 5-142
+  - maximum spacing of reinforcing bars — 5-172
+  - minimum spacing of reinforcing bars — 5-171
+  - multilayers — 5-171
+  - post-tensioning ducts not curved in the horizontal plane — 5-148, 5-149
+  - precast concrete — 5-171
+  - pretensioning strand — 5-142
+  - splices — 5-171
+- Spike laminated decks
+  - deck tie-downs — 9-38
+  - panel decks — 9-38
+- Splices
+  - See Bolted splices, Splices of bar reinforcement,
+  - and Splices of welded wire fabric
+  - bar reinforcement — 5-190
+  - bolted splices — 6-304
+  - reinforcement, deck slabs — 9-14
+  - welded splices — 6-312
+  - welded wire fabric — 5-194
+- Splices of bar reinforcement — See Lap splices
+  - bars in compression — 5-192
+  - detailing — 5-190
+  - end-bearing splices — 5-193
+  - lap splices — 5-190
+  - lap splices in compression — 5-192
+  - lap splices in tension — 5-191
+  - mechanical connections — 5-191
+  - mechanical/welded splices in compression — 5-193
+  - mechanical/welded splices in tension — 5-192
+  - reinforcement in tension — 5-191
+  - tension tie members — 5-192
+  - welded splices — 5-191
+- Splices of welded wire fabric
+  - deformed wire in tension — 5-194
+  - smooth wire in tension — 5-194
+- Spread footings — 10-52
+  - bearing depth — 10-52
+  - bearing resistance at the service limit state — 10-67
+  - bearing stress distributions — 10-53
+  - design of — 10-32
+  - effective footing dimensions — 10-53
+  - groundwater and — 10-54
+  - nearby structures and — 10-54
+  - safety against geotechnical failure at the strength limit state — 15-9
+  - service limit state design — 10-54
+  - settlement of footings on cohesionless soils 10-56
+  - settlement of footings on cohesive soils — 10-62
+  - settlement on rock — 10-66
+  - tolerable movements — 10-54
+- SPT — See Standard Penetration Test
+  - cohesionless soils — 10-115
+- St. Venant torsion
+  - aluminum — 7-52
+- Stainless steel — 6-34
+- Standard Penetration Test — 10-82
+- Static analysis …………See Approximate methods
+  - of analysis, and Refined methods of analysis
+  - analysis for temperature gradient — 4-75
+  - approximate methods — 4-22
+  - influence of plan geometry — 4-17
+  - moment redistributon — 4-74
+  - refined methods of analysis — 4-67
+  - stability — 4-75
+- Static load test — 10-103
+- Stay-in-place formwork — See Concrete formwork
+  - concrete formwork — 9-13
+  - deck overhangs — 9-5
+  - steel formwork — 9-13
+- Steel
+  - bearing stiffeners — 6-370
+  - box-section flexural members — See Steel box- section flexural members
+  - camber — See Camber
+  - closed voids in structures — 6-221
+  - coefficient of thermal expansion — 6-30
+  - combined force effects — 6-99, 6-129, 6-245
+  - dimension and detail requirements — See Steel dimension and detail requirements
+  - extreme event limit state — 6-37
+  - fracture — 6-146
+  - I-girders — See Steel I-section flexural members
+  - I-section flexural members — See Steel I-section flexural members
+  - I-section proportioning — See Steel I-section proportioning
+  - modulus of elasticity — 6-30
+  - net section — 6-86
+  - orthotropic decks — See Decks and Orthotropic steel decks
+  - piles — See Steel piles
+  - slenderness ratios — 6-108
+  - spiral rib pipes — 12-107
+  - tension members — See Steel tension members
+  - thickness of metal — 6-31 , 6-285
+  - tunnel liner plate — See Steel tunnel liner plate
+  - web crippling — 6-411
+- Steel box-section flexural members — 6-215
+  - access and drainage — 6-221
+  - access holes — 6-76, 6-221
+  - bearings — 6-220
+  - compact sections — 6-231
+  - constructibility — 6-223
+  - cross-section proportion limits — 6-222
+  - fatigue and fracture limit state — 6-227
+  - flange-to-web connections — 6-221
+  - flexural resistance of compression flange — 6-233, 6-235
+  - flexural resistance of tension flange . 6-234, 6-238
+  - flexural resistance—negative flexure — 6-233
+  - flexural resistance—positive flexure — 6-231
+  - live load distribution factor — 6-222
+  - noncompact sections — 6-231
+  - painting — 6-221, 6-223
+  - service limit state — 6-226
+  - shear connectors — 6-239
+  - shear resistance — 6-238
+  - stiffeners — 6-240
+  - strength limit state — 6-229
+  - stress determinations — 6-217
+- Steel dimension and detail requirements — 6-65
+  - dead load camber — 6-65
+  - diaphragms and cross-frames — 6-71
+  - effective length of span — 6-65
+  - lateral bracing — 6-79
+  - minimum thickness of steel — 6-71
+  - pins — 6-83
+- Steel I-girders — See Steel I-section flexural members
+- Steel I-section flexural members — 6-135
+  - compact sections — 6-178
+  - composite sections — 6-137
+  - composite sections in negative flexure and noncomposite — 6-175
+  - composite sections in positive flexure — 6-174
+  - constructibility — 6-160
+  - cover plates — 6-214
+  - ductility requirement — 6-182
+  - flange stresses and member bending moments — 6-142
+  - flange-strength reduction factors — 6-150
+  - flexural resistance — 6-178, 6-193
+  - flowcharts for design — 6-382
+  - hybrid sections — 6-139
+  - minimum deck reinforcement—negative flexure — 6-144
+  - net section fracture — 6-146
+  - noncompact sections — 6-181
+  - noncomposite sections — 6-139
+  - service limit state — 6-167
+  - shear connectors — 6-197
+  - steel I-section proportioning — 6-157
+  - stiffeners — 6-204
+  - stiffness — 6-141
+  - strength limit state — 6-172
+  - variable web depth members — 6-139
+  - web bend-buckling resistance — 6-147
+  - wind effect on flanges — 4-60
+- Steel I-section proportioning
+  - flange proportions — 6-158
+  - web proportions — 6-157
+- Steel orthotropic decks — See Decks and Orthotropic steel decks
+- Steel piles — 6-328
+  - axial compression — 6-330
+  - buckling — 6-330
+  - combined axial compression and flexure — 6-330
+  - compressive resistance — 6-330
+  - maximum permissible driving stresses — 6-330
+  - structural resistance — 6-328, 10-123
+- Steel tension members — 6-86
+  - built-up members — 6-96
+  - eyebars — 6-96
+  - limiting slenderness ratio — 6-95
+  - net area — 6-95
+  - pin-connected plates — 6-97
+  - tensile resistance — 6-86
+- Steel tunnel liner plate
+  - buckling — 12-91
+  - construction stiffness — 12-91
+  - earth loads — 12-90
+  - grouting pressure — 12-91
+  - live loads — 12-91
+  - loading — 12-89
+  - safety against structural failure — 12-91
+  - seam strength — 12-91
+  - section properties — 12-91
+  - wall area — 12-91
+- Stiffened webs
+  - end panels — 6-196
+  - nominal resistance — 6-194
+- Stiffeners — See Longitudinal stiffeners and
+  - Transverse intermediate stiffeners
+  - bearing stiffeners — 6-208
+  - longitudinal compression-flange stiffeners — 6-240
+  - longitudinal stiffeners — 6-210
+  - rigid frame connections — 6-314
+  - structural plate culverts — 12-42
+  - transverse intermediate stiffeners — 6-204
+  - web stiffeners — 6-240
+  - wood decks — 9-31, 9-38
+- Stirrups — See Transverse reinforcement
+- Stream pressure
+  - lateral — 3-45
+  - longitudinal — 3-44
+- Strength limit state — 1-4, 9-6, 10-32, 10-40, 12-10
+  - abutments, piers, and walls — 11-9
+  - aluminum structures — 7-8
+  - concrete structures — 5-29, 5-33, 5-291
+  - drilled shafts — 10-33, 10-48
+  - driven piles — 10-33, 10-42
+  - flexure — 6-174, 6-229
+  - load combinations — 3-17
+  - micropiles — 10-33
+  - modular bridge joint systems — 14-28
+  - prestressing steel — 5-123
+  - railing — 13-5
+  - resistance factors — 6-36
+  - shear connectors — 6-178, 6-231
+  - sound barrier — 15-3
+  - spread footings — 10-32, 10-42
+  - stability — 5-32
+  - steel structures — 6-244, 6-284
+  - wood structures — 8-30
+- Strength limit state design — 10-136
+  - micropiles — 10-154
+  - piles — 10-95
+  - spread footings — 10-69
+- Stress laminated decks…See Decks and Wood decks
+  - and deck systems
+  - camber — 8-37
+  - deck tie-downs — 9-33
+  - holes in laminations — 9-33
+  - nailing — 9-33
+  - staggered butt joints — 9-33
+  - stressing — 9-33
+  - thermal expansion — 9-30
+- Stressing
+  - corrosion protection — 9-37
+  - design requirements — 9-36
+  - prestressing materials — 9-35
+  - prestressing system — 9-33
+  - railings — 9-37
+- Structural material behavior
+  - elastic behavior — 4-11
+  - elastic versus inelastic behavior — 4-11
+  - inelastic behavior — 4-12
+- Structural plate box structures — 12-42
+  - concrete relieving slabs — 12-48
+  - construction and installation — 12-49
+  - footing reactions — 12-47
+  - geometric requirements — 12-44
+  - loading — 12-43
+  - movements — 12-44
+  - plastic moment resistance — 12-46
+  - safety against structural failure — 12-43
+  - service limit state — 12-43
+  - soil cover factor — 12-47
+  - stiffeners — 12-42
+- Structure-Mounted Sound Barriers — 15-4
+- Strut-and-tie model
+  - crack control reinforcement — 5-97
+  - general zone — 5-98, 5-291
+  - nodes — 5-100
+  - struts — 5-100
+  - ties — 5-101
+- Substructures
+  - design — 5-281, 6-379
+  - frictional forces, launched girders — 5-242
+  - vessel collision — 2-5
+- Superimposed deformations
+  - creep — 3-157
+  - differential shrinkage — 3-157
+  - settlement — 3-158
+  - temperature gradient — 3-156
+  - uniform temperature — 3-153
+- Superstructure design — 5-279
+- Surcharge loads
+  - live load surcharge — 3-149
+  - point, line and strip loads—restrained walls 3-143
+  - reduction of surcharge — 3-150
+  - strip loads—flexible walls — 3-147
+  - uniform surcharge — 3-143
+- Temporary stresses before losses
+  - compression stresses — 5-123
+  - tension stresses — 5-123
+- Tendon confinement
+  - wobble effect in slabs — 5-150
+- Tensile resistance
+  - aluminum — 7-35
+  - wood — 8-35
+- Tension flange yielding — 6-365
+- Tension members
+  - concrete — 5-55
+  - wood — 8-35
+- Tension ties
+  - anchorage of tie — 5-93
+  - proportioning of tension ties — 5-93
+  - strength of tie — 5-93
+- Thermal forces
+  - temperature gradient — 3-156
+  - temperature zones — 6-64, 14-59
+  - uniform temperature — 3-153
+- Thermoplastic pipes — 12-74
+  - flexibility limit — 12-14
+- Through-girder spans — 6-314
+- Tie plates — 6-96, 6-130
+- Timber — See Wood
+- Timber floors — See Wood decks and deck systems
+- Timber piles — See Wood piles
+- Tire contact area — 3-25
+- Tolerable Movements and Movement Criteria . 10-30
+- Traffic lanes
+  - width — 3-22
+- Traffic railing — 13-5
+  - design forces — 13-17
+  - railing design — 13-8
+  - railing system — 13-5
+  - test level selection criteria — 13-6
+- Traffic safety
+  - geometric standards — 2-5
+  - protection of structures — 2-4
+  - protection of users — 2-4
+  - road surfaces — 2-5
+  - vessel collisions — 2-5
+- Transverse intermediate stiffeners
+  - moment of inertia — 6-205
+  - projecting width — 6-204
+- Transverse reinforcement
+  - compression members 5-172, 5-199, 5-201, 5-204
+  - flexural members — 5-174
+  - piles — 5-197, 5-255, 5-256
+- Trusses — 6-314
+  - camber — 6-315, 8-37
+  - diaphragms — 6-79, 6-315
+  - factored resistance — 6-323
+  - gusset plates — 6-316
+  - half through-trusses — 6-323
+  - lateral bracing — 6-83, 8-37
+  - load distribution — 4-49
+  - members — 6-315
+  - portal and sway bracing — 6-316, 8-37
+  - secondary stresses — 6-315
+  - splices — 6-304
+  - working lines and gravity axes — 6-316
+- Unfilled grid decks composite with reinforced
+  - concrete slabs
+  - design — 9-19
+  - fatigue limit state — 9-19
+- Uplift
+  - bearings — 14-36, 14-80
+  - group resistance — 10-150
+  - ice loads — 3-61
+  - load test — 10-150
+  - micropiles — 10-153
+  - pile anchorage — 5-197
+  - resistance of a single drilled shaft — 10-149
+  - resistance of pile groups — 10-120
+  - resistance of single piles — 10-119
+  - spread footings — 10-54
+- Vehicular collision force — 3-37
+  - protection of structures — 3-37
+  - vehicle and railway collision with structures . 3-44
+- Vehicular live load
+  - multiple presence of live load — 3-22
+  - number of design lanes — 3-22
+- Vertical wind pressure — 3-58
+- Vessel collision — 3-158
+  - annual frequency of collapse — 3-161
+  - barge bow damage length — 3-174
+  - barge collision force on pier — 3-173
+  - damage at the extreme limit state — 3-174
+  - design collision velocity — 3-169
+  - design vessel — 3-160
+  - impact force — 3-175
+  - impact force, substructure design — 3-175
+  - impact force, superstructure design — 3-176
+  - importance categories — 3-160
+  - owner’s responsibility — 3-160
+  - protection of substructures — 3-176
+  - ship bow damage length — 3-172
+  - ship collision force on pier — 3-170
+  - ship collision force on superstructure — 3-172
+  - ship collision with bow — 3-172
+  - ship collision with deck house — 3-172
+  - ship collision with mast — 3-173
+  - vessel collision energy — 3-169
+- Washers — 6-84, 6-287
+- Water loads
+  - buoyancy — 3-44
+  - drag coefficient — 3-45
+  - scour — 3-46
+  - static pressure — 3-44
+  - stream pressure — 3-44
+  - wave load — 3-46
+- Wearing surface
+  - chip seal — 9-40
+  - orthotropic decks — 9-28
+  - plant mix asphalt — 9-39
+  - unit weight — 3-21
+  - wood decks — 9-39
+- Web bend-buckling resistance
+  - webs with longitudinal stiffeners — 6-148
+  - webs without longitudinal stiffeners — 6-147
+- Web local yielding — 6-410
+- Web plastification factors
+  - compact web sections — 6-356
+  - noncompact web sections — 6-358
+- Web proportions — 6-368
+  - webs with longitudinal stiffeners — 6-158, 6-222
+  - webs without longitudinal stiffeners 6-157, 6-222
+- Welded connections
+  - effective area — 6-300
+  - factored resistance — 6-298
+  - fillet weld end returns — 6-301
+  - minimum effective length of fillet welds — 6-301
+  - seal welds — 6-301
+  - size of fillet welds — 6-300
+- Welded wire fabric
+  - bend diameter — 5-170
+  - transverse reinforcement — 5-62
+- Welding
+  - procedures for aluminum — 7-31
+  - requirements for aluminum — 7-31
+  - weld metal — 6-34, 6-298
+- Widening
+  - exterior beams — 2-14
+  - substructure — 2-14
+- Wind load
+  - aeroelastic instability — 3-59
+  - horizontal wind pressure — 3-47
+  - minimum wind velocity for erection — 5-241
+  - vertical wind pressure — 3-58
+- Wind pressure on structures — 3-52
+  - box sections — 4-62
+  - construction — 4-62
+  - I-sections — 4-60
+  - loads from superstructures — 3-55, 3-56
+  - substructure forces — 3-56
+- Wind pressure on vehicles — 3-58
+- Wind-induced vibration
+  - design considerations — 4-79
+  - dynamic effects — 4-79
+  - wind velocities — 4-79
+- Wood
+  - bracing — 8-36
+  - camber — See Camber
+  - coefficient of thermal expansion — 9-30
+  - combined flexure and axial loading — 8-35
+  - compression — 8-33
+  - extreme event limit state — 8-33
+  - flexure — 8-31
+  - glued laminated timber — 8-12
+  - piles — 8-21
+  - preservative treatment . See Preservative treatment for wood
+  - sawn lumber — 8-6
+  - shear — 8-33
+  - tension — 8-35
+  - trusses — 8-37
+- Wood decks and deck systems — 9-29
+  - deck tie-downs — 9-39
+  - deformation — 9-30
+  - design requirements — 9-30
+  - load distribution — 9-30
+  - plank decks — 9-30, 9-39
+  - shear design — 9-30
+  - skewed decks — 9-31
+  - spike laminated decks — 9-30, 9-37
+  - stress laminated decks — 9-32
+  - thermal expansion — 9-30
+  - wearing surfaces — 9-31
+- Wood piles — See Wood
+  - modulus of elasticity — 8-21
+  - resistance — 8-21
+  - structural resistance — 10-123
+- Yield moment — 6-405
+- Yield strength
+  - composite columns — 6-130
+  - fasteners, wood structures — 8-22
+  - prestressing steel — 5-23
+  - reinforcing steel — 5-22
+  - steel tunnel liner — 12-92
+  - structural steel — 6-31
+  - transverse reinforcement — 5-64, 5-199
+
