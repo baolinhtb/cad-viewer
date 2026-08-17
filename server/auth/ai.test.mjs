@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import {
   buildStandardsBlock,
   ERRORS,
+  effortLevel,
   estimateCost,
   monthlyUsage,
   recordCall,
@@ -615,4 +616,30 @@ test("the caller's messages are left as they were", async () => {
   const before = JSON.stringify(messages)
   await sendToProvider(db, USER, { messages }, fakeProvider(OK_REPLY, {}))
   assert.equal(JSON.stringify(messages), before)
+})
+
+test('effort is set on every request, not left at the provider default', async () => {
+  // Thinking is billed as output, and output was 62% of a warm turn on this
+  // deployment. Leaving effort unset means `high` — right for a model deriving
+  // every regulated dimension itself, wrong now that templates declare them.
+  const db = freshDb()
+  const capture = {}
+  await sendToProvider(
+    db,
+    USER,
+    { messages: [{ role: 'user', content: 'vẽ' }] },
+    fakeProvider(OK_REPLY, capture)
+  )
+  assert.equal(capture.body.output_config.effort, 'medium')
+})
+
+test('AI_EFFORT accepts only the levels the API knows', () => {
+  // A typo would otherwise reach the provider on every call, failing at the
+  // moment the deployment is least able to say why.
+  for (const level of ['low', 'medium', 'high', 'xhigh', 'max']) {
+    assert.equal(effortLevel(level), level)
+  }
+  for (const bad of ['medum', 'HIGH', '', undefined, null, 'maximum']) {
+    assert.equal(effortLevel(bad), 'medium')
+  }
 })

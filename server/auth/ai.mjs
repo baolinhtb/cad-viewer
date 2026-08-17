@@ -43,6 +43,20 @@ export const MAX_AI_REQUEST_BYTES = 512 * 1024
  */
 export const DEFAULT_MODEL = process.env.AI_MODEL || 'claude-opus-5'
 
+/**
+ * Reasoning effort, which is also the largest cost lever this proxy has.
+ *
+ * Only the five levels the API accepts; anything else is a typo in a `.env`
+ * that would otherwise reach the provider as a 400 on every request, at the
+ * moment the deployment is least able to explain why.
+ */
+const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max']
+
+/** @param raw Whatever `AI_EFFORT` was set to, including nothing at all. */
+export function effortLevel(raw) {
+  return EFFORT_LEVELS.includes(raw) ? raw : 'medium'
+}
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 
@@ -307,6 +321,20 @@ export async function sendToProvider(
     messages: cacheConversation(body.messages),
     // Adaptive thinking on the 4.6+ line; `budget_tokens` is rejected there.
     thinking: { type: 'adaptive' },
+    // Effort, set rather than left at its default.
+    //
+    // Thinking tokens are billed as output, and output was 62% of a warm turn
+    // measured on this deployment — the largest line in the bill by some way,
+    // and the one nothing here had touched. Unset means `high`, which is the
+    // right setting for a model that has to derive every regulated dimension
+    // itself. It is not the right setting now: the templates carry those
+    // dimensions as declared ranges, so the work left is choosing a template
+    // and filling in numbers.
+    //
+    // Overridable per deployment, because where this lands between cost and
+    // capability is a judgement for whoever pays, and the answer moves as the
+    // template library grows.
+    output_config: { effort: effortLevel(process.env.AI_EFFORT) },
     ...(wantsStream ? { stream: true } : {}),
     ...(Array.isArray(body.tools) && body.tools.length
       ? { tools: body.tools }
