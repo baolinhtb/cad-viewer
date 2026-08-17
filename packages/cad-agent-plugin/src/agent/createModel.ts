@@ -46,8 +46,7 @@ export function createModelFromSettings(settings: LlmSettings): LanguageModel {
   if (settings.provider === 'openai') {
     const openai = createOpenAI({
       apiKey: settings.apiKey,
-      baseURL: settings.baseUrl || undefined,
-      compatibility: 'strict'
+      baseURL: settings.baseUrl || undefined
     })
     return openai.chat(settings.model)
   }
@@ -57,7 +56,6 @@ export function createModelFromSettings(settings: LlmSettings): LanguageModel {
   const openai = createOpenAI({
     apiKey: settings.apiKey,
     baseURL: settings.baseUrl || undefined,
-    compatibility: 'compatible',
     fetch: createOpenAiCompatibleFetch()
   })
   return openai.chat(settings.model)

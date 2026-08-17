@@ -452,7 +452,7 @@ export class CadActionExecutor {
         const mtext = new AcDbMText()
         mtext.location = toPoint3d(input.position)
         mtext.contents = input.text
-        mtext.textHeight = input.height ?? 2.5
+        mtext.height = input.height ?? 2.5
         applyLayer(mtext, input.layer)
         db.tables.blockTable.modelSpace.appendEntity(mtext)
         entityIds.push(mtext.objectId)

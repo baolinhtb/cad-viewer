@@ -65,5 +65,7 @@ export const agentVi = {
   unsavedSettings: 'Lưu thiết lập trước khi gửi tin nhắn.',
   missingApiKey: 'Cấu hình API key trong thiết lập trước khi gửi tin nhắn.',
   turnUndoLabelFallback: 'Lệnh AI',
-  providerProxy: 'Máy chủ của hệ thống (khuyến nghị)'
+  providerProxy: 'Máy chủ của hệ thống (khuyến nghị)',
+  outputTruncated:
+    'Câu trả lời bị cắt vì chạm giới hạn độ dài, nên có thể thiếu một phần hình. Hãy yêu cầu từng phần nhỏ hơn.'
 } as const

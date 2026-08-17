@@ -65,5 +65,7 @@ export const agentTr = {
   missingApiKey:
     'Mesaj göndermeden önce ayarlardan bir API anahtarı yapılandırın.',
   turnUndoLabelFallback: 'Yapay zekâ komutu',
-  providerProxy: 'Bu kurulum (önerilir)'
+  providerProxy: 'Bu kurulum (önerilir)',
+  outputTruncated:
+    'Yanıt uzunluk sınırı nedeniyle kesildi, çizimin bir kısmı eksik olabilir. Daha küçük parçalar hâlinde isteyin.'
 } as const
