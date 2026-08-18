@@ -1,3 +1,4 @@
+export * from './AcTpDimensionBlock'
 export * from './AcTpDrawContext'
 export * from './AcTpDrawingDigest'
 export * from './AcTpPartId'

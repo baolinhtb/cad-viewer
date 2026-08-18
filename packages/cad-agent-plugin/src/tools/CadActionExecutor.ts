@@ -18,7 +18,11 @@ import {
   AcDbHatchPatternType,
   AcDbHatchStyle,
   AcDbLine,
+  AcDbAttribute,
+  AcDbAttributeDefinition,
+  AcDbBlockReference,
   AcDbMText,
+  AcDbRotatedDimension,
   AcDbPoint,
   AcDbPolyline,
   AcDbRay,
@@ -31,6 +35,7 @@ import {
   AcGeTol,
   HATCH_PATTERN_SOLID
 } from '@mlightcad/data-model'
+import { buildDimensionBlock } from '@mlightcad/cad-template-sdk'
 
 import { requireDocument, requireView } from './documentAccess'
 import type { DrawingContextSnapshot } from './DrawingContextProvider'
@@ -47,6 +52,23 @@ export interface Point2dInput {
  *
  * Serialized back to the LLM as JSON from each tool's `execute` handler.
  */
+/**
+ * Whether an entity is an attribute definition, judged by what it says it is.
+ *
+ * Not `instanceof`. The viewer bundles more than one copy of the data model —
+ * the classes come out named `AcDbAttributeDefinition2` and friends — so an
+ * entity built by the file parser fails an identity check against the class
+ * this module imported, and the attributes silently never attach. The DXF type
+ * name is the same fact without the identity problem.
+ */
+function isAttributeDefinition(
+  entity: unknown
+): entity is AcDbAttributeDefinition {
+  return (
+    (entity as { dxfTypeName?: string } | null)?.dxfTypeName === 'ATTDEF'
+  )
+}
+
 export interface ToolResult {
   /** Whether the operation completed without error. */
   success: boolean
@@ -54,6 +76,14 @@ export interface ToolResult {
   message: string
   /** Object ids of entities created, when applicable. */
   entityIds?: string[]
+  /**
+   * Structured payload for tools that answer a question rather than draw.
+   *
+   * Must hold only what JSON can carry: a tool result is kept live in the chat
+   * history as well as serialised into the request, and an `undefined` or a
+   * `NaN` in here kills the next turn — see `toJsonSafe` in `cadTools.ts`.
+   */
+  data?: unknown
   /** Machine-readable error code or message when `success` is false. */
   error?: string
 }
@@ -571,6 +601,247 @@ export class CadActionExecutor {
       return {
         success: false,
         message: 'Failed to draw text',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  /**
+   * Creates a linear dimension between two points.
+   *
+   * `huong` names the axis measured, not the direction between the points. An
+   * elevation is dimensioned in horizontal and vertical chains, so measuring
+   * the straight-line distance between two corners of a battered wall gives a
+   * number that is correct and a drawing that is wrong. `'nghieng'` is there
+   * for the cases that really are skew.
+   *
+   * The measured value is left to the entity. A hand-written number stops
+   * matching the geometry the first time anything moves, and nothing in the
+   * drawing would show that it had.
+   *
+   * @param input - The two measured points, the offset to the dimension line,
+   * the axis, and an optional layer and text override.
+   * @returns {@link ToolResult} with the created entity id on success.
+   */
+  drawDimension(input: {
+    start: Point2dInput
+    end: Point2dInput
+    offset: number
+    huong?: 'ngang' | 'dung' | 'nghieng'
+    text?: string
+    layer?: string
+  }): ToolResult {
+    const accessError = requireDocument(true)
+    if (accessError) {
+      return accessError
+    }
+    const layerError = validateLayer(input.layer)
+    if (layerError) {
+      return layerError
+    }
+
+    const huong = input.huong ?? 'ngang'
+    const start = toPoint3d(input.start)
+    const end = toPoint3d(input.end)
+
+    let dimLine: { x: number; y: number; z: number }
+    if (huong === 'ngang') {
+      dimLine = {
+        x: (start.x + end.x) / 2,
+        y: Math.max(start.y, end.y) + input.offset,
+        z: 0
+      }
+    } else if (huong === 'dung') {
+      dimLine = {
+        x: Math.max(start.x, end.x) + input.offset,
+        y: (start.y + end.y) / 2,
+        z: 0
+      }
+    } else {
+      const dx = end.x - start.x
+      const dy = end.y - start.y
+      const length = Math.hypot(dx, dy)
+      if (length === 0) {
+        return {
+          success: false,
+          message: 'Failed to draw dimension',
+          error:
+            'Kích thước nghiêng cần hai điểm khác nhau; đã nhận hai điểm trùng nhau.'
+        }
+      }
+      dimLine = {
+        x: (start.x + end.x) / 2 - (dy / length) * input.offset,
+        y: (start.y + end.y) / 2 + (dx / length) * input.offset,
+        z: 0
+      }
+    }
+
+    try {
+      const entityIds: string[] = []
+      runEdit('Agent: draw_dimension', () => {
+        const dim = new AcDbRotatedDimension(
+          start,
+          end,
+          dimLine,
+          input.text ?? null,
+          'Standard'
+        )
+        if (huong === 'ngang') dim.rotation = 0
+        else if (huong === 'dung') dim.rotation = Math.PI / 2
+        // A dimension keeps only its definition points; the arrows, extension
+        // lines and text live in an anonymous block built from the style, and
+        // that block is what the renderer draws. Skip it and the dimension is
+        // in the drawing, measures correctly, and shows nothing.
+        buildDimensionBlock(AcApDocManager.instance.curDocument.database, dim)
+        this.place(dim, input.layer, entityIds)
+      })
+      return {
+        success: true,
+        message: 'Dimension created',
+        entityIds
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to draw dimension',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  /**
+   * Lists the blocks the open drawing defines, with the attributes each expects.
+   *
+   * Insertion is useless without it: a block can only be placed by a name that
+   * already exists, and an office drawing's names are its own — `cd11` for a
+   * level callout in the reference drawing an engineer sent, not anything
+   * guessable. The attribute tags travel too, because a callout inserted with
+   * no value for its tag is a marker with a blank where the level should be.
+   *
+   * Anonymous blocks are left out. `*D14` is dimension geometry and
+   * `*Model_Space` is not a block anyone inserts; offering either invites the
+   * model to place something meaningless.
+   */
+  listBlocks(): ToolResult {
+    const accessError = requireDocument(false)
+    if (accessError) {
+      return accessError
+    }
+    try {
+      const db = AcApDocManager.instance.curDocument.database
+      const blocks: { name: string; attributes: string[] }[] = []
+      for (const record of db.tables.blockTable.newIterator()) {
+        if (record.name.startsWith('*')) continue
+        const attributes: string[] = []
+        for (const entity of record.newIterator()) {
+          if (isAttributeDefinition(entity)) {
+            attributes.push(entity.tag)
+          }
+        }
+        blocks.push({ name: record.name, attributes })
+      }
+      return {
+        success: true,
+        message: `${blocks.length} block`,
+        data: { blocks }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to list blocks',
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  /**
+   * Inserts a block that the drawing already defines.
+   *
+   * Values are matched to the block's attribute definitions by tag, and each
+   * attribute inherits the definition's placement, height and rotation so the
+   * inserted callout looks like every other one on the sheet rather than like
+   * text dropped at the insertion point. A tag with no value supplied is left
+   * out rather than filled with an empty string — an attribute that is missing
+   * reads as "not filled in", one that is blank reads as "the value is
+   * nothing", and on a level callout those mean different things.
+   *
+   * @param input - Block name, insertion point, optional rotation in degrees,
+   * scale, layer, and attribute values by tag.
+   */
+  insertBlock(input: {
+    blockName: string
+    position: Point2dInput
+    rotation?: number
+    scale?: number
+    layer?: string
+    attributes?: Record<string, string>
+  }): ToolResult {
+    const accessError = requireDocument(true)
+    if (accessError) {
+      return accessError
+    }
+    const layerError = validateLayer(input.layer)
+    if (layerError) {
+      return layerError
+    }
+
+    const db = AcApDocManager.instance.curDocument.database
+    const record = db.tables.blockTable.getAt(input.blockName)
+    if (!record) {
+      // Naming what does exist matters: a model that invented a block name
+      // invents the same one again unless it is shown the real list.
+      const names: string[] = []
+      for (const block of db.tables.blockTable.newIterator()) {
+        if (!block.name.startsWith('*')) names.push(block.name)
+      }
+      return {
+        success: false,
+        message: `Bản vẽ không có block "${input.blockName}"`,
+        error:
+          names.length > 0
+            ? `Block đang có: ${names.join(', ')}.`
+            : 'Bản vẽ chưa định nghĩa block nào.'
+      }
+    }
+
+    try {
+      const entityIds: string[] = []
+      runEdit('Agent: insert_block', () => {
+        const reference = new AcDbBlockReference(input.blockName)
+        reference.position = toPoint3d(input.position)
+        if (input.rotation != null) {
+          reference.rotation = (input.rotation * Math.PI) / 180
+        }
+        if (input.scale != null) {
+          reference.scaleFactors = { x: input.scale, y: input.scale, z: 1 }
+        }
+
+        const supplied = input.attributes ?? {}
+        for (const entity of record.newIterator()) {
+          if (!isAttributeDefinition(entity)) continue
+          const value = supplied[entity.tag]
+          if (value == null) continue
+
+          const attribute = new AcDbAttribute()
+          attribute.tag = entity.tag
+          attribute.textString = value
+          attribute.position = entity.position
+          attribute.height = entity.height
+          attribute.rotation = entity.rotation
+          reference.appendAttributes(attribute)
+        }
+
+        this.place(reference, input.layer, entityIds)
+      })
+      return {
+        success: true,
+        message: `Đã chèn block "${input.blockName}"`,
+        entityIds
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to insert block',
         error: error instanceof Error ? error.message : String(error)
       }
     }

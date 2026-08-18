@@ -8,12 +8,14 @@ import {
   AcDbLayerTableRecord,
   AcDbLine,
   AcDbPolyline,
+  AcDbRotatedDimension,
   AcDbText,
   AcGePoint2d,
   AcGePoint3d,
   AcGePoint3dLike
 } from '@mlightcad/data-model'
 
+import { buildDimensionBlock } from './AcTpDimensionBlock'
 import {
   AcTpSemanticTag,
   ensureSemanticTagRegApp,
@@ -65,6 +67,37 @@ export interface AcTpTextArgs extends AcTpDrawBase {
 }
 
 /**
+ * A linear dimension between two points.
+ *
+ * `huong` is the axis the dimension measures along, not the direction of the
+ * line between the points: a bridge elevation is dimensioned in horizontal and
+ * vertical chains, and asking for "the distance between these two corners" when
+ * what the sheet needs is "the height of this wall" produces a number that is
+ * right and a drawing that is wrong. `'nghieng'` measures the true distance for
+ * the cases that genuinely are skew.
+ */
+export interface AcTpDimensionArgs extends AcTpDrawBase {
+  /** First extension line origin. */
+  start: AcGePoint3dLike
+  /** Second extension line origin. */
+  end: AcGePoint3dLike
+  /**
+   * How far the dimension line sits from the measured points, in drawing
+   * units. Positive is above a horizontal chain and to the right of a vertical
+   * one; negative puts it on the other side.
+   */
+  offset: number
+  /** Axis measured. Defaults to `'ngang'`. */
+  huong?: 'ngang' | 'dung' | 'nghieng'
+  /**
+   * Overrides the measured value. Leave unset — the entity computes and
+   * formats the real distance, and a hand-written number is a number that
+   * stops matching the geometry the first time a parameter changes.
+   */
+  text?: string
+}
+
+/**
  * The one and only way a template touches the drawing.
  *
  * Every method takes a `role` and a `partId` and cannot be called without
@@ -83,6 +116,7 @@ export interface AcTpDrawContext {
   circle(args: AcTpCircleArgs): AcDbEntity
   arc(args: AcTpArcArgs): AcDbEntity
   text(args: AcTpTextArgs): AcDbEntity
+  dimension(args: AcTpDimensionArgs): AcDbEntity
   /** Everything drawn so far in this run, in drawing order. */
   readonly drawn: readonly AcDbEntity[]
 }
@@ -191,6 +225,65 @@ export function createDrawContext(
       )
       entity.textString = args.text
       entity.height = args.height ?? 2.5
+      return place(entity, args)
+    },
+
+    dimension: args => {
+      const huong = args.huong ?? 'ngang'
+      const start = args.start
+      const end = args.end
+
+      // Where the dimension line sits. For a horizontal chain it is offset in
+      // Y, for a vertical one in X; for a skew dimension it is offset along the
+      // normal of the measured line, which is the only meaning `offset` can
+      // have when neither axis is the answer.
+      let dimLine: AcGePoint3dLike
+      if (huong === 'ngang') {
+        dimLine = {
+          x: (start.x + end.x) / 2,
+          y: Math.max(start.y, end.y) + args.offset,
+          z: 0
+        }
+      } else if (huong === 'dung') {
+        dimLine = {
+          x: Math.max(start.x, end.x) + args.offset,
+          y: (start.y + end.y) / 2,
+          z: 0
+        }
+      } else {
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const length = Math.hypot(dx, dy)
+        // A zero-length dimension has no normal and no measurement worth
+        // drawing; refusing beats emitting a NaN nobody sees until later.
+        if (length === 0) {
+          throw new Error(
+            'Kích thước nghiêng cần hai điểm khác nhau; đã nhận hai điểm trùng nhau.'
+          )
+        }
+        dimLine = {
+          x: (start.x + end.x) / 2 - (dy / length) * args.offset,
+          y: (start.y + end.y) / 2 + (dx / length) * args.offset,
+          z: 0
+        }
+      }
+
+      const entity = new AcDbRotatedDimension(
+        { x: start.x, y: start.y, z: start.z ?? 0 },
+        { x: end.x, y: end.y, z: end.z ?? 0 },
+        dimLine,
+        args.text ?? null,
+        'Standard'
+      )
+      // Rotation is what makes a rotated dimension measure an axis rather than
+      // the distance between the points. Left at zero for a skew dimension, the
+      // entity behaves as a plain aligned one, which is what `'nghieng'` means.
+      if (huong === 'ngang') entity.rotation = 0
+      else if (huong === 'dung') entity.rotation = Math.PI / 2
+
+      // Without this the dimension is in the drawing and invisible — see
+      // {@link buildDimensionBlock}.
+      buildDimensionBlock(db, entity)
       return place(entity, args)
     },
 

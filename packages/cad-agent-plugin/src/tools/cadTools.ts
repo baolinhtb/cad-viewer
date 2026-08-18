@@ -381,6 +381,54 @@ export function createCadTools() {
       }),
       execute: async input => cadActionExecutor.drawText(input)
     }),
+    draw_dimension: tool({
+      description:
+        'Draw a linear dimension between two points. `huong` is the axis being ' +
+        'measured, not the direction between the points: use "ngang" for a ' +
+        'horizontal chain, "dung" for a vertical one, and "nghieng" only when ' +
+        'the measurement is genuinely skew. `offset` is how far the dimension ' +
+        'line sits from the measured points, in drawing units; negative puts it ' +
+        'on the other side. Leave `text` unset so the real distance is measured ' +
+        'and formatted — an engineering drawing without dimensions is not a ' +
+        'drawing that can be issued, so dimension what you draw.',
+      inputSchema: z.object({
+        start: pointSchema,
+        end: pointSchema,
+        offset: z.number(),
+        huong: z.enum(['ngang', 'dung', 'nghieng']).optional(),
+        text: z.string().optional(),
+        layer: z.string().optional()
+      }),
+      execute: async input => cadActionExecutor.drawDimension(input)
+    }),
+    list_blocks: tool({
+      description:
+        "List the blocks this drawing defines and the attribute tags each one " +
+        "expects. Call it before insert_block: a block can only be placed by a " +
+        "name the drawing already has, and those names belong to the office " +
+        "that drew it. Anonymous blocks (names starting with '*') are omitted " +
+        'because they are dimension and layout internals, not things to insert.',
+      inputSchema: z.object({}),
+      execute: async () => cadActionExecutor.listBlocks()
+    }),
+    insert_block: tool({
+      description:
+        'Insert a block the drawing already defines, at a point. Supply ' +
+        '`attributes` as tag → value for the tags list_blocks reported; a tag ' +
+        'left out stays empty rather than being filled with a blank. Rotation ' +
+        'is in degrees. Use this for repeated standard details — level ' +
+        'callouts, section marks, symbols — instead of redrawing them stroke ' +
+        'by stroke, which loses the office\'s own symbol and costs far more.',
+      inputSchema: z.object({
+        blockName: z.string().min(1),
+        position: pointSchema,
+        rotation: z.number().optional(),
+        scale: z.number().positive().optional(),
+        layer: z.string().optional(),
+        attributes: z.record(z.string(), z.string()).optional()
+      }),
+      execute: async input => cadActionExecutor.insertBlock(input)
+    }),
     set_current_layer: tool({
       description: 'Set the current drawing layer (CLAYER)',
       inputSchema: z.object({
