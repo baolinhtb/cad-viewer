@@ -60,8 +60,58 @@ const pointSchema = z.object({
  *
  * @returns AI SDK tool definitions keyed by tool name.
  */
+/**
+ * Makes a tool result carry only what JSON can carry.
+ *
+ * A tool result is kept twice: serialised into the request, and live in the
+ * chat history. `JSON.stringify` drops `undefined` and writes `NaN` and
+ * `Infinity` as `null`, so the wire is always well-formed — but the object left
+ * in the history is not, and on the next message that history is validated as a
+ * prompt. It fails with "Invalid prompt: The messages must be a
+ * ModelMessage[]", which names the message type rather than the field, and the
+ * conversation cannot continue. The first message worked; every correction
+ * after it was refused.
+ *
+ * This has now happened twice from different fields — `NaN` extents on an empty
+ * drawing, then `undefined` for a part with no side or ordinal — so the guard
+ * belongs at the boundary rather than at each site. Round-tripping through JSON
+ * is deliberate: it produces exactly what the request already sends, so the
+ * history and the wire agree by construction instead of by vigilance.
+ */
+function toJsonSafe<T>(value: T, toolName: string): T {
+  try {
+    return JSON.parse(JSON.stringify(value ?? null)) as T
+  } catch (error) {
+    // Circular or otherwise unserialisable. Returning it unchanged is no worse
+    // than before this guard existed, and the name is what the next
+    // investigation will need.
+    console.error(
+      `[cad-agent] tool "${toolName}" returned a result JSON cannot carry`,
+      error
+    )
+    return value
+  }
+}
+
+/**
+ * Applies {@link toJsonSafe} to every tool's result.
+ *
+ * Wraps in place so the inferred tool-map type — which `CadTools` and the
+ * agent's own typing depend on — is preserved exactly.
+ */
+function withJsonSafeResults<T extends Record<string, unknown>>(tools: T): T {
+  for (const [name, entry] of Object.entries(tools)) {
+    const holder = entry as { execute?: (...args: unknown[]) => unknown }
+    const original = holder.execute
+    if (typeof original !== 'function') continue
+    holder.execute = async (...args: unknown[]) =>
+      toJsonSafe(await original(...args), name)
+  }
+  return tools
+}
+
 export function createCadTools() {
-  return {
+  return withJsonSafeResults({
     // The semantic group comes first because it is what the model should reach
     // for first: the geometry tools below act on coordinates and object ids,
     // and arriving at either without having located a part by name is how an
@@ -358,7 +408,7 @@ export function createCadTools() {
       inputSchema: z.object({}),
       execute: async () => cadActionExecutor.zoomExtents()
     })
-  }
+  })
 }
 
 /** Inferred tool map type returned by {@link createCadTools}. */

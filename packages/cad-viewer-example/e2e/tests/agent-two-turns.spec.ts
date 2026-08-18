@@ -232,3 +232,101 @@ for (const mode of ['simple', 'high-inference'] as const) {
     )
   })
 }
+
+/**
+ * The sequence a real bridge session produces.
+ *
+ * The test above carries a `get_drawing_context` result into the second turn,
+ * which is the case that was fixed. A reported session died on a different one:
+ * `chay_template` then `mo_ta_ban_ve`, run against a drawing that a template had
+ * just filled. Those results describe every part in the drawing, so they carry
+ * far more numbers than a drawing context does — and one number that is not
+ * finite kills the next turn wherever it sits, with a message that blames the
+ * message type rather than the field.
+ */
+test('a template run and a description survive into the next turn', async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('cad-agent-plugin.agent-mode', 'high-inference')
+  })
+
+  let agentRounds = 0
+  await page.route('**/api/ai/messages', async route => {
+    const body = route.request().postDataJSON() as { tools?: { name: string }[] }
+    if (body.tools?.length === 1 && body.tools[0].name === 'json') {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: verificationReply(true)
+      })
+      return
+    }
+
+    agentRounds += 1
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache'
+      },
+      body:
+        agentRounds === 1
+          ? messageStream(
+              [
+                {
+                  type: 'tool_use',
+                  id: 'toolu_ctx',
+                  name: 'get_drawing_context',
+                  input: {},
+                  emit: {}
+                },
+                {
+                  type: 'tool_use',
+                  id: 'toolu_tpl',
+                  name: 'chay_template',
+                  input: {},
+                  emit: { ma_template: 'cau_ban_btct', thong_so: {} }
+                },
+                {
+                  type: 'tool_use',
+                  id: 'toolu_zoom',
+                  name: 'zoom_extents',
+                  input: {},
+                  emit: {}
+                },
+                {
+                  type: 'tool_use',
+                  id: 'toolu_desc',
+                  name: 'mo_ta_ban_ve',
+                  input: {},
+                  emit: {}
+                }
+              ],
+              'tool_use'
+            )
+          : messageStream(
+              [{ type: 'text', text: `Xong lượt ${agentRounds}.` }],
+              'end_turn'
+            )
+    })
+  })
+
+  await openEditor(page)
+  await sendMessage(page, 'vẽ cầu bản BTCT')
+  await expect(page.locator('.cad-agent-panel-root')).toContainText(
+    'Xong lượt',
+    { timeout: 60_000 }
+  )
+
+  await sendMessage(page, 'Bổ sung thêm chân cầu')
+
+  await expect(page.locator('.cad-agent-panel-root')).not.toContainText(
+    /Invalid prompt|ModelMessage/i,
+    { timeout: 60_000 }
+  )
+  await expect(page.locator('.cad-agent-panel-root')).toContainText(
+    /Xong lượt [2-9]/,
+    { timeout: 60_000 }
+  )
+})

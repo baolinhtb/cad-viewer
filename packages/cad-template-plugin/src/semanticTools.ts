@@ -125,16 +125,31 @@ function currentDb() {
 }
 
 /** Trims a part down to what the model needs to reason and to act. */
+/**
+ * Shapes a part for the model, leaving out what it has none of.
+ *
+ * The omissions are load-bearing, not tidiness. A tool result travels into the
+ * chat history as a live object, and on the next message that history is
+ * validated as a prompt — where `undefined` is not a JSON value and the whole
+ * turn dies with "Invalid prompt: The messages must be a ModelMessage[]",
+ * naming the message type rather than the field. `JSON.stringify` drops
+ * `undefined` silently, so the request on the wire and every log of it look
+ * perfectly well-formed while the copy kept in memory is the one that fails.
+ *
+ * That is exactly how a reported session went: the bridge drew, and "bổ sung
+ * thêm chân cầu" was refused, because `ban_mat_cau` has no side and no ordinal
+ * and this function said so with `undefined` instead of by saying nothing.
+ */
 function forModel(part: AcTpPartSummary) {
   return {
     partId: part.partId,
     ten: describePart(part),
     role: part.role,
-    ben: part.side,
-    so_thu_tu: part.ordinal,
-    layer: part.layers[0],
+    ...(part.side !== undefined ? { ben: part.side } : {}),
+    ...(part.ordinal !== undefined ? { so_thu_tu: part.ordinal } : {}),
+    ...(part.layers[0] !== undefined ? { layer: part.layers[0] } : {}),
     so_doi_tuong: part.entityCount,
-    thong_so: part.params
+    ...(part.params !== undefined ? { thong_so: part.params } : {})
   }
 }
 

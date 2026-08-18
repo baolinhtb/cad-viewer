@@ -276,3 +276,64 @@ describe('dispatch', () => {
     }
   })
 })
+
+describe('what the model receives is what JSON can carry', () => {
+  // A tool result lives twice: serialised into the request, and live in the
+  // chat history. `JSON.stringify` drops `undefined`, so the wire looks fine
+  // while the retained object is what the next turn validates — and fails on,
+  // with a message that blames the message type rather than the field.
+  const undefinedPaths = (value: unknown, path = '$'): string[] => {
+    if (value === undefined) return [path]
+    if (Array.isArray(value)) {
+      return value.flatMap((v, i) => undefinedPaths(v, `${path}[${i}]`))
+    }
+    if (value && typeof value === 'object') {
+      return Object.entries(value).flatMap(([k, v]) =>
+        undefinedPaths(v, `${path}.${k}`)
+      )
+    }
+    return []
+  }
+
+  test('a part with no side, ordinal or params carries no undefined', () => {
+    // `ban_mat_cau` is exactly that part, and it is in every bridge drawing.
+    digest = {
+      status: 'tagged',
+      templateIds: ['cau_ban_btct'],
+      untaggedEntityCount: 0,
+      parts: [
+        {
+          role: 'ban_mat_cau',
+          roleLabel: 'Bản mặt cầu',
+          partId: 'ban_mat_cau',
+          layers: ['KC-BAN'],
+          entityCount: 1,
+          objectIds: ['e1']
+        }
+      ]
+    }
+
+    const result = describeDrawing()
+    expect(result.ok).toBe(true)
+    expect(undefinedPaths(result)).toEqual([])
+  })
+
+  test('a part missing even a layer still carries no undefined', () => {
+    digest = {
+      status: 'tagged',
+      templateIds: [],
+      untaggedEntityCount: 0,
+      parts: [
+        {
+          role: 'ghi_chu',
+          partId: 'ghi_chu',
+          layers: [],
+          entityCount: 1,
+          objectIds: []
+        }
+      ]
+    }
+
+    expect(undefinedPaths(describeDrawing())).toEqual([])
+  })
+})
