@@ -310,3 +310,38 @@ export async function refreshRoleLayers(
     return false
   }
 }
+
+/**
+ * Loads the standardisation layer once, for callers that need it to be there.
+ *
+ * The two refreshes above are fired by the template plugin when it loads. The
+ * assistant loads separately and does not wait for it, so on a deployment where
+ * nobody opened the template dialog the assistant was running against the
+ * built-in fallback: it read an engineer's drawing whose layers are named
+ * `_33_CAU_MO_Tuongthan`, compared them to `KC-*`, matched nothing, and
+ * reported that no layer in the drawing was known — while the mapping sat on
+ * the server, correct and unread.
+ *
+ * Memoised on success only. A failed fetch must stay retryable, or one blink of
+ * the network leaves the session on the fallback until a reload.
+ */
+let standardsLoaded: Promise<boolean> | undefined
+
+export function ensureStandardsLoaded(): Promise<boolean> {
+  standardsLoaded ??= Promise.all([refreshRoleLayers(), refreshDictionary()])
+    .then(([layers, terms]) => {
+      const ok = layers || terms
+      if (!ok) standardsLoaded = undefined
+      return ok
+    })
+    .catch(error => {
+      standardsLoaded = undefined
+      throw error
+    })
+  return standardsLoaded
+}
+
+/** Test seam: forgets that the standards were loaded. */
+export function resetStandardsLoaded() {
+  standardsLoaded = undefined
+}

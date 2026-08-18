@@ -48,6 +48,7 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
       }
     }
   ],
+  ensureStandardsLoaded: () => Promise.resolve(true),
   dictionary: () => [{ role: 'lan_can', label: 'Lan can', aliases: ['tay vịn'] }],
   runSemanticTool: (name: string, input: unknown, terms: unknown) => {
     calls.push({ name, input, terms })

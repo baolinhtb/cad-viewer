@@ -1,5 +1,6 @@
 import {
   dictionary,
+  ensureStandardsLoaded,
   runSemanticTool,
   runTemplateTool,
   SEMANTIC_TOOLS,
@@ -46,6 +47,24 @@ function templateDescription(name: string): string {
   const found = TEMPLATE_TOOLS.find(t => t.name === name)
   if (!found) throw new Error(`template tool "${name}" is not declared`)
   return name === 'chay_template' ? templateToolDescription() : found.description
+}
+
+/**
+ * Waits for the office's own terms and layer names before answering.
+ *
+ * Every tool below that resolves a phrase or a role depends on the
+ * standardisation layer, and the assistant does not load it — the template
+ * plugin does, on its own schedule. Without this the assistant answers from the
+ * built-in fallback and reports an office's real layers as unrecognised.
+ * Failures are swallowed: the fallback is a worse answer than the real mapping
+ * but a far better one than refusing to work at all.
+ */
+async function ready() {
+  try {
+    await ensureStandardsLoaded()
+  } catch {
+    // Fallback stays in place.
+  }
 }
 
 /** Zod schema for 2D WCS points in agent tool arguments. */
@@ -120,7 +139,10 @@ export function createCadTools() {
     mo_ta_ban_ve: tool({
       description: semanticDescription('mo_ta_ban_ve'),
       inputSchema: z.object({}),
-      execute: async () => runSemanticTool('mo_ta_ban_ve', {}, dictionary())
+      execute: async () => {
+        await ready()
+        return runSemanticTool('mo_ta_ban_ve', {}, dictionary())
+      }
     }),
     tim_bo_phan: tool({
       description: semanticDescription('tim_bo_phan'),
@@ -140,16 +162,20 @@ export function createCadTools() {
           .optional()
           .describe('Số thứ tự dọc cầu, nếu người dùng nêu.')
       }),
-      execute: async input =>
-        runSemanticTool('tim_bo_phan', input, dictionary())
+      execute: async input => {
+        await ready()
+        return runSemanticTool('tim_bo_phan', input, dictionary())
+      }
     }),
     gan_nhan_tu_layer: tool({
       // Declared outside SEMANTIC_TOOLS on purpose: that group is read-only
       // and this one writes to every entity it recognises.
       description: TAG_TOOL.description,
       inputSchema: z.object({}),
-      execute: async () =>
-        runSemanticTool('gan_nhan_tu_layer', {}, dictionary())
+      execute: async () => {
+        await ready()
+        return runSemanticTool('gan_nhan_tu_layer', {}, dictionary())
+      }
     }),
     to_sang_bo_phan: tool({
       description: semanticDescription('to_sang_bo_phan'),
@@ -180,11 +206,15 @@ export function createCadTools() {
             'Giá trị tham số theo đúng khóa và đơn vị đã khai trong danh mục. Bỏ trống để dùng mặc định.'
           )
       }),
-      execute: async input =>
-        runTemplateTool('chay_template', {
+      execute: async input => {
+        // The layer each role is drawn on comes from the same place, so a run
+        // that skipped this would put the office's parts on fallback layers.
+        await ready()
+        return runTemplateTool('chay_template', {
           ma_template: input.ma_template,
           thong_so: input.thong_so ?? {}
         })
+      }
     }),
     // Reference before geometry: nearly every dimension in a bridge or road
     // drawing is already decided by a standard, and a number the model
