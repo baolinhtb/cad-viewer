@@ -17,6 +17,17 @@ export const SEED_ROLES: Readonly<Record<string, string>> = {
   go_chan_banh: 'Gờ chắn bánh',
   ban_qua_do: 'Bản quá độ',
   mo_cau: 'Mố cầu',
+  // The abutment, taken apart the way an office actually draws it. `mo_cau`
+  // stays for the whole thing — a cross-section that shows the abutment as one
+  // shape is still a legitimate drawing — but a sheet that separates the parts
+  // needs a term per part, or "sửa tường thân" has nothing to resolve to.
+  // The split follows a real drawing: back wall, stem, wing wall, footing, and
+  // the blinding under it.
+  mo_tuong_dau: 'Tường đầu mố',
+  mo_tuong_than: 'Tường thân mố',
+  mo_tuong_tai: 'Tường tai mố',
+  mo_be: 'Bệ móng mố',
+  mo_be_tong_lot: 'Bê tông lót',
   goi_cau: 'Gối cầu',
   khe_co_gian: 'Khe co giãn',
   ong_thoat_nuoc: 'Ống thoát nước',
@@ -39,6 +50,14 @@ export const SEED_ROLE_LAYERS: Readonly<Record<string, string>> = {
   go_chan_banh: 'KC-GOCHAN',
   ban_qua_do: 'KC-BANQUADO',
   mo_cau: 'KC-MO',
+  // Default names only. An office that names these `_33_CAU_MO_Tuongdau` maps
+  // them through the standardisation layer, which overrides this whole map —
+  // baking one office's prefix in here would impose it on every other.
+  mo_tuong_dau: 'KC-MO-TUONGDAU',
+  mo_tuong_than: 'KC-MO-TUONGTHAN',
+  mo_tuong_tai: 'KC-MO-TUONGTAI',
+  mo_be: 'KC-MO-BE',
+  mo_be_tong_lot: 'KC-MO-BTLOT',
   goi_cau: 'KC-GOI',
   khe_co_gian: 'KC-KHE',
   ong_thoat_nuoc: 'KT-THOATNUOC',

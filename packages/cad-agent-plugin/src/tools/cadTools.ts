@@ -3,6 +3,7 @@ import {
   runSemanticTool,
   runTemplateTool,
   SEMANTIC_TOOLS,
+  TAG_TOOL,
   TEMPLATE_TOOLS,
   templateToolDescription
 } from '@mlightcad/cad-template-plugin'
@@ -141,6 +142,14 @@ export function createCadTools() {
       }),
       execute: async input =>
         runSemanticTool('tim_bo_phan', input, dictionary())
+    }),
+    gan_nhan_tu_layer: tool({
+      // Declared outside SEMANTIC_TOOLS on purpose: that group is read-only
+      // and this one writes to every entity it recognises.
+      description: TAG_TOOL.description,
+      inputSchema: z.object({}),
+      execute: async () =>
+        runSemanticTool('gan_nhan_tu_layer', {}, dictionary())
     }),
     to_sang_bo_phan: tool({
       description: semanticDescription('to_sang_bo_phan'),

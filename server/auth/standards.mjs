@@ -21,11 +21,17 @@ export const ERRORS = {
 const ROLE_SLUG = /^[a-z0-9_]+$/
 
 /**
- * Layer names follow the drafting convention already in use (`KC-BAN`), which
- * AutoCAD treats case-insensitively — so uniqueness has to ignore case too, or
- * `KC-Ban` and `KC-BAN` become two rows describing one layer.
+ * Characters AutoCAD refuses in a layer name.
+ *
+ * The rule is a deny-list because that is what AutoCAD's is, and an allow-list
+ * built around one office's convention locks every other office out. This one
+ * was `^[A-Za-z0-9][A-Za-z0-9_-]*$`, modelled on `KC-BAN` — and it rejected
+ * every layer in a real drawing an engineer sent, because that office names
+ * them `_33_CAU_MO_Tuongdau` and a leading underscore was not allowed for.
+ * Names are still compared case-insensitively: AutoCAD treats `KC-Ban` and
+ * `KC-BAN` as one layer, so two rows for them would describe the same thing.
  */
-const LAYER_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
+const LAYER_NAME_FORBIDDEN = /[<>/\\":;?*|,='`]/
 
 class StandardsError extends Error {
   constructor(code, detail) {
@@ -231,10 +237,10 @@ export function getLayer(db, name) {
 
 function assertLayerInput(input) {
   const name = String(input.name ?? '').trim()
-  if (!LAYER_NAME.test(name)) {
+  if (!name || LAYER_NAME_FORBIDDEN.test(name)) {
     throw new StandardsError(ERRORS.INVALID, {
       field: 'name',
-      reason: 'Tên layer chỉ gồm chữ, số, gạch ngang và gạch dưới'
+      reason: 'Tên layer không được rỗng và không chứa < > / \\ " : ; ? * | , = \''
     })
   }
   const meaning = String(input.meaning ?? '').trim()

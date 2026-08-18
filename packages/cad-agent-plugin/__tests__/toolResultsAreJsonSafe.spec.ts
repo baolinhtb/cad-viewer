@@ -22,6 +22,11 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     { name: 'tim_bo_phan', description: 'd', input_schema: {} },
     { name: 'to_sang_bo_phan', description: 'd', input_schema: {} }
   ],
+  TAG_TOOL: {
+    name: 'gan_nhan_tu_layer',
+    description: 'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false }
+  },
   TEMPLATE_TOOLS: [{ name: 'chay_template', description: 'd', input_schema: {} }],
   dictionary: () => [],
   templateToolDescription: () => 'd',

@@ -240,3 +240,56 @@ test('contradiction checks ignore layer-name case, as AutoCAD does', () => {
   createTerm(db, 1, { role: 'dam_chu', label: 'Dầm chủ', layer: 'kc-ban' })
   assert.deepEqual(findContradictions(db).rolesWithUnknownLayer, [])
 })
+
+test('layer names follow AutoCAD rules, not one office\'s convention', () => {
+  const db = freshDb()
+
+  // The names in a real drawing an engineer sent. Every one of them was
+  // rejected by the previous allow-list, which required a leading letter or
+  // digit because the built-in convention happened to look like `KC-BAN`.
+  for (const name of [
+    '_33_CAU_MO_Tuongdau',
+    '_33_Duongghikichthuoc',
+    '_Matduong_BTN',
+    'Main_01'
+  ]) {
+    assert.equal(createLayer(db, 1, { name, meaning: name }).name, name)
+  }
+
+  // What AutoCAD itself refuses stays refused.
+  for (const name of ['a<b', 'a/b', 'a"b', 'a:b', 'a;b', 'a?b', 'a*b', 'a|b', "a'b", 'a,b', 'a=b', '  ']) {
+    assert.equal(
+      codeOf(() => createLayer(db, 1, { name, meaning: 'x' })),
+      ERRORS.INVALID,
+      `phải từ chối: ${JSON.stringify(name)}`
+    )
+  }
+})
+
+test('an office points a seeded role at its own layer name', () => {
+  // The real operation: the vocabulary ships with the product, the layer names
+  // belong to whoever draws. `_33_CAU_MO_Tuongthan` is from an engineer's own
+  // sheet, and until the name rule was widened it could not be entered at all.
+  const db = freshDb()
+  createLayer(db, 1, {
+    name: '_33_CAU_MO_Tuongthan',
+    meaning: 'Tường thân mố'
+  })
+  const seeded = getTerm(db, 'mo_tuong_than')
+  assert.ok(seeded, 'vai trò tường thân phải có sẵn trong hạt giống')
+
+  updateTerm(db, 1, 'mo_tuong_than', {
+    label: seeded.label,
+    aliases: seeded.aliases,
+    layer: '_33_CAU_MO_Tuongthan'
+  })
+
+  assert.equal(roleLayerMap(db).mo_tuong_than, '_33_CAU_MO_Tuongthan')
+  // The pair is consistent, so it raises no contradiction.
+  assert.deepEqual(
+    findContradictions(db).rolesWithUnknownLayer.filter(
+      row => row.role === 'mo_tuong_than'
+    ),
+    []
+  )
+})

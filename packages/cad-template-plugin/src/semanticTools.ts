@@ -11,6 +11,9 @@ import {
   readDrawingDigest
 } from '@mlightcad/cad-template-sdk'
 
+import { tagDrawingFromLayers } from './tagFromLayers'
+import { roleLayers } from './templateRegistry'
+
 /**
  * The tools an assistant is given, and the one place they are executed.
  *
@@ -119,6 +122,30 @@ export const SEMANTIC_TOOLS: AcApToolSchema[] = [
   }
 ]
 
+
+/**
+ * Declared apart from the three query tools because it writes.
+ *
+ * The others read; this one changes every entity it recognises. Keeping it in
+ * the same array would have made "the read-only group" a claim the code no
+ * longer supported.
+ */
+export const TAG_TOOL: AcApToolSchema = {
+  name: 'gan_nhan_tu_layer',
+  description:
+    'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer đã khai ' +
+    'trong nền chuẩn hóa. Dùng khi mo_ta_ban_ve báo "untagged" — sau khi gán ' +
+    'thì tim_bo_phan và các lệnh sửa mới làm việc được. Chỉ suy ra vai trò từ ' +
+    'layer, không suy ra bên trái/phải hay số thứ tự vì layer không nói điều ' +
+    'đó. Đối tượng đã có nhãn thì giữ nguyên. Báo lại những layer chưa khai ' +
+    'để người dùng bổ sung vào nền chuẩn hóa, đừng tự đoán.',
+  input_schema: {
+    type: 'object',
+    properties: {},
+    additionalProperties: false
+  }
+}
+
 /** Current drawing, or undefined when nothing is open. */
 function currentDb() {
   return AcApDocManager.instance?.curDocument?.database
@@ -182,6 +209,59 @@ export function describeDrawing(): AcApToolOutcome {
       templateIds: digest.templateIds,
       parts: digest.parts.map(forModel),
       soDoiTuongKhongNhan: digest.untaggedEntityCount
+    }
+  }
+}
+
+
+/**
+ * Tags an untagged drawing from its layer names.
+ *
+ * No undo group is opened here. The agent turn already runs inside one — see
+ * `withTurnUndoMark` — so the whole tagging pass collapses into the single mark
+ * that turn owns, and opening a second one inside it would split what the user
+ * thinks of as one action across two presses of Ctrl+Z.
+ */
+export function tagFromLayers(): AcApToolOutcome {
+  const db = currentDb()
+  if (!db) {
+    return { ok: false, status: 'refused', message: 'Chưa mở bản vẽ nào.' }
+  }
+
+  const result = tagDrawingFromLayers(db, roleLayers())
+
+  if (result.tagged === 0) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        result.daCoNhan > 0
+          ? `Bản vẽ đã có nhãn sẵn (${result.daCoNhan} đối tượng), không cần gán lại.`
+          : 'Không layer nào trong bản vẽ khớp với nền chuẩn hóa, chưa gán được gì. ' +
+            `Các layer đang có: ${result.layerChuaNhanDien
+              .slice(0, 12)
+              .map(item => item.layer)
+              .join(', ')}.`,
+      data: {
+        layerChuaNhanDien: result.layerChuaNhanDien
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    status: 'ready',
+    message:
+      `Đã gán nhãn cho ${result.tagged} đối tượng thuộc ` +
+      `${result.theoVaiTro.length} bộ phận.` +
+      (result.layerChuaNhanDien.length > 0
+        ? ` Còn ${result.layerChuaNhanDien.length} layer chưa khai trong nền chuẩn hóa.`
+        : ''),
+    data: {
+      soDoiTuong: result.tagged,
+      daCoNhan: result.daCoNhan,
+      boPhan: result.theoVaiTro,
+      layerChuaNhanDien: result.layerChuaNhanDien
     }
   }
 }
@@ -274,6 +354,8 @@ export function runSemanticTool(
       return findPartsByPhrase(input as never, dictionary)
     case 'to_sang_bo_phan':
       return highlightParts(input as never)
+    case 'gan_nhan_tu_layer':
+      return tagFromLayers()
     default:
       // Naming the tool matters: a model that invented a name needs to see
       // which one, or it will invent the same one again.

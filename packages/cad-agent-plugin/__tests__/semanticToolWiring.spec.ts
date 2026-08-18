@@ -30,6 +30,11 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
       input_schema: { type: 'object', properties: {}, additionalProperties: false }
     }
   ],
+  TAG_TOOL: {
+    name: 'gan_nhan_tu_layer',
+    description: 'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false }
+  },
   TEMPLATE_TOOLS: [
     {
       name: 'chay_template',
@@ -95,6 +100,13 @@ describe('the tool set offered to the model', () => {
     expect(names.indexOf('tim_bo_phan')).toBeLessThan(names.indexOf('draw_line'))
   })
 
+  test('the tagging tool is offered, and reaches the one implementation', async () => {
+    // Without it an office's existing drawings stay untagged, every edit tool
+    // refuses them, and the archive is unusable however good the rest is.
+    expect(tools.gan_nhan_tu_layer).toBeDefined()
+    expect(tools.gan_nhan_tu_layer.description).toContain('layer')
+  })
+
   test('the template tool is offered, ahead of lookup and geometry', () => {
     // The ladder the assistant should climb: a part named and parameterised,
     // then the standard when no template covers it, and strokes last. A
@@ -139,6 +151,12 @@ describe('executing them', () => {
     await tools.tim_bo_phan.execute({ cum_tu: 'lan can', ben: 'phai' })
     expect(calls[0].name).toBe('tim_bo_phan')
     expect(calls[0].input).toEqual({ cum_tu: 'lan can', ben: 'phai' })
+  })
+
+  test('tagging reaches runSemanticTool, not a copy', async () => {
+    await tools.gan_nhan_tu_layer.execute({})
+    expect(calls[0].name).toBe('gan_nhan_tu_layer')
+    expect(calls[0].input).toEqual({})
   })
 
   test('describing passes no arguments rather than undefined', async () => {

@@ -31,6 +31,15 @@ export const SEED_STANDARDS = {
   go_chan_banh: { label: 'Gờ chắn bánh', layer: 'KC-GOCHAN', aliases: ['gờ chắn bánh', 'gờ chắn'] },
   ban_qua_do: { label: 'Bản quá độ', layer: 'KC-BANQUADO', aliases: ['bản quá độ'] },
   mo_cau: { label: 'Mố cầu', layer: 'KC-MO', aliases: ['mố', 'mố cầu'] },
+  // The abutment taken apart. A sheet that separates the parts needs a term
+  // per part, or "sửa tường thân" resolves to nothing; `mo_cau` stays for the
+  // cross-sections that draw it as one shape. Layer names here are defaults —
+  // an office that calls them `_33_CAU_MO_*` remaps them in this same table.
+  mo_tuong_dau: { label: 'Tường đầu mố', layer: 'KC-MO-TUONGDAU', aliases: ['tường đầu', 'tường đỉnh mố'] },
+  mo_tuong_than: { label: 'Tường thân mố', layer: 'KC-MO-TUONGTHAN', aliases: ['tường thân', 'thân mố'] },
+  mo_tuong_tai: { label: 'Tường tai mố', layer: 'KC-MO-TUONGTAI', aliases: ['tường tai', 'tường cánh'] },
+  mo_be: { label: 'Bệ móng mố', layer: 'KC-MO-BE', aliases: ['bệ mố', 'bệ móng'] },
+  mo_be_tong_lot: { label: 'Bê tông lót', layer: 'KC-MO-BTLOT', aliases: ['bê tông lót', 'bê tông đệm'] },
   goi_cau: { label: 'Gối cầu', layer: 'KC-GOI', aliases: ['gối', 'gối cầu'] },
   khe_co_gian: { label: 'Khe co giãn', layer: 'KC-KHE', aliases: ['khe co giãn', 'khe'] },
   ong_thoat_nuoc: { label: 'Ống thoát nước', layer: 'KT-THOATNUOC', aliases: ['ống thoát nước', 'ống thoát'] },
