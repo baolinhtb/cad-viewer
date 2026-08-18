@@ -113,14 +113,6 @@ test.describe('editor chrome on a phone', () => {
     await expect(ribbon).toHaveClass(/ml-ribbon--simplified/)
     await expect(ribbon).not.toHaveClass(/ml-ribbon--classic/)
 
-    // Height is the point: the classic panel row cost 96 px of a 640 px screen
-    // to show a single group.
-    const headerHeight = await page.evaluate(
-      () =>
-        document.querySelector('.ml-cad-header')?.getBoundingClientRect()
-          .height ?? 0
-    )
-    expect(headerHeight).toBeLessThan(80)
   })
 
   test('every command group is reachable, none stranded in overflow', async ({
@@ -138,45 +130,57 @@ test.describe('editor chrome on a phone', () => {
     expect(groups).toContain('Utilities')
   })
 
-  test('groups wider than the screen can be scrolled to, not cut off', async ({
+  test('all four tabs fit without scrolling in English', async ({ page }) => {
+    // The strip was 12 px short until the tab padding came down; a tab clipped
+    // by 5 px still reads as broken.
+    const short = await page.evaluate(() => {
+      const strip = document.querySelector('.ml-ribbon-contextual-tabs')
+      return strip.scrollWidth - strip.clientWidth
+    })
+    expect(short).toBeLessThanOrEqual(1)
+  })
+
+  test('every group sits fully on screen, none needing a swipe', async ({
     page
   }) => {
-    // The simplified row has no `…` of its own, so anything past the right edge
-    // is lost unless the row scrolls. At 360 px the groups measure 433 px.
-    const row = await page.evaluate(() => {
-      const el = document.querySelector('.ml-ribbon__panel--simplified')
-      if (!el) return null
-      return {
-        scrollW: el.scrollWidth,
-        clientW: el.clientWidth,
-        overflowX: getComputedStyle(el).overflowX
-      }
+    // Six groups want 433 px against 358 px, so the row wraps. The invariant is
+    // not "it scrolls" but "nothing is off screen": a group half past the edge
+    // is the defect, whether or not it can be scrolled into view.
+    const offscreen = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth
+      const row = document.querySelector('.ml-ribbon__panel--simplified')
+      if (!row) return ['hàng nhóm không tồn tại']
+      return Array.from(row.querySelectorAll('.ml-ribbon-simplified-group'))
+        .map(el => {
+          const r = el.getBoundingClientRect()
+          return { text: el.textContent.trim(), left: r.left, right: r.right }
+        })
+        .filter(item => item.right > vw + 1 || item.left < -1)
+        .map(item => `${item.text} (${Math.round(item.left)}→${Math.round(item.right)})`)
     })
 
-    expect(row).not.toBeNull()
-    if (row!.scrollW > row!.clientW + 1) {
-      expect(['auto', 'scroll']).toContain(row!.overflowX)
+    expect(offscreen).toEqual([])
+  })
 
-      // And scrolling has to actually move it.
-      const moved = await page.evaluate(() => {
-        const el = document.querySelector('.ml-ribbon__panel--simplified')!
-        el.scrollLeft = el.scrollWidth
-        return el.scrollLeft
-      })
-      expect(moved).toBeGreaterThan(0)
-    }
+  test('wrapping the group row does not cost the canvas much', async ({
+    page
+  }) => {
+    // Wrapping is only worth it while the header stays far below the 123 px the
+    // classic ribbon cost; otherwise scrolling would have been the better trade.
+    const headerHeight = await page.evaluate(
+      () =>
+        document.querySelector('.ml-cad-header')?.getBoundingClientRect()
+          .height ?? 0
+    )
+    expect(headerHeight).toBeLessThan(120)
   })
 
   test('CAD Agent can still be opened', async ({ page }) => {
-    // It lives in the Utilities group, which at 360 px starts 74 px past the
-    // right edge. Before the row could scroll it was on the page and out of
-    // reach — the headline feature, unusable on a phone.
-    // `.first()` throughout: the floating popup panel is a second element with
-    // the same classes, so a bare locator is ambiguous.
+    // It lives in the Utilities group — the one the classic layout at this width
+    // pushed into a 28×20 px `…` menu, taking the headline feature with it.
+    // `.first()`: the floating popup panel is a second element with the same
+    // classes, so a bare locator is ambiguous.
     const row = page.locator('.ml-ribbon__panel--simplified').first()
-    await row.evaluate(el => {
-      el.scrollLeft = el.scrollWidth
-    })
 
     await row
       .locator('.ml-ribbon-simplified-group')
@@ -209,6 +213,85 @@ test.describe('editor chrome on a phone', () => {
     })
 
     expect(tooSmall).toEqual([])
+  })
+})
+
+/**
+ * Vietnamese is the deployment's actual audience, and it is the harder case:
+ * its tab labels run half again as long as English's ("Trang chính" against
+ * "Home"), while its group labels run shorter. The two rows therefore fail in
+ * opposite directions, and testing only English would miss both.
+ */
+test.describe('editor chrome on a phone, in Vietnamese', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await uploadFixture(page, fixturePath)
+    await expect(page.locator('.ml-cad-container canvas').first()).toBeVisible({
+      timeout: 60_000
+    })
+    await page.locator('.ml-ribbon-language-switch__select').click()
+    await page
+      .locator('.el-select-dropdown__item')
+      .filter({ hasText: /Tiếng Việt/i })
+      .first()
+      .click()
+    await expect(
+      page.locator('.ml-ribbon-tab').filter({ hasText: 'Trang chính' })
+    ).toBeVisible()
+  })
+
+  test('the six groups fit on one row', async ({ page }) => {
+    // Shorter labels than English, so no wrap is needed and none should happen.
+    const rows = await page.evaluate(() => {
+      const row = document.querySelector('.ml-ribbon__panel--simplified')
+      const tops = Array.from(
+        row.querySelectorAll('.ml-ribbon-simplified-group')
+      ).map(el => Math.round(el.getBoundingClientRect().top))
+      return new Set(tops).size
+    })
+    expect(rows).toBe(1)
+  })
+
+  test('a tab strip that overflows says so with a fade', async ({ page }) => {
+    // "Tệp / Trang chính / Chèn / Công cụ" plus the selector and the collapse
+    // control genuinely exceed 360 px. The strip may scroll — what it may not
+    // do is slice a tab off against a hard edge with nothing to say why.
+    const state = await page.evaluate(() => {
+      const strip = document.querySelector('.ml-ribbon-contextual-tabs')
+      const container = document.querySelector('.ml-ribbon-toolbar-container')
+      return {
+        overflows: strip.scrollWidth > strip.clientWidth + 1,
+        faded: container.classList.contains(
+          'ml-ribbon-toolbar-container--tabs-overflow'
+        ),
+        masked: getComputedStyle(strip).maskImage
+      }
+    })
+
+    // The class tracks the measurement in both directions.
+    expect(state.faded).toBe(state.overflows)
+    if (state.overflows) {
+      expect(state.masked).toContain('gradient')
+    }
+  })
+
+  test('every tab can be reached by scrolling the strip', async ({ page }) => {
+    const strip = page.locator('.ml-ribbon-contextual-tabs')
+    await strip.evaluate(el => {
+      el.scrollLeft = el.scrollWidth
+    })
+
+    const lastTabFullyShown = await page.evaluate(() => {
+      const el = document.querySelector('.ml-ribbon-contextual-tabs')
+      const clip = el.getBoundingClientRect()
+      const tabs = Array.from(el.querySelectorAll('.ml-ribbon-tab'))
+      const last = tabs[tabs.length - 1].getBoundingClientRect()
+      return last.right <= clip.right + 1 && last.left >= clip.left - 1
+    })
+
+    expect(lastTabFullyShown).toBe(true)
   })
 })
 

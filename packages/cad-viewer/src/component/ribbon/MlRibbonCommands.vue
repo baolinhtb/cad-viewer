@@ -38,7 +38,7 @@ import {
   RibbonTabModel
 } from '@mlightcad/ribbon'
 import { useMediaQuery } from '@vueuse/core'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
@@ -169,6 +169,50 @@ const isNarrowViewport = useMediaQuery(ML_UI_MOBILE_MEDIA_QUERY)
 const ribbonLayout = computed(() =>
   isNarrowViewport.value ? 'simplified' : 'classic'
 )
+
+/**
+ * Whether the tab strip has more tabs than fit, so the cut edge can say so.
+ *
+ * Four tabs, a language selector and the collapse control do not fit 360 px in
+ * every language — "Trang chính / Chèn / Công cụ" is half again the width of
+ * "Home / Insert / Tools", and no amount of tightening settles it for Vietnamese
+ * at 360 px, let alone 320 px. So the strip scrolls, and the honest thing is to
+ * make that legible: a tab sliced off at the edge reads as a rendering fault,
+ * whereas the same tab under a fade reads as "there is more this way".
+ *
+ * The fade cannot be pure CSS. The strip is flex-sized to `min(content,
+ * available)`, so when the tabs do fit there is no slack — a mask positioned
+ * from the right edge would shave the last tab rather than fall on empty
+ * background. Only a measurement can tell the two cases apart.
+ */
+const tabStripOverflows = ref(false)
+let tabStripObserver: ResizeObserver | undefined
+
+const measureTabStrip = () => {
+  const strip = ribbonContainerRef.value?.querySelector(
+    '.ml-ribbon-contextual-tabs'
+  )
+  tabStripOverflows.value =
+    strip instanceof HTMLElement
+      ? strip.scrollWidth > strip.clientWidth + 1
+      : false
+}
+
+const observeTabStrip = () => {
+  tabStripObserver?.disconnect()
+  const container = ribbonContainerRef.value
+  if (!container || typeof ResizeObserver === 'undefined') return
+  tabStripObserver = new ResizeObserver(measureTabStrip)
+  tabStripObserver.observe(container)
+  const strip = container.querySelector('.ml-ribbon-contextual-tabs')
+  if (strip) tabStripObserver.observe(strip)
+  measureTabStrip()
+}
+
+// Tab labels change length with the language, which is the case that overflows.
+watch([locale, isNarrowViewport], () => {
+  void nextTick(observeTabStrip)
+})
 const ribbonColor = ref<AcCmColor | undefined>(new AcCmColor())
 const ribbonColorDisplay = ref('#7b8794')
 const ribbonLineType = ref<string | undefined>('ByLayer')
@@ -532,6 +576,7 @@ onMounted(() => {
     handleDocumentActivated
   )
   handleDocumentActivated()
+  void nextTick(observeTabStrip)
 })
 
 onUnmounted(() => {
@@ -553,6 +598,8 @@ onUnmounted(() => {
   AcApDocManager.instance.events.documentActivated.removeEventListener(
     handleDocumentActivated
   )
+  tabStripObserver?.disconnect()
+  tabStripObserver = undefined
   bindSelectionEvents(undefined)
   bindAnnotationVisibilityEvents(undefined)
 })
@@ -1888,7 +1935,10 @@ const handleFileMenuSelect = async (command: string) => {
     v-if="features.isShowToolbar"
     ref="ribbonContainerRef"
     :aria-disabled="isRibbonDisabled"
-    :class="{ 'ml-ribbon-toolbar-container--narrow': isNarrowViewport }"
+    :class="{
+      'ml-ribbon-toolbar-container--narrow': isNarrowViewport,
+      'ml-ribbon-toolbar-container--tabs-overflow': tabStripOverflows
+    }"
     class="ml-ribbon-toolbar-container"
   >
     <ml-ribbon
@@ -2027,11 +2077,68 @@ const handleFileMenuSelect = async (command: string) => {
  */
 .ml-ribbon-toolbar-container--narrow .ml-ribbon-tab {
   min-height: 32px;
+  /* Trimmed from 8 px. Two pixels a side across four tabs is 16 px back for the
+   * strip, and at 13 px type the labels are no closer to touching than before. */
+  padding-inline: 6px;
+  /* A swipe lands a tab flush at the left edge rather than mid-label, so the
+   * only partly-shown tab is the one at the far edge, under the fade. */
+  scroll-snap-align: start;
 }
 
-.ml-ribbon-toolbar-container--narrow .ml-ribbon-simplified-group,
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-contextual-tabs {
+  gap: 4px;
+  scroll-snap-type: x proximity;
+}
+
+/*
+ * Fades the last tab out instead of guillotining it. Applied only when the
+ * measurement says tabs really are out of view — see `tabStripOverflows` — so a
+ * strip that fits keeps a hard, full-strength edge.
+ */
+.ml-ribbon-toolbar-container--tabs-overflow .ml-ribbon-contextual-tabs {
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 24px),
+    rgb(0 0 0 / 15%) 100%
+  );
+}
+
 .ml-ribbon-toolbar-container--narrow .ml-ribbon-overflow-trigger {
   min-height: 32px;
   padding-inline: 10px;
+}
+
+/*
+ * The group row wraps instead of scrolling.
+ *
+ * Six groups want 433 px against 358 px of phone, and no amount of tightening
+ * settles it: fitting one row needs the padding down to 4 px, which leaves 8 px
+ * of white between adjacent labels, only just fits at exactly 360 px, and holds
+ * solely for English. Label length is not ours to control — "Thuộc tính" and
+ * "Annotation" are the same group — so a rule tuned to one locale's string
+ * widths is a rule waiting to break in another.
+ *
+ * Wrapping asks the question per render instead of assuming an answer. In
+ * Vietnamese the six labels total ~233 px and stay on one line; in English they
+ * spill Utilities onto a second. Either way every group is on screen and
+ * nothing has to be found by swiping — and the extra 40 px is only spent when
+ * it is actually needed.
+ */
+.ml-ribbon-toolbar-container--narrow .ml-ribbon__panel--simplified {
+  flex-wrap: wrap;
+  align-content: center;
+  height: auto;
+  min-height: 36px;
+  gap: 4px;
+  padding-block: 2px;
+}
+
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-simplified-group {
+  min-height: 32px;
+  /* Padding trimmed to buy the width; `min-width` keeps short labels such as
+   * "Vẽ" from collapsing into a target too small to hit. */
+  padding-inline: 6px;
+  min-width: 44px;
+  justify-content: center;
 }
 </style>
