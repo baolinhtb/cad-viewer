@@ -54,7 +54,28 @@ function messageStream(blocks: object[], stopReason: string) {
         content_block: block
       })
     )
-    if ('name' in block) {
+    if ((block as { type?: string }).type === 'thinking') {
+      // Extended thinking, as Sonnet sends it: the text arrives in deltas and
+      // the signature closes the block. Both have to survive into the next
+      // turn — Anthropic rejects a thinking block that comes back unsigned.
+      events.push(
+        sse('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: {
+            type: 'thinking_delta',
+            thinking: (block as { thinking: string }).thinking
+          }
+        })
+      )
+      events.push(
+        sse('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: { type: 'signature_delta', signature: 'sig_abc123' }
+        })
+      )
+    } else if ('name' in block) {
       events.push(
         sse('content_block_delta', {
           type: 'content_block_delta',
@@ -274,6 +295,10 @@ test('a template run and a description survive into the next turn', async ({
         agentRounds === 1
           ? messageStream(
               [
+                {
+                  type: 'thinking',
+                  thinking: 'Cần đọc bản vẽ trước rồi mới chọn template.'
+                },
                 {
                   type: 'tool_use',
                   id: 'toolu_ctx',

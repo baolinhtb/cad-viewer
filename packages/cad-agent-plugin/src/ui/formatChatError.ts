@@ -45,8 +45,20 @@ function extractApiMessage(value: unknown): string | undefined {
  * Twice now that has cost a session's worth of investigation.
  */
 function describePromptCause(error: Error): string | undefined {
-  const cause = (error as Error & { cause?: unknown }).cause
-  const issues = (cause as { issues?: unknown } | undefined)?.issues
+  // Walk the chain rather than reading `cause` once: the SDK wraps the Zod
+  // error in a `TypeValidationError` before attaching it, so the issues sit at
+  // `cause.cause`. Reading one level found nothing and printed no hint at all,
+  // which is worse than useless — it looks like there was nothing to say.
+  let node: unknown = error
+  let issues: unknown
+  for (let depth = 0; depth < 5 && node; depth += 1) {
+    const candidate = (node as { issues?: unknown }).issues
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      issues = candidate
+      break
+    }
+    node = (node as { cause?: unknown }).cause
+  }
   if (!Array.isArray(issues) || issues.length === 0) return undefined
 
   const paths = issues
