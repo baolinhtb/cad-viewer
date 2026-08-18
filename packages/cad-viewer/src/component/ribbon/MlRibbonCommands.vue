@@ -1954,18 +1954,35 @@ const handleFileMenuSelect = async (command: string) => {
   min-width: 0;
 }
 
-.ml-ribbon-toolbar-container .ml-ribbon__head-left {
+/*
+ * Only the tab strip scrolls — not the whole left half.
+ *
+ * Scrolling `__head-left` swept the collapse control along with the tabs: it is
+ * the last child, so at 360 px it sat with 9 px of its 32 px inside the strip
+ * and read as a stub wedged against the language selector. The File menu and
+ * that control are single fixed-width buttons that always have room; it is the
+ * run of tabs that has to give, so it is the run of tabs that scrolls.
+ */
+.ml-ribbon-toolbar-container .ml-ribbon-contextual-tabs {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-.ml-ribbon-toolbar-container .ml-ribbon__head-left::-webkit-scrollbar {
+.ml-ribbon-toolbar-container .ml-ribbon-contextual-tabs::-webkit-scrollbar {
   display: none;
 }
 
-/* Tabs must keep their own width, or they compress into unreadable slivers. */
-.ml-ribbon-toolbar-container .ml-ribbon__head-left > * {
+/* Tabs keep their own width, or they compress into unreadable slivers. */
+.ml-ribbon-toolbar-container .ml-ribbon__head-left > *,
+.ml-ribbon-toolbar-container .ml-ribbon-contextual-tabs > * {
   flex: 0 0 auto;
+}
+
+/* …but the strip itself must be allowed to shrink, or nothing is gained. */
+.ml-ribbon-toolbar-container .ml-ribbon__head-left > .ml-ribbon-contextual-tabs {
+  flex: 0 1 auto;
 }
 
 /*
@@ -2002,8 +2019,16 @@ const handleFileMenuSelect = async (command: string) => {
  * A finger is about 9 mm across. The ribbon's own targets are sized for a mouse
  * — tabs 22 px, the overflow trigger 20 px — so they get a touch-sized hit area
  * here without changing how they look on a desktop.
+ *
+ * Height only for the tabs. Widening them too bought no extra reach — they are
+ * already 46 px and over across — while costing 11 px that the tab strip does
+ * not have, which is the difference between all four tabs fitting and the last
+ * one sitting half off the edge.
  */
-.ml-ribbon-toolbar-container--narrow .ml-ribbon-tab,
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-tab {
+  min-height: 32px;
+}
+
 .ml-ribbon-toolbar-container--narrow .ml-ribbon-simplified-group,
 .ml-ribbon-toolbar-container--narrow .ml-ribbon-overflow-trigger {
   min-height: 32px;

@@ -57,6 +57,37 @@ test.describe('editor chrome on a phone', () => {
     expect(overflow.headRightEdge).toBeLessThanOrEqual(overflow.viewport + 1)
   })
 
+  test('no control in the header is shown as a clipped stub', async ({
+    page
+  }) => {
+    // Scrolling the whole left half swept the collapse control along with the
+    // tabs, leaving 9 px of a 32 px button jammed against the language
+    // selector — present enough to look like a rendering fault, too small to
+    // press. A control is either in the strip or scrolled out of it; a sliver
+    // is neither.
+    const stubs = await page.evaluate(() => {
+      const strip = document.querySelector('.ml-ribbon__head-left')
+      if (!strip) return []
+      const clip = strip.getBoundingClientRect()
+      return Array.from(strip.children)
+        .map(el => {
+          const r = el.getBoundingClientRect()
+          const visible = Math.max(
+            0,
+            Math.min(r.right, clip.right) - Math.max(r.left, clip.left)
+          )
+          return {
+            cls: String(el.className).slice(0, 50),
+            width: Math.round(r.width),
+            visible: Math.round(visible)
+          }
+        })
+        .filter(item => item.visible > 0 && item.visible < item.width - 1)
+    })
+
+    expect(stubs).toEqual([])
+  })
+
   test('the file name is shown whole or not at all', async ({ page }) => {
     const overlay = await page.evaluate(() => {
       const el = document.querySelector('.ml-ribbon-file-name')
