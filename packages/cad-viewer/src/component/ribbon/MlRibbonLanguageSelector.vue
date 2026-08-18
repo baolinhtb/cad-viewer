@@ -56,9 +56,19 @@ const languageOptions = LOCALE_OPTIONS.map(option => ({
 .ml-ribbon-language-switch {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
 }
 
+/*
+ * `width` alone is a floor as well as a ceiling: the header shrinks its two
+ * halves to fit a phone, and a rigid 110 px select simply carried on past the
+ * right edge of the screen — that is what was cutting "English" in half at
+ * 360 px. Making the width a maximum lets the select give way with everything
+ * else, while a minimum keeps the label readable before the flex box gives up.
+ */
 .ml-ribbon-language-switch__select {
   width: 110px;
+  max-width: 100%;
+  min-width: 72px;
 }
 </style>

@@ -17,7 +17,8 @@ import {
   AcApOpenCmd,
   AcApQNewCmd,
   acapRunDatabaseEdit,
-  AcEdOpenMode
+  AcEdOpenMode,
+  ML_UI_MOBILE_MEDIA_QUERY
 } from '@mlightcad/cad-simple-viewer'
 import {
   AcCmColor,
@@ -36,6 +37,7 @@ import {
   RibbonLocaleTexts,
   RibbonTabModel
 } from '@mlightcad/ribbon'
+import { useMediaQuery } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -149,6 +151,24 @@ const { canUndo, canRedo } = useUndoRedo()
 const { t, locale } = useI18n()
 const isAnnotationVisible = ref(true)
 const isRibbonDisabled = computed(() => isDocumentOpening.value)
+
+/**
+ * Whether the ribbon has to fold itself down to phone width.
+ *
+ * This asks the viewport, not {@link useIsMobile}, on purpose: the classic
+ * ribbon breaks at narrow *widths*, and it breaks identically in a narrow
+ * desktop window where there is no touch screen and no mobile user agent.
+ *
+ * In the classic layout each group is a fixed 190 px column, so at 360 px only
+ * one group survives and everything else — CAD Agent included — is pushed into
+ * a 28×20 px `…` menu. The simplified layout the ribbon already ships turns
+ * every group into a button that opens a floating panel, so nothing is out of
+ * reach, and it costs 36 px of height instead of 96 px.
+ */
+const isNarrowViewport = useMediaQuery(ML_UI_MOBILE_MEDIA_QUERY)
+const ribbonLayout = computed(() =>
+  isNarrowViewport.value ? 'simplified' : 'classic'
+)
 const ribbonColor = ref<AcCmColor | undefined>(new AcCmColor())
 const ribbonColorDisplay = ref('#7b8794')
 const ribbonLineType = ref<string | undefined>('ByLayer')
@@ -1868,10 +1888,12 @@ const handleFileMenuSelect = async (command: string) => {
     v-if="features.isShowToolbar"
     ref="ribbonContainerRef"
     :aria-disabled="isRibbonDisabled"
+    :class="{ 'ml-ribbon-toolbar-container--narrow': isNarrowViewport }"
     class="ml-ribbon-toolbar-container"
   >
     <ml-ribbon
       v-model:active-tab="activeRibbonTabId"
+      :active-layout="ribbonLayout"
       :disabled="isRibbonDisabled"
       :file-menu-items="fileMenuItems"
       :minimized="false"
@@ -1917,5 +1939,74 @@ const handleFileMenuSelect = async (command: string) => {
   .ml-ribbon-item-host.is-large.type-button.is-label-wrap
   .ml-ribbon-item-host__label {
   white-space: pre-line;
+}
+
+/*
+ * The header lays out as `space-between` with two non-shrinking flex children,
+ * so once the tabs plus the language selector exceed the viewport the whole bar
+ * simply overflows — on a 360 px phone the selector was cut off 8 px past the
+ * right edge. Flex items default to `min-width: auto`, which is what refuses to
+ * shrink; clearing it lets the tab strip give way and scroll instead.
+ */
+.ml-ribbon-toolbar-container .ml-ribbon__head-left,
+.ml-ribbon-toolbar-container .ml-ribbon__head-right,
+.ml-ribbon-toolbar-container .ml-ribbon__tabs-extra {
+  min-width: 0;
+}
+
+.ml-ribbon-toolbar-container .ml-ribbon__head-left {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ml-ribbon-toolbar-container .ml-ribbon__head-left::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tabs must keep their own width, or they compress into unreadable slivers. */
+.ml-ribbon-toolbar-container .ml-ribbon__head-left > * {
+  flex: 0 0 auto;
+}
+
+/*
+ * The simplified row has no overflow menu of its own — unlike the classic
+ * layout, which measures the width and moves whatever will not fit into a `…`
+ * group. So its `overflow-x: hidden` simply cut the row off: at 360 px the
+ * groups added up to 433 px, and everything from Annotation rightwards was on
+ * screen but unreachable. Scrolling is what the row wants here; the groups are
+ * inline buttons, so it costs nothing but a swipe.
+ */
+.ml-ribbon-toolbar-container .ml-ribbon__panel--simplified {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ml-ribbon-toolbar-container .ml-ribbon__panel--simplified::-webkit-scrollbar {
+  display: none;
+}
+
+.ml-ribbon-toolbar-container .ml-ribbon__panel--simplified > * {
+  flex: 0 0 auto;
+}
+
+/*
+ * Narrow-width rules hang off a class, not a media query. The breakpoint lives
+ * in `ML_UI_MOBILE_MAX_WIDTH`, and a media query cannot read it: `v-bind()`
+ * compiles to a CSS custom property, and custom properties are not substituted
+ * inside media conditions — such a query never matches at any width. Driving
+ * the class from the same `useMediaQuery` that picks the layout keeps one
+ * source of truth and keeps CSS and layout in step.
+ */
+
+/*
+ * A finger is about 9 mm across. The ribbon's own targets are sized for a mouse
+ * — tabs 22 px, the overflow trigger 20 px — so they get a touch-sized hit area
+ * here without changing how they look on a desktop.
+ */
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-tab,
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-simplified-group,
+.ml-ribbon-toolbar-container--narrow .ml-ribbon-overflow-trigger {
+  min-height: 32px;
+  padding-inline: 10px;
 }
 </style>

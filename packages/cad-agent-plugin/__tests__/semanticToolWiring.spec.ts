@@ -123,7 +123,12 @@ describe('the tool set offered to the model', () => {
 })
 
 describe('executing them', () => {
-  const tools = createCadTools() as Record<
+  // Through `unknown` because the SDK's `Tool<Input, Output>` and this loose
+  // shape do not overlap enough for a direct cast — `tsc` rejects it outright.
+  // It went unseen because jest transpiles this package rather than checking it
+  // (see tsconfig.jest.agent.json), so the error only appeared once something
+  // else in the run put the file through the checking compiler instead.
+  const tools = createCadTools() as unknown as Record<
     string,
     { execute: (input: unknown, options?: unknown) => Promise<unknown> }
   >

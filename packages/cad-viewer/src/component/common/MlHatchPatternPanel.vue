@@ -1,6 +1,7 @@
 <template>
   <div
     class="ml-hatch-pattern-panel"
+    :class="{ 'ml-hatch-pattern-panel--narrow': isNarrowViewport }"
     role="listbox"
     :aria-label="panelAriaLabel"
   >
@@ -26,7 +27,8 @@
 </template>
 
 <script setup lang="ts">
-import { ML_UI_MOBILE_MAX_WIDTH } from '@mlightcad/cad-simple-viewer'
+import { ML_UI_MOBILE_MEDIA_QUERY } from '@mlightcad/cad-simple-viewer'
+import { useMediaQuery } from '@vueuse/core'
 import { computed } from 'vue'
 
 import {
@@ -35,7 +37,14 @@ import {
   resolveHatchPatternSwatchStyle
 } from './hatchPatternPreview'
 
-const mobileMaxWidth = `${ML_UI_MOBILE_MAX_WIDTH}px`
+/**
+ * The two-column fallback used to hang off `@media (max-width: v-bind(...))`,
+ * which never matched at any width: `v-bind()` compiles to a CSS custom
+ * property, and custom properties are not substituted inside media conditions.
+ * Matching the same breakpoint in script and switching a class makes the rule
+ * fire, and keeps `ML_UI_MOBILE_MAX_WIDTH` the only place the number lives.
+ */
+const isNarrowViewport = useMediaQuery(ML_UI_MOBILE_MEDIA_QUERY)
 
 /**
  * Props accepted by the hatch pattern panel.
@@ -151,10 +160,8 @@ function handleSelect(value: string) {
   letter-spacing: 0.2px;
 }
 
-@media (max-width: v-bind(mobileMaxWidth)) {
-  .ml-hatch-pattern-panel {
-    width: 286px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.ml-hatch-pattern-panel.ml-hatch-pattern-panel--narrow {
+  width: 286px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 </style>

@@ -267,6 +267,14 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  /*
+   * Wrap rather than squeeze. Docked into a 360 px phone the row had about
+   * 280 px to divide between two selects and three buttons, and the selects —
+   * sized as percentages with no floor — shrank until "High inference" read
+   * "H.". A second line costs 30 px of a panel that scrolls anyway; an
+   * unreadable control costs the user the setting.
+   */
+  flex-wrap: wrap;
 }
 
 .cad-agent-panel-input-left {
@@ -291,13 +299,20 @@
   text-overflow: ellipsis;
 }
 
+/*
+ * The floors are what stop the shrinking; the maxima are unchanged, so a wide
+ * panel looks exactly as it did. "Suy luận sâu" and "High inference" are the
+ * longest labels either select has to hold.
+ */
 .cad-agent-mode-select {
   flex: 0 1 38%;
+  min-width: 92px;
   max-width: 108px;
 }
 
 .cad-agent-model-select {
   flex: 1 1 62%;
+  min-width: 104px;
   max-width: 128px;
 }
 
