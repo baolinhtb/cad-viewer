@@ -45,6 +45,11 @@ export const SEED_STANDARDS = {
   ong_thoat_nuoc: { label: 'Ống thoát nước', layer: 'KT-THOATNUOC', aliases: ['ống thoát nước', 'ống thoát'] },
   cot_thep: { label: 'Cốt thép', layer: 'KC-COTTHEP', aliases: ['cốt thép', 'thép'] },
   duong_tim: { label: 'Đường tim', layer: 'TRUC-TIM', aliases: ['tim cầu', 'đường tim'] },
+  // A level callout is a block with the elevation in an attribute, not free
+  // text — nine of them in one abutment sheet. The drawing title likewise sits
+  // on a layer of its own, so both are parts a drawing can be asked about.
+  ghi_chu_cao_do: { label: 'Ghi chú cao độ', layer: 'GC-CAODO', aliases: ['cao độ', 'mốc cao độ'] },
+  tieu_de_ban_ve: { label: 'Tiêu đề bản vẽ', layer: 'GC-TIEUDE', aliases: ['tiêu đề', 'tên bản vẽ'] },
   kich_thuoc: { label: 'Đường kích thước', layer: 'GC-KICHTHUOC', aliases: ['kích thước', 'cột kích thước'] },
   ghi_chu: { label: 'Ghi chú', layer: 'GC-GHICHU', aliases: ['ghi chú', 'chú thích'] }
 }

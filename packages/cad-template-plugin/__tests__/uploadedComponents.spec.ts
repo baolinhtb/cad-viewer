@@ -38,6 +38,12 @@ const ROLE_LAYERS: Record<string, string> = {
   go_chan_banh: 'KC-GOCHAN',
   ban_mat_cau: 'KC-BAN',
   be_coc: 'KC-BECOC',
+  mo_be: 'KC-MO-BE',
+  mo_be_tong_lot: 'KC-MO-BTLOT',
+  mo_tuong_than: 'KC-MO-TUONGTHAN',
+  mo_tuong_dau: 'KC-MO-TUONGDAU',
+  mo_tuong_tai: 'KC-MO-TUONGTAI',
+  kich_thuoc: 'GC-KICHTHUOC',
   coc_khoan_nhoi: 'KC-COC',
   ghi_chu: 'GC-GHICHU',
   duong_tim: 'TRUC-TIM'
@@ -83,7 +89,8 @@ const FILES = [
   ['lan_can_nguoi_di_bo.js', 'lan_can_nguoi_di_bo_tcvn'],
   ['le_bo_hanh.js', 'le_bo_hanh_tcvn'],
   ['tuong_phong_ho.js', 'tuong_phong_ho_btct'],
-  ['be_coc_khoan_nhoi.js', 'be_coc_khoan_nhoi']
+  ['be_coc_khoan_nhoi.js', 'be_coc_khoan_nhoi'],
+  ['mo_cau_btct.js', 'mo_cau_btct']
 ] as const
 
 describe('every uploadable component', () => {
@@ -111,14 +118,28 @@ describe('every uploadable component', () => {
     expect(drawn.every(entity => readSemanticTag(entity as never))).toBe(true)
   })
 
-  test.each(FILES)('%s cites a clause for every regulated bound', file => {
-    // A bound with no provenance sends the assistant off to look the standard
-    // up — the exact cost this whole design removes.
+  test.each(FILES)('%s says where its bounds come from', file => {
+    // Two honest answers, and no third one.
+    //
+    // Either a bound is regulated, and the clause travels with it — a bound
+    // with no provenance sends the assistant off to look the standard up, the
+    // exact cost this whole design removes. Or it is not regulated, and the
+    // template says so: TCVN 11823-11:2017 governs abutments but its numbers
+    // are all about reinforced-earth walls, so a conventional concrete
+    // abutment's wall thicknesses come from calculation and nothing else.
+    // Printing "theo TCVN" over a number the standard never gave is worse than
+    // printing nothing, because the reader trusts an authority that is not
+    // there.
     const t = load(file)
-    const cited = t.params.filter((p: { hint?: string }) =>
-      /TCVN/.test(p.hint ?? '')
+    const hints = t.params
+      .map((p: { hint?: string }) => p.hint ?? '')
+      .concat(t.meta.description ?? '')
+    const cited = hints.filter((hint: string) => /TCVN|AASHTO|QCVN/.test(hint))
+    const disclaimed = hints.filter((hint: string) =>
+      /do tính toán|không quy định|chặn sai số/i.test(hint)
     )
-    expect(cited.length).toBeGreaterThan(0)
+
+    expect(cited.length + disclaimed.length).toBeGreaterThan(0)
   })
 })
 
@@ -288,5 +309,94 @@ describe('bệ cọc khoan nhồi', () => {
       .filter(tag => tag?.role === 'coc_khoan_nhoi')
       .map(tag => tag!.partId)
     expect(new Set(ids).size).toBe(4)
+  })
+})
+
+describe('mố cầu BTCT', () => {
+  const load6 = () => load('mo_cau_btct.js')
+
+  test('stacks the five components in order, sharing one centreline', () => {
+    // Every level is derived from the one below, so changing a thickness moves
+    // the stack instead of leaving a gap someone has to notice.
+    const t = load6()
+    const { drawn, errors } = run(t, { B: 7700, hLot: 100, hBe: 1500, hThan: 9500, hDau: 1700 })
+    expect(errors).toEqual([])
+
+    const box = (role: string) => {
+      const found = drawn.filter(e => readSemanticTag(e as never)?.role === role)
+      const boxes = found.map(e => (e as never as { geometricExtents: { min: { x: number; y: number }; max: { x: number; y: number } } }).geometricExtents)
+      return {
+        minY: Math.min(...boxes.map(b => b.min.y)),
+        maxY: Math.max(...boxes.map(b => b.max.y)),
+        minX: Math.min(...boxes.map(b => b.min.x)),
+        maxX: Math.max(...boxes.map(b => b.max.x))
+      }
+    }
+
+    const lot = box('mo_be_tong_lot')
+    const be = box('mo_be')
+    const than = box('mo_tuong_than')
+    const dau = box('mo_tuong_dau')
+
+    // No gaps and no overlaps between levels.
+    expect(be.minY).toBeCloseTo(lot.maxY)
+    expect(than.minY).toBeCloseTo(be.maxY)
+    expect(dau.minY).toBeCloseTo(than.maxY)
+
+    // Thicknesses are what was asked for.
+    expect(lot.maxY - lot.minY).toBeCloseTo(100)
+    expect(be.maxY - be.minY).toBeCloseTo(1500)
+    expect(than.maxY - than.minY).toBeCloseTo(9500)
+    expect(dau.maxY - dau.minY).toBeCloseTo(1700)
+
+    // Blinding is the only level wider than the abutment.
+    expect(be.maxX - be.minX).toBeCloseTo(7700)
+    expect(lot.maxX - lot.minX).toBeCloseTo(7900)
+    // And everything is centred on the same axis.
+    for (const b of [lot, be, than, dau]) {
+      expect((b.minX + b.maxX) / 2).toBeCloseTo(0)
+    }
+  })
+
+  test('each wing wall is separately addressable', () => {
+    // "sửa tường tai bên trái" has to reach one wall, not both.
+    const t = load6()
+    const { drawn } = run(t, { bTai: 150, hTai: 1700 })
+    const sides = drawn
+      .map(e => readSemanticTag(e as never))
+      .filter(tag => tag?.role === 'mo_tuong_tai')
+      .map(tag => tag!.partId)
+    expect(new Set(sides).size).toBe(2)
+    expect(sides.some(id => id.includes('trai'))).toBe(true)
+    expect(sides.some(id => id.includes('phai'))).toBe(true)
+  })
+
+  test('dimensions the stack, and the numbers are the real ones', () => {
+    // A bridge drawing without dimensions is not a drawing that can be issued,
+    // which is why this template exists at all.
+    const t = load6()
+    const { drawn } = run(t, { B: 7700, hBe: 1500, hThan: 9500, hDau: 1700 })
+    const texts = drawn
+      .filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
+      .map(e => (e as never as { dimensionText: string }).dimensionText)
+
+    expect(texts.length).toBe(6)
+    for (const wanted of ['7700', '1500', '9500', '1700']) {
+      expect(texts.some(text => text.includes(wanted))).toBe(true)
+    }
+  })
+
+  test('can be asked for without dimensions', () => {
+    const t = load6()
+    const { drawn } = run(t, { ghiKichThuoc: 'khong' })
+    expect(
+      drawn.filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
+    ).toHaveLength(0)
+  })
+
+  test('refuses wing walls that do not fit the abutment', () => {
+    // Geometry that cannot be built, not a clause being broken.
+    const t = load6()
+    expect(() => run(t, { B: 2000, bTai: 1500 })).toThrow(/không nằm lọt/)
   })
 })

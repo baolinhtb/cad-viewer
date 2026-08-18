@@ -33,6 +33,8 @@ export const SEED_ROLES: Readonly<Record<string, string>> = {
   ong_thoat_nuoc: 'Ống thoát nước',
   cot_thep: 'Cốt thép',
   duong_tim: 'Đường tim',
+  ghi_chu_cao_do: 'Ghi chú cao độ',
+  tieu_de_ban_ve: 'Tiêu đề bản vẽ',
   kich_thuoc: 'Đường kích thước',
   ghi_chu: 'Ghi chú'
 }
@@ -63,6 +65,8 @@ export const SEED_ROLE_LAYERS: Readonly<Record<string, string>> = {
   ong_thoat_nuoc: 'KT-THOATNUOC',
   cot_thep: 'KC-COTTHEP',
   duong_tim: 'TRUC-TIM',
+  ghi_chu_cao_do: 'GC-CAODO',
+  tieu_de_ban_ve: 'GC-TIEUDE',
   kich_thuoc: 'GC-KICHTHUOC',
   ghi_chu: 'GC-GHICHU'
 }
