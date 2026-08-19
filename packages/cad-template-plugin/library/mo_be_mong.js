@@ -26,18 +26,17 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_be_mong',
-    version: '1.1.0',
+    version: '1.2.0',
     name: 'Mố cầu — bệ móng và bê tông lót',
     category: 'Mố trụ',
     description:
       'Bệ móng mố cầu và lớp bê tông lót, mặt chính, dựng theo bản vẽ cấu ' +
       'kiện 33_MO_BE của kỹ sư. Bộ phận duy nhất của mố không nghiêng — đáy ' +
       'và đỉnh đều phẳng. Đỉnh bệ ở cao độ y + hLot + hBe, chính là cao độ đáy ' +
-      'tường thân. Cọc khoan nhồi dùng template be_coc_khoan_nhoi riêng — ' +
-      'bản vẽ mố mẫu có 2 cọc ⌀1200 ở x ±2650. Lưu ý template ấy tự vẽ cả bệ ' +
-      'của nó, nên chạy cả hai với cùng một cao độ sẽ ra hai cái bệ chồng lên ' +
-      'nhau trên hai layer khác nhau. Các trị số do tính toán quyết định; ' +
-      'TCVN 11823-11:2017 không quy định kích thước cho mố bê tông thường.'
+      'tường thân. Cọc khoan nhồi dùng template mo_coc_khoan_nhoi riêng, đặt ' +
+      'y bằng cao độ đáy bệ — mặc định hai mẫu đã khớp sẵn. Các trị số do ' +
+      'tính toán quyết định; TCVN 11823-11:2017 không quy định kích thước cho ' +
+      'mố bê tông thường.'
   },
   params: [
     {

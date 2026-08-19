@@ -28,6 +28,7 @@ export const SEED_ROLES: Readonly<Record<string, string>> = {
   mo_tuong_tai: 'Tường tai mố',
   mo_be: 'Bệ móng mố',
   mo_be_tong_lot: 'Bê tông lót',
+  coc_khoan_nhoi: 'Cọc khoan nhồi',
   goi_cau: 'Gối cầu',
   khe_co_gian: 'Khe co giãn',
   ong_thoat_nuoc: 'Ống thoát nước',
@@ -60,6 +61,11 @@ export const SEED_ROLE_LAYERS: Readonly<Record<string, string>> = {
   mo_tuong_tai: 'KC-MO-TUONGTAI',
   mo_be: 'KC-MO-BE',
   mo_be_tong_lot: 'KC-MO-BTLOT',
+  // Thiếu dòng này thì template cọc ném "vai trò chưa được khai trong quy ước
+  // layer" và không vẽ được nét nào. Template cọc cũ né bằng cách tự ghi cứng
+  // 'KC-COC' vào từng lời gọi, nên nó vẽ được nhưng đứng ngoài tầng chuẩn hoá:
+  // văn phòng đổi tên layer thì cọc không đổi theo.
+  coc_khoan_nhoi: 'KC-COC',
   goi_cau: 'KC-GOI',
   khe_co_gian: 'KC-KHE',
   ong_thoat_nuoc: 'KT-THOATNUOC',

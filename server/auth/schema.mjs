@@ -40,6 +40,7 @@ export const SEED_STANDARDS = {
   mo_tuong_tai: { label: 'Tường tai mố', layer: 'KC-MO-TUONGTAI', aliases: ['tường tai', 'tường cánh'] },
   mo_be: { label: 'Bệ móng mố', layer: 'KC-MO-BE', aliases: ['bệ mố', 'bệ móng'] },
   mo_be_tong_lot: { label: 'Bê tông lót', layer: 'KC-MO-BTLOT', aliases: ['bê tông lót', 'bê tông đệm'] },
+  coc_khoan_nhoi: { label: 'Cọc khoan nhồi', layer: 'KC-COC', aliases: ['cọc khoan nhồi', 'cọc nhồi', 'cọc'] },
   goi_cau: { label: 'Gối cầu', layer: 'KC-GOI', aliases: ['gối', 'gối cầu'] },
   khe_co_gian: { label: 'Khe co giãn', layer: 'KC-KHE', aliases: ['khe co giãn', 'khe'] },
   ong_thoat_nuoc: { label: 'Ống thoát nước', layer: 'KT-THOATNUOC', aliases: ['ống thoát nước', 'ống thoát'] },

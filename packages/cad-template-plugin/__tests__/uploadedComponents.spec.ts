@@ -105,7 +105,7 @@ const FILES = [
   ['lan_can_nguoi_di_bo.js', 'lan_can_nguoi_di_bo_tcvn'],
   ['le_bo_hanh.js', 'le_bo_hanh_tcvn'],
   ['tuong_phong_ho.js', 'tuong_phong_ho_btct'],
-  ['be_coc_khoan_nhoi.js', 'be_coc_khoan_nhoi'],
+  ['mo_coc_khoan_nhoi.js', 'mo_coc_khoan_nhoi'],
   ['mo_be_mong.js', 'mo_be_mong'],
   ['mo_tuong_than.js', 'mo_tuong_than'],
   ['mo_tuong_dau.js', 'mo_tuong_dau']
@@ -306,75 +306,120 @@ describe('tường phòng hộ bê tông', () => {
   })
 })
 
-describe('bệ cọc khoan nhồi', () => {
-  // TCVN 11823-10:2017 điều 8.1.2 gives three numbers at two different levels
-  // of force, and the whole point of this template is not to flatten them.
-  const load4 = () => load('be_coc_khoan_nhoi.js')
+describe('cọc khoan nhồi dưới bệ mố', () => {
+  // Chép từ block cọc trong `33_MO_BE.dwg`. TCVN 11823-10:2017 điều 8.1.2 cho
+  // ba trị số ở hai mức ràng buộc khác nhau, và cả điểm ấy lẫn hình học của
+  // bản vẽ đều phải giữ nguyên.
+  const load4 = () => load('mo_coc_khoan_nhoi.js')
 
-  test('refuses an edge distance under 300 mm — that one is a prohibition', () => {
+  test('mặc định là đúng cọc trong bản vẽ: 2 cọc ⌀1200, tim ở x ±2650', () => {
     const t = load4()
-    const { errors, drawn } = run(t, { cuLyMepBe: 299 })
-    expect(errors.length).toBeGreaterThan(0)
-    expect(drawn).toHaveLength(0)
+    const values: Record<string, unknown> = {}
+    for (const p of t.params) values[p.key] = p.default
+    const { drawn, errors } = run(t, values)
+    expect(errors).toEqual([])
+
+    const coc = drawn.filter(
+      e => readSemanticTag(e as never)?.role === 'coc_khoan_nhoi'
+    )
+    const xs = coc.flatMap(e => {
+      const b = (e as never as { geometricExtents: any }).geometricExtents
+      return [b.min.x, b.max.x]
+    })
+    expect(Math.min(...xs)).toBeCloseTo(-3250, 0)
+    expect(Math.max(...xs)).toBeCloseTo(3250, 0)
   })
 
-  test('draws at spacing under 4D, and records what that obliges', () => {
-    // "phải đánh giá ảnh hưởng tương tác" is extra work, not a ban. Turning it
-    // into an error would block a legitimate layout on a cramped site.
+  test('không vẽ bệ — bệ là việc của mo_be_mong', () => {
     const t = load4()
-    const { drawn, errors } = run(t, { D: 1000, khoangCach: 3000, soCoc: 3 })
-    expect(errors).toEqual([])
-    expect(drawn.length).toBeGreaterThan(0)
+    const { drawn } = run(t, {})
+    const roles = drawn.map(e => readSemanticTag(e as never)?.role)
+    // Template cũ vẽ thêm một cái bệ rộng đúng 7700, trùng khít bệ của
+    // `mo_be_mong`; chạy cả hai là hai đường bao đè lên nhau.
+    expect(roles).not.toContain('be_coc')
+  })
 
-    const cap = drawn
+  test('đầu cọc ngàm vào bệ, tức có nét nằm trên cao độ đáy bệ', () => {
+    const t = load4()
+    const { drawn } = run(t, { y: 100, nganm: 150 })
+    const tops = drawn
+      .filter(e => readSemanticTag(e as never)?.role === 'coc_khoan_nhoi')
+      .map(e => (e as never as { geometricExtents: any }).geometricExtents.max.y)
+    expect(Math.max(...tops)).toBeCloseTo(250, 0)
+  })
+
+  test('từ chối cự ly mép bệ dưới 300 mm — đó là điều cấm', () => {
+    const t = load4()
+    expect(() => run(t, { khoangCach: 6800, beRongBe: 7700 })).toThrow(
+      /dưới mức 300 mm/
+    )
+  })
+
+  test('dựng được ở tim–tim dưới 4D, và ghi lại nghĩa vụ phát sinh', () => {
+    // "phải đánh giá ảnh hưởng tương tác" là việc phải làm thêm, không phải
+    // lệnh cấm. Biến nó thành lỗi là chặn một phương án hợp lệ ở công địa chật.
+    const t = load4()
+    const { drawn, errors } = run(t, {
+      D: 1000,
+      khoangCach: 3000,
+      soCoc: 3,
+      beRongBe: 8000
+    })
+    expect(errors).toEqual([])
+    const than = drawn
       .map(e => readSemanticTag(e as never))
-      .find(tag => tag?.role === 'be_coc')
-    // The tag carries the ratio — a defining value, short enough for XData.
-    expect(cap?.params?.tyLeTimD).toBe(3)
-    expect(String(cap?.params?.dieuKhoan)).toContain('8.1.2')
-    // The obligation itself is on the drawing, where an engineer reads it.
+      .find(tag => tag?.role === 'coc_khoan_nhoi')
+    expect(than?.params?.tyLeTimD).toBe(3)
     const notes = drawn
       .map(e => readSemanticTag(e as never))
       .filter(tag => tag?.role === 'ghi_chu')
     expect(notes.length).toBe(2)
   })
 
-  test('spacing at or over 6D obliges nothing, and says so', () => {
+  test('từ 6D trở lên thì không phát sinh gì, và không ghi chú thừa', () => {
     const t = load4()
-    const { drawn } = run(t, { D: 1000, khoangCach: 6000, soCoc: 3 })
-    const cap = drawn
-      .map(e => readSemanticTag(e as never))
-      .find(tag => tag?.role === 'be_coc')
-    expect(cap?.params?.tyLeTimD).toBe(6)
-    // No obligation means no note cluttering the drawing.
+    const { drawn } = run(t, {
+      D: 1000,
+      khoangCach: 6000,
+      soCoc: 2,
+      beRongBe: 8000
+    })
     expect(drawn.map(e => readSemanticTag(e as never)?.role)).not.toContain(
       'ghi_chu'
     )
   })
 
-  test('between 4D and 6D only the drilling-sequence note applies', () => {
+  test('giữa 4D và 6D chỉ áp nghĩa vụ về trình tự khoan', () => {
     const t = load4()
-    const { drawn } = run(t, { D: 1000, khoangCach: 5000, soCoc: 3 })
-    const cap = drawn
-      .map(e => readSemanticTag(e as never))
-      .find(tag => tag?.role === 'be_coc')
-    expect(cap?.params?.tyLeTimD).toBe(5)
+    const { drawn } = run(t, {
+      D: 1000,
+      khoangCach: 5000,
+      soCoc: 2,
+      beRongBe: 8000
+    })
     const notes = drawn
       .map(e => readSemanticTag(e as never))
       .filter(tag => tag?.role === 'ghi_chu')
     expect(notes.length).toBe(1)
   })
 
-  test('refuses piles that would overlap', () => {
-    // Not a clause — just geometry that cannot be built.
+  test('từ chối cọc chồng lên nhau', () => {
+    // Không phải điều khoản nào — chỉ là hình không dựng được.
     const t = load4()
-    expect(() => run(t, { D: 1500, khoangCach: 1400 })).toThrow(/chồng lên nhau/)
+    expect(() => run(t, { D: 1500, khoangCach: 1400, beRongBe: 20000 })).toThrow(
+      /chồng lên nhau/
+    )
   })
 
-  test('every pile is separately addressable', () => {
-    // "cọc số 2 sâu thêm 3 m" has to find one pile, not the group.
+  test('mỗi cọc là một bộ phận gọi tên riêng được', () => {
+    // "cọc số 2 sâu thêm 3 m" phải tìm ra một cọc, không phải cả nhóm.
     const t = load4()
-    const { drawn } = run(t, { soCoc: 4, D: 1000, khoangCach: 6000 })
+    const { drawn } = run(t, {
+      soCoc: 4,
+      D: 1000,
+      khoangCach: 6000,
+      beRongBe: 26000
+    })
     const ids = drawn
       .map(e => readSemanticTag(e as never))
       .filter(tag => tag?.role === 'coc_khoan_nhoi')
