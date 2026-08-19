@@ -44,7 +44,10 @@ const template: AcTpTemplate = {
       min: 4,
       max: 20,
       default: 8,
-      group: 'Kích thước'
+      group: 'Kích thước',
+      hint:
+        'TCVN 11823-2:2017 ràng buộc định tính: bề rộng cầu không nhỏ hơn bề ' +
+        'rộng đoạn đường đầu cầu kể cả lề, bó vỉa, rãnh nước và đường người đi.'
     },
     {
       key: 'h',
@@ -55,7 +58,10 @@ const template: AcTpTemplate = {
       max: 120,
       default: 50,
       group: 'Kích thước',
-      hint: 'Do tính toán quyết định; dải này chỉ chặn sai số nhập liệu.'
+      hint:
+        'TCVN 11823-9:2017 điều 7 — bản mặt cầu bê tông không được mỏng hơn ' +
+        '175 mm, chưa kể dự phòng mài mòn. Trong dải đó chiều dày do tính ' +
+        'toán quyết định; dải này chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'veTim',

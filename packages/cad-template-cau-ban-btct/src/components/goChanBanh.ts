@@ -47,7 +47,8 @@ const template: AcTpTemplate = {
       min: 150,
       max: 600,
       default: 250,
-      group: 'Kích thước'
+      group: 'Kích thước',
+      hint: 'Do cấu tạo quyết định; dải này chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'vat',
@@ -58,7 +59,9 @@ const template: AcTpTemplate = {
       max: 200,
       default: 50,
       group: 'Kích thước',
-      hint: 'Đo theo phương ngang, từ mặt trong lên đỉnh gờ.'
+      hint:
+        'Đo theo phương ngang, từ mặt trong lên đỉnh gờ. Do cấu tạo quyết định; ' +
+        'dải này chỉ chặn sai số nhập liệu.'
     },
     SIDE_PARAM,
     ...PLACEMENT

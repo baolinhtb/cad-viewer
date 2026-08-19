@@ -63,7 +63,9 @@ const template: AcTpTemplate = {
       max: 1500,
       default: 1100,
       group: 'Kích thước',
-      hint: 'Phải đạt tối thiểu của cấp thử nghiệm đã chọn.'
+      hint:
+        'TCVN 11823-13:2017 điều 7 — tối thiểu 685 mm (TL-3), 810 mm (TL-4), ' +
+        '1070 mm (TL-5). Phải đạt tối thiểu của cấp thử nghiệm đã chọn.'
     },
     {
       key: 'bTru',
@@ -73,7 +75,8 @@ const template: AcTpTemplate = {
       min: 100,
       max: 500,
       default: 200,
-      group: 'Kích thước'
+      group: 'Kích thước',
+      hint: 'Do cấu tạo quyết định; dải này chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'soThanh',
@@ -82,7 +85,10 @@ const template: AcTpTemplate = {
       min: 0,
       max: 6,
       default: 2,
-      group: 'Kích thước'
+      group: 'Kích thước',
+      hint:
+        'Số thanh ngang phải thoả khoảng hở của TCVN 11823-13:2017 điều 7; ' +
+        'dải này chỉ chặn sai số nhập liệu.'
     },
     SIDE_PARAM,
     ...PLACEMENT

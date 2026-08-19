@@ -45,7 +45,10 @@ const template: AcTpTemplate = {
       max: 20,
       default: 9,
       group: 'Kích thước chính',
-      hint: 'Bề rộng của bản, không phải bề rộng phần xe chạy'
+      hint:
+        'Bề rộng của bản, không phải bề rộng phần xe chạy. TCVN 11823-2:2017 ' +
+        'chỉ ràng buộc định tính: bề rộng cầu không nhỏ hơn bề rộng đoạn đường ' +
+        'đầu cầu kể cả lề, bó vỉa, rãnh nước và đường người đi.'
     },
     {
       key: 'h',
@@ -55,7 +58,12 @@ const template: AcTpTemplate = {
       min: 25,
       max: 120,
       default: 60,
-      group: 'Kích thước chính'
+      group: 'Kích thước chính',
+      hint:
+        'TCVN 11823-9:2017 điều 7 — bản mặt cầu bê tông không được mỏng hơn ' +
+        '175 mm, chưa kể dự phòng mài mòn. Sàn dưới đây chặt hơn điều khoản: ' +
+        'bản của cầu bản là kết cấu chịu lực chính, chiều dày do tính toán ' +
+        'quyết định chứ không lấy theo mức tối thiểu của bản mặt cầu.'
     },
     {
       key: 'tLopPhu',
@@ -65,7 +73,10 @@ const template: AcTpTemplate = {
       min: 0,
       max: 20,
       default: 7,
-      group: 'Mặt cầu'
+      group: 'Mặt cầu',
+      hint:
+        'Do thiết kế áo đường quyết định; dải này chỉ chặn sai số nhập liệu. ' +
+        'Không tiêu chuẩn nào trong bộ TCVN cầu quy định chiều dày lớp phủ mặt cầu.'
     },
     {
       key: 'doDocNgang',
@@ -76,7 +87,9 @@ const template: AcTpTemplate = {
       max: 4,
       default: 2,
       group: 'Mặt cầu',
-      hint: 'Dốc hai mái, tính từ tim ra hai bên'
+      hint:
+        'Dốc hai mái, tính từ tim ra hai bên. Trị số do thiết kế tuyến và yêu ' +
+        'cầu thoát nước quyết định; dải này chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'hLanCan',
@@ -87,7 +100,10 @@ const template: AcTpTemplate = {
       max: 1.5,
       default: 1.27,
       group: 'Lan can và gờ chắn',
-      hint: 'Tính từ mặt lớp phủ'
+      hint:
+        'Tính từ mặt lớp phủ. TCVN 11823-13:2017 điều 7 — chiều cao nhỏ nhất ' +
+        'theo cấp thử nghiệm: 685 mm (TL-3), 810 mm (TL-4), 1070 mm (TL-5). ' +
+        'Dải ở đây phủ cả ba cấp, nên phải chọn theo cấp đã thiết kế.'
     },
     {
       key: 'bGoChan',
@@ -97,17 +113,21 @@ const template: AcTpTemplate = {
       min: 20,
       max: 80,
       default: 50,
-      group: 'Lan can và gờ chắn'
+      group: 'Lan can và gờ chắn',
+      hint: 'Do cấu tạo quyết định; dải này chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'hGoChan',
       label: 'Chiều cao gờ chắn bánh',
       type: 'number',
       unit: 'cm',
-      min: 10,
-      max: 40,
-      default: 25,
-      group: 'Lan can và gờ chắn'
+      min: 15,
+      max: 20,
+      default: 20,
+      group: 'Lan can và gờ chắn',
+      hint:
+        'TCVN 11823-13:2017 điều 11.2 — không thấp dưới 150 mm khi có rào ' +
+        'chắn, không cao quá 200 mm với bó vỉa lề người đi nâng cao.'
     },
     {
       key: 'soOngThoatNuoc',
@@ -116,7 +136,10 @@ const template: AcTpTemplate = {
       min: 0,
       max: 6,
       default: 2,
-      group: 'Thoát nước'
+      group: 'Thoát nước',
+      hint:
+        'TCVN 11823-2:2017 ràng buộc định tính: số ống giữ ở mức tối thiểu phù ' +
+        'hợp với yêu cầu thuỷ lực. Số lượng do tính toán thoát nước quyết định.'
     },
     {
       key: 'dOngThoatNuoc',
@@ -126,7 +149,11 @@ const template: AcTpTemplate = {
       min: 5,
       max: 30,
       default: 10,
-      group: 'Thoát nước'
+      group: 'Thoát nước',
+      hint:
+        'Do tính toán thuỷ lực quyết định; dải này chỉ chặn sai số nhập liệu. ' +
+        'Trị số 15–20 cm trong TCVN 4054:2005 là ống rãnh ngầm nền đường, ' +
+        'không áp cho ống thoát nước mặt cầu.'
     }
   ],
 
