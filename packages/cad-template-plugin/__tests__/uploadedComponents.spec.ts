@@ -206,33 +206,86 @@ describe('lề bộ hành', () => {
 })
 
 describe('tường phòng hộ bê tông', () => {
+  // Profile lấy từ `lancan-left.dwg` / `lancan-right.dwg`. Bản trước tự đặt
+  // điểm gãy ở "khoảng 55% chiều cao, theo hình dạng thông dụng" — nghĩa là
+  // đoán, và bản vẽ thật khác hẳn: chân rộng 100, phình 500 ở giữa, thu về 300
+  // ở đỉnh, và có khấc ở chân để ôm mép bản mặt cầu.
+  const load3 = () => load('tuong_phong_ho.js')
+
   test.each([
     ['TL-3', 685],
     ['TL-4', 810],
     ['TL-5', 1070]
   ])('%s accepts exactly its minimum, %i mm', (level, min) => {
-    const t = load('tuong_phong_ho.js')
-    const { drawn, errors } = run(t, { capThuNghiem: level, h: min })
+    const { drawn, errors } = run(load3(), { capThuNghiem: level, h: min })
     expect(errors).toEqual([])
     expect(drawn.length).toBeGreaterThan(0)
   })
 
   test('a millimetre under the test level is refused, citing the clause', () => {
-    const t = load('tuong_phong_ho.js')
-    expect(() => run(t, { capThuNghiem: 'TL-5', h: 1069 })).toThrow(/1070/)
+    expect(() => run(load3(), { capThuNghiem: 'TL-5', h: 1069 })).toThrow(/1070/)
+  })
+
+  test('reproduces the drawn profile, not a guessed one', () => {
+    // Seven vertices with a notch at the foot — a shape no formula would
+    // produce, and the reason this template now carries coordinates.
+    const wall = run(load3(), { ben: 'phai', x: 0, y: 0, h: 1090 }).drawn.find(
+      e => readSemanticTag(e as never)?.role === 'lan_can'
+    ) as never as {
+      numberOfVertices: number
+      getPoint2dAt: (i: number) => { x: number; y: number }
+    }
+    expect(wall.numberOfVertices).toBe(7)
+
+    const pts: [number, number][] = []
+    for (let i = 0; i < wall.numberOfVertices; i++) {
+      const p = wall.getPoint2dAt(i)
+      pts.push([Math.round(p.x), Math.round(p.y)])
+    }
+    // The notch: the foot is 150 wide and the body only reaches 500 above 543.
+    expect(pts).toContainEqual([150, 0])
+    expect(pts).toContainEqual([150, 543])
+    expect(pts).toContainEqual([500, 550])
+    // Top at the requested height, 300 wide.
+    expect(pts).toContainEqual([0, 1090])
+    expect(pts).toContainEqual([300, 1090])
+  })
+
+  test('only the top follows the height; the drawn foot does not stretch', () => {
+    // A drawing cannot say how the notch varies with height, so it does not.
+    const tall = run(load3(), { h: 1400 }).drawn.find(
+      e => readSemanticTag(e as never)?.role === 'lan_can'
+    ) as never as {
+      numberOfVertices: number
+      getPoint2dAt: (i: number) => { x: number; y: number }
+    }
+    const ys: number[] = []
+    for (let i = 0; i < tall.numberOfVertices; i++) {
+      ys.push(Math.round(tall.getPoint2dAt(i).y))
+    }
+    expect(ys).toContain(1400)
+    expect(ys).toContain(543) // khấc giữ nguyên
+    expect(ys).toContain(690)
   })
 
   test('the chamfer faces the carriageway on both sides', () => {
-    const t = load('tuong_phong_ho.js')
-    const left = run(t, { ben: 'trai', x: 0 })
-    const right = run(t, { ben: 'phai', x: 0 })
-    const span = (r: { drawn: unknown[] }) => {
-      const box = (r.drawn[0] as { geometricExtents: { min: { x: number }; max: { x: number } } })
-        .geometricExtents
+    const span = (side: string) => {
+      const box = (
+        run(load3(), { ben: side, x: 0 }).drawn[0] as unknown as {
+          geometricExtents: { min: { x: number }; max: { x: number } }
+        }
+      ).geometricExtents
       return { min: box.min.x, max: box.max.x }
     }
-    expect(span(right).max).toBeGreaterThan(0)
-    expect(span(left).min).toBeLessThan(0)
+    expect(span('phai').max).toBeGreaterThan(0)
+    expect(span('trai').min).toBeLessThan(0)
+  })
+
+  test('carries the duct the drawing shows', () => {
+    const roles = run(load3(), {}).drawn.map(
+      e => readSemanticTag(e as never)?.role
+    )
+    expect(roles).toContain('ong_thoat_nuoc')
   })
 })
 

@@ -17,14 +17,16 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'tuong_phong_ho_btct',
-    version: '1.0.0',
+    version: '2.0.0',
     name: 'Tường phòng hộ bê tông (New Jersey)',
     category: 'Bộ phận cầu',
     description:
-      'Tường phòng hộ bê tông dạng New Jersey, mặt cắt ngang. Chiều cao tối thiểu ' +
-      'theo cấp thử nghiệm va xe: TL-3 ≥ 685, TL-4 ≥ 810, TL-5 ≥ 1070 mm ' +
-      '(TCVN 11823-13:2017 điều 7.3.2.1). Không cộng dự phòng 75 mm cho lớp phủ ' +
-      'tương lai — cùng điều khoản nói rõ là không cần.'
+      'Tường phòng hộ bê tông trên cầu, mặt cắt ngang, dựng theo profile do kỹ ' +
+      'sư vẽ (`lancan-left.dwg` / `lancan-right.dwg`) chứ không phải hình New ' +
+      'Jersey suy đoán. Chiều cao tối thiểu theo cấp thử nghiệm va xe: TL-3 ≥ ' +
+      '685, TL-4 ≥ 810, TL-5 ≥ 1070 mm theo TCVN 11823-13:2017 điều 7.3.2.1. ' +
+      'Chân tường có khấc để ôm mép bản mặt cầu; khấc giữ nguyên như bản vẽ, ' +
+      'chỉ chiều cao là tham số.'
   },
   params: [
     {
@@ -36,7 +38,7 @@ export default {
         { value: 'TL-4', label: 'TL-4 (≥ 810 mm)' },
         { value: 'TL-5', label: 'TL-5 (≥ 1070 mm)' }
       ],
-      default: 'TL-4',
+      default: 'TL-5',
       group: 'Tiêu chuẩn',
       hint: 'TCVN 11823-13:2017, điều 7.3.2.1.'
     },
@@ -47,40 +49,9 @@ export default {
       unit: 'mm',
       min: 685,
       max: 1500,
-      default: 810,
+      default: 1090,
       group: 'Kích thước',
       hint: 'Phải đạt tối thiểu của cấp thử nghiệm đã chọn.'
-    },
-    {
-      key: 'bChan',
-      label: 'Bề rộng chân tường',
-      type: 'number',
-      unit: 'mm',
-      min: 300,
-      max: 800,
-      default: 480,
-      group: 'Kích thước'
-    },
-    {
-      key: 'bDinh',
-      label: 'Bề rộng đỉnh tường',
-      type: 'number',
-      unit: 'mm',
-      min: 150,
-      max: 400,
-      default: 200,
-      group: 'Kích thước'
-    },
-    {
-      key: 'hChanDung',
-      label: 'Chiều cao đoạn chân thẳng đứng',
-      type: 'number',
-      unit: 'mm',
-      min: 50,
-      max: 400,
-      default: 75,
-      group: 'Kích thước',
-      hint: 'Đoạn thẳng đứng sát mặt đường, dưới mặt vát.'
     },
     {
       key: 'ben',
@@ -124,9 +95,9 @@ export default {
     }
 
     const MIN_BY_LEVEL = { 'TL-3': 685, 'TL-4': 810, 'TL-5': 1070 }
-    const level = String(values.capThuNghiem ?? 'TL-4')
+    const level = String(values.capThuNghiem ?? 'TL-5')
     const required = MIN_BY_LEVEL[level] ?? 685
-    const h = num('h', 810)
+    const h = num('h', 1090)
 
     // Ràng buộc phụ thuộc một tham số khác nên phải kiểm ở đây; dải min/max
     // tĩnh chỉ chặn được sàn tuyệt đối 685 mm.
@@ -138,9 +109,6 @@ export default {
       )
     }
 
-    const base = num('bChan', 480)
-    const top = num('bDinh', 200)
-    const toe = Math.min(num('hChanDung', 75), h)
     const side = values.ben === 'trai' ? 'trai' : 'phai'
     const x0 = num('x', 0)
     const y0 = num('y', 0)
@@ -148,10 +116,28 @@ export default {
     // Mặt vát luôn quay về phía xe chạy. Vẽ giống nhau ở hai mép thì một bên
     // có mặt vát ngược, và trên màn hình không có gì nói ra điều đó.
     const dir = side === 'phai' ? 1 : -1
-    // Điểm gãy của mặt New Jersey: khoảng 55% chiều cao, theo hình dạng thông
-    // dụng. Đây là hình học thực hành, không phải trị số do TCVN quy định.
-    const kneeY = y0 + Math.min(toe + 0.45 * h, h - 50)
-    const kneeX = x0 - dir * (base - top) * 0.55
+
+    /**
+     * Profile lấy nguyên từ bản vẽ, gốc dời về mép sau và đáy.
+     *
+     * Bản trước tự đặt điểm gãy ở "khoảng 55% chiều cao, theo hình dạng thông
+     * dụng" — tức là đoán. Đây là hình thật: chân rộng 100, phình ra 500 ở
+     * khoảng giữa, rồi thu về 300 ở đỉnh, và có **khấc** ở chân (x 150→500,
+     * y 0→543) để ôm mép bản mặt cầu.
+     *
+     * Chỉ chiều cao là tham số, vì đó là thứ TCVN quy định. Phần khấc và các
+     * đoạn dưới giữ nguyên: một bản vẽ không nói được chúng biến thiên thế
+     * nào, và co giãn chúng theo chiều cao là bịa ra một quan hệ không có.
+     */
+    const HINH = [
+      [500, 690],
+      [300, null], // null = bám đỉnh, cao độ do `h` quyết định
+      [0, null],
+      [50, 0],
+      [150, 0],
+      [150, 543],
+      [500, 550]
+    ]
 
     ctx.polyline({
       role: 'lan_can',
@@ -159,23 +145,25 @@ export default {
       params: {
         capThuNghiem: level,
         h,
-        bChan: base,
-        bDinh: top,
         dieuKhoan: 'TCVN 11823-13:2017 §7.3.2.1'
       },
       layer: 'KC-LANCAN',
       closed: true,
-      points: [
-        // Mặt sau, thẳng đứng.
-        { x: x0 + dir * base, y: y0, z: 0 },
-        { x: x0 + dir * base, y: y0 + h, z: 0 },
-        // Đỉnh.
-        { x: x0 + dir * base - dir * (base - top), y: y0 + h, z: 0 },
-        // Mặt trước: dốc trên, điểm gãy, chân thẳng đứng.
-        { x: kneeX + dir * base, y: kneeY, z: 0 },
-        { x: x0, y: y0 + toe, z: 0 },
-        { x: x0, y: y0, z: 0 }
-      ]
+      points: HINH.map(([dx, dy]) => ({
+        x: x0 + dir * dx,
+        y: y0 + (dy === null ? h : dy),
+        z: 0
+      }))
+    })
+
+    // Ống ⌀100 chôn trong thân tường, đúng vị trí bản vẽ.
+    ctx.circle({
+      role: 'ong_thoat_nuoc',
+      partId: formatPartId({ role: 'ong_thoat_nuoc', side }),
+      params: { D: 100 },
+      layer: 'KT-THOATNUOC',
+      center: { x: x0 + dir * 203, y: y0 + 727, z: 0 },
+      radius: 50
     })
   }
 }
