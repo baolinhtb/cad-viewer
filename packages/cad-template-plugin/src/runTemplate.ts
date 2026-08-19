@@ -12,10 +12,13 @@ import type { AcDbDatabase } from '@mlightcad/data-model'
 import { markTemplateVerified } from './remoteTemplates'
 // Re-exported so `defaultValues` keeps its existing import path.
 export { defaultValues } from './templateValues'
+import { nextRunId } from './runIdentity'
 import { findRemoteSource, roleLayers } from './templateRegistry'
 
 /** Outcome of a run, enough to tell the user what was produced. */
 export interface AcApTemplateRunResult {
+  /** Id of the run, so a caller can find or replace exactly what it drew. */
+  runId?: string
   /** Number of entities the template drew. */
   entityCount: number
   /** Distinct layers touched. */
@@ -54,8 +57,15 @@ export async function runTemplate(
   let entityCount = 0
   let layers: string[] = []
 
+  // Recorded before drawing so every entity carries it: the drawing then says
+  // not just what each part is, but which call made it and with what arguments.
+  const runId = nextRunId(db)
   await acapRunGroupedEdit(db, template.meta.name, async () => {
-    const ctx = createDrawContext(db, template.meta.id, roleLayers())
+    const ctx = createDrawContext(db, template.meta.id, roleLayers(), {
+      id: runId,
+      version: template.meta.version,
+      values: values as Record<string, number | string | boolean>
+    })
     await template.generate(ctx, values)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
@@ -84,5 +94,5 @@ export async function runTemplate(
     }
   }
 
-  return { entityCount, layers, errors: [] }
+  return { entityCount, layers, errors: [], runId }
 }

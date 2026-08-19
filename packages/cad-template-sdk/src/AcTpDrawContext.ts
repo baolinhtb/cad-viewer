@@ -17,6 +17,7 @@ import {
 
 import { buildDimensionBlock } from './AcTpDimensionBlock'
 import {
+  AcTpRunRecord,
   AcTpSemanticTag,
   ensureSemanticTagRegApp,
   writeSemanticTag
@@ -138,7 +139,15 @@ export type AcTpRoleLayerMap = Readonly<Record<string, string>>
 export function createDrawContext(
   db: AcDbDatabase,
   templateId: string,
-  roleLayers: AcTpRoleLayerMap
+  roleLayers: AcTpRoleLayerMap,
+  /**
+   * The invocation being drawn, stamped onto every entity produced.
+   *
+   * Optional because the context is also used for previews and for one-off
+   * generation in tests, where there is no run to record. Passing it is what
+   * makes the drawing describe how it was made.
+   */
+  run?: AcTpRunRecord
 ): AcTpDrawContext {
   // Single place the RegApp is registered. Doing it here rather than leaving it
   // to each caller is what keeps "exactly one definition per file" true — an
@@ -187,7 +196,8 @@ export function createDrawContext(
       role: args.role,
       partId: args.partId,
       templateId,
-      ...(args.params ? { params: args.params } : {})
+      ...(args.params ? { params: args.params } : {}),
+      ...(run ? { run } : {})
     }
     writeSemanticTag(entity, tag)
 

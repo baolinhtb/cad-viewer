@@ -25,10 +25,10 @@ export const SEMANTIC_TAG_APP_ID = 'codeco33'
  * drawing generated before the bump stays fully addressable, it just has no
  * recorded parameter values.
  */
-export const SEMANTIC_TAG_SCHEMA_VERSION = 2
+export const SEMANTIC_TAG_SCHEMA_VERSION = 3
 
 /** Schema versions this build can read. */
-const READABLE_SCHEMA_VERSIONS = new Set([1, 2])
+const READABLE_SCHEMA_VERSIONS = new Set([1, 2, 3])
 
 /**
  * A DXF 1000 group holds at most 255 characters. Parameter records are meant
@@ -71,6 +71,31 @@ export interface AcTpSemanticTag {
    * millimetres.
    */
   params?: Readonly<Record<string, number | string | boolean>>
+  /**
+   * The template run that produced this entity, when a template produced it.
+   *
+   * `params` above says what this *part* is; this says what *call* made it, and
+   * with which arguments. The difference matters for editing: changing a slab's
+   * thickness is not a change to one polyline, it is a change to the call that
+   * drew the slab, the kerbs above it and the dimensions that measure them. Two
+   * runs of the same template also produce identical `partId`s — the abutment
+   * on the left and the one on the right — so without this there is no way to
+   * say which one an edit meant.
+   *
+   * Absent on entities that no template drew: a drawing imported from DWG, or
+   * geometry the assistant drew stroke by stroke.
+   */
+  run?: AcTpRunRecord
+}
+
+/** One invocation of a template, recorded on every entity it produced. */
+export interface AcTpRunRecord {
+  /** Unique within the drawing. */
+  id: string
+  /** Template version, so a later rebuild can refuse to guess. */
+  version: string
+  /** The arguments the template was called with. */
+  values: Readonly<Record<string, number | string | boolean>>
 }
 
 /**
@@ -84,11 +109,12 @@ export const FIELD_ORDER = [
   'role',
   'partId',
   'templateId',
-  'params'
+  'params',
+  'run'
 ] as const
 
 /** Number of fields written by each schema version. */
-const FIELD_COUNT: Readonly<Record<number, number>> = { 1: 4, 2: 5 }
+const FIELD_COUNT: Readonly<Record<number, number>> = { 1: 4, 2: 5, 3: 6 }
 
 /**
  * Registers the semantic-tag RegApp on a database, once.
@@ -143,6 +169,10 @@ export function writeSemanticTag(
     {
       code: AcDbDxfCode.ExtendedDataAsciiString,
       value: encodeParams(tag.params)
+    },
+    {
+      code: AcDbDxfCode.ExtendedDataAsciiString,
+      value: encodeRun(tag.run)
     }
   ]
 
@@ -172,15 +202,20 @@ export function readSemanticTag(
   // current one: a v1 tag has four fields and is complete at four.
   if (strings.length < FIELD_COUNT[1]) return undefined
 
-  const [schemaVersion, role, partId, templateId, rawParams] = strings
+  const [schemaVersion, role, partId, templateId, rawParams, rawRun] = strings
   const version = Number(schemaVersion)
   if (!READABLE_SCHEMA_VERSIONS.has(version)) return undefined
   if (strings.length < FIELD_COUNT[version]) return undefined
 
   const params = decodeParams(rawParams)
-  return params
-    ? { role, partId, templateId, params }
-    : { role, partId, templateId }
+  const run = decodeRun(rawRun)
+  return {
+    role,
+    partId,
+    templateId,
+    ...(params ? { params } : {}),
+    ...(run ? { run } : {})
+  }
 }
 
 /**
@@ -210,6 +245,60 @@ function encodeParams(params: AcTpSemanticTag['params']): string {
     )
   }
   return json
+}
+
+/**
+ * Serialises the run record; an absent one becomes ''.
+ *
+ * Keys are one letter because this shares nothing with `params` — it is its own
+ * XData string with its own 255-byte ceiling, and every byte spent on a key
+ * name is a byte a template cannot spend on an argument. Measured: the abutment
+ * template's eleven arguments come to 138 characters this way.
+ */
+function encodeRun(run: AcTpSemanticTag['run']): string {
+  if (!run) return ''
+
+  const values: Record<string, number | string | boolean> = {}
+  // Sorted for the same reason `params` is: identical drawings must not diff.
+  for (const key of Object.keys(run.values).sort()) values[key] = run.values[key]
+
+  const json = JSON.stringify({ i: run.id, v: run.version, a: values })
+  if (json.length > MAX_PARAMS_JSON) {
+    throw new Error(
+      `Bản ghi lượt dựng dài ${json.length} ký tự, vượt giới hạn ` +
+        `${MAX_PARAMS_JSON} của một chuỗi XData. Template có quá nhiều tham số ` +
+        'hoặc tên khóa quá dài để ghi lại được lời gọi.'
+    )
+  }
+  return json
+}
+
+/**
+ * Reads the run record back; anything unparseable is treated as absent.
+ *
+ * Absent is the normal answer for every drawing made before this field existed,
+ * and for geometry no template drew. It must never look like corruption.
+ */
+function decodeRun(raw: string | undefined): AcTpRunRecord | undefined {
+  if (!raw) return undefined
+  try {
+    const parsed = JSON.parse(raw) as {
+      i?: unknown
+      v?: unknown
+      a?: unknown
+    }
+    if (typeof parsed.i !== 'string' || !parsed.i) return undefined
+    return {
+      id: parsed.i,
+      version: typeof parsed.v === 'string' ? parsed.v : '',
+      values:
+        parsed.a && typeof parsed.a === 'object'
+          ? (parsed.a as Record<string, number | string | boolean>)
+          : {}
+    }
+  } catch {
+    return undefined
+  }
 }
 
 /** Reads the parameter record back; anything unparseable is treated as absent. */
