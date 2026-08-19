@@ -55,11 +55,21 @@
         >
           <ml-blocks-palette />
         </div>
+        <!--
+          Kept alive rather than switched with the others.
+
+          Every tab above is a view of state that lives elsewhere, so unmounting
+          one costs nothing. The agent tab holds the conversation itself, and a
+          turn in flight: rendering it with `v-else-if` meant a trip to the
+          Layers tab destroyed the history and cut the stream mid-answer, which
+          can leave the drawing half-edited with nothing on screen saying so.
+
+          Mounted on first use and hidden afterwards, so a session that never
+          opens the assistant never builds one.
+        -->
         <div
-          v-else-if="
-            store.features.agentPlugin &&
-            store.dialogs.activePaletteTab === 'agent'
-          "
+          v-if="hasOpenedAgent"
+          v-show="isAgentTab"
           class="ml-agent-palette-wrapper"
         >
           <agent-chat-panel embedded />
@@ -78,7 +88,7 @@ import {
   MlToolPalette
 } from '@mlightcad/ui-components'
 import { ElConfigProvider } from 'element-plus'
-import { computed, defineAsyncComponent, nextTick, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
@@ -227,6 +237,33 @@ const tabs = computed<MlOverflowTab[]>(() => {
 const activeTabTitle = computed(() => {
   return toolPaletteTitle(store.dialogs.activePaletteTab)
 })
+
+/**
+ * Whether the assistant tab is the one showing.
+ *
+ * Separate from the `v-else-if` chain above because the agent panel is not
+ * switched with the others — see the comment on it.
+ */
+const isAgentTab = computed(
+  () =>
+    store.features.agentPlugin && store.dialogs.activePaletteTab === 'agent'
+)
+
+/**
+ * True once the assistant has been opened, and never false again.
+ *
+ * This is what makes the panel outlive a tab change: it is built the first time
+ * it is asked for and hidden from then on, instead of being rebuilt each visit.
+ */
+const hasOpenedAgent = ref(false)
+watch(
+  isAgentTab,
+  open => {
+    if (open) hasOpenedAgent.value = true
+  },
+  { immediate: true }
+)
+
 
 watch(
   [() => store.dialogs.activePaletteTab, tabNames],
