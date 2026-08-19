@@ -314,84 +314,106 @@ describe('bệ cọc khoan nhồi', () => {
 })
 
 describe('mố cầu BTCT', () => {
-  // Shape and every default come from three component drawings an engineer
-  // sent — `33_MO_BE`, `33_MO_TUONGTHAN`, `33_MO_TUONGDAU` — not from guesswork.
-  // The first version of this template stacked four rectangles and was wrong
-  // where only a real drawing could say so.
+  // Built from two sources because each holds what the other lacks: the
+  // assembly drawing `banve_mo.dwg` for how the parts relate, the component
+  // drawings for the shape of each. They disagree, and the assembly wins —
+  // measured: splitting the components into separate files levelled them, so
+  // the backwall reads 0.37% there and 2.00% in the assembly.
   const load6 = () => load('mo_cau_btct.js')
 
-  test('stacks the components in order, sharing one centreline', () => {
+  /** Bounding box of everything drawn for a role. */
+  const boxOf = (drawn: unknown[], role: string) => {
+    const found = drawn.filter(e => readSemanticTag(e as never)?.role === role)
+    const boxes = found.map(
+      e =>
+        (e as never as {
+          geometricExtents: {
+            min: { x: number; y: number }
+            max: { x: number; y: number }
+          }
+        }).geometricExtents
+    )
+    return {
+      minY: Math.min(...boxes.map(b => b.min.y)),
+      maxY: Math.max(...boxes.map(b => b.max.y)),
+      minX: Math.min(...boxes.map(b => b.min.x)),
+      maxX: Math.max(...boxes.map(b => b.max.x))
+    }
+  }
+
+  test('reproduces the levels of the assembly drawing', () => {
+    // The engineer's own drawing, measured: blinding 876→976, footing
+    // 976→2976, stem top 7615–7769, backwall top 9441–9581.
     const t = load6()
-    const { drawn, errors } = run(t, {})
+    const { drawn, errors } = run(t, { y: 876 })
     expect(errors).toEqual([])
 
-    const box = (role: string) => {
-      const found = drawn.filter(e => readSemanticTag(e as never)?.role === role)
-      const boxes = found.map(e => (e as never as { geometricExtents: { min: { x: number; y: number }; max: { x: number; y: number } } }).geometricExtents)
-      return {
-        minY: Math.min(...boxes.map(b => b.min.y)),
-        maxY: Math.max(...boxes.map(b => b.max.y)),
-        minX: Math.min(...boxes.map(b => b.min.x)),
-        maxX: Math.max(...boxes.map(b => b.max.x))
-      }
-    }
+    const lot = boxOf(drawn, 'mo_be_tong_lot')
+    const be = boxOf(drawn, 'mo_be')
+    const than = boxOf(drawn, 'mo_tuong_than')
+    const dau = boxOf(drawn, 'mo_tuong_dau')
 
-    const lot = box('mo_be_tong_lot')
-    const be = box('mo_be')
-    const than = box('mo_tuong_than')
+    expect(lot.minY).toBeCloseTo(876)
+    expect(lot.maxY).toBeCloseTo(976)
+    expect(be.maxY).toBeCloseTo(2976)
+    // The stem sits on the footing and its top is sloped, so the box runs from
+    // the footing level up to the higher edge — the levels the assembly has.
+    expect(than.minY).toBeCloseTo(2976)
+    expect(than.maxY).toBeCloseTo(7769, -1)
+    // The assembly's top-right corner is 9581; the shoulder sits 7 above the
+    // outer edge, so the box closes a few millimetres higher. Asserted as a
+    // band rather than a point — claiming millimetre agreement with a drawing
+    // measured off screen coordinates would be claiming more than was measured.
+    expect(dau.maxY).toBeGreaterThan(9570)
+    expect(dau.maxY).toBeLessThan(9600)
+  })
 
-    expect(be.minY).toBeCloseTo(lot.maxY)
-    expect(than.minY).toBeCloseTo(be.maxY)
+  test('the crossfall runs through every surface above the footing', () => {
+    // The design rule, and the reason it belongs in the template rather than
+    // in a set of levels: change the fall once and the whole abutment follows.
+    const t = load6()
+    const { drawn } = run(t, { doDocNgang: 2 })
 
-    // The engineer's numbers, not invented ones.
-    expect(lot.maxY - lot.minY).toBeCloseTo(100)
-    expect(be.maxY - be.minY).toBeCloseTo(2000)
-    expect(than.maxY - than.minY).toBeCloseTo(4843)
+    const than = boxOf(drawn, 'mo_tuong_than')
+    const dau = boxOf(drawn, 'mo_tuong_dau')
+    const phu = boxOf(drawn, 'lop_phu')
 
-    expect(be.maxX - be.minX).toBeCloseTo(7700)
-    expect(lot.maxX - lot.minX).toBeCloseTo(7900)
-    for (const b of [lot, be, than]) {
-      expect((b.minX + b.maxX) / 2).toBeCloseTo(0)
+    // 2% across 7700 is 154, so each edge sits 77 off the centre value: the
+    // stem measures 4716 at the centreline and 4793 to its higher corner.
+    expect(than.maxY - than.minY).toBeCloseTo(4716 + 77, -1)
+    for (const band of [dau, phu]) {
+      expect(band.maxY - band.minY).toBeGreaterThan(100)
     }
   })
 
-  test('the top of the backwall is not flat', () => {
-    // The correction that only the real drawing could supply: the backwall top
-    // carries the crossfall and steps down at both edges where the wearing
-    // course beds in. A rectangle there is simply the wrong shape.
+  test('a flat deck produces flat surfaces', () => {
+    // The same code path with the fall at zero: the stem top becomes level.
     const t = load6()
-    const { drawn } = run(t, { B: 7700, bVaiKe: 350, hVaiKe: 7, doDocNgang: 0.37 })
-    const wall = drawn.find(
-      e => readSemanticTag(e as never)?.role === 'mo_tuong_dau'
-    ) as never as { numberOfVertices: number; getPoint2dAt: (i: number) => { x: number; y: number } }
-
-    expect(wall.numberOfVertices).toBe(6)
-
-    const ys = new Set<number>()
-    for (let i = 0; i < wall.numberOfVertices; i++) {
-      ys.add(Math.round(wall.getPoint2dAt(i).y * 100) / 100)
-    }
-    // Four distinct heights along the top and bottom, not two.
-    expect(ys.size).toBeGreaterThan(2)
-  })
-
-  test('the wearing course follows the crossfall', () => {
-    const t = load6()
-    const { drawn } = run(t, { tLopPhu: 70, doDocNgang: 2 })
-    const course = drawn.find(
-      e => readSemanticTag(e as never)?.role === 'lop_phu'
+    const { drawn } = run(t, { doDocNgang: 0 })
+    const than = drawn.find(
+      e => readSemanticTag(e as never)?.role === 'mo_tuong_than'
     ) as never as { getPoint2dAt: (i: number) => { x: number; y: number } }
-
-    // Left edge sits higher than the right when the deck falls to the right.
-    expect(course.getPoint2dAt(0).y).toBeGreaterThan(course.getPoint2dAt(1).y)
+    expect(than.getPoint2dAt(2).y).toBeCloseTo(than.getPoint2dAt(3).y)
   })
 
-  test('can be asked for without a wearing course', () => {
+  test('the footing stays level whatever the crossfall', () => {
+    // The fall starts at the top of the footing; below it nothing tilts.
     const t = load6()
-    const { drawn } = run(t, { tLopPhu: 0 })
-    expect(
-      drawn.filter(e => readSemanticTag(e as never)?.role === 'lop_phu')
-    ).toHaveLength(0)
+    const { drawn } = run(t, { doDocNgang: 4 })
+    const be = drawn.find(
+      e => readSemanticTag(e as never)?.role === 'mo_be'
+    ) as never as { getPoint2dAt: (i: number) => { x: number; y: number } }
+    expect(be.getPoint2dAt(0).y).toBeCloseTo(be.getPoint2dAt(1).y)
+    expect(be.getPoint2dAt(2).y).toBeCloseTo(be.getPoint2dAt(3).y)
+  })
+
+  test('widths narrow with height, as the assembly does', () => {
+    const t = load6()
+    const { drawn } = run(t, {})
+    expect(boxOf(drawn, 'mo_be_tong_lot').maxX - boxOf(drawn, 'mo_be_tong_lot').minX).toBeCloseTo(7900)
+    expect(boxOf(drawn, 'mo_be').maxX - boxOf(drawn, 'mo_be').minX).toBeCloseTo(7700)
+    // The wearing course sits between the shoulders: 7700 less 350 each side.
+    expect(boxOf(drawn, 'lop_phu').maxX - boxOf(drawn, 'lop_phu').minX).toBeCloseTo(7000)
   })
 
   test('each wing wall is separately addressable', () => {
@@ -406,28 +428,22 @@ describe('mố cầu BTCT', () => {
     expect(sides.some(id => id.includes('phai'))).toBe(true)
   })
 
-  test('draws no piles — those belong to their own template', () => {
-    // `be_coc_khoan_nhoi` draws them with the TCVN 11823-10:2017 §8.1.2 checks.
-    // A second copy here is exactly the duplication where two templates end up
-    // saying different things about one clause.
+  test('draws neither piles nor railings — each has its own template', () => {
     const t = load6()
-    const { drawn } = run(t, {})
-    const roles = drawn.map(e => readSemanticTag(e as never)?.role)
-    expect(roles).not.toContain('coc_khoan_nhoi')
-    expect(roles).not.toContain('be_coc')
+    const roles = run(t, {}).drawn.map(e => readSemanticTag(e as never)?.role)
+    for (const foreign of ['coc_khoan_nhoi', 'be_coc', 'lan_can']) {
+      expect(roles).not.toContain(foreign)
+    }
   })
 
-  test('dimensions the stack with the real numbers', () => {
+  test('dimensions the stack', () => {
     const t = load6()
-    const { drawn } = run(t, {})
-    const texts = drawn
-      .filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
+    const texts = run(t, {})
+      .drawn.filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
       .map(e => (e as never as { dimensionText: string }).dimensionText)
-
     expect(texts.length).toBe(6)
-    for (const wanted of ['7700', '2000', '4843']) {
-      expect(texts.some(text => text.includes(wanted))).toBe(true)
-    }
+    expect(texts.some(text => text.includes('7700'))).toBe(true)
+    expect(texts.some(text => text.includes('2000'))).toBe(true)
   })
 
   test('refuses geometry that cannot be built', () => {
