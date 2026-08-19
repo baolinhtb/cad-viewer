@@ -44,6 +44,7 @@ const ROLE_LAYERS: Record<string, string> = {
   mo_tuong_dau: 'KC-MO-TUONGDAU',
   mo_tuong_tai: 'KC-MO-TUONGTAI',
   kich_thuoc: 'GC-KICHTHUOC',
+  lop_phu: 'KC-LOPPHU',
   coc_khoan_nhoi: 'KC-COC',
   ghi_chu: 'GC-GHICHU',
   duong_tim: 'TRUC-TIM'
@@ -313,13 +314,15 @@ describe('bệ cọc khoan nhồi', () => {
 })
 
 describe('mố cầu BTCT', () => {
+  // Shape and every default come from three component drawings an engineer
+  // sent — `33_MO_BE`, `33_MO_TUONGTHAN`, `33_MO_TUONGDAU` — not from guesswork.
+  // The first version of this template stacked four rectangles and was wrong
+  // where only a real drawing could say so.
   const load6 = () => load('mo_cau_btct.js')
 
-  test('stacks the five components in order, sharing one centreline', () => {
-    // Every level is derived from the one below, so changing a thickness moves
-    // the stack instead of leaving a gap someone has to notice.
+  test('stacks the components in order, sharing one centreline', () => {
     const t = load6()
-    const { drawn, errors } = run(t, { B: 7700, hLot: 100, hBe: 1500, hThan: 9500, hDau: 1700 })
+    const { drawn, errors } = run(t, {})
     expect(errors).toEqual([])
 
     const box = (role: string) => {
@@ -336,32 +339,64 @@ describe('mố cầu BTCT', () => {
     const lot = box('mo_be_tong_lot')
     const be = box('mo_be')
     const than = box('mo_tuong_than')
-    const dau = box('mo_tuong_dau')
 
-    // No gaps and no overlaps between levels.
     expect(be.minY).toBeCloseTo(lot.maxY)
     expect(than.minY).toBeCloseTo(be.maxY)
-    expect(dau.minY).toBeCloseTo(than.maxY)
 
-    // Thicknesses are what was asked for.
+    // The engineer's numbers, not invented ones.
     expect(lot.maxY - lot.minY).toBeCloseTo(100)
-    expect(be.maxY - be.minY).toBeCloseTo(1500)
-    expect(than.maxY - than.minY).toBeCloseTo(9500)
-    expect(dau.maxY - dau.minY).toBeCloseTo(1700)
+    expect(be.maxY - be.minY).toBeCloseTo(2000)
+    expect(than.maxY - than.minY).toBeCloseTo(4843)
 
-    // Blinding is the only level wider than the abutment.
     expect(be.maxX - be.minX).toBeCloseTo(7700)
     expect(lot.maxX - lot.minX).toBeCloseTo(7900)
-    // And everything is centred on the same axis.
-    for (const b of [lot, be, than, dau]) {
+    for (const b of [lot, be, than]) {
       expect((b.minX + b.maxX) / 2).toBeCloseTo(0)
     }
   })
 
-  test('each wing wall is separately addressable', () => {
-    // "sửa tường tai bên trái" has to reach one wall, not both.
+  test('the top of the backwall is not flat', () => {
+    // The correction that only the real drawing could supply: the backwall top
+    // carries the crossfall and steps down at both edges where the wearing
+    // course beds in. A rectangle there is simply the wrong shape.
     const t = load6()
-    const { drawn } = run(t, { bTai: 150, hTai: 1700 })
+    const { drawn } = run(t, { B: 7700, bVaiKe: 350, hVaiKe: 7, doDocNgang: 0.37 })
+    const wall = drawn.find(
+      e => readSemanticTag(e as never)?.role === 'mo_tuong_dau'
+    ) as never as { numberOfVertices: number; getPoint2dAt: (i: number) => { x: number; y: number } }
+
+    expect(wall.numberOfVertices).toBe(6)
+
+    const ys = new Set<number>()
+    for (let i = 0; i < wall.numberOfVertices; i++) {
+      ys.add(Math.round(wall.getPoint2dAt(i).y * 100) / 100)
+    }
+    // Four distinct heights along the top and bottom, not two.
+    expect(ys.size).toBeGreaterThan(2)
+  })
+
+  test('the wearing course follows the crossfall', () => {
+    const t = load6()
+    const { drawn } = run(t, { tLopPhu: 70, doDocNgang: 2 })
+    const course = drawn.find(
+      e => readSemanticTag(e as never)?.role === 'lop_phu'
+    ) as never as { getPoint2dAt: (i: number) => { x: number; y: number } }
+
+    // Left edge sits higher than the right when the deck falls to the right.
+    expect(course.getPoint2dAt(0).y).toBeGreaterThan(course.getPoint2dAt(1).y)
+  })
+
+  test('can be asked for without a wearing course', () => {
+    const t = load6()
+    const { drawn } = run(t, { tLopPhu: 0 })
+    expect(
+      drawn.filter(e => readSemanticTag(e as never)?.role === 'lop_phu')
+    ).toHaveLength(0)
+  })
+
+  test('each wing wall is separately addressable', () => {
+    const t = load6()
+    const { drawn } = run(t, { bTai: 150, hTai: 1200 })
     const sides = drawn
       .map(e => readSemanticTag(e as never))
       .filter(tag => tag?.role === 'mo_tuong_tai')
@@ -371,32 +406,33 @@ describe('mố cầu BTCT', () => {
     expect(sides.some(id => id.includes('phai'))).toBe(true)
   })
 
-  test('dimensions the stack, and the numbers are the real ones', () => {
-    // A bridge drawing without dimensions is not a drawing that can be issued,
-    // which is why this template exists at all.
+  test('draws no piles — those belong to their own template', () => {
+    // `be_coc_khoan_nhoi` draws them with the TCVN 11823-10:2017 §8.1.2 checks.
+    // A second copy here is exactly the duplication where two templates end up
+    // saying different things about one clause.
     const t = load6()
-    const { drawn } = run(t, { B: 7700, hBe: 1500, hThan: 9500, hDau: 1700 })
+    const { drawn } = run(t, {})
+    const roles = drawn.map(e => readSemanticTag(e as never)?.role)
+    expect(roles).not.toContain('coc_khoan_nhoi')
+    expect(roles).not.toContain('be_coc')
+  })
+
+  test('dimensions the stack with the real numbers', () => {
+    const t = load6()
+    const { drawn } = run(t, {})
     const texts = drawn
       .filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
       .map(e => (e as never as { dimensionText: string }).dimensionText)
 
     expect(texts.length).toBe(6)
-    for (const wanted of ['7700', '1500', '9500', '1700']) {
+    for (const wanted of ['7700', '2000', '4843']) {
       expect(texts.some(text => text.includes(wanted))).toBe(true)
     }
   })
 
-  test('can be asked for without dimensions', () => {
-    const t = load6()
-    const { drawn } = run(t, { ghiKichThuoc: 'khong' })
-    expect(
-      drawn.filter(e => readSemanticTag(e as never)?.role === 'kich_thuoc')
-    ).toHaveLength(0)
-  })
-
-  test('refuses wing walls that do not fit the abutment', () => {
-    // Geometry that cannot be built, not a clause being broken.
+  test('refuses geometry that cannot be built', () => {
     const t = load6()
     expect(() => run(t, { B: 2000, bTai: 1500 })).toThrow(/không nằm lọt/)
+    expect(() => run(t, { B: 2000, bVaiKe: 1500 })).toThrow(/không nằm lọt/)
   })
 })

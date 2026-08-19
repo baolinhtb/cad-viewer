@@ -83,21 +83,48 @@ export function listRegisteredTemplates(): readonly AcApRegisteredTemplate[] {
  * have reused an id by accident than to be deliberately replacing it, and the
  * quiet version of that mistake is the worse one.
  */
+/**
+ * Orders two version strings, newest last.
+ *
+ * Compares numerically segment by segment so `2.0.0` beats `10.0.0` never
+ * happens — string order puts "10" before "2", and a library that silently ran
+ * an older template than the one just uploaded is very hard to notice: the
+ * drawing appears, it is simply the wrong drawing.
+ */
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(n => Number.parseInt(n, 10) || 0)
+  const pb = b.split('.').map(n => Number.parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return 0
+}
+
 export function findTemplate(id: string): AcTpTemplate | undefined {
   const builtIn = BUILT_IN.find(t => t.meta.id === id)
   if (builtIn) return builtIn
-  for (const entry of remote.values()) {
-    if (entry.template.meta.id === id) return entry.template
-  }
-  return undefined
+  return findRemoteSource(id)?.template
 }
 
 /** Library entry a template came from, when it came from the library. */
 export function findRemoteSource(id: string): AcApRemoteTemplate | undefined {
+  // Newest version wins. The library holds every uploaded version — they are
+  // keyed `id@version` — so after uploading a correction both are loaded, and
+  // taking whichever the map happened to yield first ran the old one. That is a
+  // failure nobody spots by looking: a drawing appears, it is just the wrong
+  // one. Measured: uploading `mo_cau_btct` v2 and asking for it drew v1.
+  let best: AcApRemoteTemplate | undefined
   for (const entry of remote.values()) {
-    if (entry.template.meta.id === id) return entry
+    if (entry.template.meta.id !== id) continue
+    if (
+      !best ||
+      compareVersions(entry.template.meta.version, best.template.meta.version) > 0
+    ) {
+      best = entry
+    }
   }
-  return undefined
+  return best
 }
 
 /**
