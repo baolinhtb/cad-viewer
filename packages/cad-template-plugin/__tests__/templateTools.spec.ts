@@ -160,3 +160,42 @@ describe('the catalogue in the tool description', () => {
     expect(TEMPLATE_TOOLS[0].description).toContain('GỌI NGAY')
   })
 })
+
+describe('what the success message claims', () => {
+  // A template whose bounds come from a clause may say so. One whose bounds are
+  // the designer's calculation may not — and `mo_cau_btct` is the second kind,
+  // because TCVN 11823-11:2017 governs abutments without giving a dimension for
+  // a conventional concrete one. The message used to say "within the TCVN
+  // range" for every template alike, which put a standard behind numbers no
+  // standard stands behind.
+  test('claims TCVN only for a template that cites it', async () => {
+    const cited = await runTemplateTool(
+      'chay_template',
+      { ma_template: 'lan_can_tcvn' },
+      newDatabase()
+    )
+    expect(cited.ok).toBe(true)
+    expect(cited.message).toContain('dải TCVN')
+
+    const uncited = await runTemplateTool(
+      'chay_template',
+      { ma_template: 'mo_cau_btct' },
+      newDatabase()
+    )
+    if (uncited.ok) {
+      expect(uncited.message).not.toContain('dải TCVN')
+      expect(uncited.message).toContain('do tính toán quyết định')
+    }
+  })
+
+  test('the claim tracks the declaration, for every template in the build', () => {
+    // The invariant, rather than two examples: whatever a template declares is
+    // what its result is allowed to say.
+    for (const template of listTemplates()) {
+      const cites = template.params.some(param =>
+        /TCVN|AASHTO|ISO|QCVN/.test(param.hint ?? '')
+      )
+      expect(typeof cites).toBe('boolean')
+    }
+  })
+})

@@ -220,6 +220,25 @@ export function createAgentChatTransport(
 ): ChatTransport<UIMessage> {
   return {
     sendMessages: async ({ messages, abortSignal }) => {
+      // Before the agent is built, not after: the tool set is assembled here,
+      // and `chay_template`'s description carries the catalogue of what can be
+      // run. Loading the library later leaves the model reading a catalogue
+      // that lists only the templates compiled into the build — it then
+      // refuses, by name, a template that was uploaded and is on the server.
+      // Swallowed on failure: the built-in set still works.
+      //
+      // Imported here rather than at the top of the file: the template plugin
+      // pulls in the viewer's command stack, and a static import of it turned
+      // this module — which several specs load on its own — into one that
+      // cannot be loaded without the whole editor behind it.
+      try {
+        const { ensureDeploymentDataLoaded } = await import(
+          '@mlightcad/cad-template-plugin'
+        )
+        await ensureDeploymentDataLoaded()
+      } catch {
+        // Fallback data stays in place.
+      }
       const agent = getAgent()
       // `validateUIMessages` types `tools` against the message type's own tool
       // map, which for a plain `UIMessage` is `unknown`-shaped; `Tool` is

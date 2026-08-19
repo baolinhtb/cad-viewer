@@ -312,36 +312,43 @@ export async function refreshRoleLayers(
 }
 
 /**
- * Loads the standardisation layer once, for callers that need it to be there.
+ * Loads everything the deployment supplies, once, for callers that need it.
  *
- * The two refreshes above are fired by the template plugin when it loads. The
- * assistant loads separately and does not wait for it, so on a deployment where
- * nobody opened the template dialog the assistant was running against the
- * built-in fallback: it read an engineer's drawing whose layers are named
- * `_33_CAU_MO_Tuongthan`, compared them to `KC-*`, matched nothing, and
- * reported that no layer in the drawing was known — while the mapping sat on
- * the server, correct and unread.
+ * Three things arrive from the server: the role → layer mapping, the company
+ * dictionary, and the uploaded template library. All three are fetched by the
+ * template plugin when it loads — and the assistant loads separately and does
+ * not wait for it. On a deployment where nobody had opened the template dialog
+ * the assistant therefore ran against the built-in fallback three times over:
+ * it read a drawing whose layers are named `_33_CAU_MO_Tuongthan`, compared
+ * them to `KC-*` and matched nothing; it lost every alias the office had
+ * entered; and it was told the only templates in existence were the four
+ * compiled into the build, so `chay_template` refused a template that had been
+ * uploaded and was sitting on the server.
  *
  * Memoised on success only. A failed fetch must stay retryable, or one blink of
  * the network leaves the session on the fallback until a reload.
  */
-let standardsLoaded: Promise<boolean> | undefined
+let deploymentData: Promise<boolean> | undefined
 
-export function ensureStandardsLoaded(): Promise<boolean> {
-  standardsLoaded ??= Promise.all([refreshRoleLayers(), refreshDictionary()])
-    .then(([layers, terms]) => {
-      const ok = layers || terms
-      if (!ok) standardsLoaded = undefined
+export function ensureDeploymentDataLoaded(): Promise<boolean> {
+  deploymentData ??= Promise.all([
+    refreshRoleLayers(),
+    refreshDictionary(),
+    refreshTemplateLibrary().then(result => result.loaded.length > 0)
+  ])
+    .then(results => {
+      const ok = results.some(Boolean)
+      if (!ok) deploymentData = undefined
       return ok
     })
     .catch(error => {
-      standardsLoaded = undefined
+      deploymentData = undefined
       throw error
     })
-  return standardsLoaded
+  return deploymentData
 }
 
-/** Test seam: forgets that the standards were loaded. */
-export function resetStandardsLoaded() {
-  standardsLoaded = undefined
+/** Test seam: forgets that the deployment data was loaded. */
+export function resetDeploymentDataLoaded() {
+  deploymentData = undefined
 }

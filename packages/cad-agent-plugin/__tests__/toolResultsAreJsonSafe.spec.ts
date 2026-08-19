@@ -28,7 +28,7 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     input_schema: { type: 'object', properties: {}, additionalProperties: false }
   },
   TEMPLATE_TOOLS: [{ name: 'chay_template', description: 'd', input_schema: {} }],
-  ensureStandardsLoaded: () => Promise.resolve(true),
+  ensureDeploymentDataLoaded: () => Promise.resolve(true),
   dictionary: () => [],
   templateToolDescription: () => 'd',
   runSemanticTool: () => returned.semantic,

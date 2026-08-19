@@ -219,13 +219,28 @@ export async function runTemplateTool(
   }
 
   const { id: templateId, version, name: templateName } = template.meta
+
+  // Only claim a standard when this template actually cites one. Most do —
+  // their ranges come straight from a clause — but not all: TCVN 11823-11:2017
+  // governs abutments without giving any dimension for a conventional concrete
+  // one, so `mo_cau_btct`'s bounds are the designer's calculation and nothing
+  // else. A fixed sentence saying "within the TCVN range" would put a standard
+  // behind those numbers that no standard stands behind, which is the exact
+  // failure the templates are written to prevent.
+  const citesStandard = template.params.some(param =>
+    /TCVN|AASHTO|ISO|QCVN/.test(param.hint ?? '')
+  )
+
   return {
     ok: true,
     status: 'ready',
     message:
       `Đã dựng "${templateName}" (${templateId} v${version}): ` +
       `${result.entityCount} đối tượng trên layer ${result.layers.join(', ')}. ` +
-      'Kích thước đã nằm trong dải TCVN mà template quản.',
+      (citesStandard
+        ? 'Kích thước đã nằm trong dải TCVN mà template quản.'
+        : 'Kích thước nằm trong dải template quản; template này không viện dẫn ' +
+          'tiêu chuẩn nào cho trị số, các trị số do tính toán quyết định.'),
     // Only what a later step needs to act on. The message already says the
     // rest, and a tool result is re-sent on every remaining step of the turn.
     data: { partIds: [templateId], soDoiTuong: result.entityCount }

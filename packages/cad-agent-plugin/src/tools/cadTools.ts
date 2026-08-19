@@ -1,6 +1,6 @@
 import {
   dictionary,
-  ensureStandardsLoaded,
+  ensureDeploymentDataLoaded,
   runSemanticTool,
   runTemplateTool,
   SEMANTIC_TOOLS,
@@ -50,18 +50,19 @@ function templateDescription(name: string): string {
 }
 
 /**
- * Waits for the office's own terms and layer names before answering.
+ * Waits for the office's own terms, layer names and uploaded templates.
  *
- * Every tool below that resolves a phrase or a role depends on the
- * standardisation layer, and the assistant does not load it — the template
+ * Every tool below that resolves a phrase, a role or a template id depends on
+ * data the server holds, and the assistant does not fetch it — the template
  * plugin does, on its own schedule. Without this the assistant answers from the
- * built-in fallback and reports an office's real layers as unrecognised.
- * Failures are swallowed: the fallback is a worse answer than the real mapping
- * but a far better one than refusing to work at all.
+ * built-in fallback: it reports an office's real layers as unrecognised, and
+ * refuses a template that was uploaded and is sitting on the server.
+ * Failures are swallowed: the fallback is a worse answer than the real data but
+ * a far better one than refusing to work at all.
  */
 async function ready() {
   try {
-    await ensureStandardsLoaded()
+    await ensureDeploymentDataLoaded()
   } catch {
     // Fallback stays in place.
   }
