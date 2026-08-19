@@ -102,8 +102,6 @@ function run(template: any, values: Record<string, unknown>) {
 }
 
 const FILES = [
-  ['lan_can_nguoi_di_bo.js', 'lan_can_nguoi_di_bo_tcvn'],
-  ['le_bo_hanh.js', 'le_bo_hanh_tcvn'],
   ['tuong_phong_ho.js', 'tuong_phong_ho_btct'],
   ['mo_coc_khoan_nhoi.js', 'mo_coc_khoan_nhoi'],
   ['mo_be_mong.js', 'mo_be_mong'],
@@ -161,66 +159,10 @@ describe('every uploadable component', () => {
   })
 })
 
-describe('lan can đường người đi bộ', () => {
-  // TCVN 11823-13:2017 điều 8.1.
-  test('refuses a height under 1070 mm', () => {
-    const t = load('lan_can_nguoi_di_bo.js')
-    const { errors, drawn } = run(t, { h: 1000, khoangHo: 130 })
-    expect(errors.join(' ')).toContain('1070')
-    expect(drawn).toHaveLength(0)
-  })
-
-  test('refuses a clear gap a 150 mm sphere would pass through', () => {
-    const t = load('lan_can_nguoi_di_bo.js')
-    const { errors } = run(t, { h: 1100, khoangHo: 150 })
-    expect(errors.join(' ')).toContain('149')
-  })
-
-  test('adds rails until no gap reaches 150 mm', async () => {
-    // The number of rails is a consequence of the rule, not an input: a
-    // railing one rail short looks identical to a correct one.
-    const t = load('lan_can_nguoi_di_bo.js')
-    for (const h of [1070, 1200, 1400, 1600]) {
-      const { drawn } = run(t, { h, khoangHo: 149, dThanh: 50, bTru: 150 })
-      const rails = drawn.length - 1 // minus the post
-      const gap = (h - rails * 50) / rails
-      expect(gap).toBeLessThan(150)
-    }
-  })
-})
-
-describe('lề bộ hành', () => {
-  // TCVN 11823-13:2017 điều 11.2 gives both ends of the kerb band.
-  test.each([[149], [201]])('refuses a kerb of %i mm', height => {
-    const t = load('le_bo_hanh.js')
-    const { errors, drawn } = run(t, { hBoVia: height })
-    expect(errors.length).toBeGreaterThan(0)
-    expect(drawn).toHaveLength(0)
-  })
-
-  test('records the transition length when the kerb steps', async () => {
-    // Not drawable on a cross-section, but the longitudinal draughtsman needs
-    // the number — so it rides in the tag rather than being lost.
-    const t = load('le_bo_hanh.js')
-    const { drawn } = run(t, {
-      hBoVia: 200,
-      hBoViaNgoaiCau: 150,
-      bLe: 1.5,
-      dLe: 150
-    })
-    const tags = drawn.map(e => readSemanticTag(e as never))
-    const kerb = tags.find(tag => tag?.role === 'go_chan_banh')
-    expect(kerb?.params?.chuyenTiepToiThieu).toBe(1000) // 50 mm × 20
-  })
-
-  test('no step means no transition and no note', () => {
-    const t = load('le_bo_hanh.js')
-    const { drawn } = run(t, { hBoVia: 200, hBoViaNgoaiCau: 200 })
-    expect(drawn.map(e => readSemanticTag(e as never)?.role)).not.toContain(
-      'ghi_chu'
-    )
-  })
-})
+// Hai bộ phận từng được kiểm ở đây — lan can đường người đi bộ và lề bộ hành —
+// đã rút khỏi hệ thống cùng mọi mẫu khác mà hình dạng do chính hệ thống suy ra
+// từ chữ tiêu chuẩn. Điều khoản chúng viện dẫn (TCVN 11823-13:2017 điều 8.1 và
+// điều 11.2) vẫn đúng; cái không có là một bản vẽ nói hình ấy trông thế nào.
 
 describe('tường phòng hộ bê tông', () => {
   // Profile lấy từ `lancan-left.dwg` / `lancan-right.dwg`. Bản trước tự đặt

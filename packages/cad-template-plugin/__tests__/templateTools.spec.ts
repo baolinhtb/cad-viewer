@@ -19,6 +19,7 @@ import { join } from 'node:path'
 
 import { formatPartId } from '@mlightcad/cad-template-sdk'
 
+import { registerLibrary } from './helpers/libraryTemplate'
 import { runTemplateTool, TEMPLATE_TOOLS } from '../src/templateTools'
 import { listTemplates, setRemoteTemplates } from '../src/templateRegistry'
 
@@ -31,6 +32,7 @@ function loadLibrary(file: string) {
   return new Function(code.replace(/^\s*export default /m, 'return '))()
 }
 
+registerLibrary('mo_be_mong.js', 'tuong_phong_ho.js')
 const template = listTemplates()[0]
 
 function newDatabase() {
@@ -185,7 +187,7 @@ describe('what the success message claims', () => {
   test('claims TCVN only for a template that cites it', async () => {
     const cited = await runTemplateTool(
       'chay_template',
-      { ma_template: 'go_chan_banh_tcvn' },
+      { ma_template: 'tuong_phong_ho_btct' },
       newDatabase()
     )
     expect(cited.ok).toBe(true)

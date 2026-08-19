@@ -17,21 +17,6 @@ import {
   setRoleLayers
 } from '../src/templateRegistry'
 
-jest.mock('@mlightcad/cad-template-cau-ban-btct', () => {
-  // Declared inside the factory: jest hoists the mock above the file's own
-  // consts, so anything it reaches for outside is still in the dead zone.
-  const stub = (id: string, name: string) => ({
-    meta: { id, version: '1.0.0', name, category: 'cau' },
-    params: [],
-    generate: () => undefined
-  })
-  return {
-    __esModule: true,
-    banMatCauBtct: stub('ban_mat_cau_btct', 'Bản mặt cầu BTCT'),
-    goChanBanhTcvn: stub('go_chan_banh_tcvn', 'Gờ chắn bánh')
-  }
-})
-
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
   SEED_ROLE_LAYERS: { lan_can: 'KC-LANCAN' },
@@ -113,15 +98,15 @@ describe('recognising an uploaded module', () => {
 })
 
 describe('the registry', () => {
-  // Only the two components still shipped: the whole slab section and the
-  // railing-by-test-level were both shapes derived from the text of a standard
-  // rather than from a drawing, and were withdrawn.
-  const BUILT_IN_IDS = ['ban_mat_cau_btct', 'go_chan_banh_tcvn']
+  // Không còn template nào biên dịch sẵn: cả bốn mẫu từng ship kèm đều là
+  // hình hệ thống suy từ chữ tiêu chuẩn chứ không đo từ bản vẽ, và đã rút hết.
+  const BUILT_IN_IDS: string[] = []
 
   beforeEach(() => setRemoteTemplates([]))
 
-  test('built-ins are available before anything has been uploaded', () => {
-    // A library that starts empty gives a new deployment nothing to do.
+  test('không có gì được chào ra khi thư viện còn trống', () => {
+    // Hệ quả cố ý của việc rút hết mẫu tự sinh: muốn dựng thì phải tải lên một
+    // template trước. Một mẫu ship sẵn là mẫu kỹ sư sẽ với tay lấy theo phản xạ.
     expect(listTemplates().map(t => t.meta.id)).toEqual(BUILT_IN_IDS)
   })
 
@@ -163,21 +148,9 @@ describe('the registry', () => {
     expect(findTemplate('cau_dam_i')).toBeUndefined()
   })
 
-  test('a built-in wins over a library template claiming the same id', () => {
-    // Reusing an id by accident is far more likely than deliberately shadowing
-    // a shipped template, and the quiet version of that mistake is worse.
-    setRemoteTemplates([
-      {
-        template: {
-          meta: { id: 'ban_mat_cau_btct', name: 'Giả mạo' },
-          params: [],
-          generate: () => undefined
-        } as never,
-        source: summary({ templateId: 'ban_mat_cau_btct' })
-      }
-    ])
-    expect(findTemplate('ban_mat_cau_btct')?.meta.name).toBe('Bản mặt cầu BTCT')
-  })
+  // Từng có bài kiểm "built-in thắng bản tải lên trùng id" ở đây. Danh sách
+  // built-in nay rỗng nên quy tắc ấy không còn đối tượng nào để chạy qua; nhánh
+  // xử lý vẫn nằm trong `findTemplate`, chờ ngày lại có template ship kèm.
 
   test('the layer mapping falls back to the SDK until standards override it', () => {
     expect(roleLayers()).toEqual({ lan_can: 'KC-LANCAN' })

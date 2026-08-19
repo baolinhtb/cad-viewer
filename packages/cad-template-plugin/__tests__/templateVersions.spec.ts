@@ -64,8 +64,9 @@ test('an id nobody uploaded is still not found', () => {
   expect(findRemoteSource('khong_co')).toBeUndefined()
 })
 
-test('a built-in still wins over an upload of the same id', () => {
-  // Unchanged on purpose: built-ins ship with the build and are tested with it.
-  setRemoteTemplates([entry('ban_mat_cau_btct', '99.0.0')])
-  expect(findTemplate('ban_mat_cau_btct')?.meta.version).not.toBe('99.0.0')
-})
+// Từng có một bài kiểm "built-in vẫn thắng bản tải lên trùng id" ở đây. Bản
+// dựng nay **không biên dịch sẵn template nào** — mọi mẫu ship kèm đều là hình
+// hệ thống suy từ chữ tiêu chuẩn và đã rút hết — nên quy tắc ấy không còn đối
+// tượng để chạy qua. Nhánh xử lý vẫn nằm trong `findTemplate`, chờ ngày lại có
+// built-in; bài kiểm thì không thể dựng một cái giả, vì danh sách là hằng số
+// của module.

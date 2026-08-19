@@ -19,7 +19,11 @@ import { AcDbDatabase } from '@mlightcad/data-model'
 
 import { defaultValues, runTemplate } from '../src/runTemplate'
 import { findTemplate, listTemplates } from '../src/templateRegistry'
+import { registerLibrary } from './helpers/libraryTemplate'
 
+// Không còn template nào biên dịch sẵn, nên spec phải tự mang một cái vào —
+// và mang đúng tệp thư viện mà server lưu, chứ không phải bản sao.
+registerLibrary('mo_be_mong.js')
 const template = listTemplates()[0]
 
 function newDatabase() {

@@ -34,6 +34,7 @@ import {
 import { entitiesOfRun, listRuns, nextRunId } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
 import { listTemplates } from '../src/templateRegistry'
+import { registerLibrary } from './helpers/libraryTemplate'
 
 function newDatabase() {
   const db = new AcDbDatabase()
@@ -58,7 +59,8 @@ async function roundTrip(db: AcDbDatabase): Promise<AcDbDatabase> {
   return reopened
 }
 
-const template = () => listTemplates().find(t => t.meta.id === 'ban_mat_cau_btct')!
+registerLibrary('mo_be_mong.js')
+const template = () => listTemplates().find(t => t.meta.id === 'mo_be_mong')!
 
 describe('nextRunId', () => {
   test('starts at r1 on an empty drawing', () => {
@@ -85,7 +87,7 @@ describe('nextRunId', () => {
 describe('running a template', () => {
   test('stamps the run on every entity it draws', async () => {
     const db = newDatabase()
-    const result = await runTemplate(template(), { B: 9, h: 60 }, db)
+    const result = await runTemplate(template(), { B: 9000, hBe: 1600 }, db)
 
     expect(result.errors).toEqual([])
     expect(result.runId).toBe('r1')
@@ -103,25 +105,25 @@ describe('running a template', () => {
 
   test('records the arguments the call was made with', async () => {
     const db = newDatabase()
-    await runTemplate(template(), { B: 9, h: 60 }, db)
+    await runTemplate(template(), { B: 9000, hBe: 1600 }, db)
     const runs = listRuns(db)
 
     expect(runs).toHaveLength(1)
-    expect(runs[0].values.B).toBe(9)
-    expect(runs[0].values.h).toBe(60)
-    expect(runs[0].templateId).toBe('ban_mat_cau_btct')
+    expect(runs[0].values.B).toBe(9000)
+    expect(runs[0].values.hBe).toBe(1600)
+    expect(runs[0].templateId).toBe('mo_be_mong')
   })
 
   test('two runs of one template stay separable', async () => {
     // The case a partId cannot answer: same template, same part names.
     const db = newDatabase()
-    await runTemplate(template(), { B: 9 }, db)
-    await runTemplate(template(), { B: 12 }, db)
+    await runTemplate(template(), { B: 9000 }, db)
+    await runTemplate(template(), { B: 12000 }, db)
 
     const runs = listRuns(db)
     expect(runs.map(r => r.id)).toEqual(['r1', 'r2'])
-    expect(runs[0].values.B).toBe(9)
-    expect(runs[1].values.B).toBe(12)
+    expect(runs[0].values.B).toBe(9000)
+    expect(runs[1].values.B).toBe(12000)
 
     expect(entitiesOfRun(db, 'r1').length).toBe(runs[0].entityCount)
     expect(entitiesOfRun(db, 'r2').length).toBe(runs[1].entityCount)
@@ -132,7 +134,7 @@ describe('running a template', () => {
     // The whole design rests on this: a record that does not come back is a
     // record that may as well not exist.
     const db = newDatabase()
-    await runTemplate(template(), { B: 9, h: 60 }, db)
+    await runTemplate(template(), { B: 9000, hBe: 1600 }, db)
     const before = listRuns(db)
 
     const after = listRuns(await roundTrip(db))

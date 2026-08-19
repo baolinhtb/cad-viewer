@@ -1,31 +1,29 @@
-import {
-  banMatCauBtct,
-  goChanBanhTcvn
-} from '@mlightcad/cad-template-cau-ban-btct'
 import type { AcTpTemplate, AcTpTerm } from '@mlightcad/cad-template-sdk'
 import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
 
 import type { AcApRemoteTemplate } from './remoteTemplates'
 
 /**
- * Templates compiled into this build.
+ * Templates compiled into this build: deliberately none.
  *
- * These ship with the application so the generate flow works before anything
- * has been uploaded — a library that starts empty gives a new deployment
- * nothing to do. They are components rather than whole sections: assembling
- * from parts is what keeps the assistant off the stroke-by-stroke path, where
- * every regulated dimension rests on it having looked the standard up and read
- * it right.
+ * Four used to ship here — `cau_ban_btct`, `ban_mat_cau_btct`,
+ * `go_chan_banh_tcvn`, `lan_can_tcvn` — so that the generate flow had
+ * something to run before anything had been uploaded. Every one of them was a
+ * shape this system derived from the *text* of TCVN: the clauses give ranges
+ * and minimums, never an outline, so the outlines were guessed. The office
+ * using this deployment has real component drawings for the same parts, and a
+ * guessed outline sitting next to a measured one is worse than no outline at
+ * all — nothing on screen says which is which.
  *
- * Two used to be here and are deliberately not: `cau_ban_btct`, the whole slab
- * bridge section, and `lan_can_tcvn`, the railing by crash-test level. Both
- * were shapes this system derived from the text of TCVN rather than from any
- * drawing, and the office that uses this deployment has real component
- * drawings for the same parts. Their source is still in
- * `@mlightcad/cad-template-cau-ban-btct` — putting either back is one line
- * here — but neither is offered.
+ * The consequence is deliberate and worth stating: **a deployment with an
+ * empty library now offers no templates whatsoever.** Generating requires
+ * uploading a template first. That is the correct trade here, because a
+ * template that ships by default is one an engineer will reach for by default.
+ *
+ * The source of all four is still in `@mlightcad/cad-template-cau-ban-btct`;
+ * putting any back is one line in this list.
  */
-const BUILT_IN: readonly AcTpTemplate[] = [banMatCauBtct, goChanBanhTcvn]
+const BUILT_IN: readonly AcTpTemplate[] = []
 
 /** Templates fetched from the library, keyed by `id@version`. */
 const remote = new Map<string, AcApRemoteTemplate>()

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -272,6 +273,41 @@ test('a template run and a description survive into the next turn', async ({
     localStorage.setItem('cad-agent-plugin.agent-mode', 'high-inference')
   })
 
+  // Nothing is compiled into the build any more, so the template this turn
+  // runs has to come from the library. Without this stub the tool call fails
+  // and the test still passes — it would be checking that a *failed* run
+  // survives into the next turn, which is not what it says it checks.
+  const templateCode = fs.readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '..', '..', '..', 'cad-template-plugin', 'library', 'mo_be_mong.js'
+    ),
+    'utf8'
+  )
+  await page.route('**/api/templates', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        templates: [
+          {
+            templateId: 'mo_be_mong',
+            version: '1.2.0',
+            status: 'published',
+            name: 'Mố cầu — bệ móng'
+          }
+        ]
+      })
+    })
+  )
+  await page.route('**/api/templates/mo_be_mong/1.2.0', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ template: { code: templateCode } })
+    })
+  )
+
   let agentRounds = 0
   await page.route('**/api/ai/messages', async route => {
     const body = route.request().postDataJSON() as { tools?: { name: string }[] }
@@ -311,7 +347,7 @@ test('a template run and a description survive into the next turn', async ({
                   id: 'toolu_tpl',
                   name: 'chay_template',
                   input: {},
-                  emit: { ma_template: 'cau_ban_btct', thong_so: {} }
+                  emit: { ma_template: 'mo_be_mong', thong_so: {} }
                 },
                 {
                   type: 'tool_use',

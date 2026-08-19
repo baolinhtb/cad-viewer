@@ -11,14 +11,12 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   }
 }))
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-import { formatPartId, readSemanticTag } from '@mlightcad/cad-template-sdk'
+import { readSemanticTag } from '@mlightcad/cad-template-sdk'
 import { AcDbDatabase } from '@mlightcad/data-model'
 
 import { findTemplate, setRemoteTemplates } from '../src/templateRegistry'
 import { runTemplateTool } from '../src/templateTools'
+import { registerLibrary } from './helpers/libraryTemplate'
 
 /**
  * Lan can đến từ thư viện, không còn biên dịch sẵn.
@@ -31,27 +29,7 @@ import { runTemplateTool } from '../src/templateTools'
  */
 const LAN_CAN = 'tuong_phong_ho_btct'
 
-beforeAll(() => {
-  ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
-  }
-  const code = readFileSync(
-    join(__dirname, '..', 'library', 'tuong_phong_ho.js'),
-    'utf8'
-  )
-  const template = new Function(code.replace(/^\s*export default /m, 'return '))()
-  setRemoteTemplates([
-    {
-      template,
-      source: {
-        templateId: LAN_CAN,
-        version: template.meta.version,
-        name: template.meta.name,
-        status: 'published'
-      } as never
-    }
-  ])
-})
+beforeAll(() => registerLibrary('tuong_phong_ho.js', 'mo_be_mong.js'))
 
 afterAll(() => setRemoteTemplates([]))
 
@@ -75,11 +53,7 @@ function run(
 }
 
 describe('the bridge components are registered', () => {
-  test.each([
-    ['ban_mat_cau_btct', 'Bản mặt cầu'],
-    ['go_chan_banh_tcvn', 'Gờ chắn'],
-    [LAN_CAN, 'Lan can']
-  ])('%s is findable and named for an engineer', (id, namePart) => {
+  test.each([[LAN_CAN, 'Lan can']])('%s is findable and named for an engineer', (id, namePart) => {
     const template = findTemplate(id)
     expect(template).toBeDefined()
     expect(template!.meta.name).toContain(namePart)
@@ -130,65 +104,25 @@ describe('lan can — chiều cao theo cấp thử nghiệm', () => {
   })
 })
 
-describe('gờ chắn bánh — dải 150–200 mm', () => {
-  // TCVN 11823-13:2017 điều 11.2 gives both ends, so both are enforced.
-  test.each([
-    [149, 'thấp hơn'],
-    [201, 'cao hơn']
-  ])('%i mm is refused', async height => {
+// Khối kiểm gờ chắn bánh (dải 150–200 mm, TCVN 11823-13:2017 điều 11.2) đã đi
+// cùng template của nó: `go_chan_banh_tcvn` là hình hệ thống suy từ chữ tiêu
+// chuẩn, và đã rút khỏi bản dựng cùng mọi mẫu tự sinh khác.
+
+describe('ghép nhiều cấu kiện vào một bản vẽ', () => {
+  test('bệ mố và hai lan can vào chung một bản vẽ, cái nào cũng có nhãn', async () => {
+    // Trước đây bài này ghép bản mặt cầu + gờ chắn + lan can. Hai thứ đầu là
+    // mẫu tự sinh và đã rút; thứ được kiểm ở đây không phải bộ phận nào cụ thể
+    // mà là việc nhiều lần chạy template dồn vào một bản vẽ mà vẫn tách bạch.
     const database = newDatabase()
-    const outcome = await run(database, 'go_chan_banh_tcvn', { h: height })
-    expect(outcome.ok).toBe(false)
-    expect(entities(database)).toHaveLength(0)
-  })
-
-  test('the chamfer faces the carriageway on both sides', async () => {
-    // Drawn the same way on both edges, the slope is backwards on one of them
-    // and nothing on screen says so.
-    const left = newDatabase()
-    const right = newDatabase()
-    await run(left, 'go_chan_banh_tcvn', { ben: 'trai', x: 0 })
-    await run(right, 'go_chan_banh_tcvn', { ben: 'phai', x: 0 })
-
-    // Read through the extents rather than the vertex list: what matters is
-    // which way the kerb leans from the placement point, and that is visible
-    // in the box it occupies whatever the underlying geometry class exposes.
-    const span = (db: AcDbDatabase) => {
-      const box = entities(db)[0].geometricExtents
-      return { min: box.min.x, max: box.max.x }
-    }
-    const l = span(left)
-    const r = span(right)
-
-    // Placed at x = 0, the right-hand kerb occupies positive x and the
-    // left-hand one negative x.
-    expect(r.max).toBeGreaterThan(0)
-    expect(l.min).toBeLessThan(0)
-    expect(l).not.toEqual(r)
-  })
-})
-
-describe('assembling a section from components', () => {
-  test('deck, kerbs and railings compose into one tagged drawing', async () => {
-    // This is the point of the whole exercise: a complete section built from
-    // four named calls with numbers, instead of seventy strokes.
-    const database = newDatabase()
-    const B = 8
-    const edge = (B * 1000) / 2
-
-    expect((await run(database, 'ban_mat_cau_btct', { B, h: 50 })).ok).toBe(true)
+    expect((await run(database, 'mo_be_mong', {})).ok).toBe(true)
     for (const ben of ['trai', 'phai'] as const) {
       const dir = ben === 'phai' ? 1 : -1
-      expect(
-        (await run(database, 'go_chan_banh_tcvn', { ben, x: dir * edge, h: 200 }))
-          .ok
-      ).toBe(true)
       expect(
         (
           await run(database, LAN_CAN, {
             ben,
-            x: dir * edge,
-            y: 200,
+            x: dir * 3850,
+            y: 2100,
             capThuNghiem: 'TL-4',
             h: 1100
           })
@@ -199,34 +133,34 @@ describe('assembling a section from components', () => {
     const drawn = entities(database)
     expect(drawn.length).toBeGreaterThan(5)
 
-    // Every entity carries a semantic tag, so the drawing can be edited by
-    // name afterwards rather than by object id.
+    // Mọi đối tượng đều mang nhãn ngữ nghĩa, để sửa bản vẽ về sau gọi được
+    // theo tên chứ không phải theo id đối tượng.
     const tags = drawn.map(e => readSemanticTag(e))
     expect(tags.every(tag => tag !== undefined)).toBe(true)
 
     const roles = new Set(tags.map(tag => tag!.role))
-    expect(roles).toContain('ban_mat_cau')
-    expect(roles).toContain('go_chan_banh')
+    expect(roles).toContain('mo_be')
+    expect(roles).toContain('mo_be_tong_lot')
     expect(roles).toContain('lan_can')
 
-    // Left and right are separate parts, addressable one at a time.
+    // Trái và phải là hai bộ phận riêng, gọi tên từng cái được.
     const partIds = new Set(tags.map(tag => tag!.partId))
     expect(partIds).toContain('lan_can_trai')
     expect(partIds).toContain('lan_can_phai')
   })
 
-  test('a refused component leaves the parts already placed alone', async () => {
-    // Assembly is incremental, so a bad number in step three must not undo
-    // steps one and two.
+  test('một cấu kiện bị từ chối không đụng tới phần đã đặt', async () => {
+    // Ghép là việc tăng dần, nên một con số sai ở bước ba không được xoá bước
+    // một và hai.
     const database = newDatabase()
-    await run(database, 'ban_mat_cau_btct', { B: 8 })
-    const afterDeck = entities(database).length
+    await run(database, 'mo_be_mong', {})
+    const truoc = entities(database).length
 
     const outcome = await run(database, LAN_CAN, {
       capThuNghiem: 'TL-5',
       h: 900
     })
     expect(outcome.ok).toBe(false)
-    expect(entities(database)).toHaveLength(afterDeck)
+    expect(entities(database)).toHaveLength(truoc)
   })
 })
