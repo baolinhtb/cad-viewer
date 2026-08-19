@@ -11,11 +11,49 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   }
 }))
 
-import { readSemanticTag } from '@mlightcad/cad-template-sdk'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { formatPartId, readSemanticTag } from '@mlightcad/cad-template-sdk'
 import { AcDbDatabase } from '@mlightcad/data-model'
 
-import { findTemplate } from '../src/templateRegistry'
+import { findTemplate, setRemoteTemplates } from '../src/templateRegistry'
 import { runTemplateTool } from '../src/templateTools'
+
+/**
+ * Lan can đến từ thư viện, không còn biên dịch sẵn.
+ *
+ * `lan_can_tcvn` — hình lan can suy ra từ chữ TCVN — đã rút khỏi bản dựng, vì
+ * văn phòng dùng deployment này có bản vẽ cấu kiện thật cho đúng bộ phận ấy.
+ * Phần kiểm theo cấp thử nghiệm bên dưới chuyển sang chạy trên template thay
+ * thế, `tuong_phong_ho_btct`, vốn cùng viện dẫn điều 7.3.2.1 nhưng lấy biên
+ * dạng từ `lancan-left.dwg`.
+ */
+const LAN_CAN = 'tuong_phong_ho_btct'
+
+beforeAll(() => {
+  ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
+    formatPartId
+  }
+  const code = readFileSync(
+    join(__dirname, '..', 'library', 'tuong_phong_ho.js'),
+    'utf8'
+  )
+  const template = new Function(code.replace(/^\s*export default /m, 'return '))()
+  setRemoteTemplates([
+    {
+      template,
+      source: {
+        templateId: LAN_CAN,
+        version: template.meta.version,
+        name: template.meta.name,
+        status: 'published'
+      } as never
+    }
+  ])
+})
+
+afterAll(() => setRemoteTemplates([]))
 
 function newDatabase() {
   const database = new AcDbDatabase()
@@ -40,7 +78,7 @@ describe('the bridge components are registered', () => {
   test.each([
     ['ban_mat_cau_btct', 'Bản mặt cầu'],
     ['go_chan_banh_tcvn', 'Gờ chắn'],
-    ['lan_can_tcvn', 'Lan can']
+    [LAN_CAN, 'Lan can']
   ])('%s is findable and named for an engineer', (id, namePart) => {
     const template = findTemplate(id)
     expect(template).toBeDefined()
@@ -61,7 +99,7 @@ describe('lan can — chiều cao theo cấp thử nghiệm', () => {
     ['TL-5', 1070]
   ])('%s accepts exactly its minimum, %i mm', async (level, min) => {
     const database = newDatabase()
-    const outcome = await run(database, 'lan_can_tcvn', {
+    const outcome = await run(database, LAN_CAN, {
       capThuNghiem: level,
       h: min
     })
@@ -71,7 +109,7 @@ describe('lan can — chiều cao theo cấp thử nghiệm', () => {
 
   test('a millimetre under the test level is refused, citing the clause', async () => {
     const database = newDatabase()
-    const outcome = await run(database, 'lan_can_tcvn', {
+    const outcome = await run(database, LAN_CAN, {
       capThuNghiem: 'TL-4',
       h: 809
     })
@@ -85,7 +123,7 @@ describe('lan can — chiều cao theo cấp thử nghiệm', () => {
 
   test('below the absolute floor the static range catches it first', async () => {
     const database = newDatabase()
-    const outcome = await run(database, 'lan_can_tcvn', { h: 300 })
+    const outcome = await run(database, LAN_CAN, { h: 300 })
     expect(outcome.ok).toBe(false)
     expect(outcome.message).toContain('685')
     expect(entities(database)).toHaveLength(0)
@@ -147,7 +185,7 @@ describe('assembling a section from components', () => {
       ).toBe(true)
       expect(
         (
-          await run(database, 'lan_can_tcvn', {
+          await run(database, LAN_CAN, {
             ben,
             x: dir * edge,
             y: 200,
@@ -184,7 +222,7 @@ describe('assembling a section from components', () => {
     await run(database, 'ban_mat_cau_btct', { B: 8 })
     const afterDeck = entities(database).length
 
-    const outcome = await run(database, 'lan_can_tcvn', {
+    const outcome = await run(database, LAN_CAN, {
       capThuNghiem: 'TL-5',
       h: 900
     })

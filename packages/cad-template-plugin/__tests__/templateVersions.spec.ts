@@ -66,6 +66,6 @@ test('an id nobody uploaded is still not found', () => {
 
 test('a built-in still wins over an upload of the same id', () => {
   // Unchanged on purpose: built-ins ship with the build and are tested with it.
-  setRemoteTemplates([entry('cau_ban_btct', '99.0.0')])
-  expect(findTemplate('cau_ban_btct')?.meta.version).not.toBe('99.0.0')
+  setRemoteTemplates([entry('ban_mat_cau_btct', '99.0.0')])
+  expect(findTemplate('ban_mat_cau_btct')?.meta.version).not.toBe('99.0.0')
 })

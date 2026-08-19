@@ -58,7 +58,7 @@ async function roundTrip(db: AcDbDatabase): Promise<AcDbDatabase> {
   return reopened
 }
 
-const template = () => listTemplates().find(t => t.meta.id === 'cau_ban_btct')!
+const template = () => listTemplates().find(t => t.meta.id === 'ban_mat_cau_btct')!
 
 describe('nextRunId', () => {
   test('starts at r1 on an empty drawing', () => {
@@ -109,7 +109,7 @@ describe('running a template', () => {
     expect(runs).toHaveLength(1)
     expect(runs[0].values.B).toBe(9)
     expect(runs[0].values.h).toBe(60)
-    expect(runs[0].templateId).toBe('cau_ban_btct')
+    expect(runs[0].templateId).toBe('ban_mat_cau_btct')
   })
 
   test('two runs of one template stay separable', async () => {

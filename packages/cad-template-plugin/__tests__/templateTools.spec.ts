@@ -14,8 +14,22 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
 
 import { AcDbDatabase } from '@mlightcad/data-model'
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { formatPartId } from '@mlightcad/cad-template-sdk'
+
 import { runTemplateTool, TEMPLATE_TOOLS } from '../src/templateTools'
-import { listTemplates } from '../src/templateRegistry'
+import { listTemplates, setRemoteTemplates } from '../src/templateRegistry'
+
+/** Loads an uploadable template the way the library does. */
+function loadLibrary(file: string) {
+  ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
+    formatPartId
+  }
+  const code = readFileSync(join(__dirname, '..', 'library', file), 'utf8')
+  return new Function(code.replace(/^\s*export default /m, 'return '))()
+}
 
 const template = listTemplates()[0]
 
@@ -171,21 +185,35 @@ describe('what the success message claims', () => {
   test('claims TCVN only for a template that cites it', async () => {
     const cited = await runTemplateTool(
       'chay_template',
-      { ma_template: 'lan_can_tcvn' },
+      { ma_template: 'go_chan_banh_tcvn' },
       newDatabase()
     )
     expect(cited.ok).toBe(true)
     expect(cited.message).toContain('dải TCVN')
 
+    // Nạp qua thư viện chứ không dựa vào nó có sẵn: `mo_be_mong` là template
+    // tải lên, và một bài kiểm chỉ khẳng định khi tìm thấy template thì lặng
+    // lẽ không kiểm gì cả kể từ ngày nó không còn được đăng ký.
+    setRemoteTemplates([
+      {
+        template: loadLibrary('mo_be_mong.js'),
+        source: {
+          templateId: 'mo_be_mong',
+          version: '1.2.0',
+          name: 'Mố cầu — bệ móng',
+          status: 'published'
+        } as never
+      }
+    ])
     const uncited = await runTemplateTool(
       'chay_template',
-      { ma_template: 'mo_cau_btct' },
+      { ma_template: 'mo_be_mong' },
       newDatabase()
     )
-    if (uncited.ok) {
-      expect(uncited.message).not.toContain('dải TCVN')
-      expect(uncited.message).toContain('do tính toán quyết định')
-    }
+    expect(uncited.ok).toBe(true)
+    expect(uncited.message).not.toContain('dải TCVN')
+    expect(uncited.message).toContain('do tính toán quyết định')
+    setRemoteTemplates([])
   })
 
   test('the claim tracks the declaration, for every template in the build', () => {

@@ -1,7 +1,6 @@
-import cauBanBtct, {
+import {
   banMatCauBtct,
-  goChanBanhTcvn,
-  lanCanTcvn
+  goChanBanhTcvn
 } from '@mlightcad/cad-template-cau-ban-btct'
 import type { AcTpTemplate, AcTpTerm } from '@mlightcad/cad-template-sdk'
 import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
@@ -11,23 +10,22 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
 /**
  * Templates compiled into this build.
  *
- * The first one ships with the application so the generate flow works before
- * anything has been uploaded — a library that starts empty gives a new
- * deployment nothing to do.
+ * These ship with the application so the generate flow works before anything
+ * has been uploaded — a library that starts empty gives a new deployment
+ * nothing to do. They are components rather than whole sections: assembling
+ * from parts is what keeps the assistant off the stroke-by-stroke path, where
+ * every regulated dimension rests on it having looked the standard up and read
+ * it right.
  *
- * The whole section comes first because it is one call for the ordinary case.
- * The components after it exist for the case the whole section cannot serve:
- * a deck at one width carrying a railing at a different test level, or a part
- * added to a drawing that already exists. Assembling from them is what keeps
- * the assistant off the stroke-by-stroke path, where every regulated dimension
- * rests on it having looked the standard up and read it right.
+ * Two used to be here and are deliberately not: `cau_ban_btct`, the whole slab
+ * bridge section, and `lan_can_tcvn`, the railing by crash-test level. Both
+ * were shapes this system derived from the text of TCVN rather than from any
+ * drawing, and the office that uses this deployment has real component
+ * drawings for the same parts. Their source is still in
+ * `@mlightcad/cad-template-cau-ban-btct` — putting either back is one line
+ * here — but neither is offered.
  */
-const BUILT_IN: readonly AcTpTemplate[] = [
-  cauBanBtct,
-  banMatCauBtct,
-  goChanBanhTcvn,
-  lanCanTcvn
-]
+const BUILT_IN: readonly AcTpTemplate[] = [banMatCauBtct, goChanBanhTcvn]
 
 /** Templates fetched from the library, keyed by `id@version`. */
 const remote = new Map<string, AcApRemoteTemplate>()

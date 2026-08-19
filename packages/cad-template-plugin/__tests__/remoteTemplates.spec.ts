@@ -27,10 +27,8 @@ jest.mock('@mlightcad/cad-template-cau-ban-btct', () => {
   })
   return {
     __esModule: true,
-    default: stub('cau_ban_btct', 'Cầu bản BTCT'),
     banMatCauBtct: stub('ban_mat_cau_btct', 'Bản mặt cầu BTCT'),
-    goChanBanhTcvn: stub('go_chan_banh_tcvn', 'Gờ chắn bánh'),
-    lanCanTcvn: stub('lan_can_tcvn', 'Lan can cầu')
+    goChanBanhTcvn: stub('go_chan_banh_tcvn', 'Gờ chắn bánh')
   }
 })
 
@@ -115,13 +113,10 @@ describe('recognising an uploaded module', () => {
 })
 
 describe('the registry', () => {
-  // The whole section plus the components it can also be assembled from.
-  const BUILT_IN_IDS = [
-    'cau_ban_btct',
-    'ban_mat_cau_btct',
-    'go_chan_banh_tcvn',
-    'lan_can_tcvn'
-  ]
+  // Only the two components still shipped: the whole slab section and the
+  // railing-by-test-level were both shapes derived from the text of a standard
+  // rather than from a drawing, and were withdrawn.
+  const BUILT_IN_IDS = ['ban_mat_cau_btct', 'go_chan_banh_tcvn']
 
   beforeEach(() => setRemoteTemplates([]))
 
@@ -174,14 +169,14 @@ describe('the registry', () => {
     setRemoteTemplates([
       {
         template: {
-          meta: { id: 'cau_ban_btct', name: 'Giả mạo' },
+          meta: { id: 'ban_mat_cau_btct', name: 'Giả mạo' },
           params: [],
           generate: () => undefined
         } as never,
-        source: summary({ templateId: 'cau_ban_btct' })
+        source: summary({ templateId: 'ban_mat_cau_btct' })
       }
     ])
-    expect(findTemplate('cau_ban_btct')?.meta.name).toBe('Cầu bản BTCT')
+    expect(findTemplate('ban_mat_cau_btct')?.meta.name).toBe('Bản mặt cầu BTCT')
   })
 
   test('the layer mapping falls back to the SDK until standards override it', () => {
