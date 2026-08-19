@@ -1,7 +1,16 @@
 const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 
 /**
- * Tường phòng hộ bê tông (dạng New Jersey), mặt cắt ngang.
+ * Tường phòng hộ bê tông trên cầu, mặt cắt ngang.
+ *
+ * Biên dạng lấy nguyên từ `lancan-left.dwg` / `lancan-right.dwg` — bản vẽ cấu
+ * kiện của kỹ sư. Phiên bản đầu của template này vẽ một hình New Jersey suy
+ * đoán, với bình luận tự nhận là "theo hình dạng thông dụng"; bản vẽ thật khác
+ * hẳn, và điểm khác quan trọng nhất là **khấc ở chân** (x 150→500, y 0→543) để
+ * tường ôm lấy mép bản mặt cầu. Không công thức nào sinh ra được khấc đó, nên
+ * nó giữ nguyên theo bản vẽ chứ không co giãn theo chiều cao.
+ *
+ * Vì thế tên "New Jersey" đã bỏ khỏi tiêu đề: nó nói sai về thứ template vẽ.
  *
  * TCVN 11823-13:2017 điều 7.3.2.1 cho hai ràng buộc khác nhau trong cùng một
  * đoạn, và chúng dễ bị lẫn:
@@ -17,13 +26,13 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'tuong_phong_ho_btct',
-    version: '2.0.0',
-    name: 'Tường phòng hộ bê tông (New Jersey)',
+    version: '2.1.0',
+    name: 'Tường phòng hộ bê tông trên cầu',
     category: 'Bộ phận cầu',
     description:
-      'Tường phòng hộ bê tông trên cầu, mặt cắt ngang, dựng theo profile do kỹ ' +
-      'sư vẽ (`lancan-left.dwg` / `lancan-right.dwg`) chứ không phải hình New ' +
-      'Jersey suy đoán. Chiều cao tối thiểu theo cấp thử nghiệm va xe: TL-3 ≥ ' +
+      'Tường phòng hộ bê tông trên cầu, mặt cắt ngang, dựng theo bản vẽ cấu ' +
+      'kiện lancan-left.dwg / lancan-right.dwg của kỹ sư — không phải hình New ' +
+      'Jersey suy đoán như bản trước. Chiều cao tối thiểu theo cấp thử nghiệm va xe: TL-3 ≥ ' +
       '685, TL-4 ≥ 810, TL-5 ≥ 1070 mm theo TCVN 11823-13:2017 điều 7.3.2.1. ' +
       'Chân tường có khấc để ôm mép bản mặt cầu; khấc giữ nguyên như bản vẽ, ' +
       'chỉ chiều cao là tham số.'

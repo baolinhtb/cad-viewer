@@ -32,6 +32,21 @@ import { AcDbDatabase } from '@mlightcad/data-model'
 /** The very files that get uploaded, so the two cannot drift. */
 const DIR = join(__dirname, '..', 'library')
 
+/**
+ * Templates kept only as a reference, not published.
+ *
+ * `mo_cau_btct` drew the whole abutment in one call. It has been split into
+ * three component templates — bệ móng, tường thân, tường đầu — because the
+ * engineer's own files are component drawings and assembling from them is how
+ * the drawing is really built. The assembly stays here because it is what the
+ * components are proven against: `moComponents.spec.ts` runs all three with
+ * their defaults and matches the result against this file part by part, which
+ * is the only thing making the split safe. Everything the assembly taught —
+ * the 2,00% crossfall chain, the shoulder, the wing walls — is still asserted
+ * below, against the same file.
+ */
+const FIXTURES = join(__dirname, '..', 'reference')
+
 /** Role → layer, as the deployment's standardisation layer supplies it. */
 const ROLE_LAYERS: Record<string, string> = {
   lan_can: 'KC-LANCAN',
@@ -59,11 +74,11 @@ const ROLE_LAYERS: Record<string, string> = {
  * the body directly reaches the same object. What matters is that this reads
  * the very file that gets uploaded, not a copy of it.
  */
-function load(file: string) {
+function load(file: string, dir: string = DIR) {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
     formatPartId
   }
-  const code = readFileSync(join(DIR, file), 'utf8')
+  const code = readFileSync(join(dir, file), 'utf8')
   if (!/^\s*export default /m.test(code)) {
     throw new Error(`${file}: thiếu "export default" mà hợp đồng upload yêu cầu`)
   }
@@ -91,7 +106,9 @@ const FILES = [
   ['le_bo_hanh.js', 'le_bo_hanh_tcvn'],
   ['tuong_phong_ho.js', 'tuong_phong_ho_btct'],
   ['be_coc_khoan_nhoi.js', 'be_coc_khoan_nhoi'],
-  ['mo_cau_btct.js', 'mo_cau_btct']
+  ['mo_be_mong.js', 'mo_be_mong'],
+  ['mo_tuong_than.js', 'mo_tuong_than'],
+  ['mo_tuong_dau.js', 'mo_tuong_dau']
 ] as const
 
 describe('every uploadable component', () => {
@@ -372,7 +389,7 @@ describe('mố cầu BTCT', () => {
   // drawings for the shape of each. They disagree, and the assembly wins —
   // measured: splitting the components into separate files levelled them, so
   // the backwall reads 0.37% there and 2.00% in the assembly.
-  const load6 = () => load('mo_cau_btct.js')
+  const load6 = () => load('mo_cau_btct.js', FIXTURES)
 
   /** Bounding box of everything drawn for a role. */
   const boxOf = (drawn: unknown[], role: string) => {

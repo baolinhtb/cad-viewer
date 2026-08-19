@@ -12,7 +12,8 @@ import {
   AcDbDatabase,
   AcDbLayerTableRecord,
   AcDbLine,
-  AcDbPolyline
+  AcDbPolyline,
+  AcGePoint2d
 } from '@mlightcad/data-model'
 import { readSemanticTag, writeSemanticTag } from '@mlightcad/cad-template-sdk'
 
@@ -128,6 +129,13 @@ describe('tagDrawingFromLayers', () => {
     )
     for (const x of [-5000, 5000]) {
       const wall = new AcDbPolyline()
+      // Placed on opposite sides on purpose: with both walls at the origin the
+      // test could not tell "refuses to guess a side from geometry" apart from
+      // "had no geometry to guess from", which is the whole claim.
+      wall.addVertexAt(0, new AcGePoint2d(x, 0))
+      wall.addVertexAt(1, new AcGePoint2d(x + 150, 0))
+      wall.addVertexAt(2, new AcGePoint2d(x + 150, 1200))
+      wall.closed = true
       wall.layer = '_33_CAU_MO_Tuongdau'
       db.tables.blockTable.modelSpace.appendEntity(wall)
     }

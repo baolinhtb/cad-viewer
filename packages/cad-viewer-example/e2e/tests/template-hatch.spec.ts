@@ -1,6 +1,9 @@
 /**
  * A hatch a template draws has to reach the screen as filled pixels.
  *
+ * The wing walls live in `mo_tuong_dau` — the backwall component — because
+ * they hang off the backwall and slope with it.
+ *
  * The entity can be constructed, tagged, appended and round-trip through DXF
  * while rendering as nothing: a hatch carries no strokes of its own — the fill
  * is computed from the boundary loops at draw time — so a boundary that does
@@ -51,11 +54,11 @@ const templatePath = path.resolve(
   '..',
   'cad-template-plugin',
   'library',
-  'mo_cau_btct.js'
+  'mo_tuong_dau.js'
 )
 
-const TEMPLATE_ID = 'mo_cau_btct'
-const VERSION = '3.1.0'
+const TEMPLATE_ID = 'mo_tuong_dau'
+const VERSION = '1.0.0'
 
 function sse(type: string, payload: object) {
   return `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`
@@ -151,7 +154,7 @@ async function drawAbutment(page: import('@playwright/test').Page, code: string)
             templateId: TEMPLATE_ID,
             version: VERSION,
             status: 'published',
-            name: 'Mố cầu BTCT'
+            name: 'Mố cầu — tường đầu'
           }
         ]
       })
@@ -181,7 +184,7 @@ async function drawAbutment(page: import('@playwright/test').Page, code: string)
               },
               { id: 'toolu_zoom', name: 'zoom_extents', input: {} }
             ])
-          : textStream('Đã dựng mố.')
+          : textStream('Đã dựng tường đầu.')
     })
   })
 
@@ -190,9 +193,9 @@ async function drawAbutment(page: import('@playwright/test').Page, code: string)
   await uploadFixture(page, fixturePath)
   await expect(page.locator('.ml-cad-container')).toBeVisible()
   await page.getByRole('button', { name: /CAD\s*Agent/i }).click()
-  await page.locator('.cad-agent-panel-root textarea').fill('dựng mố cầu')
+  await page.locator('.cad-agent-panel-root textarea').fill('dựng tường đầu mố')
   await page.locator('.cad-agent-send-btn').click()
-  await expect(page.locator('.cad-agent-panel-root')).toContainText('Đã dựng mố', {
+  await expect(page.locator('.cad-agent-panel-root')).toContainText('Đã dựng tường đầu', {
     timeout: 60_000
   })
   // The scene converts asynchronously after the tool results land, and the
