@@ -27,7 +27,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_tuong_than',
-    version: '1.0.0',
+    version: '1.1.0',
     name: 'Mố cầu — tường thân',
     category: 'Mố trụ',
     description:
@@ -56,11 +56,13 @@ export default {
       unit: 'mm',
       min: 500,
       max: 15000,
-      default: 4716,
+      default: 4716.3,
       group: 'Kích thước chính',
       hint:
-        'Đo tại trục đối xứng. Vì đỉnh nghiêng nên chiều cao ở hai mép khác ' +
-        'trị số này. Bản vẽ mẫu: 4716.'
+        'Đo tại trục đối xứng, tính từ **đỉnh bệ** — tức phần nhìn thấy. ' +
+        'File cấu kiện cho 4766,4 vì nó gồm cả 50 mm chân tường chôn vào bệ; ' +
+        'phần ấy khuất trong bệ nên không vẽ. Vì đỉnh nghiêng, chiều cao ở hai ' +
+        'mép khác trị số này: bản vẽ lắp cho 4639 bên trái và 4793 bên phải.'
     },
     {
       key: 'doDocNgang',
@@ -121,7 +123,7 @@ export default {
     }
 
     const B = num('B', 7700)
-    const hThan = num('hThan', 4716)
+    const hThan = num('hThan', 4716.3)
     const doc = num('doDocNgang', 2)
     const x0 = num('x', 0)
     const y0 = num('y', 2100)

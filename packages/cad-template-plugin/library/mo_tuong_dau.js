@@ -28,7 +28,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_tuong_dau',
-    version: '1.0.0',
+    version: '1.1.0',
     name: 'Mố cầu — tường đầu, tường tai và lớp phủ',
     category: 'Mố trụ',
     description:
@@ -57,9 +57,12 @@ export default {
       unit: 'mm',
       min: 300,
       max: 6000,
-      default: 1819,
+      default: 1805,
       group: 'Kích thước chính',
-      hint: 'Đo tại trục đối xứng, từ đáy đến đỉnh. Bản vẽ mẫu: 1819.'
+      hint:
+        'Đo tại trục đối xứng, từ đáy đến **mặt đỉnh ngoài** (không phải mặt ' +
+        'vai kê, vốn cao hơn hVaiKe). Bản vẽ cho 1792,0 ở mép phải và 1818,2 ' +
+        'ở mép trái, trung bình 1805,1.'
     },
     {
       key: 'doDocNgang',
@@ -121,15 +124,19 @@ export default {
       hint: 'Đặt 0 để không vẽ tường tai. Bản vẽ mẫu: 150.'
     },
     {
-      key: 'hTai',
-      label: 'Chiều cao tường tai thấy trên mặt chính',
+      key: 'haTai',
+      label: 'Đỉnh tường tai thấp hơn đỉnh tường đầu',
       type: 'number',
       unit: 'mm',
       min: 0,
       max: 8000,
-      default: 1200,
+      default: 594,
       group: 'Tường tai',
-      hint: 'Bản vẽ mẫu: 1200.'
+      hint:
+        'Tường tai kéo từ **đáy tường đầu** lên tới đây, nên chiều cao của nó ' +
+        'do bản thân tường đầu quyết định chứ không khai riêng. Bản vẽ: đáy ' +
+        'trùng khít đáy tường đầu ở cả hai bên, đỉnh thấp hơn đỉnh tường đầu ' +
+        '595 mm bên phải và 593 bên trái — chênh nhau vì cả hai mặt đều dốc.'
     },
     {
       key: 'ghiKichThuoc',
@@ -161,7 +168,7 @@ export default {
       unit: 'mm',
       min: -30000,
       max: 30000,
-      default: 6816,
+      default: 6816.3,
       group: 'Vị trí',
       hint:
         'Bằng cao độ đỉnh tường thân tại tim. Mặc định 6816 = 100 + 2000 + ' +
@@ -178,15 +185,15 @@ export default {
     }
 
     const B = num('B', 7700)
-    const hDau = num('hDau', 1819)
+    const hDau = num('hDau', 1805)
     const doc = num('doDocNgang', 2)
     const bVaiKe = num('bVaiKe', 350)
     const hVaiKe = num('hVaiKe', 7)
     const tLopPhu = num('tLopPhu', 70)
     const bTai = num('bTai', 150)
-    const hTai = num('hTai', 1200)
+    const haTai = num('haTai', 594)
     const x0 = num('x', 0)
-    const y0 = num('y', 6816)
+    const y0 = num('y', 6816.3)
     const ghi = values.ghiKichThuoc !== 'khong'
 
     if (bTai * 2 > B) {
@@ -235,22 +242,28 @@ export default {
       })
     }
 
-    if (bTai > 0 && hTai > 0) {
+    if (bTai > 0 && haTai > 0) {
       for (const side of ['trai', 'phai']) {
         const x1 = side === 'trai' ? x0 - half : x0 + half - bTai
         const x2 = x1 + bTai
-        const yTren = at(yDinh, (x1 + x2) / 2) - 100
+        const mid = (x1 + x2) / 2
+        // Đáy tường tai trùng đáy tường đầu — đo được đúng như vậy ở cả hai
+        // bên, sai lệch dưới 4 mm. Bản trước treo nó lơ lửng cách đỉnh 100 mm
+        // rồi cho cao 1200 cố định, nên nó nằm cao hơn chỗ thật gần 500 mm và
+        // không chạm đáy tường đầu.
+        const yDuoi = at(y0, mid)
+        const yTren = at(yDinh, mid) - haTai
         const partId = formatPartId({ role: 'mo_tuong_tai', side })
         const goc = [
-          { x: x1, y: yTren - hTai, z: 0 },
-          { x: x2, y: yTren - hTai, z: 0 },
+          { x: x1, y: yDuoi, z: 0 },
+          { x: x2, y: yDuoi, z: 0 },
           { x: x2, y: yTren, z: 0 },
           { x: x1, y: yTren, z: 0 }
         ]
         ctx.polyline({
           role: 'mo_tuong_tai',
           partId,
-          params: { bTai, hTai },
+          params: { bTai, haTai },
           closed: true,
           points: goc
         })
