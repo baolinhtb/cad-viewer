@@ -198,15 +198,31 @@ export class AcTrBaseView {
     const center = new AcGeVector2d()
     box.getCenter(center)
 
-    const fitWidth = Math.max(Math.abs(size.x) * margin, Number.EPSILON)
-    const fitHeight = Math.max(Math.abs(size.y) * margin, Number.EPSILON)
+    const fitWidth = Math.abs(size.x) * margin
+    const fitHeight = Math.abs(size.y) * margin
     const aspect = this._width / Math.max(this._height, 1)
-    const scale = Math.min(
-      (2 * aspect * this._frustum) / fitWidth,
-      (2 * this._frustum) / fitHeight
-    )
 
-    this.flyTo(center, scale)
+    // An axis with no thickness says nothing about how far to zoom, so it takes
+    // no part in the fit. This used to clamp both axes to `Number.EPSILON` and
+    // divide anyway; when only one axis was flat `Math.min` quietly discarded
+    // the resulting 1e18-ish term and the fit still came out right, but a box
+    // with no size at all left every term huge and set the camera to a zoom
+    // near 5e18. The drawing is still there — eighteen orders of magnitude off
+    // screen — and the canvas comes up blank. Measured: the assistant ran a
+    // template and zoomed to extents in the same turn, the fit landed on a
+    // point-sized scene box, and the viewer went black and stayed black.
+    const span = Math.max(fitWidth, fitHeight)
+    // Relative, not absolute: a drawing measured in kilometres and one measured
+    // in millimetres both have to be judged against their own size.
+    const usable = span * 1e-6
+    const limits: number[] = []
+    if (fitWidth > usable) limits.push((2 * aspect * this._frustum) / fitWidth)
+    if (fitHeight > usable) limits.push((2 * this._frustum) / fitHeight)
+
+    // Nothing to fit means the box is a point. Centring on it is all that can
+    // be honoured, and the zoom already in effect is at least one a person was
+    // looking at.
+    this.flyTo(center, limits.length ? Math.min(...limits) : undefined)
     this.updateCameraFrustum()
   }
 

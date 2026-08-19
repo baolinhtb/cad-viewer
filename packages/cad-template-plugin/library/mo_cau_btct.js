@@ -39,7 +39,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_cau_btct',
-    version: '3.0.0',
+    version: '3.1.0',
     name: 'Mố cầu BTCT (mặt chính)',
     category: 'Mố trụ',
     description:
@@ -378,15 +378,21 @@ export default {
         const x1 = side === 'trai' ? x0 - half : x0 + half - bTai
         const x2 = x1 + bTai
         const yTren = at(yDauDinh, (x1 + x2) / 2) - 100
-        rect(
-          'mo_tuong_tai',
-          formatPartId({ role: 'mo_tuong_tai', side }),
-          { bTai, hTai },
-          x1,
-          yTren - hTai,
-          x2,
-          yTren
-        )
+        const partId = formatPartId({ role: 'mo_tuong_tai', side })
+        rect('mo_tuong_tai', partId, { bTai, hTai }, x1, yTren - hTai, x2, yTren)
+        // Tô đặc: đây là mặt cắt, tường tai bị cắt ngang. Bản vẽ lắp tô hai
+        // dải này bằng `_SOLID` với 0 đường mẫu — một cấu kiện mỏng cắt qua
+        // thì tô đặc, không kẻ ký hiệu vật liệu.
+        ctx.hatch({
+          role: 'mo_tuong_tai',
+          partId,
+          boundary: [
+            { x: x1, y: yTren - hTai, z: 0 },
+            { x: x2, y: yTren - hTai, z: 0 },
+            { x: x2, y: yTren, z: 0 },
+            { x: x1, y: yTren, z: 0 }
+          ]
+        })
       }
     }
 

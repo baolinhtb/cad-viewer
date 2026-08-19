@@ -5,14 +5,20 @@ import {
   AcDbCircle,
   AcDbDatabase,
   AcDbEntity,
+  AcDbHatch,
+  AcDbHatchPatternType,
+  AcDbHatchStyle,
   AcDbLayerTableRecord,
   AcDbLine,
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
+  AcGeLine2d,
+  AcGeLoop2d,
   AcGePoint2d,
   AcGePoint3d,
-  AcGePoint3dLike
+  AcGePoint3dLike,
+  HATCH_PATTERN_SOLID
 } from '@mlightcad/data-model'
 
 import { buildDimensionBlock } from './AcTpDimensionBlock'
@@ -99,6 +105,31 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
 }
 
 /**
+ * A filled region — the material symbol on a part cut in section.
+ *
+ * The boundary is a single closed outline of straight segments; the last point
+ * joins back to the first, so do not repeat it. Islands and curved edges are
+ * deliberately absent: the reference drawings fill plain polygons, and an
+ * option that exists but has never been drawn is an option nobody can trust.
+ */
+export interface AcTpHatchArgs extends AcTpDrawBase {
+  /** Outline of the filled region, in order. Not closed by the caller. */
+  boundary: readonly AcGePoint3dLike[]
+  /**
+   * Pattern name. Defaults to a solid fill.
+   *
+   * Solid is the default because that is what a thin element cut in section
+   * carries on the drawings this library is built from — the wing walls in
+   * the abutment assembly are filled `_SOLID` with zero pattern lines.
+   */
+  patternName?: string
+  /** Pattern spacing multiplier. Ignored by a solid fill. Defaults to 1. */
+  patternScale?: number
+  /** Pattern rotation in degrees. Ignored by a solid fill. Defaults to 0. */
+  patternAngleDeg?: number
+}
+
+/**
  * The one and only way a template touches the drawing.
  *
  * Every method takes a `role` and a `partId` and cannot be called without
@@ -118,6 +149,7 @@ export interface AcTpDrawContext {
   arc(args: AcTpArcArgs): AcDbEntity
   text(args: AcTpTextArgs): AcDbEntity
   dimension(args: AcTpDimensionArgs): AcDbEntity
+  hatch(args: AcTpHatchArgs): AcDbEntity
   /** Everything drawn so far in this run, in drawing order. */
   readonly drawn: readonly AcDbEntity[]
 }
@@ -294,6 +326,47 @@ export function createDrawContext(
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
       buildDimensionBlock(db, entity)
+      return place(entity, args)
+    },
+
+    hatch: args => {
+      // A fill needs an area. Two points describe a line, which encloses
+      // nothing; the entity would reach the drawing and render as nothing at
+      // all, which is the failure mode that is hardest to notice.
+      if (args.boundary.length < 3) {
+        throw new Error(
+          `Vùng tô '${args.partId}' cần ít nhất 3 điểm biên, đã nhận ${args.boundary.length}.`
+        )
+      }
+
+      const entity = new AcDbHatch()
+      // Set before the pattern: the hatch resolves its pattern definition
+      // against the database it belongs to, and `appendEntity` only happens
+      // later in `place`.
+      entity.database = db
+      const patternName = args.patternName?.trim() || HATCH_PATTERN_SOLID
+      entity.patternName = patternName
+      entity.patternType = AcDbHatchPatternType.Predefined
+      entity.patternScale = args.patternScale ?? 1
+      entity.patternAngle = ((args.patternAngleDeg ?? 0) * Math.PI) / 180
+      entity.hatchStyle = AcDbHatchStyle.Normal
+      entity.isSolidFill = patternName === HATCH_PATTERN_SOLID
+
+      const loop = new AcGeLoop2d()
+      for (let i = 0; i < args.boundary.length; i++) {
+        const from = args.boundary[i]
+        // Wraps to the first point: the loop has to close or there is no
+        // inside to fill.
+        const to = args.boundary[(i + 1) % args.boundary.length]
+        loop.add(
+          new AcGeLine2d(
+            new AcGePoint2d(from.x, from.y),
+            new AcGePoint2d(to.x, to.y)
+          )
+        )
+      }
+      entity.add(loop)
+
       return place(entity, args)
     },
 
