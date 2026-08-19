@@ -25,7 +25,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'be_coc_khoan_nhoi',
-    version: '1.0.0',
+    version: '1.1.0',
     name: 'Bệ cọc trên nhóm cọc khoan nhồi',
     category: 'Móng cầu',
     description:
@@ -44,7 +44,8 @@ export default {
       min: 600,
       max: 3000,
       default: 1000,
-      group: 'Cọc'
+      group: 'Cọc',
+      hint: 'Bản vẽ mố mẫu (33_MO_BE.dwg): ⌀1200.'
     },
     {
       key: 'soCoc',
@@ -53,7 +54,8 @@ export default {
       min: 2,
       max: 8,
       default: 3,
-      group: 'Cọc'
+      group: 'Cọc',
+      hint: 'Bản vẽ mố mẫu: 2 cọc thấy trên mặt chính.'
     },
     {
       key: 'khoangCach',
@@ -64,7 +66,9 @@ export default {
       max: 12000,
       default: 3000,
       group: 'Cọc',
-      hint: 'TCVN 11823-10:2017, điều 8.1.2 — dưới 4D và dưới 6D đều phát sinh yêu cầu.'
+      hint:
+        'TCVN 11823-10:2017, điều 8.1.2 — dưới 4D và dưới 6D đều phát sinh ' +
+        'yêu cầu. Bản vẽ mố mẫu: 5300 (tim cọc ở x ±2650), tức 4,42D.'
     },
     {
       key: 'Lcoc',
@@ -75,7 +79,10 @@ export default {
       max: 40,
       default: 6,
       group: 'Cọc',
-      hint: 'Chỉ là chiều dài vẽ trên mặt cắt, không phải chiều dài thiết kế.'
+      hint:
+        'Chỉ là chiều dài vẽ trên mặt cắt, không phải chiều dài thiết kế. ' +
+        'Bản vẽ mố mẫu không cho trị số này: cọc bị cắt bằng nét lượn ở 1201 ' +
+        'mm dưới đỉnh, nghĩa là "còn tiếp".'
     },
     {
       key: 'cuLyMepBe',
@@ -86,7 +93,9 @@ export default {
       max: 3000,
       default: 500,
       group: 'Bệ cọc',
-      hint: 'TCVN 11823-10:2017, điều 8.1.2 — không được nhỏ hơn 300 mm.'
+      hint:
+        'TCVN 11823-10:2017, điều 8.1.2 — không được nhỏ hơn 300 mm. Bản vẽ ' +
+        'mố mẫu: 600 (mép bệ ở 3850, mặt ngoài cọc ở 3250).'
     },
     {
       key: 'hBe',
@@ -97,7 +106,9 @@ export default {
       max: 4000,
       default: 1500,
       group: 'Bệ cọc',
-      hint: 'Do tính toán quyết định; dải này chỉ chặn sai số nhập liệu.'
+      hint:
+        'Do tính toán quyết định; dải này chỉ chặn sai số nhập liệu. Bản vẽ ' +
+        'mố mẫu: 2000, bằng chiều cao bệ trong template mo_be_mong.'
     },
     {
       key: 'nganm',
@@ -108,7 +119,10 @@ export default {
       max: 1500,
       default: 300,
       group: 'Bệ cọc',
-      hint: 'TCVN 11823-10:2017 §8.1.2 chỉ yêu cầu "đủ sâu để tạo sức kháng kết cấu", không cho trị số.'
+      hint:
+        'TCVN 11823-10:2017 §8.1.2 chỉ yêu cầu "đủ sâu để tạo sức kháng kết ' +
+        'cấu", không cho trị số. Bản vẽ mố mẫu: 150 (đỉnh cọc cao hơn đáy bệ ' +
+        '150 mm).'
     },
     {
       key: 'x',
