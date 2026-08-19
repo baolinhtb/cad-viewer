@@ -9,7 +9,10 @@ import {
   AcEdCommandStack,
   AcEdMTextEditor
 } from '@mlightcad/cad-simple-viewer'
-import { registerStoragePlugin } from '@mlightcad/cad-storage-plugin/register'
+import {
+  currentDrawingId,
+  registerStoragePlugin
+} from '@mlightcad/cad-storage-plugin/register'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
 import { registerLazyTemplatePlugin } from '@mlightcad/cad-template-plugin/register'
 import { markRaw } from 'vue'
@@ -234,6 +237,17 @@ const registerAgentIntegration = async (pluginManager: AcApPluginManager) => {
 
       store.dialogs.activePaletteTab = 'agent'
       store.dialogs.layerManager = true
+    })
+
+    // Which drawing the assistant is working on. Composed here rather than
+    // imported by the agent plugin: the plugins stay unaware of each other, and
+    // an installation without the storage plugin simply reports no id.
+    agentRegister.setDrawingIdProvider(() => {
+      try {
+        return currentDrawingId()
+      } catch {
+        return undefined
+      }
     })
 
     agentRegister.mergeAgentI18nIntoVueI18n((locale, messages) => {

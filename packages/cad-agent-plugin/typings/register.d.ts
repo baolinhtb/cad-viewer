@@ -40,3 +40,14 @@ export declare function setAgentPaletteOpener(
 ): void
 
 export declare function openAgentPalette(): boolean
+
+/**
+ * Installs the callback that says which stored drawing is open.
+ *
+ * The host composes this: the agent plugin never imports the storage plugin.
+ * Passing `undefined` unregisters — an installation with no storage simply
+ * reports no id, which is a normal answer.
+ */
+export declare function setDrawingIdProvider(
+  fn: (() => string | undefined) | undefined
+): void

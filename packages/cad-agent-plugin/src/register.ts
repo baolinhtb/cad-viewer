@@ -28,6 +28,7 @@ export function registerLazyAgentPlugin(
 }
 
 export { AGENT_PLUGIN_NAME }
+export { setDrawingIdProvider } from './agent/drawingIdentity'
 export { mergeAgentI18nIntoVueI18n, registerAgentI18n } from './i18n'
 export {
   openAgentPalette,

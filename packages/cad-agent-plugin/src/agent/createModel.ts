@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import type { LanguageModel } from 'ai'
 
 import type { LlmSettings } from '../storage/LlmSettingsStore'
+import { createProxyFetch } from './drawingIdentity'
 import { createOpenAiCompatibleFetch } from './openAiCompatibleFetch'
 
 /**
@@ -26,7 +27,10 @@ export function createModelFromSettings(settings: LlmSettings): LanguageModel {
       baseURL: settings.baseUrl || '/api/ai',
       // The proxy ignores this and uses the server key. A value is required
       // only because the SDK refuses to construct without one.
-      apiKey: 'via-proxy'
+      apiKey: 'via-proxy',
+      // Tells the server which drawing the call was for, so cost and edits can
+      // be attributed to it — see {@link createProxyFetch}.
+      fetch: createProxyFetch()
     })
     return proxied(settings.model || 'claude-opus-5')
   }
