@@ -46,6 +46,17 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
         required: ['ma_template'],
         additionalProperties: false
       }
+    },
+    {
+      name: 'sua_lan_chay',
+      description:
+        'Sửa một bộ phận đã dựng từ template... thay vì gọi lại chay_template.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+        required: ['ma_lan_chay', 'thong_so'],
+        additionalProperties: false
+      }
     }
   ],
   ensureDeploymentDataLoaded: () => Promise.resolve(true),

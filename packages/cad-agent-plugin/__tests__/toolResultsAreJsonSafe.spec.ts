@@ -27,7 +27,10 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     description: 'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false }
   },
-  TEMPLATE_TOOLS: [{ name: 'chay_template', description: 'd', input_schema: {} }],
+  TEMPLATE_TOOLS: [
+    { name: 'chay_template', description: 'd', input_schema: {} },
+    { name: 'sua_lan_chay', description: 'd', input_schema: {} }
+  ],
   ensureDeploymentDataLoaded: () => Promise.resolve(true),
   dictionary: () => [],
   templateToolDescription: () => 'd',

@@ -52,7 +52,12 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   AcApDocManager: {
     get instance() {
       return {
-        curDocument: hasDocument ? { database: {} } : undefined,
+        // Model space có thật, dù rỗng: `describeDrawing` nay còn liệt kê các
+        // lần chạy template, và nó quét chính model space để lấy — một database
+        // giả không có bảng nào thì lỗi ở chỗ chẳng liên quan gì tới bài kiểm.
+        curDocument: hasDocument
+          ? { database: { tables: { blockTable: { modelSpace: { newIterator: () => [] } } } } }
+          : undefined,
         curView: {
           selectionSet: {
             clear: () => {

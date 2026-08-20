@@ -217,6 +217,30 @@ export function createCadTools() {
         })
       }
     }),
+    // Sửa cái đã có, thay vì vẽ thêm cái nữa. Không có công cụ này thì câu
+    // "làm mố rộng 8 m" chỉ còn cách chạy lại template, và bản vẽ có hai cái
+    // mố chồng nhau — người dùng báo đúng chuyện đó: "càng sửa hình càng rối".
+    sua_lan_chay: tool({
+      description: templateDescription('sua_lan_chay'),
+      inputSchema: z.object({
+        ma_lan_chay: z
+          .string()
+          .min(1)
+          .describe('Mã lần chạy cần sửa, ví dụ "r1". Lấy từ mo_ta_ban_ve.'),
+        thong_so: z
+          .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+          .describe(
+            'Chỉ những giá trị cần đổi; phần còn lại giữ nguyên như lần dựng trước.'
+          )
+      }),
+      execute: async input => {
+        await ready()
+        return runTemplateTool('sua_lan_chay', {
+          ma_lan_chay: input.ma_lan_chay,
+          thong_so: input.thong_so
+        })
+      }
+    }),
     // Reference before geometry: nearly every dimension in a bridge or road
     // drawing is already decided by a standard, and a number the model
     // remembers is indistinguishable, on screen, from one it read.

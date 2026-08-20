@@ -11,6 +11,7 @@ import {
   readDrawingDigest
 } from '@mlightcad/cad-template-sdk'
 
+import { listRuns } from './runIdentity'
 import { tagDrawingFromLayers } from './tagFromLayers'
 import { roleLayers } from './templateRegistry'
 
@@ -201,13 +202,32 @@ export function describeDrawing(): AcApToolOutcome {
     }
   }
 
+  // Các lần chạy template, kèm thông số của từng lần. Không có mục này thì trợ
+  // lý không biết bản vẽ đã có sẵn cái gì do template dựng, nên "sửa bề rộng
+  // mố" chỉ còn cách chạy lại template — và thế là bản vẽ có hai cái mố chồng
+  // nhau. Đây là chỗ nó nhìn thấy có thứ để sửa.
+  const lanChay = listRuns(db).map(run => ({
+    ma: run.id,
+    template: run.templateId,
+    phienBan: run.version,
+    thongSo: run.values,
+    soDoiTuong: run.entityCount
+  }))
+
   return {
     ok: true,
     status: 'ready',
-    message: `Bản vẽ có ${digest.parts.length} bộ phận.`,
+    message:
+      `Bản vẽ có ${digest.parts.length} bộ phận` +
+      (lanChay.length
+        ? `, ${lanChay.length} lần chạy template sửa được: ${lanChay
+            .map(r => `${r.ma} (${r.template})`)
+            .join(', ')}.`
+        : '.'),
     data: {
       templateIds: digest.templateIds,
       parts: digest.parts.map(forModel),
+      lanChay,
       soDoiTuongKhongNhan: digest.untaggedEntityCount
     }
   }

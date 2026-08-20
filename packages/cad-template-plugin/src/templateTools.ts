@@ -2,6 +2,7 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { runTemplate } from './runTemplate'
+import { editTemplateRun } from './editRun'
 import { findTemplate, listTemplates } from './templateRegistry'
 import { defaultValues } from './templateValues'
 import type { AcApToolOutcome, AcApToolSchema } from './semanticTools'
@@ -42,7 +43,11 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
       'trong câu trả lời; tra cứu lại chỉ tốn thêm một lượt mà ra cùng con số. ' +
       'Tham số không truyền sẽ lấy giá trị mặc định. ' +
       'Giá trị ngoài dải sẽ bị từ chối kèm dải đúng — sửa số rồi gọi lại, ' +
-      'đừng chuyển sang vẽ tay.',
+      'đừng chuyển sang vẽ tay. ' +
+      'CHỈ dùng để dựng bộ phận CHƯA có trong bản vẽ. Nếu người dùng bảo sửa, ' +
+      'đổi, tăng, giảm một thứ đã vẽ rồi thì phải dùng sua_lan_chay — gọi lại ' +
+      'công cụ này là vẽ thêm một bản nữa chồng lên bản cũ, và bản vẽ càng sửa ' +
+      'càng rối. mo_ta_ban_ve cho biết bản vẽ đã có lần chạy nào.',
     input_schema: {
       type: 'object',
       properties: {
@@ -61,6 +66,38 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
         }
       },
       required: ['ma_template'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'sua_lan_chay',
+    description:
+      'Sửa một bộ phận đã dựng từ template: xoá hình cũ và dựng lại với thông ' +
+      'số mới, giữ nguyên vị trí trong bản vẽ. ' +
+      'DÙNG CÔNG CỤ NÀY mỗi khi người dùng bảo sửa/đổi/tăng/giảm một thứ đã có, ' +
+      'thay vì gọi lại chay_template — gọi lại là vẽ chồng thêm một bản nữa, ' +
+      'để lại bản cũ, và bản vẽ càng sửa càng rối. ' +
+      'Lấy mã lần chạy từ mo_ta_ban_ve. ' +
+      'Chỉ cần truyền những thông số THAY ĐỔI; phần còn lại giữ nguyên như lần ' +
+      'dựng trước. ' +
+      'Nếu thông số mới sai dải thì bị từ chối và bản vẽ giữ nguyên, không mất gì.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ma_lan_chay: {
+          type: 'string',
+          description:
+            'Mã lần chạy cần sửa, ví dụ "r1". Lấy từ mục lanChay của mo_ta_ban_ve.'
+        },
+        thong_so: {
+          type: 'object',
+          description:
+            'Chỉ những giá trị cần đổi, theo đúng khóa và đơn vị của template. ' +
+            'Ví dụ {"B": 8000} để đổi mỗi bề rộng.',
+          additionalProperties: true
+        }
+      },
+      required: ['ma_lan_chay', 'thong_so'],
       additionalProperties: false
     }
   }
@@ -153,6 +190,9 @@ export async function runTemplateTool(
   // viewer instead of the tool.
   database?: AcDbDatabase
 ): Promise<AcApToolOutcome> {
+  if (name === 'sua_lan_chay') {
+    return editRunTool(input, database)
+  }
   if (name !== 'chay_template') {
     return {
       ok: false,
@@ -244,5 +284,77 @@ export async function runTemplateTool(
     // Only what a later step needs to act on. The message already says the
     // rest, and a tool result is re-sent on every remaining step of the turn.
     data: { partIds: [templateId], soDoiTuong: result.entityCount }
+  }
+}
+
+/**
+ * Applies an edit to a run the drawing already holds.
+ *
+ * Kept beside `chay_template` because the two are the same decision seen from
+ * either side: draw a part that is not there, or change one that is. The whole
+ * reason the drawing carries run ids is so the second is possible at all.
+ */
+async function editRunTool(
+  input: Record<string, unknown>,
+  database?: AcDbDatabase
+): Promise<AcApToolOutcome> {
+  const runId = String(input?.ma_lan_chay ?? '').trim()
+  if (!runId) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        'Thiếu mã lần chạy. Gọi mo_ta_ban_ve để biết bản vẽ có những lần chạy nào.'
+    }
+  }
+
+  const changes = (input?.thong_so ?? {}) as AcTpParamValues
+  if (Object.keys(changes).length === 0) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        `Chưa nêu thông số nào cần đổi cho lần chạy "${runId}", nên không có gì để sửa.`
+    }
+  }
+
+  let result
+  try {
+    result = await editTemplateRun(runId, changes, database)
+  } catch (error) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        `Sửa lần chạy "${runId}" lỗi: ` +
+        (error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  if (result.errors.length > 0) {
+    // Bản vẽ chưa bị đụng tới — kiểm tra chạy trước khi xoá gì.
+    return {
+      ok: false,
+      status: 'refused',
+      message: `Thông số không hợp lệ, bản vẽ giữ nguyên:\n- ${result.errors.join('\n- ')}`
+    }
+  }
+
+  const doi = Object.entries(changes)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(', ')
+  return {
+    ok: true,
+    status: 'ready',
+    message:
+      `Đã sửa ${runId}: ${doi}. Xoá ${result.removed} đối tượng cũ, dựng lại ` +
+      `${result.entityCount} đối tượng trên ${result.layers.length} layer.`,
+    data: {
+      maLanChay: result.runId,
+      soDoiTuongXoa: result.removed,
+      soDoiTuong: result.entityCount,
+      layers: result.layers,
+      thongSoSauKhiSua: result.values
+    }
   }
 }

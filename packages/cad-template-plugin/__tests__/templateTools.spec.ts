@@ -50,10 +50,13 @@ function countEntities(database: AcDbDatabase) {
 }
 
 describe('chay_template', () => {
-  test('is declared once, with a description the agent can read', () => {
+  test('is declared with a description the agent can read', () => {
     // The agent takes its description from this declaration rather than
     // restating it, so an undeclared tool has to fail loudly here.
-    expect(TEMPLATE_TOOLS).toHaveLength(1)
+    expect(TEMPLATE_TOOLS.map(t => t.name)).toEqual([
+      'chay_template',
+      'sua_lan_chay'
+    ])
     expect(TEMPLATE_TOOLS[0].name).toBe('chay_template')
     expect(TEMPLATE_TOOLS[0].description.length).toBeGreaterThan(80)
     expect(TEMPLATE_TOOLS[0].input_schema.required).toEqual(['ma_template'])
