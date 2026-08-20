@@ -25,6 +25,11 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
       input_schema: { type: 'object', properties: {}, additionalProperties: false }
     },
     {
+      name: 'moc_toa_do',
+      description: 'Xem hoặc đặt mốc toạ độ đang dùng cho bản vẽ.',
+      input_schema: { type: 'object', properties: {}, additionalProperties: false }
+    },
+    {
       name: 'to_sang_bo_phan',
       description: 'Tô sáng các bộ phận đã tìm được.',
       input_schema: { type: 'object', properties: {}, additionalProperties: false }

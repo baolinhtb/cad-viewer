@@ -4,6 +4,7 @@ import type { AcDbDatabase } from '@mlightcad/data-model'
 import { runTemplate } from './runTemplate'
 import { assemblyCatalogue, findAssembly, runAssembly } from './assembly'
 import { editTemplateRun } from './editRun'
+import { currentPlacementFrame } from './placement'
 import { findTemplate, listTemplates } from './templateRegistry'
 import { defaultValues } from './templateValues'
 import type { AcApToolOutcome, AcApToolSchema } from './semanticTools'
@@ -309,6 +310,7 @@ export async function runTemplateTool(
   }
 
   const { id: templateId, version, name: templateName } = template.meta
+  const moc = currentPlacementFrame()
 
   // Only claim a standard when this template actually cites one. Most do —
   // their ranges come straight from a clause — but not all: TCVN 11823-11:2017
@@ -330,7 +332,10 @@ export async function runTemplateTool(
       (citesStandard
         ? 'Kích thước đã nằm trong dải TCVN mà template quản.'
         : 'Kích thước nằm trong dải template quản; template này không viện dẫn ' +
-          'tiêu chuẩn nào cho trị số, các trị số do tính toán quyết định.'),
+          'tiêu chuẩn nào cho trị số, các trị số do tính toán quyết định.') +
+      // Nói ra khi toạ độ vừa được đọc theo mốc: một phép dời gốc lặng lẽ là
+      // thứ khiến người ta tưởng vẽ sai chỗ mà không hiểu vì sao.
+      (moc ? ` Vị trí đọc theo mốc "${moc}".` : ''),
     // Only what a later step needs to act on. The message already says the
     // rest, and a tool result is re-sent on every remaining step of the turn.
     data: { partIds: [templateId], soDoiTuong: result.entityCount }

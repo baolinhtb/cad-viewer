@@ -12,6 +12,7 @@ import type { AcDbDatabase } from '@mlightcad/data-model'
 import { markTemplateVerified } from './remoteTemplates'
 // Re-exported so `defaultValues` keeps its existing import path.
 export { defaultValues } from './templateValues'
+import { toDrawingPlacement } from './placement'
 import { nextRunId } from './runIdentity'
 import { findRemoteSource, roleLayers } from './templateRegistry'
 
@@ -48,10 +49,17 @@ export async function runTemplate(
   values: AcTpParamValues,
   database?: AcDbDatabase
 ): Promise<AcApTemplateRunResult> {
+  // Kiểm trên đúng con số người ta gõ. Dải `x`, `y` của template là vị trí so
+  // với gốc đang dùng; dời sang toạ độ thế giới trước rồi mới kiểm thì trên bản
+  // vẽ theo lý trình mọi vị trí đều vượt dải, kể cả vị trí đúng.
   const errors = validateParamValues(template.params, values)
   if (errors.length > 0) {
     return { entityCount: 0, layers: [], errors }
   }
+
+  // Dời gốc ngay trước khi vẽ, nên mọi lối vào `runTemplate` đều được, và chỉ
+  // dời đúng một lần.
+  const placed = toDrawingPlacement(values)
 
   const db = database ?? AcApDocManager.instance.curDocument.database
   let entityCount = 0
@@ -64,9 +72,11 @@ export async function runTemplate(
     const ctx = createDrawContext(db, template.meta.id, roleLayers(), {
       id: runId,
       version: template.meta.version,
+      // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
+      // này về sau là sửa lại chính những trị số ấy.
       values: values as Record<string, number | string | boolean>
     })
-    await template.generate(ctx, values)
+    await template.generate(ctx, placed)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
   })

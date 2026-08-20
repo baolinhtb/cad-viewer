@@ -74,6 +74,7 @@ import {
   AcApSketchCmd,
   AcApSplineCmd,
   AcApSwitchBgCmd,
+  AcApUcsCmd,
   AcApSysVarCmd,
   AcApUndoCmd,
   AcApUnisolateObjectsCmd,
@@ -1295,6 +1296,7 @@ export class AcApDocManager {
     addSystemCommand('xline', 'xline', new AcApXLineCmd())
     addSystemCommand('undo', 'undo', new AcApUndoCmd())
     addSystemCommand('redo', 'redo', new AcApRedoCmd())
+    addSystemCommand('ucs', 'ucs', new AcApUcsCmd())
     addSystemCommand('zoom', 'zoom', new AcApZoomCmd())
 
     // Register system variables as commands

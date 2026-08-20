@@ -10,6 +10,7 @@ import {
 import { eventBus } from '../editor'
 import { AcEdOpenMode } from '../editor/view'
 import { AcApEntityService } from '../service/AcApEntityService'
+import { AcApUcsService } from '../service/AcApUcsService'
 import type { AcApLayerIsoSnapshot } from '../service/AcApLayerIsoState'
 import { AcApLayerService } from '../service/AcApLayerService'
 import type { AcApLayerStore } from '../service/AcApLayerStore'
@@ -59,6 +60,7 @@ export class AcApDocument {
   private _layerService?: AcApLayerService
   /** Lazily created entity service bound to this document's database. */
   private _entityService?: AcApEntityService
+  private _ucsService?: AcApUcsService
   /** Lazily created layer store bound to this document. */
   private _layerStore?: AcApLayerStore
 
@@ -269,6 +271,19 @@ export class AcApDocument {
   }
 
   /**
+   * Returns the working-coordinate-system service for this document.
+   *
+   * Per document, not global: two drawings open at once are two sites, and a
+   * datum set in one has no business moving the other's readout.
+   */
+  get ucsService(): AcApUcsService {
+    if (!this._ucsService) {
+      this._ucsService = new AcApUcsService(this._database)
+    }
+    return this._ucsService
+  }
+
+  /**
    * Returns the layer store for UI integrations observing this document.
    */
   get layerStore(): AcApLayerStore {
@@ -289,6 +304,7 @@ export class AcApDocument {
     this._layerStore = undefined
     this._layerService = undefined
     this._entityService = undefined
+    this._ucsService = undefined
     this.clearLayerPreviousState()
     this.clearLayerIsoSnapshot()
     this._hiddenObjects.clear()

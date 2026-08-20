@@ -72,6 +72,33 @@ export const SEMANTIC_TOOLS: AcApToolSchema[] = [
     }
   },
   {
+    name: 'moc_toa_do',
+    description:
+      'Xem hoặc đặt mốc toạ độ đang dùng cho bản vẽ. ' +
+      'Bản vẽ theo lý trình đặt kết cấu ở toạ độ như x = 311088; đặt mốc rồi ' +
+      'thì mọi vị trí truyền cho template đọc theo mốc ấy — "x = 0" là ngay mốc. ' +
+      'Gọi với hanh_dong="xem" để biết bản vẽ đang dùng mốc nào và có sẵn những ' +
+      'mốc nào; "dat" kèm x, y để dời gốc; "goi" kèm ten để dùng lại mốc đã lưu; ' +
+      '"luu" kèm ten để lưu mốc hiện tại vào bản vẽ; "the_gioi" để về gốc bản vẽ. ' +
+      'Mốc đã lưu còn lại sau khi lưu file; mốc đang dùng thì không, vì tệp DXF ' +
+      'ở bản dựng này không chỗ nào ghi được điều đó.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        hanh_dong: {
+          type: 'string',
+          enum: ['xem', 'dat', 'goi', 'luu', 'the_gioi'],
+          description: 'Việc cần làm.'
+        },
+        x: { type: 'number', description: 'Hoành độ gốc mới, khi hanh_dong="dat".' },
+        y: { type: 'number', description: 'Tung độ gốc mới, khi hanh_dong="dat".' },
+        ten: { type: 'string', description: 'Tên mốc, khi hanh_dong="goi" hoặc "luu".' }
+      },
+      required: ['hanh_dong'],
+      additionalProperties: false
+    }
+  },
+  {
     name: 'tim_bo_phan',
     description:
       'Tìm bộ phận mà người dùng nhắc tới, theo tên gọi tự nhiên. ' +
@@ -376,6 +403,8 @@ export function runSemanticTool(
       return highlightParts(input as never)
     case 'gan_nhan_tu_layer':
       return tagFromLayers()
+    case 'moc_toa_do':
+      return coordinateFrameTool(input as never)
     default:
       // Naming the tool matters: a model that invented a name needs to see
       // which one, or it will invent the same one again.
@@ -383,6 +412,122 @@ export function runSemanticTool(
         ok: false,
         status: 'refused',
         message: `Không có công cụ tên "${name}".`
+      }
+  }
+}
+
+/**
+ * Reads or sets the drawing's working coordinate system.
+ *
+ * The datum is what makes a position sayable. On a survey-based drawing the
+ * abutment sits at x = 311088, and every number an engineer would give — "3850
+ * to the right of M1" — is meaningless until something holds where M1 is.
+ */
+export function coordinateFrameTool(input: {
+  hanh_dong: string
+  x?: number
+  y?: number
+  ten?: string
+}): AcApToolOutcome {
+  const doc = AcApDocManager.instance?.curDocument
+  if (!doc) {
+    return { ok: false, status: 'refused', message: 'Chưa mở bản vẽ nào.' }
+  }
+  const ucs = doc.ucsService
+
+  const hienTrang = () => ({
+    dangDung: ucs.isWorld
+      ? 'hệ toạ độ thế giới'
+      : `${ucs.current.name || '(chưa đặt tên)'} tại (${ucs.current.origin.x}, ${ucs.current.origin.y})`,
+    mocDaLuu: ucs.list().map(u => ({ ten: u.name, x: u.origin.x, y: u.origin.y }))
+  })
+
+  switch (input.hanh_dong) {
+    case 'xem': {
+      const trangThai = hienTrang()
+      return {
+        ok: true,
+        status: 'ready',
+        message:
+          `Đang dùng ${trangThai.dangDung}. ` +
+          (trangThai.mocDaLuu.length
+            ? `Mốc đã lưu: ${trangThai.mocDaLuu.map(m => m.ten).join(', ')}.`
+            : 'Bản vẽ chưa lưu mốc nào.'),
+        data: trangThai
+      }
+    }
+    case 'dat': {
+      if (typeof input.x !== 'number' || typeof input.y !== 'number') {
+        return {
+          ok: false,
+          status: 'refused',
+          message: 'Đặt mốc cần đủ cả x và y.'
+        }
+      }
+      ucs.setCurrent({ origin: { x: input.x, y: input.y }, rotation: 0 })
+      return {
+        ok: true,
+        status: 'ready',
+        message:
+          `Gốc mới tại (${input.x}, ${input.y}). Từ giờ vị trí truyền cho ` +
+          'template đọc theo mốc này. Lưu lại bằng hanh_dong="luu".',
+        data: hienTrang()
+      }
+    }
+    case 'goi': {
+      const ten = (input.ten ?? '').trim()
+      if (!ten) {
+        return { ok: false, status: 'refused', message: 'Thiếu tên mốc.' }
+      }
+      if (!ucs.restore(ten)) {
+        const co = ucs.list().map(u => u.name)
+        return {
+          ok: false,
+          status: 'refused',
+          message: co.length
+            ? `Không có mốc "${ten}". Đang có: ${co.join(', ')}.`
+            : 'Bản vẽ chưa lưu mốc nào.'
+        }
+      }
+      return {
+        ok: true,
+        status: 'ready',
+        message: `Đang dùng mốc "${ten}".`,
+        data: hienTrang()
+      }
+    }
+    case 'luu': {
+      const ten = (input.ten ?? '').trim()
+      if (!ten) {
+        return { ok: false, status: 'refused', message: 'Thiếu tên mốc.' }
+      }
+      if (!ucs.save(ten)) {
+        return {
+          ok: false,
+          status: 'refused',
+          message: `Không lưu được mốc "${ten}".`
+        }
+      }
+      return {
+        ok: true,
+        status: 'ready',
+        message: `Đã lưu mốc "${ten}" vào bản vẽ; nó còn lại sau khi lưu file.`,
+        data: hienTrang()
+      }
+    }
+    case 'the_gioi':
+      ucs.setWorld()
+      return {
+        ok: true,
+        status: 'ready',
+        message: 'Đã về hệ toạ độ thế giới.',
+        data: hienTrang()
+      }
+    default:
+      return {
+        ok: false,
+        status: 'refused',
+        message: `Không hiểu hành động "${input.hanh_dong}".`
       }
   }
 }

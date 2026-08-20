@@ -157,6 +157,7 @@ describe('the tool declarations', () => {
     // it can do something it cannot — worse than not offering it.
     expect(SEMANTIC_TOOLS.map(tool => tool.name)).toEqual([
       'mo_ta_ban_ve',
+      'moc_toa_do',
       'tim_bo_phan',
       'to_sang_bo_phan'
     ])

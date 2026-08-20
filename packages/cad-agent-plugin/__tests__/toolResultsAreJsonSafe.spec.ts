@@ -18,6 +18,7 @@ const returned: Record<string, unknown> = {}
 jest.mock('@mlightcad/cad-template-plugin', () => ({
   __esModule: true,
   SEMANTIC_TOOLS: [
+    { name: 'moc_toa_do', description: 'd', input_schema: {} },
     { name: 'mo_ta_ban_ve', description: 'd', input_schema: {} },
     { name: 'tim_bo_phan', description: 'd', input_schema: {} },
     { name: 'to_sang_bo_phan', description: 'd', input_schema: {} }
@@ -34,7 +35,6 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
   ],
   ensureDeploymentDataLoaded: () => Promise.resolve(true),
   dictionary: () => [],
-  assemblyToolDescription: () => 'd',
   assemblyToolDescription: () => 'd',
   templateToolDescription: () => 'd',
   runSemanticTool: () => returned.semantic,

@@ -95,6 +95,14 @@ export type AcEdEvents = {
   'undo-stack-changed': {}
   /** Emitted when the application busy indicator is shown or hidden */
   'busy-indicator': AcEdBusyIndicatorEventArgs
+  /**
+   * Emitted when the drawing's working coordinate system changes.
+   *
+   * The status bar reads coordinates through it: a drawing whose structure sits
+   * at x = 311088 is read against a site datum, and a readout that ignores the
+   * datum is a readout nobody can check against the paper drawing.
+   */
+  'ucs-changed': { ucs: { name: string; origin: { x: number; y: number }; rotation: number } }
 }
 
 /**

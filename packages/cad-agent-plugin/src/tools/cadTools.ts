@@ -192,6 +192,23 @@ export function createCadTools() {
       execute: async input =>
         runSemanticTool('to_sang_bo_phan', input, dictionary())
     }),
+    // Mốc toạ độ: thứ khiến một vị trí nói ra được. Trên bản vẽ theo lý trình,
+    // "cách mốc M1 3850 sang phải" chỉ có nghĩa khi có chỗ giữ M1 nằm đâu.
+    moc_toa_do: tool({
+      description: SEMANTIC_TOOLS.find(t => t.name === 'moc_toa_do')!.description,
+      inputSchema: z.object({
+        hanh_dong: z
+          .enum(['xem', 'dat', 'goi', 'luu', 'the_gioi'])
+          .describe('Việc cần làm.'),
+        x: z.number().optional().describe('Hoành độ gốc mới, khi đặt.'),
+        y: z.number().optional().describe('Tung độ gốc mới, khi đặt.'),
+        ten: z.string().optional().describe('Tên mốc, khi gọi lại hoặc lưu.')
+      }),
+      execute: async input => {
+        await ready()
+        return runSemanticTool('moc_toa_do', input, dictionary())
+      }
+    }),
     // Templates before strokes. A part named and parameterised is one call
     // whose numbers are checked against declared ranges; the same part drawn
     // stroke by stroke is seventy calls, and every regulated dimension in it

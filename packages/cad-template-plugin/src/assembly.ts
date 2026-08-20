@@ -312,6 +312,10 @@ export async function runAssembly(
     if (typeof value === 'number' && Number.isFinite(value)) chung[key] = value
   }
 
+  // Gốc giữ nguyên theo hệ người ta gõ. `runTemplate` dời từng bước sang toạ độ
+  // thế giới, và vì mọi bước đều tính từ cùng một gốc ấy nên dời từng bước cho
+  // ra đúng một phép tịnh tiến chung — không cần, và không được, dời trước.
+
   // Every template the steps name has to be there before anything is drawn: a
   // missing one halfway through leaves a partial abutment.
   const missing = [...new Set(assembly.buoc.map(s => s.templateId))].filter(
