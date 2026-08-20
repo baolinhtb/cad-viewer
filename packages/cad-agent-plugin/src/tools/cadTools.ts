@@ -2,6 +2,7 @@ import {
   dictionary,
   ensureDeploymentDataLoaded,
   runSemanticTool,
+  assemblyToolDescription,
   runTemplateTool,
   SEMANTIC_TOOLS,
   TAG_TOOL,
@@ -46,7 +47,9 @@ function semanticDescription(name: string): string {
 function templateDescription(name: string): string {
   const found = TEMPLATE_TOOLS.find(t => t.name === name)
   if (!found) throw new Error(`template tool "${name}" is not declared`)
-  return name === 'chay_template' ? templateToolDescription() : found.description
+  if (name === 'chay_template') return templateToolDescription()
+  if (name === 'ghep_bo_phan') return assemblyToolDescription()
+  return found.description
 }
 
 /**
@@ -213,6 +216,29 @@ export function createCadTools() {
         await ready()
         return runTemplateTool('chay_template', {
           ma_template: input.ma_template,
+          thong_so: input.thong_so ?? {}
+        })
+      }
+    }),
+    // Cả công trình từ cách ghép đã đo, thay vì nhiều lần gọi rồi tự tính cao
+    // độ. Chỗ ghép sai không hiện ra trên màn hình — một tường đầu đặt theo cao
+    // độ ở tim thay vì góc thấp thì nhìn giữa vẫn khít, hai mép mới hở.
+    ghep_bo_phan: tool({
+      description: templateDescription('ghep_bo_phan'),
+      inputSchema: z.object({
+        ma_ghep: z
+          .string()
+          .min(1)
+          .describe('Mã cách ghép, ví dụ "mo_cau_hoan_chinh".'),
+        thong_so: z
+          .record(z.string(), z.number())
+          .optional()
+          .describe('Thông số chung cần đổi. Bỏ trống để dùng mặc định.')
+      }),
+      execute: async input => {
+        await ready()
+        return runTemplateTool('ghep_bo_phan', {
+          ma_ghep: input.ma_ghep,
           thong_so: input.thong_so ?? {}
         })
       }

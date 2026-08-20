@@ -55,6 +55,7 @@ describe('chay_template', () => {
     // restating it, so an undeclared tool has to fail loudly here.
     expect(TEMPLATE_TOOLS.map(t => t.name)).toEqual([
       'chay_template',
+      'ghep_bo_phan',
       'sua_lan_chay'
     ])
     expect(TEMPLATE_TOOLS[0].name).toBe('chay_template')

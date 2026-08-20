@@ -48,6 +48,16 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
       }
     },
     {
+      name: 'ghep_bo_phan',
+      description: 'Ghép nhiều cấu kiện thành một bản vẽ hoàn chỉnh...',
+      input_schema: {
+        type: 'object',
+        properties: {},
+        required: ['ma_ghep'],
+        additionalProperties: false
+      }
+    },
+    {
       name: 'sua_lan_chay',
       description:
         'Sửa một bộ phận đã dựng từ template... thay vì gọi lại chay_template.',
@@ -65,6 +75,7 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     calls.push({ name, input, terms })
     return { ok: true, status: 'ready', message: 'xong' }
   },
+  assemblyToolDescription: () => 'd',
   templateToolDescription: () =>
     'Dựng một bộ phận từ template... ƯU TIÊN... đừng chuyển sang vẽ tay.\n\n' +
     'Template dùng được ngay:\n- cau_ban_btct: Cầu bản BTCT [B=Bề rộng (4–20 m)]',

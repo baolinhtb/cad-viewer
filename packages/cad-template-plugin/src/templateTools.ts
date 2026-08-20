@@ -2,6 +2,7 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { runTemplate } from './runTemplate'
+import { assemblyCatalogue, findAssembly, runAssembly } from './assembly'
 import { editTemplateRun } from './editRun'
 import { findTemplate, listTemplates } from './templateRegistry'
 import { defaultValues } from './templateValues'
@@ -66,6 +67,39 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
         }
       },
       required: ['ma_template'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'ghep_bo_phan',
+    description:
+      'Ghép nhiều cấu kiện thành một bản vẽ hoàn chỉnh theo cách ghép đã đo từ ' +
+      'bản vẽ của kỹ sư: chạy từng template đúng thứ tự và tự tính cao độ, vị ' +
+      'trí cho mỗi bộ phận. ' +
+      'DÙNG CÔNG CỤ NÀY khi người dùng yêu cầu cả một công trình hay cả một ' +
+      'bộ phận lớn (ví dụ "dựng mố cầu"), thay vì gọi chay_template nhiều lần ' +
+      'rồi tự tính cao độ — chỗ ghép sai không hiện ra trên màn hình: một tường ' +
+      'đầu đặt theo cao độ ở tim thay vì góc thấp thì nhìn giữa vẫn khít mà hai ' +
+      'mép hở ra. ' +
+      'Chỉ truyền thông số chung cần đổi; phần còn lại lấy mặc định của bản vẽ mẫu. ' +
+      'Mỗi bộ phận vẫn là một lần chạy riêng, nên sau đó sửa từng cái bằng ' +
+      'sua_lan_chay được.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ma_ghep: {
+          type: 'string',
+          description: 'Mã cách ghép, ví dụ "mo_cau_hoan_chinh".'
+        },
+        thong_so: {
+          type: 'object',
+          description:
+            'Thông số chung cần đổi, ví dụ {"B": 9000, "doDocNgang": 1.5}. ' +
+            'Bỏ trống để dùng toàn bộ mặc định.',
+          additionalProperties: true
+        }
+      },
+      required: ['ma_ghep'],
       additionalProperties: false
     }
   },
@@ -176,6 +210,19 @@ export function templateToolDescription(): string {
 }
 
 /**
+ * The assembly tool's description, with the rules written out.
+ *
+ * The rules go into the description rather than into a document the assistant
+ * has to ask for, for the same reason the template catalogue does: a model that
+ * has to make one extra call to find out how parts stack will sometimes skip it
+ * and stack them itself.
+ */
+export function assemblyToolDescription(): string {
+  const found = TEMPLATE_TOOLS.find(t => t.name === 'ghep_bo_phan')!
+  return `${found.description}\n\nCách ghép có sẵn:\n${assemblyCatalogue()}`
+}
+
+/**
  * Runs one template by id.
  *
  * Every failure is an outcome rather than an exception. A refusal that says
@@ -190,6 +237,9 @@ export async function runTemplateTool(
   // viewer instead of the tool.
   database?: AcDbDatabase
 ): Promise<AcApToolOutcome> {
+  if (name === 'ghep_bo_phan') {
+    return assembleTool(input, database)
+  }
   if (name === 'sua_lan_chay') {
     return editRunTool(input, database)
   }
@@ -355,6 +405,83 @@ async function editRunTool(
       soDoiTuong: result.entityCount,
       layers: result.layers,
       thongSoSauKhiSua: result.values
+    }
+  }
+}
+
+/**
+ * Builds a whole structure from its declared assembly.
+ *
+ * The placement arithmetic stays in `assembly.ts` rather than being handed to
+ * the model as prose: it is exactly the part that fails silently, and a rule
+ * the model retypes from a description is a rule nothing checks.
+ */
+async function assembleTool(
+  input: Record<string, unknown>,
+  database?: AcDbDatabase
+): Promise<AcApToolOutcome> {
+  const id = String(input?.ma_ghep ?? '').trim()
+  if (!id) {
+    return {
+      ok: false,
+      status: 'refused',
+      message: 'Thiếu mã cách ghép.'
+    }
+  }
+  if (!findAssembly(id)) {
+    return {
+      ok: false,
+      status: 'refused',
+      message: `Không có cách ghép "${id}".`
+    }
+  }
+
+  const raw = (input?.thong_so ?? {}) as Record<string, unknown>
+  const values: Record<string, number> = {}
+  const boQua: string[] = []
+  for (const [key, value] of Object.entries(raw)) {
+    const num = typeof value === 'string' ? Number(value) : value
+    if (typeof num === 'number' && Number.isFinite(num)) values[key] = num
+    else boQua.push(key)
+  }
+
+  let result
+  try {
+    result = await runAssembly(id, values, database)
+  } catch (error) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        `Ghép "${id}" lỗi: ` +
+        (error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  if (result.errors.length > 0) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        `Ghép dừng lại vì có bước không dựng được:\n- ${result.errors.join('\n- ')}`,
+      data: { buoc: result.buoc }
+    }
+  }
+
+  const assembly = findAssembly(id)!
+  return {
+    ok: true,
+    status: 'ready',
+    message:
+      `Đã ghép ${assembly.ten}: ${result.buoc.length} bộ phận, ` +
+      `${result.entityCount} đối tượng. Mỗi bộ phận là một lần chạy riêng ` +
+      `(${result.buoc.map(b => b.runId).filter(Boolean).join(', ')}), sửa từng ` +
+      'cái bằng sua_lan_chay.' +
+      (boQua.length ? ` Bỏ qua thông số không phải số: ${boQua.join(', ')}.` : ''),
+    data: {
+      maGhep: id,
+      soDoiTuong: result.entityCount,
+      buoc: result.buoc
     }
   }
 }
