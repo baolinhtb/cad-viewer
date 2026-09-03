@@ -4,8 +4,8 @@ import { test } from 'node:test'
 
 import {
   buildStandardsBlock,
-  ERRORS,
   effortLevel,
+  ERRORS,
   estimateCost,
   monthlyUsage,
   recordCall,
@@ -13,6 +13,7 @@ import {
   sendToProvider
 } from './ai.mjs'
 import { migrate } from './schema.mjs'
+import { publishSkill, uploadSkill } from './skills.mjs'
 import { createTerm } from './standards.mjs'
 
 function freshDb() {
@@ -642,4 +643,30 @@ test('AI_EFFORT accepts only the levels the API knows', () => {
   for (const bad of ['medum', 'HIGH', '', undefined, null, 'maximum']) {
     assert.equal(effortLevel(bad), 'medium')
   }
+})
+
+test('the block lists published guides by id and description, and no drafts', () => {
+  const db = freshDb()
+  db.prepare(
+    `INSERT INTO users (id, email, name, pass_hash, salt, role)
+     VALUES (2, 'b@x.vn', 'Tác giả', 'h', 's', 'author')`
+  ).run()
+  const before = buildStandardsBlock(db).text
+  assert.match(before, /Hướng dẫn chuyên môn đã công bố[^\n]*\n- \(chưa có\)/)
+
+  const guide = (name, description) => ({
+    files: [{ path: 'SKILL.md', content: `---\nname: ${name}\ndescription: ${description}\n---\n# ${name}\nNội dung.` }]
+  })
+  uploadSkill(db, 2, guide('tru-cau', 'Dựng trụ cầu.'))
+  uploadSkill(db, 2, guide('mo-cau', 'Dựng và sửa mố cầu\n theo tham số.'))
+  publishSkill(db, 2, 'mo-cau')
+
+  const { text, hash } = buildStandardsBlock(db)
+  // Published: one line, id then description, newline in the source flattened.
+  assert.match(text, /\n- mo-cau: Dựng và sửa mố cầu theo tham số\.\n/)
+  // Draft: absent, not even by name.
+  assert.equal(text.includes('tru-cau'), false)
+  // The body is never in the block — it is read on demand.
+  assert.equal(text.includes('Nội dung.'), false)
+  assert.notEqual(hash, buildStandardsBlock(freshDb()).hash)
 })
