@@ -63,7 +63,11 @@ function load(file: string, dir: string = DIR) {
 }
 
 /** Runs a template with its declared defaults plus any overrides. */
-function run(file: string, overrides: Record<string, unknown> = {}, dir?: string) {
+function run(
+  file: string,
+  overrides: Record<string, unknown> = {},
+  dir?: string
+) {
   const template = load(file, dir)
   const values: Record<string, unknown> = {}
   for (const param of template.params) values[param.key] = param.default
@@ -98,10 +102,10 @@ function boxesByRole(entities: readonly AcDbEntity[]) {
     out.set(role, list)
   }
   // Two wing walls come back in whatever order they were drawn.
-  for (const list of out.values()) list.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  for (const list of out.values())
+    list.sort((a, b) => a[0] - b[0] || a[1] - b[1])
   return out
 }
-
 
 /** Đo từ bản vẽ chuẩn hoá, đã trừ độ dời phá khối và quy về gốc template. */
 const BANVE = {
@@ -231,7 +235,9 @@ describe('cấu kiện mố so với bản vẽ của kỹ sư', () => {
       return t.params.find((p: any) => p.key === key).default
     }
     expect(d('mo_tuong_than.js', 'y')).toBe(
-      d('mo_be_mong.js', 'y') + d('mo_be_mong.js', 'hLot') + d('mo_be_mong.js', 'hBe')
+      d('mo_be_mong.js', 'y') +
+        d('mo_be_mong.js', 'hLot') +
+        d('mo_be_mong.js', 'hBe')
     )
     expect(d('mo_tuong_dau.js', 'y')).toBeCloseTo(
       d('mo_tuong_than.js', 'y') + d('mo_tuong_than.js', 'hThan'),
@@ -243,7 +249,9 @@ describe('cấu kiện mố so với bản vẽ của kỹ sư', () => {
     const hatches = dau.filter(e => e.dxfTypeName === 'HATCH')
     expect(hatches).toHaveLength(2)
     for (const hatch of hatches) {
-      expect((hatch as unknown as { isSolidFill: boolean }).isSolidFill).toBe(true)
+      expect((hatch as unknown as { isSolidFill: boolean }).isSolidFill).toBe(
+        true
+      )
       expect(readSemanticTag(hatch)?.role).toBe('mo_tuong_tai')
     }
   })
@@ -306,6 +314,40 @@ describe('lan can cầu so với bản vẽ', () => {
   it('phần thép bám theo đỉnh tường khi đổi chiều cao', () => {
     const cao = boxOfAll(veAll({ h: 1300 }))
     expect(Math.abs(cao[3] - (1677.5 + 210))).toBeLessThan(1)
+  })
+
+  it('mặt vát quay về phía xe chạy, thân tường nằm ngoài chân mặt vát', () => {
+    // Bản 3.0.0 vẽ hình gốc (chép từ lancan-left.dwg) cho mép phải, nên cả
+    // hai lan can quay mặt vát ra mép cầu — kỹ sư nhìn ra ngay trên bản vẽ
+    // dựng thử. Kiểm bằng đỉnh hình chứ không bằng hộp bao: hộp bao của hai
+    // hình đối xứng qua tâm của chính nó giống hệt nhau.
+    const wallOf = (drawn: AcDbEntity[]) =>
+      drawn.find(
+        e =>
+          readSemanticTag(e)?.role === 'lan_can' &&
+          (e as unknown as { numberOfVertices?: number }).numberOfVertices === 7
+      ) as unknown as {
+        numberOfVertices: number
+        getPoint2dAt(i: number): { x: number; y: number }
+      }
+    const vertices = (wall: ReturnType<typeof wallOf>) =>
+      Array.from({ length: wall.numberOfVertices }, (_, i) =>
+        wall.getPoint2dAt(i)
+      )
+
+    // Mép phải tại mép lớp phủ x = 3500: chân mặt vát (y = 690) ở đúng 3500,
+    // mép sau ở 4000 — thân tường nằm ngoài, mặt vát nhìn về tim (x nhỏ hơn).
+    const phai = vertices(wallOf(veAll({ ben: 'phai', x: 3500 })))
+    const chanVatPhai = phai.find(p => Math.abs(p.y - 690) < 1)!
+    expect(chanVatPhai.x).toBeCloseTo(3500, 3)
+    expect(Math.max(...phai.map(p => p.x))).toBeCloseTo(4000, 3)
+    expect(Math.min(...phai.map(p => p.x))).toBeCloseTo(3500, 3)
+
+    const trai = vertices(wallOf(veAll({ ben: 'trai', x: -3500 })))
+    const chanVatTrai = trai.find(p => Math.abs(p.y - 690) < 1)!
+    expect(chanVatTrai.x).toBeCloseTo(-3500, 3)
+    expect(Math.min(...trai.map(p => p.x))).toBeCloseTo(-4000, 3)
+    expect(Math.max(...trai.map(p => p.x))).toBeCloseTo(-3500, 3)
   })
 
   it('lật sang mép phải là ảnh gương, không phải bản sao', () => {

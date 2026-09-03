@@ -39,7 +39,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'tuong_phong_ho_btct',
-    version: '3.0.0',
+    version: '3.1.0',
     name: 'Lan can cầu (tường phòng hộ bê tông + lan can thép)',
     category: 'Bộ phận cầu',
     description:
@@ -49,7 +49,9 @@ export default {
       'đỉnh tường bê tông. Chiều cao tối thiểu theo cấp thử nghiệm va xe: TL-3 ≥ ' +
       '685, TL-4 ≥ 810, TL-5 ≥ 1070 mm theo TCVN 11823-13:2017 điều 7.3.2.1. ' +
       'Chân tường có khấc để ôm mép bản mặt cầu; khấc giữ nguyên như bản vẽ, ' +
-      'chỉ chiều cao là tham số.'
+      'chỉ chiều cao là tham số. Gốc x là chân mặt vát, tức mép lớp phủ phía ' +
+      'xe chạy; thân tường rộng 500 nằm phía ngoài gốc ấy, mặt vát quay vào ' +
+      'phía xe chạy.'
   },
   params: [
     {
@@ -110,7 +112,10 @@ export default {
       min: -30000,
       max: 30000,
       default: 0,
-      group: 'Vị trí'
+      group: 'Vị trí',
+      hint:
+        'Chân mặt vát — mép lớp phủ phía xe chạy. Thân tường 500 mm nằm phía ' +
+        'ngoài điểm này, về phía mép cầu.'
     },
     {
       key: 'y',
@@ -150,9 +155,20 @@ export default {
     const x0 = num('x', 0)
     const y0 = num('y', 0)
 
-    // Mặt vát luôn quay về phía xe chạy. Vẽ giống nhau ở hai mép thì một bên
-    // có mặt vát ngược, và trên màn hình không có gì nói ra điều đó.
+    // Mặt vát luôn quay về phía xe chạy, thân tường nằm phía ngoài mép lớp
+    // phủ. `dir` là hướng ra mép cầu: +1 ở mép phải, −1 ở mép trái.
+    //
+    // Biên dạng dưới đây chép từ lancan-left.dwg, tức là mép TRÁI đúng như bản
+    // vẽ: mép sau (dx = 0) ở phía ngoài, mặt vát (dx = 500) ở phía +x, phía xe
+    // chạy. Mép phải là ảnh gương của nó. Bản 3.0.0 đọc ngược — vẽ hình gốc
+    // cho mép phải và gốc x đặt ở mép sau — nên cả hai lan can quay mặt vát
+    // ra ngoài; kỹ sư nhìn ra ngay trên bản vẽ dựng thử ngày 2026-09-03.
     const dir = side === 'phai' ? 1 : -1
+    /**
+     * x0 là chân mặt vát, đo trên bản vẽ lắp là mép lớp phủ. Biên dạng đo dx
+     * từ mép sau, nên đi ngược `dir`: dx = 500 rơi đúng x0, dx = 0 ở x0 + dir·500.
+     */
+    const px = dx => x0 + dir * (500 - dx)
 
     /**
      * Profile lấy nguyên từ bản vẽ, gốc dời về mép sau và đáy.
@@ -187,7 +203,7 @@ export default {
       layer: 'KC-LANCAN',
       closed: true,
       points: HINH.map(([dx, dy]) => ({
-        x: x0 + dir * dx,
+        x: px(dx),
         y: y0 + (dy === null ? h : dy),
         z: 0
       }))
@@ -199,7 +215,7 @@ export default {
       partId: formatPartId({ role: 'ong_thoat_nuoc', side }),
       params: { D: 100 },
       layer: 'KT-THOATNUOC',
-      center: { x: x0 + dir * 203, y: y0 + 727, z: 0 },
+      center: { x: px(203), y: y0 + 727, z: 0 },
       radius: 50
     })
 
@@ -294,7 +310,6 @@ export default {
       [145, 232.1, 45]
     ]
 
-    const px = dx => x0 + dir * dx
     const py = dy => y0 + h + dy
     let n = 0
     const id = () => formatPartId({ role: 'lan_can', side, ordinal: ++n })
@@ -310,12 +325,14 @@ export default {
     }
 
     for (const [cx, cy, r, a1, a2] of LC_CUNG) {
-      // Lật sang mép phải là lật gương qua trục đứng: góc θ thành 180° − θ, và
-      // chiều quay đảo nên hai đầu cung đổi chỗ. Vẽ nguyên góc cho cả hai bên
-      // thì một bên có cung cong ngược, thứ rất khó thấy trên màn hình.
+      // Mép phải là ảnh gương qua trục đứng của hình gốc (mép trái): góc θ
+      // thành 180° − θ, và chiều quay đảo nên hai đầu cung đổi chỗ. Vẽ nguyên
+      // góc cho cả hai bên thì một bên có cung cong ngược, thứ rất khó thấy
+      // trên màn hình.
       const rad = deg => (deg * Math.PI) / 180
-      const start = dir === 1 ? rad(a1) : rad(180 - a2)
-      const end = dir === 1 ? rad(a2) : rad(180 - a1)
+      const mirrored = dir === 1
+      const start = mirrored ? rad(180 - a2) : rad(a1)
+      const end = mirrored ? rad(180 - a1) : rad(a2)
       ctx.arc({
         role: 'lan_can',
         partId: id(),

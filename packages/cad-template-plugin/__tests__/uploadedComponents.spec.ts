@@ -188,7 +188,12 @@ describe('tường phòng hộ bê tông', () => {
   test('reproduces the drawn profile, not a guessed one', () => {
     // Seven vertices with a notch at the foot — a shape no formula would
     // produce, and the reason this template now carries coordinates.
-    const wall = run(load3(), { ben: 'phai', x: 0, y: 0, h: 1090 }).drawn.find(
+    //
+    // The drawn profile is the LEFT railing (lancan-left.dwg), measured from
+    // its back face; the template's origin is the foot of the sloped face,
+    // 500 further in. Placing the left one at x = 500 therefore puts the back
+    // face at 0 and returns the drawing's own numbers.
+    const wall = run(load3(), { ben: 'trai', x: 500, y: 0, h: 1090 }).drawn.find(
       e => readSemanticTag(e as never)?.role === 'lan_can'
     ) as never as {
       numberOfVertices: number

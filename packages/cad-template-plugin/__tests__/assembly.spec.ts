@@ -145,6 +145,33 @@ describe('ghép mố cầu hoàn chỉnh', () => {
     expect(dayPhai - dayTrai).toBeCloseTo(140, 0)
   })
 
+  it('lan can quay mặt vát vào tim, thân tường nằm ngoài mép lớp phủ', async () => {
+    // Hai lan can đối xứng qua tim thì hộp bao không nói được chúng quay mặt
+    // nào; phải đọc đỉnh hình. Chân mặt vát (690 trên đáy) là điểm gần tim
+    // nhất của tường, mép sau là điểm xa tim nhất.
+    const db = newDatabase()
+    await runAssembly('mo_cau_hoan_chinh', {}, db)
+    const walls = entities(db).filter(
+      e =>
+        readSemanticTag(e)?.role === 'lan_can' &&
+        (e as unknown as { numberOfVertices?: number }).numberOfVertices === 7
+    ) as unknown as {
+      numberOfVertices: number
+      getPoint2dAt(i: number): { x: number; y: number }
+    }[]
+    expect(walls).toHaveLength(2)
+    for (const wall of walls) {
+      const pts = Array.from({ length: wall.numberOfVertices }, (_, i) =>
+        wall.getPoint2dAt(i)
+      )
+      const day = Math.min(...pts.map(p => p.y))
+      const chanVat = pts.find(p => Math.abs(p.y - day - 690) < 1)!
+      const xa = Math.max(...pts.map(p => Math.abs(p.x)))
+      expect(Math.abs(chanVat.x)).toBeCloseTo(3500, 0)
+      expect(xa).toBeCloseTo(4000, 0)
+    }
+  })
+
   it('lan can đứng trên mặt lớp phủ, không lơ lửng và không chìm', async () => {
     const db = newDatabase()
     await runAssembly('mo_cau_hoan_chinh', {}, db)
@@ -178,10 +205,14 @@ describe('ghép mố cầu hoàn chỉnh', () => {
       e => readSemanticTag(e)?.role === 'lan_can'
     )
     const trongTrai = Math.max(
-      ...lanCan.filter(e => e.geometricExtents.min.x < 0).map(e => e.geometricExtents.max.x)
+      ...lanCan
+        .filter(e => e.geometricExtents.min.x < 0)
+        .map(e => e.geometricExtents.max.x)
     )
     const trongPhai = Math.min(
-      ...lanCan.filter(e => e.geometricExtents.min.x > 0).map(e => e.geometricExtents.min.x)
+      ...lanCan
+        .filter(e => e.geometricExtents.min.x > 0)
+        .map(e => e.geometricExtents.min.x)
     )
     // 10000 − 2×350 = 9300.
     expect(trongPhai - trongTrai).toBeCloseTo(9300, 0)
