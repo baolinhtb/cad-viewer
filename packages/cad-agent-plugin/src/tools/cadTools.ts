@@ -18,6 +18,7 @@ import { tool } from 'ai'
 import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import { readGuide } from './skillLookup'
 import { lookupTcvn } from './tcvnLookup'
 
 /**
@@ -283,6 +284,30 @@ export function createCadTools() {
           thong_so: input.thong_so
         })
       }
+    }),
+    // The office's own guide before the standard: a guide says which template
+    // to run for this request and how the engineer's words map onto its
+    // parameters, which is the question the lookup below cannot answer. Its
+    // body is fetched only here — the one-line descriptions ride in the cached
+    // standards block, so the model can tell whether a guide applies before
+    // paying to read it.
+    doc_huong_dan: tool({
+      description:
+        'Mở một hướng dẫn chuyên môn do phòng kỹ thuật soạn cho trợ lý. ' +
+        'Nền chuẩn hoá liệt kê các hướng dẫn đã công bố trong mục "Hướng dẫn chuyên môn đã công bố", mỗi dòng một mã và mô tả. ' +
+        'Khi yêu cầu khớp một dòng ở đó — đúng bộ phận, đúng từ khoá — gọi ngay với mã ấy trước khi chọn template hay vẽ, rồi làm theo hướng dẫn: template hay cách ghép nào, tham số đổi tên ra sao, kiểm gì sau khi dựng. ' +
+        'Kèm tep=<đường dẫn> để đọc một tệp tham chiếu mà hướng dẫn nêu tên, và chỉ khi hướng dẫn bảo cần: mỗi tệp đã đọc nằm lại trong hội thoại suốt lượt.',
+      inputSchema: z.object({
+        ten: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9_-]*$/)
+          .describe('Mã hướng dẫn đúng như trong mục "Hướng dẫn chuyên môn đã công bố", ví dụ "mo-cau".'),
+        tep: z
+          .string()
+          .optional()
+          .describe('Đường dẫn một tệp kèm theo, ví dụ "references/tham-so.md". Bỏ trống để đọc thân hướng dẫn.')
+      }),
+      execute: async input => readGuide(input.ten, input.tep)
     }),
     // Reference before geometry: nearly every dimension in a bridge or road
     // drawing is already decided by a standard, and a number the model
