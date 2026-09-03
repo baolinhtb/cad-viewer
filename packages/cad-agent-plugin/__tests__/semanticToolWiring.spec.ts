@@ -224,3 +224,25 @@ describe('executing them', () => {
     ])
   })
 })
+
+describe('the guide tool', () => {
+  const tools = createCadTools() as Record<string, { description: string }>
+
+  test('is offered, and its description tells the model where the list of guides is', () => {
+    // The one-line descriptions ride in the server's standards block; the tool
+    // is how the body gets read. A description that did not name the block
+    // would leave the model with a tool it has no reason to call.
+    expect(tools.doc_huong_dan).toBeDefined()
+    expect(tools.doc_huong_dan.description).toContain('Hướng dẫn chuyên môn đã công bố')
+    expect(tools.doc_huong_dan.description).toContain('tep=')
+  })
+
+  test('sits after the template tools and before the standards lookup', () => {
+    // A guide says which template to run for this request; the standard says
+    // what a number must be. The guide answers the earlier question.
+    const names = Object.keys(tools)
+    expect(names.indexOf('doc_huong_dan')).toBeGreaterThan(names.indexOf('chay_template'))
+    expect(names.indexOf('doc_huong_dan')).toBeLessThan(names.indexOf('tra_cuu_tieu_chuan'))
+    expect(names.indexOf('doc_huong_dan')).toBeLessThan(names.indexOf('draw_line'))
+  })
+})
