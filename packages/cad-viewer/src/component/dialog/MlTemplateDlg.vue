@@ -34,11 +34,22 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useDialogManager } from '../../composable'
+import MlSkillLibrary from './MlSkillLibrary.vue'
 
 const { t } = useI18n()
 const { getDialogByName, toggleDialog } = useDialogManager()
 
 const dialog = computed(() => getDialogByName('TemplateDlg'))
+
+/**
+ * Which library is on screen.
+ *
+ * Guides live in the same dialog as templates because they are managed by the
+ * same people for the same reason — both are the office telling the assistant
+ * what "right" looks like — and a second entry in the menu for a second list
+ * of the same kind is one more place to look.
+ */
+const tab = ref<'templates' | 'skills'>('templates')
 const visible = computed({
   get: () => dialog.value?.visible ?? false,
   set: (value: boolean) => toggleDialog('TemplateDlg', value)
@@ -285,7 +296,36 @@ async function generate() {
     width="640px"
     class="ml-template-dlg"
   >
-    <el-form label-position="top" @submit.prevent>
+    <div class="ml-template-dlg__tabs" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        class="ml-template-dlg__tab"
+        :class="{ 'is-active': tab === 'templates' }"
+        :aria-selected="tab === 'templates'"
+        @click="tab = 'templates'"
+      >
+        {{ t('dialog.templateDlg.tabTemplates') }}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="ml-template-dlg__tab"
+        :class="{ 'is-active': tab === 'skills' }"
+        :aria-selected="tab === 'skills'"
+        @click="tab = 'skills'"
+      >
+        {{ t('dialog.templateDlg.tabSkills') }}
+      </button>
+    </div>
+
+    <MlSkillLibrary
+      v-if="tab === 'skills'"
+      :can-edit="canUpload"
+      :active="visible && tab === 'skills'"
+    />
+
+    <el-form v-else label-position="top" @submit.prevent>
       <el-form-item :label="t('dialog.templateDlg.template')">
         <div class="ml-template-dlg__library">
           <div v-if="categories.length > 1" class="ml-template-dlg__filters">
@@ -431,19 +471,29 @@ async function generate() {
 
     <template #footer>
       <div class="ml-template-dlg__footer">
-        <el-button v-if="!showAllOnOnePage && step > 0" @click="step -= 1">
-          {{ t('dialog.templateDlg.back') }}
+        <el-button v-if="tab === 'skills'" @click="visible = false">
+          {{ t('dialog.templateDlg.close') }}
         </el-button>
-        <el-button
-          v-if="!showAllOnOnePage && step < groups.length - 1"
-          type="primary"
-          @click="step += 1"
-        >
-          {{ t('dialog.templateDlg.next') }}
-        </el-button>
-        <el-button v-else type="primary" :loading="running" @click="generate">
-          {{ t('dialog.templateDlg.generate') }}
-        </el-button>
+        <template v-else>
+          <el-button v-if="!showAllOnOnePage && step > 0" @click="step -= 1">
+            {{ t('dialog.templateDlg.back') }}
+          </el-button>
+          <el-button
+            v-if="!showAllOnOnePage && step < groups.length - 1"
+            type="primary"
+            @click="step += 1"
+          >
+            {{ t('dialog.templateDlg.next') }}
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :loading="running"
+            @click="generate"
+          >
+            {{ t('dialog.templateDlg.generate') }}
+          </el-button>
+        </template>
       </div>
     </template>
   </el-dialog>
@@ -452,6 +502,38 @@ async function generate() {
 <style scoped>
 /* Spacing, colour and type all come from the design tokens; nothing here
    hard-codes a value that DESIGN.md owns. */
+
+/* --- Tabs ------------------------------------------------------------------
+   Two libraries, one dialog. A hairline underneath and an accent underline on
+   the active one; no filled pill, so the tabs read as navigation and not as a
+   second row of the category filters below them. */
+.ml-template-dlg__tabs {
+  display: flex;
+  gap: var(--cv-space-4);
+  margin-bottom: var(--cv-space-4);
+  border-bottom: 1px solid var(--cv-border-hairline);
+}
+
+.ml-template-dlg__tab {
+  padding: 0 0 var(--cv-space-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--cv-ink-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ml-template-dlg__tab:hover {
+  color: var(--cv-ink-primary);
+}
+
+.ml-template-dlg__tab.is-active {
+  border-bottom-color: var(--cv-accent);
+  color: var(--cv-ink-primary);
+}
+
 .ml-template-dlg__select {
   width: 100%;
 }
