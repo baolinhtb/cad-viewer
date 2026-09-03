@@ -12,7 +12,33 @@ export default {
     back: 'Back',
     next: 'Next',
     generate: 'Generate drawing',
-    done: 'Drawing generated. {count} entities, {layers} layers.'
+    done: 'Drawing generated. {count} entities, {layers} layers.',
+    tabTemplates: 'Templates',
+    tabSkills: 'Assistant guides',
+    close: 'Close'
+  },
+  skillLibrary: {
+    intro:
+      'A guide is a folder holding SKILL.md, with name and description in its header, and references/*.md. The assistant sees the description of every published guide on each call and reads the body only when a request matches it.',
+    empty: 'No guides yet.',
+    readOnly: 'Only authors can upload or publish guides.',
+    upload: 'Upload guide folder…',
+    uploadFiles: 'or pick .md files…',
+    uploading: 'Uploading…',
+    uploaded: 'Uploaded {id} as a draft. Try it, then publish.',
+    unchanged: '{id} is unchanged.',
+    ignored: 'Skipped: {files}.',
+    publish: 'Publish',
+    published: 'Published {id}. The assistant of every member now sees it.',
+    delete: 'Delete',
+    confirmDelete: 'Confirm delete',
+    deleted: 'Deleted {id}.',
+    view: 'View',
+    hide: 'Hide',
+    statusDraft: 'Draft',
+    statusPublished: 'Published',
+    files: '{count} files',
+    refresh: 'Refresh'
   },
   baseDialog: {
     ok: 'OK',
