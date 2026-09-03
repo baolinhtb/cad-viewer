@@ -670,3 +670,32 @@ test('the block lists published guides by id and description, and no drafts', ()
   assert.equal(text.includes('Nội dung.'), false)
   assert.notEqual(hash, buildStandardsBlock(freshDb()).hash)
 })
+
+test('a workspace id travels as a header when set, and no header at all when not', async () => {
+  process.env.ANTHROPIC_API_KEY = 'sk-test'
+  delete process.env.ANTHROPIC_WORKSPACE_ID
+  const without = {}
+  await sendToProvider(
+    freshDb(),
+    USER,
+    { messages: [{ role: 'user', content: 'x' }] },
+    fakeProvider(OK_REPLY, without)
+  )
+  // Absent, not empty: an empty `anthropic-workspace-id` is itself refused.
+  assert.equal('anthropic-workspace-id' in without.headers, false)
+
+  process.env.ANTHROPIC_WORKSPACE_ID = ' wrkspc_abc '
+  try {
+    const withId = {}
+    await sendToProvider(
+      freshDb(),
+      USER,
+      { messages: [{ role: 'user', content: 'x' }] },
+      fakeProvider(OK_REPLY, withId)
+    )
+    assert.equal(withId.headers['anthropic-workspace-id'], 'wrkspc_abc')
+    assert.equal(withId.headers['x-api-key'], 'sk-test')
+  } finally {
+    delete process.env.ANTHROPIC_WORKSPACE_ID
+  }
+})

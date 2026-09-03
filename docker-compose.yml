@@ -30,6 +30,11 @@ services:
       # other feature works unchanged — the assistant is an accelerator on a
       # product that already does its job without one.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Required only for a key created inside one workspace of the Anthropic
+      # organisation ("identity-linked"): the API refuses such a key unless
+      # the request names its workspace (Console › Settings › Workspaces,
+      # id starts with `wrkspc_`). Leave empty for a plain key.
+      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
       AI_MODEL: ${AI_MODEL:-claude-opus-5}
     volumes:
       - auth-data:/data
