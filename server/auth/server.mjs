@@ -54,6 +54,16 @@ import {
   uploadTemplate
 } from './templates.mjs'
 import { hasRoleAtLeast, migrate, ROLES } from './schema.mjs'
+import {
+  deleteSkill,
+  ERRORS as SKILL_ERRORS,
+  getSkill,
+  listSkills,
+  MAX_SKILL_BYTES,
+  publishSkill,
+  SkillError,
+  uploadSkill
+} from './skills.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 3000)
@@ -550,6 +560,107 @@ const server = createServer(async (req, res) => {
     // Reading is open to every member; uploading is not. An upload is code
     // that will execute in everybody else's browser, which is why Story 2.4
     // introduced a role for it rather than reusing the admin flag.
+    // --- Guide library ---
+    //
+    // Same shape as the template library below, and gated the same way: a
+    // guide is instructions for everyone's assistant, so writing needs the
+    // author role and a draft is visible to its author alone.
+    if (path === '/api/skills' || path.startsWith('/api/skills/')) {
+      const user = currentUser(req)
+      if (!user) {
+        json(res, 401, { error: 'unauthorized', code: 'unauthorized' })
+        return
+      }
+
+      const rest = path.slice('/api/skills'.length).replace(/^\//, '')
+      const [skillId, action] = rest.split('/').map(part =>
+        part ? decodeURIComponent(part) : ''
+      )
+
+      const failSkill = error => {
+        if (!(error instanceof SkillError)) throw error
+        const status =
+          error.code === SKILL_ERRORS.NOT_FOUND
+            ? 404
+            : error.code === SKILL_ERRORS.FORBIDDEN
+              ? 403
+              : error.code === SKILL_ERRORS.TOO_LARGE
+                ? 413
+                : 400
+        json(res, status, {
+          error: 'Không nạp được hướng dẫn.',
+          code: error.code,
+          detail: error.detail ?? null
+        })
+      }
+
+      if (req.method === 'GET' && !skillId) {
+        json(res, 200, { skills: listSkills(db, user.id) })
+        return
+      }
+
+      if (req.method === 'GET' && skillId && !action) {
+        const skill = getSkill(db, skillId)
+        // A draft belongs to its author until they have tried it. Reported as
+        // absent rather than forbidden, so the route does not confirm that a
+        // guide by that name exists.
+        if (!skill || (skill.status !== 'published' && skill.uploadedBy !== user.id)) {
+          json(res, 404, {
+            error: 'Không tìm thấy hướng dẫn.',
+            code: SKILL_ERRORS.NOT_FOUND
+          })
+          return
+        }
+        json(res, 200, { skill })
+        return
+      }
+
+      // Everything below writes. Checked here on the server: a client that
+      // hides the upload button is not a permission, it is a suggestion.
+      if (!hasRoleAtLeast(user.role, ROLES.AUTHOR)) {
+        json(res, 403, {
+          error: 'Chỉ tác giả mới nạp được hướng dẫn.',
+          code: SKILL_ERRORS.FORBIDDEN
+        })
+        return
+      }
+
+      if (req.method === 'POST' && !skillId) {
+        const body = await readBody(req, MAX_SKILL_BYTES + 64 * 1024)
+        try {
+          const result = uploadSkill(db, user.id, body)
+          json(res, result.changed ? 201 : 200, result)
+        } catch (error) {
+          failSkill(error)
+        }
+        return
+      }
+
+      if (req.method === 'POST' && skillId && action === 'publish') {
+        try {
+          json(res, 200, { skill: publishSkill(db, user.id, skillId) })
+        } catch (error) {
+          failSkill(error)
+        }
+        return
+      }
+
+      if (req.method === 'DELETE' && skillId && !action) {
+        if (!deleteSkill(db, skillId)) {
+          json(res, 404, {
+            error: 'Không tìm thấy hướng dẫn.',
+            code: SKILL_ERRORS.NOT_FOUND
+          })
+          return
+        }
+        json(res, 200, { message: 'ok' })
+        return
+      }
+
+      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      return
+    }
+
     if (path === '/api/templates' || path.startsWith('/api/templates/')) {
       const user = currentUser(req)
       if (!user) {

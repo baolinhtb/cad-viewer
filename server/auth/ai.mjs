@@ -22,6 +22,7 @@
 
 import { createHash } from 'node:crypto'
 
+import { listSkills } from './skills.mjs'
 import { listLayers, listTerms } from './standards.mjs'
 import { listTemplates } from './templates.mjs'
 
@@ -133,6 +134,16 @@ export function buildStandardsBlock(db) {
       return `- ${template.templateId} v${template.version}: ${template.name}${params ? ` [${params}]` : ''}`
     })
 
+  // One line per published guide: the id the assistant asks for, and the
+  // description it matches a request against. The body is never here — it is
+  // read on demand, which is what keeps this block cheap enough to send on
+  // every call. Drafts are left out on purpose: a guide nobody has tried yet
+  // must not steer everyone's assistant.
+  const skills = listSkills(db, null, { includeDrafts: false })
+    .slice()
+    .sort((a, b) => a.skillId.localeCompare(b.skillId))
+    .map(skill => `- ${skill.skillId}: ${skill.description}`)
+
   const text = [
     'NỀN CHUẨN HÓA CỦA CÔNG TY',
     '',
@@ -144,6 +155,9 @@ export function buildStandardsBlock(db) {
     '',
     'Template đã công bố:',
     ...(templates.length ? templates : ['- (chưa có)']),
+    '',
+    'Hướng dẫn chuyên môn đã công bố (mã: mô tả):',
+    ...(skills.length ? skills : ['- (chưa có)']),
     ''
   ].join('\n')
 

@@ -9,7 +9,7 @@ WORKDIR /app
 # service at startup.
 COPY server/auth/server.mjs server/auth/schema.mjs server/auth/drawings.mjs \
      server/auth/standards.mjs server/auth/templates.mjs server/auth/ai.mjs \
-     server/auth/tcvn.mjs ./
+     server/auth/tcvn.mjs server/auth/skills.mjs ./
 COPY server/auth/public ./public
 # The standards the assistant cites. Copied into the image rather than mounted:
 # which edition of a standard a drawing was checked against is part of what the

@@ -291,6 +291,36 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_ai_calls_user
         ON ai_calls(user_id, created_at DESC);
     `)
+  },
+
+  // v8 — the guide library.
+  //
+  // A guide is a folder of markdown for the assistant: `SKILL.md` with a
+  // `name` and `description` in its frontmatter, plus `references/*.md`. The
+  // files travel as one JSON column rather than a table of their own because
+  // they are only ever read together — a guide with half its references is
+  // not a smaller guide, it is a broken one — and a guide is a few kilobytes.
+  //
+  // Keyed by `skill_id` alone. Templates carry a version because a drawing
+  // pins one; nothing pins a guide, so a changed guide simply replaces the old
+  // text and drops back to draft until its author has tried the new one.
+  db => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS skills (
+        skill_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        files TEXT NOT NULL DEFAULT '[]',
+        content_hash TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        uploaded_by INTEGER REFERENCES users(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        verified_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_skills_status
+        ON skills(status, skill_id);
+    `)
   }
 ]
 
