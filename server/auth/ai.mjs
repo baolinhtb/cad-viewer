@@ -62,6 +62,25 @@ const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 
 /**
+ * Headers that identify this deployment to the provider.
+ *
+ * A key created for one workspace of an organisation ("identity-linked") is
+ * refused unless the request also names the workspace it acts for; a plain
+ * key needs nothing more. So the workspace header is sent only when the
+ * variable is set — an empty header is not the same as no header, and would
+ * break the plain-key deployments that work today.
+ */
+function providerHeaders(key) {
+  const workspace = process.env.ANTHROPIC_WORKSPACE_ID?.trim()
+  return {
+    'content-type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': ANTHROPIC_VERSION,
+    ...(workspace ? { 'anthropic-workspace-id': workspace } : {})
+  }
+}
+
+/**
  * Price per million tokens, used only to show a monthly figure.
  *
  * Deliberately a plain table rather than a lookup against the provider: a
@@ -359,11 +378,7 @@ export async function sendToProvider(
   try {
     response = await fetchImpl(ANTHROPIC_URL, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': ANTHROPIC_VERSION
-      },
+      headers: providerHeaders(key),
       body: JSON.stringify(payload)
     })
   } catch (error) {
