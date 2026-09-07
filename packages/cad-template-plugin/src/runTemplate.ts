@@ -14,7 +14,7 @@ import { markTemplateVerified } from './remoteTemplates'
 export { defaultValues } from './templateValues'
 import { toDrawingPlacement } from './placement'
 import { nextRunId } from './runIdentity'
-import { findRemoteSource, roleLayers } from './templateRegistry'
+import { findRemoteSource, layerStyles, roleLayers } from './templateRegistry'
 
 /** Outcome of a run, enough to tell the user what was produced. */
 export interface AcApTemplateRunResult {
@@ -75,7 +75,7 @@ export async function runTemplate(
       // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
       // này về sau là sửa lại chính những trị số ấy.
       values: values as Record<string, number | string | boolean>
-    })
+    }, layerStyles())
     await template.generate(ctx, placed)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]

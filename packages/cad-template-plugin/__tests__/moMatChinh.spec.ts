@@ -49,6 +49,15 @@ const ROLE_LAYERS: Record<string, string> = {
   tieu_de_ban_ve: '_33_Tieudebanve'
 }
 
+/** Màu layer như nền chuẩn hoá của phòng: bản vẽ để xám 8, lan can trắng 7. */
+const LAYER_STYLES: Record<string, { color: number | null }> = {
+  _33_CAU_MO_Be: { color: 8 },
+  _33_CAU_MO_Tuongthan: { color: 8 },
+  _33_Timtuyen: { color: 8 },
+  _33_Ghichu: { color: 8 },
+  'KC-LANCAN': { color: 7 }
+}
+
 function load() {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
     formatPartId
@@ -66,9 +75,9 @@ function run(overrides: Record<string, unknown> = {}) {
   expect(errors).toEqual([])
   const database = new AcDbDatabase()
   database.createDefaultData()
-  const ctx = createDrawContext(database, template.meta.id, ROLE_LAYERS)
+  const ctx = createDrawContext(database, template.meta.id, ROLE_LAYERS, undefined, LAYER_STYLES)
   template.generate(ctx, values)
-  return [...ctx.drawn] as AcDbEntity[]
+  return { drawn: [...ctx.drawn] as AcDbEntity[], database }
 }
 
 type Poly = AcDbEntity & {
@@ -101,7 +110,7 @@ function expectVertices(entity: AcDbEntity, expected: number[][]) {
 }
 
 describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () => {
-  const drawn = run()
+  const { drawn, database } = run()
 
   test('mọi đối tượng đều mang nhãn và nằm trên layer của phòng', () => {
     expect(drawn.length).toBeGreaterThan(200)
@@ -113,6 +122,28 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     for (const e of drawn) {
       if (role(e) === 'ky_hieu_mat_cat') expect(e.layer).toBe('_33_Kyhieumatcat')
     }
+  })
+
+  test('màu như bản vẽ: layer xám theo nền chuẩn hoá, nét khác màu đúng chỗ', () => {
+    const colorOf = (e: AcDbEntity) => e.color.colorIndex
+    // Layer do template tạo lấy màu của nền chuẩn hoá; chưa quy định thì trắng.
+    expect(database.tables.layerTable.getAt('_33_CAU_MO_Be')!.color.colorIndex).toBe(8)
+    expect(database.tables.layerTable.getAt('KC-LANCAN')!.color.colorIndex).toBe(7)
+    expect(database.tables.layerTable.getAt('_33_CAU_MO_Tuongdau')!.color.colorIndex).toBe(7)
+    // Kết cấu theo layer; tim tuyến đỏ; ghi chú xanh đúng năm dòng; mốc vàng.
+    expect(colorOf(polyOf(drawn, 'mo_be'))).toBe(256)
+    expect(colorOf(drawn.find(e => partId(e) === 'duong_tim_01')!)).toBe(1)
+    const texts = drawn.filter(e => e.dxfTypeName === 'TEXT') as (AcDbEntity & { textString: string })[]
+    const green = texts.filter(t => colorOf(t) === 3).map(t => t.textString).sort()
+    expect(green).toEqual(['BÊ TÔNG ĐỆM C8', 'CỌC KHOAN NHỒI', 'D1200 (M)', 'i=0%', 'i=0%'])
+    expect(colorOf(texts.find(t => t.textString === 'Tim cầu')!)).toBe(256)
+    const moc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && isPoly(e))
+    expect(moc.every(e => colorOf(e) === 2)).toBe(true)
+    // Lan can: biên dạng lam, ống thoát nước xám nhạt, thanh thép vàng là số đông.
+    expect(colorOf(polyOf(drawn, 'lan_can_trai'))).toBe(4)
+    expect(colorOf(drawn.find(e => role(e) === 'ong_thoat_nuoc')!)).toBe(9)
+    const thep = drawn.filter(e => role(e) === 'lan_can' && !isPoly(e))
+    expect(thep.filter(e => colorOf(e) === 2).length).toBe(2 * 82)
   })
 
   test('bê tông lót, bệ: đúng bốn góc', () => {
@@ -194,7 +225,10 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     )
     // Lan can thép: chép nguyên block, có ở cả hai bên.
     const thep = drawn.filter(e => role(e) === 'lan_can' && !isPoly(e))
-    expect(thep.length).toBe(2 * (49 + 26 + 2))
+    // Chép nguyên block: 77 đoạn, 33 cung, 7 vòng tròn, và 1 trụ cong vẽ bằng
+    // polyline mỗi bên.
+    expect(thep.length).toBe(2 * (77 + 33 + 7))
+    expect(drawn.filter(e => role(e) === 'lan_can' && isPoly(e)).length).toBe(2 + 2)
     const ong = drawn.filter(e => role(e) === 'ong_thoat_nuoc')
     expect(ong.map(e => e.layer)).toEqual(['KT-THOATNUOC', 'KT-THOATNUOC'])
   })
@@ -277,7 +311,7 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
 
 describe('tham số đổi thì cả mố đổi theo', () => {
   test('dốc hai mái 2 % — mọi mặt từ đỉnh tường thân trở lên nghiêng từ tim ra', () => {
-    const drawn = run({ iTrai: 2, iPhai: 2 })
+    const { drawn } = run({ iTrai: 2, iPhai: 2 })
     expectVertices(polyOf(drawn, 'mo_tuong_than'), [
       [-3850, 2100],
       [-3850, 6816.4],
@@ -307,14 +341,14 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('siêu cao một mái: trái dấu thì mặt nghiêng thẳng qua tim', () => {
-    const drawn = run({ iTrai: -2, iPhai: 2 })
+    const { drawn } = run({ iTrai: -2, iPhai: 2 })
     const than = vertices(polyOf(drawn, 'mo_tuong_than'))
     expect(than[1]).toEqual([-3850, 6970.4])
     expect(than[3]).toEqual([3850, 6816.4])
   })
 
   test('đổi B và D: cọc giữ đúng quy tắc tim–tim = B − 2D', () => {
-    const drawn = run({ B: 9000, D: 1000 })
+    const { drawn } = run({ B: 9000, D: 1000 })
     const ngam = drawn.filter(
       e => role(e) === 'coc_khoan_nhoi' && isPoly(e) && vertices(e).length === 4
     )
@@ -326,7 +360,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('nhãn tên tham số như bản vẽ gốc khi được chọn', () => {
-    const drawn = run({ ghi: 'ten' })
+    const { drawn } = run({ ghi: 'ten' })
     const ten = drawn
       .filter(e => role(e) === 'kich_thuoc')
       .map(e => readSemanticTag(e)?.params?.ten)
@@ -338,7 +372,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('cho cao độ đáy bê tông lót thì mốc in trị số thật', () => {
-    const drawn = run({ caoDo: '12.345' })
+    const { drawn } = run({ caoDo: '12.345' })
     const nhan = drawn
       .filter(e => role(e) === 'ghi_chu_cao_do' && e.dxfTypeName === 'TEXT')
       .map(e => (e as AcDbEntity & { textString: string }).textString)
@@ -349,7 +383,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('tắt ghi chú và kích thước thì chỉ còn hình', () => {
-    const drawn = run({ ghi: 'khong' })
+    const { drawn } = run({ ghi: 'khong' })
     const roles = new Set(drawn.map(role))
     expect(roles.has('kich_thuoc')).toBe(false)
     expect(roles.has('ghi_chu')).toBe(false)
@@ -360,7 +394,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('tên mố lên tiêu đề', () => {
-    const drawn = run({ tenMo: 'M2' })
+    const { drawn } = run({ tenMo: 'M2' })
     const texts = drawn
       .filter(e => e.dxfTypeName === 'TEXT')
       .map(e => (e as AcDbEntity & { textString: string }).textString)
@@ -368,7 +402,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
   })
 
   test('dời gốc: mọi thứ tịnh tiến theo', () => {
-    const drawn = run({ x: 314937.691, y: 9495.05 })
+    const { drawn } = run({ x: 314937.691, y: 9495.05 })
     expectVertices(polyOf(drawn, 'mo_be'), [
       [311087.7, 9595.1],
       [311087.7, 11595.1],

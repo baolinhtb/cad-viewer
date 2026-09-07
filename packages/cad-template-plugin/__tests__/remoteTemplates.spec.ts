@@ -1,18 +1,20 @@
 import {
-  asTemplate,
   type AcApFetch,
+  asTemplate,
   loadRemoteTemplates,
   markTemplateVerified,
   refreshDictionary,
   refreshRoleLayers
 } from '../src/remoteTemplates'
 import {
+  dictionary,
   findTemplate,
+  layerStyles,
   listRegisteredTemplates,
   listTemplates,
-  dictionary,
   roleLayers,
   setDictionary,
+  setLayerStyles,
   setRemoteTemplates,
   setRoleLayers
 } from '../src/templateRegistry'
@@ -247,7 +249,35 @@ describe('publishing after a successful run', () => {
 })
 
 describe('the company layer mapping', () => {
-  beforeEach(() => setRoleLayers(undefined as never))
+  beforeEach(() => {
+    setRoleLayers(undefined as never)
+    setLayerStyles(undefined)
+  })
+
+  test('the layer colours arrive with the mapping and are applied with it', async () => {
+    // Decided in the same place by the same people; a mapping applied without
+    // its colours would draw the right layer in the wrong colour.
+    const applied = await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        roleLayers: { lan_can: 'CTY-LANCAN' },
+        layerStyles: { 'CTY-LANCAN': { color: 8, lineType: null } }
+      })
+    }))
+    expect(applied).toBe(true)
+    expect(layerStyles()).toEqual({ 'CTY-LANCAN': { color: 8, lineType: null } })
+  })
+
+  test('a server that sends no colours leaves every layer undecided, not stale', async () => {
+    setLayerStyles({ 'CTY-LANCAN': { color: 8 } })
+    await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ roleLayers: { lan_can: 'CTY-LANCAN' } })
+    }))
+    expect(layerStyles()).toEqual({})
+  })
 
   test('a fetched mapping replaces the built-in one', async () => {
     const applied = await refreshRoleLayers(async () => ({

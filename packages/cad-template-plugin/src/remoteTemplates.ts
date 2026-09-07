@@ -1,5 +1,5 @@
-import * as sdk from '@mlightcad/cad-template-sdk'
 import type { AcTpTemplate } from '@mlightcad/cad-template-sdk'
+import * as sdk from '@mlightcad/cad-template-sdk'
 
 /**
  * Loading templates the company uploaded, without a deploy.
@@ -204,14 +204,14 @@ export async function refreshTemplateLibrary(): Promise<AcApRemoteTemplateLoad> 
     const result = await loadRemoteTemplates()
     setRemoteTemplates(result.loaded)
     for (const failure of result.failed) {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[TemplatePlugin] Không nạp được template ${failure.templateId}@${failure.version}: ${failure.reason}`
       )
     }
     return result
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.warn('[TemplatePlugin] Không tải được thư viện template:', error)
     return { loaded: [], failed: [] }
   }
@@ -292,12 +292,13 @@ export async function refreshRoleLayers(
   fetchImpl: AcApFetch = fetch as unknown as AcApFetch,
   url = '/api/standards/role-layers'
 ): Promise<boolean> {
-  const { setRoleLayers } = await import('./templateRegistry')
+  const { setLayerStyles, setRoleLayers } = await import('./templateRegistry')
   try {
     const response = await fetchImpl(url, { credentials: 'same-origin' })
     if (!response.ok) return false
     const body = (await response.json()) as {
       roleLayers?: Record<string, string>
+      layerStyles?: Record<string, { color?: number | null; lineType?: string | null }>
     }
     // An empty mapping is not an answer worth applying: it would leave every
     // role unlayered and every template unable to draw.
@@ -305,6 +306,10 @@ export async function refreshRoleLayers(
       return false
     }
     setRoleLayers(body.roleLayers)
+    // The colours travel with the mapping because they are decided in the
+    // same place, by the same people, and a mapping without them would draw
+    // the right layer in the wrong colour.
+    setLayerStyles(body.layerStyles ?? {})
     return true
   } catch {
     return false

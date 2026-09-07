@@ -1,5 +1,5 @@
-import { readSemanticTag } from '@mlightcad/cad-template-sdk'
 import type { AcTpTemplate } from '@mlightcad/cad-template-sdk'
+import { readSemanticTag } from '@mlightcad/cad-template-sdk'
 import { createDrawContext } from '@mlightcad/cad-template-sdk'
 import { AcDbDatabase } from '@mlightcad/data-model'
 
@@ -9,7 +9,7 @@ import {
   markTemplateVerified,
   refreshTemplateLibrary
 } from './remoteTemplates'
-import { roleLayers } from './templateRegistry'
+import { layerStyles, roleLayers } from './templateRegistry'
 import { defaultValues } from './templateValues'
 
 /**
@@ -64,7 +64,7 @@ function trialRun(template: AcTpTemplate): {
 } {
   const db = new AcDbDatabase()
   db.createDefaultData()
-  const ctx = createDrawContext(db, template.meta.id, roleLayers())
+  const ctx = createDrawContext(db, template.meta.id, roleLayers(), undefined, layerStyles())
 
   const result = template.generate(ctx, defaultValues(template))
   if (result && typeof (result as Promise<void>).then === 'function') {
