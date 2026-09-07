@@ -333,3 +333,199 @@ describe('text style: TrueType by default, so Vietnamese renders', () => {
     expect(() => text(ctx, { style: 'VnTime' })).toThrow(/VnTime/)
   })
 })
+
+describe('dimension style: numbers an engineer can read', () => {
+  async function setup() {
+    const { AcDbDatabase, AcDbMText, AcDbBlockReference } = await import('@mlightcad/data-model')
+    const { createDrawContext } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+    return { db, ctx, AcDbMText, AcDbBlockReference }
+  }
+  const dim = (
+    ctx: import('../src/AcTpDrawContext').AcTpDrawContext,
+    extra: Partial<import('../src/AcTpDrawContext').AcTpDimensionArgs> = {}
+  ) =>
+    ctx.dimension({
+      role: 'kich_thuoc',
+      partId: 'kich_thuoc_01',
+      start: { x: -3850, y: 100, z: 0 },
+      end: { x: 3850, y: 100, z: 0 },
+      offset: -1994.835,
+      huong: 'ngang',
+      ...extra
+    })
+  const blockOf = (db: import('@mlightcad/data-model').AcDbDatabase, entity: unknown) => {
+    const name = (entity as { dimBlockId: string }).dimBlockId
+    return db.tables.blockTable.getAt(name)!
+  }
+
+  test('the engineer\'s D100 style is created and drives text, colour and arrows', async () => {
+    const { db, ctx, AcDbMText, AcDbBlockReference } = await setup()
+    const entity = dim(ctx) as import('@mlightcad/data-model').AcDbRotatedDimension
+    expect(entity.dimensionStyleName).toBe('D100')
+    const style = db.tables.dimStyleTable.getAt('D100')!
+    expect(style.dimtxt).toBe(150)
+    expect(style.dimtxsty).toBe('Arial')
+    // Whole millimetres, as the sheet reads: 7700, not 7700.000.
+    expect(entity.dimensionText).toBe('7700')
+    const block = blockOf(db, entity)
+    const texts = [...block.newIterator()].filter(e => e instanceof AcDbMText) as InstanceType<typeof AcDbMText>[]
+    expect(texts).toHaveLength(1)
+    expect(texts[0].height).toBe(150)
+    expect(texts[0].color.colorIndex).toBe(3)
+    // Above the line (DIMTAD 1): lifted half a text height plus the gap.
+    expect(texts[0].location.y).toBeCloseTo(100 - 1994.835 + 75 + 60, 3)
+    const arrows = [...block.newIterator()].filter(e => e instanceof AcDbBlockReference) as InstanceType<typeof AcDbBlockReference>[]
+    expect(arrows).toHaveLength(2)
+    expect(arrows.every(a => a.scaleFactors.x === 130)).toBe(true)
+  })
+
+  test('a vertical chain measures height even when its ends sit at different x', async () => {
+    // H3B in the abutment drawing runs from the stem's top corner to the
+    // shoulder's inner corner — 350 apart horizontally. The sheet reads 1811.
+    const { ctx } = await setup()
+    const entity = dim(ctx, {
+      start: { x: 3850, y: 6893.385, z: 0 },
+      end: { x: 3500, y: 8704.595, z: 0 },
+      offset: 1383.844,
+      huong: 'dung'
+    }) as import('@mlightcad/data-model').AcDbRotatedDimension
+    expect(entity.dimensionText).toBe('1811')
+  })
+
+  test('a vertical dimension lifts its text to the left, where AutoCAD reads it', async () => {
+    const { db, ctx, AcDbMText } = await setup()
+    const entity = dim(ctx, {
+      start: { x: 0, y: 100, z: 0 },
+      end: { x: 0, y: 2100, z: 0 },
+      offset: -295.407,
+      huong: 'dung'
+    })
+    const text = [...blockOf(db, entity).newIterator()].find(e => e instanceof AcDbMText) as InstanceType<typeof AcDbMText>
+    expect(text.location.x).toBeCloseTo(-295.407 - 135, 3)
+  })
+
+  test('a fresh drawing rounds like the sheet; decimals only if the style asks', async () => {
+    const { formatDimensionText } = await import('../src/AcTpDimensionBlock')
+    expect(formatDimensionText(4793.385, { dimrnd: 1, dimdec: 2, dimzin: 8, dimlfac: 1 })).toBe('4793')
+    expect(formatDimensionText(4793.385, { dimrnd: 0, dimdec: 2, dimzin: 8, dimlfac: 1 })).toBe('4793.39')
+    expect(formatDimensionText(4793.5, { dimrnd: 0, dimdec: 2, dimzin: 0, dimlfac: 1 })).toBe('4793.50')
+    expect(formatDimensionText(1000, { dimrnd: 0, dimdec: 3, dimzin: 8, dimlfac: 0.001 })).toBe('1')
+  })
+
+  test('an unknown dimension style is refused', async () => {
+    const { ctx } = await setup()
+    expect(() => dim(ctx, { dimStyle: 'Dim1-50' })).toThrow(/Dim1-50/)
+  })
+})
+
+describe('linetypes: the office definitions, sized for the drawing', () => {
+  async function setup(ltscale?: number) {
+    const { AcDbDatabase } = await import('@mlightcad/data-model')
+    const { createDrawContext } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    if (ltscale !== undefined) (db as unknown as { ltscale: number }).ltscale = ltscale
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+    return { db, ctx }
+  }
+  const line = (ctx: import('../src/AcTpDrawContext').AcTpDrawContext, extra = {}) =>
+    ctx.line({
+      role: 'duong_tim',
+      partId: 'duong_tim_01',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 0, y: 9000, z: 0 },
+      ...extra
+    })
+
+  test('CENTER is created at LTSCALE 1 with dashes that read at 1:100', async () => {
+    const { db, ctx } = await setup()
+    const entity = line(ctx, { lineType: 'CENTER' })
+    expect(entity.lineType).toBe('CENTER')
+    const record = db.tables.linetypeTable.getAt('CENTER')!
+    // 1.25 × 300: the same 375 mm dash the engineer's file shows at LTSCALE 300.
+    expect(record.patternLength).toBeCloseTo(2 * 300, 6)
+    expect(record.linetype.pattern![0].elementLength).toBeCloseTo(375, 6)
+  })
+
+  test('in the office\'s own drawing (LTSCALE 300) the definition stays AutoCAD\'s', async () => {
+    const { db, ctx } = await setup(300)
+    line(ctx, { lineType: 'DASHED' })
+    expect(db.tables.linetypeTable.getAt('DASHED')!.patternLength).toBeCloseTo(0.75, 6)
+  })
+
+  test('a linetype the drawing already defines is used as is', async () => {
+    const { AcDbLinetypeTableRecord } = await import('@mlightcad/data-model')
+    const { db, ctx } = await setup()
+    db.tables.linetypeTable.add(
+      new AcDbLinetypeTableRecord({
+        name: 'CENTER',
+        standardFlag: 0,
+        description: 'của bản vẽ',
+        totalPatternLength: 2,
+        pattern: [{ elementLength: 1.25, elementTypeFlag: 0 }, { elementLength: -0.75, elementTypeFlag: 0 }]
+      })
+    )
+    line(ctx, { lineType: 'CENTER' })
+    expect(db.tables.linetypeTable.getAt('CENTER')!.comments).toBe('của bản vẽ')
+  })
+
+  test('an unknown linetype is refused', async () => {
+    const { ctx } = await setup()
+    expect(() => line(ctx, { lineType: 'PHANTOM' })).toThrow(/PHANTOM/)
+  })
+})
+
+describe('leaders: a line with an arrowhead at the thing it points to', () => {
+  test('draws the line and a solid arrow of the dimension style size', async () => {
+    const { AcDbDatabase } = await import('@mlightcad/data-model')
+    const { createDrawContext } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+    const line = ctx.leader({
+      role: 'ghi_chu',
+      partId: 'ghi_chu_01',
+      color: 3,
+      points: [
+        { x: 450, y: 40, z: 0 },
+        { x: 913, y: 781, z: 0 },
+        { x: 2865, y: 781, z: 0 }
+      ]
+    })
+    expect(line.dxfTypeName).toBe('LWPOLYLINE')
+    expect(ctx.drawn).toHaveLength(2)
+    const arrow = ctx.drawn[1]
+    expect(arrow.dxfTypeName).toBe('HATCH')
+    expect(arrow.color.colorIndex).toBe(3)
+    const box = arrow.geometricExtents
+    // Tip at the first point, pointing up-right along the first segment: the
+    // tip is the triangle's lowest-leftmost corner and nothing reaches beyond
+    // an arrow length from it.
+    expect(box.min.x).toBeCloseTo(450, 0)
+    expect(box.min.y).toBeCloseTo(40, 0)
+    // 130 long along a 58° segment: about 69 wide and 110 tall, plus the
+    // half-width of the base; never more than the arrow length either way.
+    expect(box.max.x - box.min.x).toBeGreaterThan(60)
+    expect(box.max.x - box.min.x).toBeLessThanOrEqual(130)
+    expect(box.max.y - box.min.y).toBeGreaterThan(100)
+    expect(box.max.y - box.min.y).toBeLessThanOrEqual(130)
+  })
+
+  test('a leader needs a direction', async () => {
+    const { AcDbDatabase } = await import('@mlightcad/data-model')
+    const { createDrawContext } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+    expect(() =>
+      ctx.leader({ role: 'ghi_chu', partId: 'x', points: [{ x: 0, y: 0, z: 0 }] })
+    ).toThrow(/2 điểm/)
+  })
+})

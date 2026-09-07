@@ -43,12 +43,17 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
  * xám nhạt (9). Màu layer do nền chuẩn hoá cấp khi tạo layer; template chỉ
  * đặt màu ở đúng những nét mà bản vẽ gốc cho khác màu layer.
  *
+ * **Kích thước, kiểu nét, đường dẫn** (1.2.0) theo đúng bản vẽ: kích thước
+ * dùng kiểu D100 của kỹ sư (chữ 150 xanh lá trên đường, mũi tên 130, số
+ * nguyên); tim tuyến nét CENTER, đầu cọc ngàm nét DASHED, tim cọc DASHDOT;
+ * đường dẫn ghi chú có mũi tên ở điểm đầu như LEADER trong file; nhãn mốc
+ * cao độ trắng (ATTRIB trên layer 0); tiêu đề gạch chân (%%U).
+ *
  * Những gì bản vẽ có mà template vẽ khác đi, nói rõ ở đây:
  *   - cung tròn ở mặt vát và mặt ngoài lan can (bulge 0,11) vẽ thẳng, như
  *     template tường phòng hộ;
- *   - nét khuất của đầu cọc ngàm và nét lượn "còn tiếp" bằng spline vẽ bằng
- *     nét liền và đường gấp khúc, như template cọc;
- *   - đường dẫn (leader) vẽ bằng nét thẳng, không có mũi tên;
+ *   - nét lượn "còn tiếp" của cọc bằng spline vẽ bằng đường gấp khúc, như
+ *     template cọc;
  *   - chữ TCVN3 trong file ("Tim cÇu") ghi lại bằng Unicode.
  *
  * TCVN 11823-11:2017 không cho trị số kích thước nào với mố bê tông thường;
@@ -59,7 +64,7 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_mat_chinh',
-    version: '1.1.0',
+    version: '1.2.0',
     name: 'Mố cầu — mặt chính hoàn chỉnh (bản vẽ M1)',
     category: 'Mố trụ',
     description:
@@ -403,6 +408,7 @@ export default {
           role: 'coc_khoan_nhoi',
           partId: cocId,
           params: { nganm },
+          lineType: 'DASHED', // block: nét khuất trong bệ
           closed: false,
           points: [pt(cx - r, yT), pt(cx - r, yT + nganm), pt(cx + r, yT + nganm), pt(cx + r, yT)]
         })
@@ -420,6 +426,7 @@ export default {
       ctx.line({
         role: 'duong_tim',
         partId: formatPartId({ role: 'duong_tim', ordinal: i + 2 }),
+        lineType: 'DASHDOT', // block: nét tim cọc
         start: pt(cx, yT + nganm),
         end: pt(cx, yT - Lcoc * 0.94)
       })
@@ -707,6 +714,7 @@ export default {
       role: 'duong_tim',
       partId: formatPartId({ role: 'duong_tim', ordinal: 1 }),
       color: 1, // bản vẽ: tim tuyến đỏ trên layer xám
+      lineType: 'CENTER',
       start: pt(0, 0),
       end: pt(0, yTimTren)
     })
@@ -778,13 +786,16 @@ export default {
         text,
         height
       })
-    const dan = (x1, y1, x2, y2) =>
-      ctx.line({
+    // Đường dẫn như LEADER trong file: mũi tên ở điểm đầu, tức điểm được chỉ.
+    const dan = (...xy) => {
+      const points = []
+      for (let i = 0; i + 1 < xy.length; i += 2) points.push(pt(xy[i], xy[i + 1]))
+      return ctx.leader({
         role: 'ghi_chu',
         partId: formatPartId({ role: 'ghi_chu', ordinal: ++nGhiChu }),
-        start: pt(x1, y1),
-        end: pt(x2, y2)
+        points
       })
+    }
     const soDoc = v => `${String(Math.round(v * 100) / 100).replace('.', ',')}`
     const yMD = yDauTim + tLopPhu // mặt đường tại tim
 
@@ -798,8 +809,7 @@ export default {
     dan(lech, yMD + 636.644, lech - 1287.907, yMD + 636.644)
     ghi(lech - 2251.321, yMD + 721.867, 'Tim giai đoạn hoàn thiện')
 
-    dan(450.561, 39.957, 913.18, 781.347)
-    dan(913.18, 781.347, 2865.011, 781.347)
+    dan(450.561, 39.957, 913.18, 781.347, 2865.011, 781.347)
     ghi(964.909, 839.152, 'BÊ TÔNG ĐỆM C8', 150, XANH)
 
     const yDan = hLot - 552.677
@@ -822,7 +832,7 @@ export default {
         partId: formatPartId({ role: 'tieu_de_ban_ve', ordinal: 1 }),
         params: { tenMo },
         position: pt(-1777.963, yBCau + 685.031),
-        text: `MẶT CHÍNH MỐ ${tenMo}`,
+        text: `%%UMẶT CHÍNH MỐ ${tenMo}`, // %%U: gạch chân như bản vẽ
         height: 250
       })
       ctx.text({
@@ -874,6 +884,7 @@ export default {
       ctx.text({
         role: 'ghi_chu_cao_do',
         partId,
+        color: 7, // ATTRIB của block nằm trên layer 0: trắng
         position: pt(huong === 1 ? dx + 113.1 : dx - 113.1 - rong, dy + 157.48),
         text,
         height: 177.165

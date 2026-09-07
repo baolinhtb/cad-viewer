@@ -139,6 +139,8 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     expect(colorOf(texts.find(t => t.textString === 'Tim cầu')!)).toBe(256)
     const moc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && isPoly(e))
     expect(moc.every(e => colorOf(e) === 2)).toBe(true)
+    const nhanMoc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && e.dxfTypeName === 'TEXT')
+    expect(nhanMoc.every(e => colorOf(e) === 7)).toBe(true)
     // Lan can: biên dạng lam, ống thoát nước xám nhạt, thanh thép vàng là số đông.
     expect(colorOf(polyOf(drawn, 'lan_can_trai'))).toBe(4)
     expect(colorOf(drawn.find(e => role(e) === 'ong_thoat_nuoc')!)).toBe(9)
@@ -195,8 +197,8 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
   })
 
   test('tường tai 150 × 1200 tô đặc ở hai mép, trên đỉnh tường thân', () => {
-    const hatches = drawn.filter(e => e.dxfTypeName === 'HATCH')
-    expect(hatches.map(role)).toEqual(['mo_tuong_tai', 'mo_tuong_tai'])
+    const hatches = drawn.filter(e => e.dxfTypeName === 'HATCH' && role(e) === 'mo_tuong_tai')
+    expect(hatches).toHaveLength(2)
     const boxes = hatches
       .map(h => {
         const b = h.geometricExtents
@@ -253,11 +255,46 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     ])
   })
 
-  test('19 kích thước, mặc định in trị số đo được — không có chữ ghi đè', () => {
-    const dims = drawn.filter(e => role(e) === 'kich_thuoc')
+  test('19 kích thước kiểu D100, in trị số nguyên như tờ bản vẽ', () => {
+    const dims = drawn.filter(e => role(e) === 'kich_thuoc') as (AcDbEntity & {
+      dimensionText: string | null
+      dimensionStyleName: string | null
+    })[]
     expect(dims.length).toBe(19)
     expect(dims.every(e => e.dxfTypeName === 'DIMENSION')).toBe(true)
     expect(dims.every(e => readSemanticTag(e)?.params === undefined)).toBe(true)
+    expect(dims.every(e => e.dimensionStyleName === 'D100')).toBe(true)
+    const texts = dims.map(e => e.dimensionText).sort()
+    // Đúng các số kỹ sư ghi: 100, 500, 1140, 1200, 1811, 2000, 4793, 5300, 7000, 7700, 8000.
+    for (const so of ['100', '500', '1140', '1200', '1811', '2000', '4793', '5300', '7000', '7700', '8000']) {
+      expect(texts).toContain(so)
+    }
+    expect(texts.every(t => /^\d+$/.test(t ?? ''))).toBe(true)
+    // Kiểu D100 dựng trong bản vẽ: chữ 150 xanh lá, kiểu chữ Arial.
+    const d100 = database.tables.dimStyleTable.getAt('D100')!
+    expect(d100.dimtxt).toBe(150)
+    expect(d100.dimclrt).toBe(3)
+  })
+
+  test('kiểu nét như block: tim tuyến CENTER, ngàm cọc DASHED, tim cọc DASHDOT', () => {
+    const tim = drawn.find(e => partId(e) === 'duong_tim_01')!
+    expect(tim.lineType).toBe('CENTER')
+    expect(drawn.find(e => partId(e) === 'duong_tim_02')!.lineType).toBe('DASHDOT')
+    const ngam = drawn.filter(e => role(e) === 'coc_khoan_nhoi' && isPoly(e) && vertices(e).length === 4)
+    expect(ngam.every(e => e.lineType === 'DASHED')).toBe(true)
+    for (const name of ['CENTER', 'DASHED', 'DASHDOT']) {
+      expect(database.tables.linetypeTable.has(name)).toBe(true)
+    }
+  })
+
+  test('đường dẫn ghi chú có mũi tên ở điểm được chỉ', () => {
+    const leaders = drawn.filter(e => role(e) === 'ghi_chu' && isPoly(e))
+    const arrows = drawn.filter(e => role(e) === 'ghi_chu' && e.dxfTypeName === 'HATCH')
+    expect(leaders.length).toBe(9)
+    expect(arrows.length).toBe(9)
+    // Đường dẫn "BÊ TÔNG ĐỆM C8" gồm ba điểm: mũi tên trong bê tông lót, gấp lên, gạch dưới chữ.
+    const lot = leaders.find(e => vertices(e).length === 3)!
+    expect(vertices(lot)[0]).toEqual([450.6, 40])
   })
 
   test('9 mốc cao độ, đỉnh tam giác chạm đúng mặt như bản vẽ', () => {
@@ -290,7 +327,7 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     const texts = drawn
       .filter(e => e.dxfTypeName === 'TEXT')
       .map(e => (e as AcDbEntity & { textString: string }).textString)
-    expect(texts).toContain('MẶT CHÍNH MỐ M1')
+    expect(texts).toContain('%%UMẶT CHÍNH MỐ M1')
     expect(texts).toContain('(TL: 1/100)')
     expect(texts).toContain('Tim cầu')
     expect(texts).toContain('Tim giai đoạn hoàn thiện')
@@ -398,7 +435,7 @@ describe('tham số đổi thì cả mố đổi theo', () => {
     const texts = drawn
       .filter(e => e.dxfTypeName === 'TEXT')
       .map(e => (e as AcDbEntity & { textString: string }).textString)
-    expect(texts).toContain('MẶT CHÍNH MỐ M2')
+    expect(texts).toContain('%%UMẶT CHÍNH MỐ M2')
   })
 
   test('dời gốc: mọi thứ tịnh tiến theo', () => {

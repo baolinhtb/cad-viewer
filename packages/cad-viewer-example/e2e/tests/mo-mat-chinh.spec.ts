@@ -220,6 +220,18 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
     const byColor: Record<string, number> = {}
     const layerColors: Record<string, number | undefined> = {}
     for (const l of db.tables.layerTable.newIterator()) layerColors[l.name] = l.color.colorIndex
+    // Khối kích thước: chữ 150, xanh lá, số nguyên — thứ kỹ sư đọc trên tờ.
+    const dimTexts: { height: number; color: number | undefined; text: string }[] = []
+    for (const block of db.tables.blockTable.newIterator()) {
+      if (!block.name.startsWith('*D')) continue
+      for (const e of block.newIterator()) {
+        if (e.dxfTypeName === 'MTEXT') dimTexts.push({ height: e.height, color: e.color.colorIndex, text: e.contents })
+      }
+    }
+    const lineTypes: Record<string, string> = {}
+    for (const e of db.tables.blockTable.modelSpace.newIterator()) {
+      if (e.lineType && e.lineType !== 'ByLayer') lineTypes[e.lineType] = (lineTypes[e.lineType] ?? '') + '.'
+    }
     const textStyles: Record<string, string> = {}
     for (const st of db.tables.textStyleTable.newIterator()) textStyles[st.name] = st.fileName
     const textStyleNames = new Set<string>()
@@ -231,23 +243,28 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
       byType[e.dxfTypeName] = (byType[e.dxfTypeName] ?? 0) + 1
       byLayer[e.layer] = (byLayer[e.layer] ?? 0) + 1
       byColor[String(e.color.colorIndex)] = (byColor[String(e.color.colorIndex)] ?? 0) + 1
-      if (e.dxfTypeName === 'HATCH') {
+      if (e.dxfTypeName === 'HATCH' && e.layer === '_33_CAU_MO_Tuongtai') {
         const b = e.geometricExtents
         hatches.push([b.min.x, b.min.y, b.max.x, b.max.y].map(v => Math.round(v * 10) / 10))
       }
       if (e.dxfTypeName === 'TEXT') texts.push(e.textString)
     }
-    return { byType, byLayer, hatches, texts, byColor, layerColors, textStyles, textStyleNames: [...textStyleNames] }
+    return { byType, byLayer, hatches, texts, byColor, layerColors, textStyles, textStyleNames: [...textStyleNames], dimTexts, lineTypes }
   })
 
   // Tờ bản vẽ đủ: 19 kích thước, 2 tường tai tô đặc, chữ Unicode nguyên vẹn.
   expect(summary.byType.DIMENSION).toBe(19)
-  expect(summary.byType.HATCH).toBe(2)
+  expect(summary.byType.HATCH).toBe(2 + 9) // 2 tường tai + 9 mũi tên đường dẫn
   expect(summary.hatches.sort((a, b) => a[0] - b[0])).toEqual([
     [-3850, 6893.4, -3700, 8093.4],
     [3700, 6893.4, 3850, 8093.4]
   ])
-  expect(summary.texts).toContain('MẶT CHÍNH MỐ M1')
+  expect(summary.texts).toContain('%%UMẶT CHÍNH MỐ M1')
+  // Số kích thước: 19 dòng chữ cao 150, xanh lá, số nguyên.
+  expect(summary.dimTexts).toHaveLength(19)
+  expect(summary.dimTexts.every(t => t.height === 150 && t.color === 3 && /^\d+$/.test(t.text))).toBe(true)
+  expect(summary.dimTexts.map(t => t.text)).toEqual(expect.arrayContaining(['7700', '8000', '4793', '1811']))
+  expect(Object.keys(summary.lineTypes).sort()).toEqual(['CENTER', 'DASHDOT', 'DASHED'])
   expect(summary.texts).toContain('Tim giai đoạn hoàn thiện')
   expect(summary.byLayer['_33_Kyhieumatcat']).toBe(12)
   // Màu: layer lấy từ nền chuẩn hoá, nét khác màu đúng như bản vẽ.
@@ -287,14 +304,16 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
     for (let i = 0; i < data.length; i += 4) {
       const [r, g, b] = [data[i], data[i + 1], data[i + 2]]
       if (r + g + b > 90) count++
-      if (r > 150 && g < 90 && b < 90) red++
+      // Tim tuyến giờ là nét chấm gạch mảnh nên điểm đỏ ít và bị khử răng cưa
+      // làm tối đi: đếm mọi điểm đỏ rõ so với hai kênh kia.
+      if (r > 90 && r > 2 * g && r > 2 * b) red++
       if (r > 150 && g > 150 && b < 90) yellow++
     }
     return { count, red, yellow }
   }, png.toString('base64'))
   expect(lit.count).toBeGreaterThan(5000)
   // Tim tuyến đỏ và lan can thép vàng thật sự lên màn hình, không chỉ trong DB.
-  expect(lit.red).toBeGreaterThan(50)
+  expect(lit.red).toBeGreaterThan(20)
   expect(lit.yellow).toBeGreaterThan(50)
 
   const out = process.env.MO_MAT_CHINH_SHOT
