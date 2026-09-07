@@ -220,6 +220,13 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
     const byColor: Record<string, number> = {}
     const layerColors: Record<string, number | undefined> = {}
     for (const l of db.tables.layerTable.newIterator()) layerColors[l.name] = l.color.colorIndex
+    const textStyles: Record<string, string> = {}
+    for (const st of db.tables.textStyleTable.newIterator()) textStyles[st.name] = st.fileName
+    const textStyleNames = new Set<string>()
+    for (const e of db.tables.blockTable.modelSpace.newIterator()) {
+      if (e.dxfTypeName === 'TEXT') textStyleNames.add(e.styleName)
+    }
+
     for (const e of db.tables.blockTable.modelSpace.newIterator()) {
       byType[e.dxfTypeName] = (byType[e.dxfTypeName] ?? 0) + 1
       byLayer[e.layer] = (byLayer[e.layer] ?? 0) + 1
@@ -230,7 +237,7 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
       }
       if (e.dxfTypeName === 'TEXT') texts.push(e.textString)
     }
-    return { byType, byLayer, hatches, texts, byColor, layerColors }
+    return { byType, byLayer, hatches, texts, byColor, layerColors, textStyles, textStyleNames: [...textStyleNames] }
   })
 
   // Tờ bản vẽ đủ: 19 kích thước, 2 tường tai tô đặc, chữ Unicode nguyên vẹn.
@@ -251,6 +258,12 @@ test('mặt chính mố M1 dựng đủ bộ phận và hiện lên màn hình',
   expect(summary.byColor['3']).toBe(5)
   expect(summary.byColor['2']).toBeGreaterThanOrEqual(18 + 2 * 82)
   expect(summary.byType.ARC).toBeGreaterThanOrEqual(52)
+  // Kiểu chữ AutoCAD: mọi chữ template vẽ dùng style Arial (font arial.ttf,
+  // bản ghi bỏ đuôi tệp), là kiểu TrueType có đủ glyph tiếng Việt.
+  expect(summary.textStyles['Arial']).toBe('arial')
+  expect(summary.textStyleNames).toEqual(['Arial'])
+  // Font Arial có trên CDN nên không được có thông báo thiếu phông.
+  await expect(page.locator('.el-notification', { hasText: /phông|Font Not Found/i })).toHaveCount(0)
   // Cộng cả nét mẫu của fixture, không dưới 270 đối tượng của template.
   const total = Object.values(summary.byType).reduce((a, b) => a + b, 0)
   expect(total).toBeGreaterThanOrEqual(271)

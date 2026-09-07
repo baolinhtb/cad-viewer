@@ -13,6 +13,7 @@ import {
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
+  AcDbTextStyleTableRecord,
   AcGeLine2d,
   AcGeLoop2d,
   AcGePoint2d,
@@ -82,7 +83,31 @@ export interface AcTpTextArgs extends AcTpDrawBase {
   position: AcGePoint3dLike
   text: string
   height?: number
+  /**
+   * Text style, by name. Defaults to {@link TEMPLATE_TEXT_STYLE}.
+   *
+   * Must already exist in the drawing, or be one of the styles the context
+   * knows how to create ({@link TEMPLATE_TEXT_STYLES}). The default is a
+   * TrueType style, because the SHX-era `Standard` style has no glyphs for
+   * Vietnamese letters with stacked diacritics — every "ố" and "đ" a template
+   * wrote through it rendered as "?".
+   */
+  style?: string
 }
+
+/**
+ * Text styles a template may ask for without the drawing already having them.
+ *
+ * Keyed by style name, valued by the font file exactly as AutoCAD records it
+ * in the STYLE table (group 3), so an exported DWG opens in AutoCAD with the
+ * same TrueType font. The engineer's own drawings define `Arial` this way.
+ */
+export const TEMPLATE_TEXT_STYLES: Readonly<Record<string, { font: string }>> = {
+  Arial: { font: 'arial.ttf' }
+}
+
+/** Style every template text gets unless it asks for another. */
+export const TEMPLATE_TEXT_STYLE = 'Arial'
 
 /**
  * A linear dimension between two points.
@@ -283,6 +308,39 @@ export function createDrawContext(
     )
   }
 
+  /**
+   * Creates a text style the drawing lacks, from {@link TEMPLATE_TEXT_STYLES}.
+   *
+   * A style the drawing already has is kept as is — its font is the
+   * engineer's choice. A name the context cannot create is refused rather
+   * than silently falling back to `Standard`, which is the failure this
+   * exists to end.
+   */
+  const ensureTextStyle = (name: string): void => {
+    const table = db.tables.textStyleTable
+    if (table.has(name)) return
+    const known = TEMPLATE_TEXT_STYLES[name]
+    if (!known) {
+      throw new Error(
+        `Kiểu chữ '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_TEXT_STYLES).join(', ')} hoặc một kiểu chữ bản vẽ đã khai.`
+      )
+    }
+    table.add(
+      new AcDbTextStyleTableRecord({
+        name,
+        standardFlag: 0,
+        fixedTextHeight: 0,
+        widthFactor: 1,
+        obliqueAngle: 0,
+        textGenerationFlag: 0,
+        lastHeight: 2.5,
+        font: known.font,
+        bigFont: '',
+        extendedFont: known.font
+      })
+    )
+  }
+
   const place = (entity: AcDbEntity, args: AcTpDrawBase): AcDbEntity => {
     const layer = args.layer ?? roleLayers[args.role]
     if (!layer) {
@@ -345,6 +403,9 @@ export function createDrawContext(
       )
       entity.textString = args.text
       entity.height = args.height ?? 2.5
+      const style = args.style ?? TEMPLATE_TEXT_STYLE
+      ensureTextStyle(style)
+      entity.styleName = style
       return place(entity, args)
     },
 

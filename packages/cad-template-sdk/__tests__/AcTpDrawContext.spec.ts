@@ -267,3 +267,69 @@ describe('colour: the layer catalogue decides, the template may override', () =>
     expect(() => line(ctx)).toThrow(/KC-BAN/)
   })
 })
+
+describe('text style: TrueType by default, so Vietnamese renders', () => {
+  async function setup() {
+    const { AcDbDatabase, AcDbTextStyleTableRecord } = await import('@mlightcad/data-model')
+    const { createDrawContext, TEMPLATE_TEXT_STYLE } = await import('../src/AcTpDrawContext')
+    const { SEED_ROLE_LAYERS } = await import('../src/AcTpSeed')
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, 'cau_ban_btct', SEED_ROLE_LAYERS)
+    return { db, ctx, AcDbTextStyleTableRecord, TEMPLATE_TEXT_STYLE }
+  }
+  const text = (ctx: import('../src/AcTpDrawContext').AcTpDrawContext, extra = {}) =>
+    ctx.text({
+      role: 'ghi_chu',
+      partId: 'ghi_chu_01',
+      position: { x: 0, y: 0, z: 0 },
+      text: 'MẶT CHÍNH MỐ M1',
+      height: 250,
+      ...extra
+    })
+
+  test('a text gets the Arial style, created with the AutoCAD font file name', async () => {
+    const { db, ctx, TEMPLATE_TEXT_STYLE } = await setup()
+    const entity = text(ctx) as import('@mlightcad/data-model').AcDbText
+    expect(TEMPLATE_TEXT_STYLE).toBe('Arial')
+    expect(entity.styleName).toBe('Arial')
+    const style = db.tables.textStyleTable.getAt('Arial')!
+    expect(style.fileName).toBe('arial') // bản ghi bỏ đuôi tệp; DXF vẫn ghi arial.ttf
+    // Created once; a second text reuses it.
+    text(ctx, { partId: 'ghi_chu_02' })
+    expect([...db.tables.textStyleTable.newIterator()].filter(s => s.name === 'Arial')).toHaveLength(1)
+  })
+
+  test('a style the drawing already has is kept, font and all', async () => {
+    const { db, ctx, AcDbTextStyleTableRecord } = await setup()
+    db.tables.textStyleTable.add(
+      new AcDbTextStyleTableRecord({
+        name: 'Arial',
+        standardFlag: 0,
+        fixedTextHeight: 0,
+        widthFactor: 0.8,
+        obliqueAngle: 0,
+        textGenerationFlag: 0,
+        lastHeight: 2.5,
+        font: 'ARIALN.TTF',
+        bigFont: ''
+      })
+    )
+    text(ctx)
+    expect(db.tables.textStyleTable.getAt('Arial')!.fileName).toBe('ARIALN')
+  })
+
+  test('a template may name a style the drawing defines', async () => {
+    const { db, ctx, AcDbTextStyleTableRecord } = await setup()
+    db.tables.textStyleTable.add(
+      new AcDbTextStyleTableRecord({ name: 'KT', font: 'VNARIALH.TTF', bigFont: '' })
+    )
+    const entity = text(ctx, { style: 'KT' }) as import('@mlightcad/data-model').AcDbText
+    expect(entity.styleName).toBe('KT')
+  })
+
+  test('an unknown style is refused, not silently replaced by Standard', async () => {
+    const { ctx } = await setup()
+    expect(() => text(ctx, { style: 'VnTime' })).toThrow(/VnTime/)
+  })
+})

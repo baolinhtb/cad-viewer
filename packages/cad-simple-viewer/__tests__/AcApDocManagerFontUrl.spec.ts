@@ -257,11 +257,13 @@ describe('AcApDocManager font URL configuration', () => {
     expect(mockFontLoaderInstances[0].load).toHaveBeenCalledWith(['simkai'])
   })
 
-  it('syncs the default fonts preset to the mtext renderer after worker init', () => {
+  it('syncs the text font chain, Arial first, to the mtext renderer after worker init', () => {
+    // `arial` leads so Vietnamese letters with stacked diacritics have a
+    // glyph; the CJK fallbacks of the `modern` preset follow unchanged.
     AcApDocManager.createInstance({})
 
     expect(mockInitialize).toHaveBeenCalled()
-    expect(mockSetDefaultFonts).toHaveBeenCalledWith('modern')
+    expect(mockSetDefaultFonts).toHaveBeenCalledWith(['arial', 'hztxt', 'simsun'])
   })
 
   it('configures main-thread mtext rendering before initializing workers', () => {
