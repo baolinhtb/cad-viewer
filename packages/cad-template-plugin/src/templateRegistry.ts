@@ -1,4 +1,8 @@
-import type { AcTpTemplate, AcTpTerm } from '@mlightcad/cad-template-sdk'
+import type {
+  AcTpLayerStyleMap,
+  AcTpTemplate,
+  AcTpTerm
+} from '@mlightcad/cad-template-sdk'
 import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
 
 import type { AcApRemoteTemplate } from './remoteTemplates'
@@ -137,6 +141,24 @@ export function setRoleLayers(mapping: Readonly<Record<string, string>>) {
 
 export function roleLayers() {
   return roleLayerOverride ?? SEED_ROLE_LAYERS
+}
+
+/**
+ * Layer presentation from the standardisation layer's catalogue.
+ *
+ * Nothing is seeded: the SDK's built-in pairing says which layer, not what
+ * colour, and a colour the office never chose would be a guess dressed as a
+ * convention. Until the catalogue lands, layers the templates create are
+ * white, exactly as before.
+ */
+let layerStyleOverride: AcTpLayerStyleMap | undefined
+
+export function setLayerStyles(styles: AcTpLayerStyleMap | undefined) {
+  layerStyleOverride = styles
+}
+
+export function layerStyles(): AcTpLayerStyleMap {
+  return layerStyleOverride ?? {}
 }
 
 /**

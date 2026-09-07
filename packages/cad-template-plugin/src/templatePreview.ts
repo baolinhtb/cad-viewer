@@ -9,8 +9,8 @@ import {
   AcDbPolyline
 } from '@mlightcad/data-model'
 
+import { layerStyles, roleLayers } from './templateRegistry'
 import { defaultValues } from './templateValues'
-import { roleLayers } from './templateRegistry'
 
 /**
  * Thumbnails for the template picker.
@@ -130,7 +130,7 @@ export function renderTemplatePreview(
   try {
     const db = new AcDbDatabase()
     db.createDefaultData()
-    const ctx = createDrawContext(db, template.meta.id, roleLayers())
+    const ctx = createDrawContext(db, template.meta.id, roleLayers(), undefined, layerStyles())
     const result = template.generate(ctx, defaultValues(template))
     if (result && typeof (result as Promise<void>).then === 'function') {
       // A template that draws asynchronously cannot be previewed synchronously,
@@ -175,8 +175,8 @@ export function renderTemplatePreview(
       `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" ` +
       `viewBox="${r(box.minX - pad)} ${r(-box.maxY - pad)} ${r(width + pad * 2)} ${r(height + pad * 2)}" ` +
       `fill="none" stroke="currentColor" stroke-width="${r(Math.max(width, height) / 90)}" ` +
-      `stroke-linejoin="round" vector-effect="non-scaling-stroke">` +
+      'stroke-linejoin="round" vector-effect="non-scaling-stroke">' +
       `<g transform="scale(1,-1)">${shapes.join('')}</g>` +
-      `</svg>`
+      '</svg>'
   }
 }

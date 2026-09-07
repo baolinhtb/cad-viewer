@@ -24,6 +24,7 @@ import {
   listLayers,
   listTerms,
   roleLayerMap,
+  layerStyleMap,
   StandardsError,
   updateLayer,
   updateTerm
@@ -258,7 +259,9 @@ const server = createServer(async (req, res) => {
       }
       const body = await readBody(req)
       const name = String(body.name || '').trim()
-      const email = String(body.email || '').trim().toLowerCase()
+      const email = String(body.email || '')
+        .trim()
+        .toLowerCase()
       const password = String(body.password || '')
       if (!name || name.length > 100) {
         json(res, 400, { error: 'Tên không hợp lệ.' })
@@ -281,7 +284,8 @@ const server = createServer(async (req, res) => {
         'INSERT INTO users (email, name, pass_hash, salt) VALUES (?, ?, ?, ?)'
       ).run(email, name, hashPassword(password, salt), salt)
       json(res, 201, {
-        message: 'Đăng ký thành công. Tài khoản sẽ dùng được sau khi quản trị viên kích hoạt.'
+        message:
+          'Đăng ký thành công. Tài khoản sẽ dùng được sau khi quản trị viên kích hoạt.'
       })
       return
     }
@@ -292,11 +296,11 @@ const server = createServer(async (req, res) => {
         return
       }
       const body = await readBody(req)
-      const email = String(body.email || '').trim().toLowerCase()
+      const email = String(body.email || '')
+        .trim()
+        .toLowerCase()
       const password = String(body.password || '')
-      const user = db
-        .prepare('SELECT * FROM users WHERE email = ?')
-        .get(email)
+      const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email)
       const ok =
         user &&
         timingSafeEqual(
@@ -383,14 +387,19 @@ const server = createServer(async (req, res) => {
           .prepare('UPDATE users SET role = ? WHERE id = ?')
           .run(role, targetId)
         if (!changed.changes) {
-          json(res, 404, { error: 'Không tìm thấy người dùng.', code: 'user_not_found' })
+          json(res, 404, {
+            error: 'Không tìm thấy người dùng.',
+            code: 'user_not_found'
+          })
           return
         }
         json(res, 200, { message: 'ok', id: targetId, role })
         return
       }
 
-      const m = path.match(/^\/api\/admin\/users\/(\d+)\/(activate|deactivate)$/)
+      const m = path.match(
+        /^\/api\/admin\/users\/(\d+)\/(activate|deactivate)$/
+      )
       if (req.method === 'POST' && m) {
         const targetId = Number(m[1])
         const action = m[2]
@@ -492,14 +501,20 @@ const server = createServer(async (req, res) => {
       if (req.method === 'POST' && outcomeMatch) {
         const body = await readBody(req)
         if (!recordOutcome(db, user.id, Number(outcomeMatch[1]), body)) {
-          json(res, 404, { error: 'Không tìm thấy lượt gọi.', code: AI_ERRORS.INVALID })
+          json(res, 404, {
+            error: 'Không tìm thấy lượt gọi.',
+            code: AI_ERRORS.INVALID
+          })
           return
         }
         json(res, 200, { message: 'ok' })
         return
       }
 
-      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      json(res, 405, {
+        error: 'Phương thức không hỗ trợ.',
+        code: 'method_not_allowed'
+      })
       return
     }
 
@@ -573,9 +588,9 @@ const server = createServer(async (req, res) => {
       }
 
       const rest = path.slice('/api/skills'.length).replace(/^\//, '')
-      const [skillId, action] = rest.split('/').map(part =>
-        part ? decodeURIComponent(part) : ''
-      )
+      const [skillId, action] = rest
+        .split('/')
+        .map(part => (part ? decodeURIComponent(part) : ''))
 
       const failSkill = error => {
         if (!(error instanceof SkillError)) throw error
@@ -604,7 +619,10 @@ const server = createServer(async (req, res) => {
         // A draft belongs to its author until they have tried it. Reported as
         // absent rather than forbidden, so the route does not confirm that a
         // guide by that name exists.
-        if (!skill || (skill.status !== 'published' && skill.uploadedBy !== user.id)) {
+        if (
+          !skill ||
+          (skill.status !== 'published' && skill.uploadedBy !== user.id)
+        ) {
           json(res, 404, {
             error: 'Không tìm thấy hướng dẫn.',
             code: SKILL_ERRORS.NOT_FOUND
@@ -657,7 +675,10 @@ const server = createServer(async (req, res) => {
         return
       }
 
-      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      json(res, 405, {
+        error: 'Phương thức không hỗ trợ.',
+        code: 'method_not_allowed'
+      })
       return
     }
 
@@ -669,9 +690,9 @@ const server = createServer(async (req, res) => {
       }
 
       const rest = path.slice('/api/templates'.length).replace(/^\//, '')
-      const [templateId, version, action] = rest.split('/').map(part =>
-        part ? decodeURIComponent(part) : ''
-      )
+      const [templateId, version, action] = rest
+        .split('/')
+        .map(part => (part ? decodeURIComponent(part) : ''))
 
       const failTemplate = error => {
         if (!(error instanceof TemplateError)) throw error
@@ -707,7 +728,10 @@ const server = createServer(async (req, res) => {
           return
         }
         // A draft belongs to its author until it has been shown to work.
-        if (template.status !== 'published' && template.uploadedBy !== user.id) {
+        if (
+          template.status !== 'published' &&
+          template.uploadedBy !== user.id
+        ) {
           json(res, 404, {
             error: 'Không tìm thấy template.',
             code: TEMPLATE_ERRORS.NOT_FOUND
@@ -743,7 +767,12 @@ const server = createServer(async (req, res) => {
         return
       }
 
-      if (req.method === 'POST' && templateId && version && action === 'publish') {
+      if (
+        req.method === 'POST' &&
+        templateId &&
+        version &&
+        action === 'publish'
+      ) {
         try {
           json(res, 200, {
             template: publishTemplate(db, user.id, templateId, version)
@@ -766,7 +795,10 @@ const server = createServer(async (req, res) => {
         return
       }
 
-      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      json(res, 405, {
+        error: 'Phương thức không hỗ trợ.',
+        code: 'method_not_allowed'
+      })
       return
     }
 
@@ -815,14 +847,19 @@ const server = createServer(async (req, res) => {
       // the term list because the client needs only this shape, on every
       // document open, and sending the whole dictionary for it would be waste.
       if (kind === 'role-layers' && req.method === 'GET') {
-        json(res, 200, { roleLayers: roleLayerMap(db) })
+        json(res, 200, {
+          roleLayers: roleLayerMap(db),
+          layerStyles: layerStyleMap(db)
+        })
         return
       }
 
       if (kind === 'terms') {
         if (req.method === 'GET' && !key) {
           json(res, 200, {
-            terms: listTerms(db, { search: url.searchParams.get('q') ?? undefined })
+            terms: listTerms(db, {
+              search: url.searchParams.get('q') ?? undefined
+            })
           })
           return
         }
@@ -833,7 +870,9 @@ const server = createServer(async (req, res) => {
         }
         if (req.method === 'PATCH' && key) {
           const body = await readBody(req, 64 * 1024)
-          handle(() => json(res, 200, { term: updateTerm(db, user.id, key, body) }))
+          handle(() =>
+            json(res, 200, { term: updateTerm(db, user.id, key, body) })
+          )
           return
         }
         if (req.method === 'DELETE' && key) {
@@ -856,12 +895,16 @@ const server = createServer(async (req, res) => {
         }
         if (req.method === 'POST' && !key) {
           const body = await readBody(req, 64 * 1024)
-          handle(() => json(res, 201, { layer: createLayer(db, user.id, body) }))
+          handle(() =>
+            json(res, 201, { layer: createLayer(db, user.id, body) })
+          )
           return
         }
         if (req.method === 'PATCH' && key) {
           const body = await readBody(req, 64 * 1024)
-          handle(() => json(res, 200, { layer: updateLayer(db, user.id, key, body) }))
+          handle(() =>
+            json(res, 200, { layer: updateLayer(db, user.id, key, body) })
+          )
           return
         }
         if (req.method === 'DELETE' && key) {
@@ -877,7 +920,10 @@ const server = createServer(async (req, res) => {
         }
       }
 
-      json(res, 405, { error: 'Phương thức không hỗ trợ.', code: 'method_not_allowed' })
+      json(res, 405, {
+        error: 'Phương thức không hỗ trợ.',
+        code: 'method_not_allowed'
+      })
       return
     }
 
@@ -905,7 +951,10 @@ const server = createServer(async (req, res) => {
       if (req.method === 'GET' && id) {
         const row = getDrawing(db, user.id, id)
         if (!row) {
-          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: ERRORS.NOT_FOUND })
+          json(res, 404, {
+            error: 'Không tìm thấy bản vẽ.',
+            code: ERRORS.NOT_FOUND
+          })
           return
         }
         json(res, 200, {
@@ -933,7 +982,10 @@ const server = createServer(async (req, res) => {
         const body = await readBody(req, MAX_DRAWING_BYTES)
         const result = updateDrawing(db, user.id, id, body)
         if (result.error === ERRORS.NOT_FOUND) {
-          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: result.error })
+          json(res, 404, {
+            error: 'Không tìm thấy bản vẽ.',
+            code: result.error
+          })
           return
         }
         if (result.error === ERRORS.CONFLICT) {
@@ -951,7 +1003,10 @@ const server = createServer(async (req, res) => {
 
       if (req.method === 'DELETE' && id) {
         if (!deleteDrawing(db, user.id, id)) {
-          json(res, 404, { error: 'Không tìm thấy bản vẽ.', code: ERRORS.NOT_FOUND })
+          json(res, 404, {
+            error: 'Không tìm thấy bản vẽ.',
+            code: ERRORS.NOT_FOUND
+          })
           return
         }
         res.writeHead(204)

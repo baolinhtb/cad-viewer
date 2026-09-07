@@ -14,7 +14,9 @@ import {
   listLayers,
   listTerms,
   roleLayerMap,
-  updateTerm
+  updateTerm,
+  layerStyleMap,
+  updateLayer
 } from './standards.mjs'
 
 function freshDb() {
@@ -88,20 +90,24 @@ test('an alias already claimed by another term is refused, naming the clash', ()
   const db = freshDb()
   let error
   try {
-    createTerm(db, 1, { role: 'tay_vin_moi', label: 'Tay vịn mới', aliases: ['tay vịn'] })
+    createTerm(db, 1, {
+      role: 'tay_vin_moi',
+      label: 'Tay vịn mới',
+      aliases: ['tay vịn']
+    })
   } catch (e) {
     error = e
   }
   assert.equal(error?.code, ERRORS.ALIAS_CONFLICT)
-  assert.deepEqual(error.detail.conflicts, [{ role: 'lan_can', aliases: ['tay vịn'] }])
+  assert.deepEqual(error.detail.conflicts, [
+    { role: 'lan_can', aliases: ['tay vịn'] }
+  ])
 })
 
 test("a term's own label counts as an alias for conflict purposes", () => {
   const db = freshDb()
   assert.equal(
-    codeOf(() =>
-      createTerm(db, 1, { role: 'khac', label: 'Lan can' })
-    ),
+    codeOf(() => createTerm(db, 1, { role: 'khac', label: 'Lan can' })),
     ERRORS.ALIAS_CONFLICT
   )
 })
@@ -241,7 +247,7 @@ test('contradiction checks ignore layer-name case, as AutoCAD does', () => {
   assert.deepEqual(findContradictions(db).rolesWithUnknownLayer, [])
 })
 
-test('layer names follow AutoCAD rules, not one office\'s convention', () => {
+test("layer names follow AutoCAD rules, not one office's convention", () => {
   const db = freshDb()
 
   // The names in a real drawing an engineer sent. Every one of them was
@@ -257,7 +263,20 @@ test('layer names follow AutoCAD rules, not one office\'s convention', () => {
   }
 
   // What AutoCAD itself refuses stays refused.
-  for (const name of ['a<b', 'a/b', 'a"b', 'a:b', 'a;b', 'a?b', 'a*b', 'a|b', "a'b", 'a,b', 'a=b', '  ']) {
+  for (const name of [
+    'a<b',
+    'a/b',
+    'a"b',
+    'a:b',
+    'a;b',
+    'a?b',
+    'a*b',
+    'a|b',
+    "a'b",
+    'a,b',
+    'a=b',
+    '  '
+  ]) {
     assert.equal(
       codeOf(() => createLayer(db, 1, { name, meaning: 'x' })),
       ERRORS.INVALID,
@@ -292,4 +311,47 @@ test('an office points a seeded role at its own layer name', () => {
     ),
     []
   )
+})
+
+test('a layer colour is an ACI index or nothing', () => {
+  const db = freshDb()
+  const layer = createLayer(db, 1, {
+    name: 'KC-MAU',
+    meaning: 'Có màu',
+    color: 8
+  })
+  assert.equal(layer.color, 8)
+  // A string from a form field counts, as long as it is a whole number in range.
+  assert.equal(updateLayer(db, 1, 'KC-MAU', { color: '3' }).color, 3)
+  // Omitting the field keeps the colour; clearing it needs an explicit empty.
+  assert.equal(updateLayer(db, 1, 'KC-MAU', { meaning: 'Vẫn có màu' }).color, 3)
+  assert.equal(updateLayer(db, 1, 'KC-MAU', { color: '' }).color, null)
+  for (const bad of [0, 256, 2.5, 'đỏ']) {
+    assert.equal(
+      codeOf(() => updateLayer(db, 1, 'KC-MAU', { color: bad })),
+      ERRORS.INVALID,
+      `màu ${bad} phải bị từ chối`
+    )
+  }
+  assert.equal(
+    codeOf(() =>
+      createLayer(db, 1, { name: 'KC-SAI', meaning: 'x', color: 300 })
+    ),
+    ERRORS.INVALID
+  )
+})
+
+test('the style map lists only layers with something decided', () => {
+  const db = freshDb()
+  createLayer(db, 1, { name: 'KC-XAM', meaning: 'Xám', color: 8 })
+  createLayer(db, 1, {
+    name: 'KC-NET',
+    meaning: 'Chỉ kiểu nét',
+    lineType: 'CENTER'
+  })
+  createLayer(db, 1, { name: 'KC-TRANG', meaning: 'Chưa quyết' })
+  const styles = layerStyleMap(db)
+  assert.deepEqual(styles['KC-XAM'], { color: 8, lineType: null })
+  assert.deepEqual(styles['KC-NET'], { color: null, lineType: 'CENTER' })
+  assert.equal(styles['KC-TRANG'], undefined)
 })

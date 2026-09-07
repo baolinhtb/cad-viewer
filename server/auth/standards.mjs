@@ -116,7 +116,8 @@ function findAliasConflicts(db, aliases, exceptRole) {
     if (row.role === exceptRole) continue
     const taken = [row.label, ...parseAliases(row.aliases)].map(normalizeAlias)
     const clashing = [...wanted].filter(alias => taken.includes(alias))
-    if (clashing.length > 0) conflicts.push({ role: row.role, aliases: clashing })
+    if (clashing.length > 0)
+      conflicts.push({ role: row.role, aliases: clashing })
   }
   return conflicts
 }
@@ -180,7 +181,11 @@ export function updateTerm(db, userId, role, input) {
 
   const merged = assertTermInput(
     db,
-    { role, label: input.label ?? existing.label, aliases: input.aliases ?? existing.aliases },
+    {
+      role,
+      label: input.label ?? existing.label,
+      aliases: input.aliases ?? existing.aliases
+    },
     { existingRole: role }
   )
 
@@ -240,7 +245,8 @@ function assertLayerInput(input) {
   if (!name || LAYER_NAME_FORBIDDEN.test(name)) {
     throw new StandardsError(ERRORS.INVALID, {
       field: 'name',
-      reason: 'Tên layer không được rỗng và không chứa < > / \\ " : ; ? * | , = \''
+      reason:
+        'Tên layer không được rỗng và không chứa < > / \\ " : ; ? * | , = \''
     })
   }
   const meaning = String(input.meaning ?? '').trim()
@@ -253,6 +259,31 @@ function assertLayerInput(input) {
   return { name, meaning }
 }
 
+/**
+ * A layer colour is an ACI index, because that is what the office's own
+ * drawings carry in their layer tables and what AutoCAD round-trips. Empty
+ * means "not decided", stored as NULL; anything else outside 1–255 is refused
+ * rather than clamped — a colour that quietly became white is the kind of
+ * wrong nobody notices until the plot comes back.
+ */
+function assertColor(value) {
+  if (value === undefined || value === null || value === '') return null
+  const n = typeof value === 'number' ? value : Number(String(value).trim())
+  if (!Number.isInteger(n) || n < 1 || n > 255) {
+    throw new StandardsError(ERRORS.INVALID, {
+      field: 'color',
+      reason: 'Màu phải là chỉ số ACI nguyên từ 1 đến 255, hoặc để trống'
+    })
+  }
+  return n
+}
+
+function cleanLineType(value) {
+  if (value === undefined || value === null) return null
+  const text = String(value).trim()
+  return text ? text : null
+}
+
 export function createLayer(db, userId, input) {
   const { name, meaning } = assertLayerInput(input)
   if (getLayer(db, name)) {
@@ -262,7 +293,13 @@ export function createLayer(db, userId, input) {
     `INSERT INTO standard_layers
        (name, meaning, color, line_type, updated_by, updated_at)
      VALUES (?, ?, ?, ?, ?, datetime('now'))`
-  ).run(name, meaning, input.color ?? null, input.lineType ?? null, userId)
+  ).run(
+    name,
+    meaning,
+    assertColor(input.color),
+    cleanLineType(input.lineType),
+    userId
+  )
   return getLayer(db, name)
 }
 
@@ -277,8 +314,12 @@ export function updateLayer(db, userId, name, input) {
       WHERE lower(name) = lower(?)`
   ).run(
     String(input.meaning ?? existing.meaning).trim() || existing.meaning,
-    input.color ?? existing.color,
-    input.lineType ?? existing.lineType,
+    // `undefined` keeps the current value; `null` or '' clears it. Distinct on
+    // purpose: an edit form that omits the field must not wipe the colour.
+    input.color === undefined ? existing.color : assertColor(input.color),
+    input.lineType === undefined
+      ? existing.lineType
+      : cleanLineType(input.lineType),
     userId,
     name
   )
@@ -305,6 +346,21 @@ export function roleLayerMap(db) {
     if (term.layer) mapping[term.role] = term.layer
   }
   return mapping
+}
+
+/**
+ * Layer presentation the client applies when it has to create a layer.
+ *
+ * Only layers with something decided appear, so the client can tell "white
+ * because the office chose white" from "white because nobody has said".
+ */
+export function layerStyleMap(db) {
+  const styles = {}
+  for (const layer of listLayers(db)) {
+    if (layer.color === null && layer.lineType === null) continue
+    styles[layer.name] = { color: layer.color, lineType: layer.lineType }
+  }
+  return styles
 }
 
 /**

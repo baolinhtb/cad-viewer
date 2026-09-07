@@ -13,6 +13,7 @@ import {
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
+  AcDbTextStyleTableRecord,
   AcGeLine2d,
   AcGeLoop2d,
   AcGePoint2d,
@@ -45,6 +46,17 @@ interface AcTpDrawBase {
    * on each stroke of the same part is allowed but pointless.
    */
   params?: Readonly<Record<string, number | string | boolean>>
+  /**
+   * Colour of this one entity, as an ACI index 1–255.
+   *
+   * Leave unset for ByLayer, which is right for almost every stroke: colour
+   * belongs to the layer, and the standardisation layer decides it (see
+   * {@link AcTpLayerStyleMap}). Set it only where the source drawing deliberately
+   * gives a stroke a colour other than its layer's — the centreline drawn red
+   * on a grey layer, note text drawn green — so the template reproduces what
+   * the engineer drew rather than flattening it.
+   */
+  color?: number
 }
 
 export interface AcTpLineArgs extends AcTpDrawBase {
@@ -71,7 +83,31 @@ export interface AcTpTextArgs extends AcTpDrawBase {
   position: AcGePoint3dLike
   text: string
   height?: number
+  /**
+   * Text style, by name. Defaults to {@link TEMPLATE_TEXT_STYLE}.
+   *
+   * Must already exist in the drawing, or be one of the styles the context
+   * knows how to create ({@link TEMPLATE_TEXT_STYLES}). The default is a
+   * TrueType style, because the SHX-era `Standard` style has no glyphs for
+   * Vietnamese letters with stacked diacritics — every "ố" and "đ" a template
+   * wrote through it rendered as "?".
+   */
+  style?: string
 }
+
+/**
+ * Text styles a template may ask for without the drawing already having them.
+ *
+ * Keyed by style name, valued by the font file exactly as AutoCAD records it
+ * in the STYLE table (group 3), so an exported DWG opens in AutoCAD with the
+ * same TrueType font. The engineer's own drawings define `Arial` this way.
+ */
+export const TEMPLATE_TEXT_STYLES: Readonly<Record<string, { font: string }>> = {
+  Arial: { font: 'arial.ttf' }
+}
+
+/** Style every template text gets unless it asks for another. */
+export const TEMPLATE_TEXT_STYLE = 'Arial'
 
 /**
  * A linear dimension between two points.
@@ -158,6 +194,27 @@ export interface AcTpDrawContext {
 export type AcTpRoleLayerMap = Readonly<Record<string, string>>
 
 /**
+ * How a layer is presented, as the standardisation layer records it.
+ *
+ * Colour is an ACI index because that is what the office's own drawings carry
+ * in their layer tables and what AutoCAD round-trips; `null` means the office
+ * has not decided yet, and the context then falls back to white.
+ */
+export interface AcTpLayerStyle {
+  /** ACI colour index 1–255; `null` or absent when not yet decided. */
+  color?: number | null
+  /**
+   * Linetype name (CENTER, DASHED, …). Recorded for the catalogue; not applied
+   * when drawing, because a layer naming a linetype the drawing's table lacks
+   * renders nothing — the same failure mode a missing layer has.
+   */
+  lineType?: string | null
+}
+
+/** Layer name → presentation, keyed exactly as the catalogue names the layer. */
+export type AcTpLayerStyleMap = Readonly<Record<string, AcTpLayerStyle>>
+
+/**
  * Builds the draw context handed to a template's `generate`.
  *
  * Callers are expected to run this inside `acapRunGroupedEdit` so the whole
@@ -179,7 +236,16 @@ export function createDrawContext(
    * generation in tests, where there is no run to record. Passing it is what
    * makes the drawing describe how it was made.
    */
-  run?: AcTpRunRecord
+  run?: AcTpRunRecord,
+  /**
+   * Layer presentation from the standardisation layer's catalogue.
+   *
+   * Consulted only when this context has to create a layer the drawing does
+   * not have. A layer the drawing already carries keeps whatever the drawing
+   * says: those properties belong to the drawing, and an engineer's own file
+   * outranks the office default.
+   */
+  layerStyles: AcTpLayerStyleMap = {}
 ): AcTpDrawContext {
   // Single place the RegApp is registered. Doing it here rather than leaving it
   // to each caller is what keeps "exactly one definition per file" true — an
@@ -187,6 +253,30 @@ export function createDrawContext(
   ensureSemanticTagRegApp(db)
 
   const drawn: AcDbEntity[] = []
+
+  // AutoCAD compares layer names case-insensitively, so the catalogue must be
+  // looked up the same way or `_33_CAU_MO_Be` and `_33_CAU_MO_BE` would be
+  // two layers with two colours.
+  const styleOf = new Map<string, AcTpLayerStyle>()
+  for (const [name, style] of Object.entries(layerStyles)) {
+    styleOf.set(name.toLowerCase(), style)
+  }
+
+  /**
+   * Checks an ACI index. `undefined`/`null` means "not specified" and is
+   * returned as `undefined`; anything else outside 1–255 is a bug in the
+   * template or the catalogue, and a colour that silently became white would
+   * be exactly the kind of wrong nobody notices.
+   */
+  const aci = (value: unknown, what: string): number | undefined => {
+    if (value === undefined || value === null) return undefined
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 255) {
+      throw new Error(
+        `${what} phải là chỉ số màu ACI nguyên từ 1 đến 255. Nhận được: ${String(value)}`
+      )
+    }
+    return value
+  }
 
   /**
    * Creates the layer if the drawing does not have it yet.
@@ -197,18 +287,56 @@ export function createDrawContext(
    * notices — but the renderer refuses the entity with "layer 'KC-BAN'
    * doesn't exist" and the drawing comes out blank. The whole generated
    * section was invisible for exactly this reason.
+   *
+   * The colour comes from the catalogue, which is where the office keeps its
+   * layer convention; white is only the fallback for a layer nobody has
+   * coloured yet. A layer the drawing already has is left alone, colour
+   * included — see the `layerStyles` parameter.
    */
   const ensureLayer = (name: string): void => {
     const layerTable = db.tables.layerTable
     if (layerTable.has(name)) return
+    const color =
+      aci(styleOf.get(name.toLowerCase())?.color, `Màu của layer '${name}'`) ?? 7
     layerTable.add(
       new AcDbLayerTableRecord({
         name,
         isOff: false,
-        // Colour is presentation and the standards layer owns it properly;
-        // white here just means "visible" until that lands.
-        color: new AcCmColor(AcCmColorMethod.ByACI, 7),
+        color: new AcCmColor(AcCmColorMethod.ByACI, color),
         isPlottable: true
+      })
+    )
+  }
+
+  /**
+   * Creates a text style the drawing lacks, from {@link TEMPLATE_TEXT_STYLES}.
+   *
+   * A style the drawing already has is kept as is — its font is the
+   * engineer's choice. A name the context cannot create is refused rather
+   * than silently falling back to `Standard`, which is the failure this
+   * exists to end.
+   */
+  const ensureTextStyle = (name: string): void => {
+    const table = db.tables.textStyleTable
+    if (table.has(name)) return
+    const known = TEMPLATE_TEXT_STYLES[name]
+    if (!known) {
+      throw new Error(
+        `Kiểu chữ '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_TEXT_STYLES).join(', ')} hoặc một kiểu chữ bản vẽ đã khai.`
+      )
+    }
+    table.add(
+      new AcDbTextStyleTableRecord({
+        name,
+        standardFlag: 0,
+        fixedTextHeight: 0,
+        widthFactor: 1,
+        obliqueAngle: 0,
+        textGenerationFlag: 0,
+        lastHeight: 2.5,
+        font: known.font,
+        bigFont: '',
+        extendedFont: known.font
       })
     )
   }
@@ -223,6 +351,14 @@ export function createDrawContext(
     }
     ensureLayer(layer)
     entity.layer = layer
+
+    // ByLayer unless the template asked for a colour of its own. The default
+    // is not set explicitly: a fresh entity is already ByLayer, and writing
+    // it would turn "no opinion" into an assertion.
+    const color = aci(args.color, `Màu của '${args.partId}'`)
+    if (color !== undefined) {
+      entity.color = new AcCmColor(AcCmColorMethod.ByACI, color)
+    }
 
     const tag: AcTpSemanticTag = {
       role: args.role,
@@ -267,6 +403,9 @@ export function createDrawContext(
       )
       entity.textString = args.text
       entity.height = args.height ?? 2.5
+      const style = args.style ?? TEMPLATE_TEXT_STYLE
+      ensureTextStyle(style)
+      entity.styleName = style
       return place(entity, args)
     },
 

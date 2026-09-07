@@ -83,6 +83,9 @@
   .issues ul { margin: 0; padding-left: 18px; }
   .issues code { font-family: var(--cv-font-mono); color: var(--cv-ink-primary); }
   .missing { color: var(--cv-warning); font-family: var(--cv-font-sans); font-size: 11px; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px;
+    margin-right: 6px; border: 1px solid var(--cv-border-hairline); }
+  td.aci { font-family: var(--cv-font-mono); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -137,11 +140,12 @@
     <div class="toolbar">
       <input id="l-name" class="slug" placeholder="Tên layer (vd: KC-DAMCHU)" size="22" autocomplete="off">
       <input id="l-meaning" class="grow" placeholder="Ý nghĩa" autocomplete="off">
+      <input id="l-color" class="slug" placeholder="Màu ACI (1–255)" size="12" inputmode="numeric" autocomplete="off">
       <button id="l-add" class="primary">Thêm layer</button>
     </div>
     <div class="panel">
       <table>
-        <thead><tr><th>Tên layer</th><th>Ý nghĩa</th><th>Sửa lần cuối</th><th></th></tr></thead>
+        <thead><tr><th>Tên layer</th><th>Ý nghĩa</th><th>Màu</th><th>Sửa lần cuối</th><th></th></tr></thead>
         <tbody id="l-rows"></tbody>
       </table>
       <div id="l-empty" class="empty" hidden>Chưa có layer nào.</div>
@@ -149,6 +153,9 @@
     <p class="note">
       Tên layer không phân biệt hoa thường, giống cách AutoCAD xử lý.
       Template vẽ lên layer chưa khai ở đây sẽ bị cảnh báo khi nạp lên.
+      Màu là chỉ số ACI như trong bảng layer của AutoCAD (1 đỏ, 2 vàng, 3 xanh lá, 4 lam, 5 xanh dương,
+      6 tím, 7 trắng, 8 xám, 9 xám nhạt); template dựng lên layer mới sẽ lấy đúng màu này, layer đã có
+      sẵn trong bản vẽ giữ màu của bản vẽ.
     </p>
   </section>
 </main>
@@ -330,38 +337,68 @@ $('q').addEventListener('input', () => {
 })
 
 // --- layers ---
+// Bảng màu ACI 1–255 theo đúng bộ chuyển của trình xem, để ô màu ở đây trùng
+// với màu kỹ sư sẽ thấy trên bản vẽ.
+const ACI = ["#ff0000","#ffff00","#00ff00","#00ffff","#0000ff","#ff00ff","#ffffff","#808080","#c0c0c0","#ff0000","#ff7f7f","#cc0000","#cc6666","#990000","#994c4c","#7f0000","#7f3f3f","#4c0000","#4c2626","#ff3f00","#ff9f7f","#cc3300","#cc7f66","#992600","#995f4c","#7f1f00","#7f4f3f","#4c1300","#4c2f26","#ff7f00","#ffbf7f","#cc6600","#cc9966","#994c00","#99724c","#7f3f00","#7f5f3f","#4c2600","#4c3926","#ffbf00","#ffdf7f","#cc9900","#ccb266","#997200","#99854c","#7f5f00","#7f6f3f","#4c3900","#4c4226","#ffff00","#ffff7f","#cccc00","#cccc66","#989800","#98984c","#7f7f00","#7f7f3f","#4c4c00","#4c4c26","#bfff00","#dfff7f","#99cc00","#b2cc66","#729800","#85984c","#5f7f00","#6f7f3f","#394c00","#424c26","#7fff00","#bfff7f","#66cc00","#99cc66","#4c9800","#72984c","#3f7f00","#5f7f3f","#264c00","#394c26","#3fff00","#9fff7f","#33cc00","#7fcc66","#269800","#5f984c","#1f7f00","#4f7f3f","#134c00","#2f4c26","#00ff00","#7fff7f","#00cc00","#66cc66","#009800","#4c984c","#007f00","#3f7f3f","#004c00","#264c26","#00ff3f","#7fff9f","#00cc33","#66cc7f","#009826","#4c985f","#007f1f","#3f7f4f","#004c13","#264c2f","#00ff7f","#7fffbf","#00cc66","#66cc99","#00984c","#4c9872","#007f3f","#3f7f5f","#004c26","#264c39","#00ffbf","#7fffdf","#00cc99","#66ccb2","#009872","#4c9885","#007f5f","#3f7f6f","#004c39","#264c42","#00ffff","#7fffff","#00cccc","#66cccc","#009898","#4c9898","#007f7f","#3f7f7f","#004c4c","#264c4c","#00bfff","#7fdfff","#0099cc","#66b2cc","#007298","#4c8598","#005f7f","#3f6f7f","#00394c","#26424c","#007fff","#7fbfff","#0066cc","#6699cc","#004c98","#4c7298","#003f7f","#3f5f7f","#00264c","#26394c","#003fff","#7f9fff","#0033cc","#667fcc","#002698","#4c5f98","#001f7f","#3f4f7f","#00134c","#262f4c","#0000ff","#7f7fff","#0000cc","#6666cc","#000098","#4c4c98","#00007f","#3f3f7f","#00004c","#26264c","#3f00ff","#9f7fff","#3300cc","#7f66cc","#260098","#5f4c98","#1f007f","#4f3f7f","#13004c","#2f264c","#7f00ff","#bf7fff","#6600cc","#9966cc","#4c0098","#724c98","#3f007f","#5f3f7f","#26004c","#39264c","#bf00ff","#df7fff","#9900cc","#b266cc","#720098","#854c98","#5f007f","#6f3f7f","#39004c","#42264c","#ff00ff","#ff7fff","#cc00cc","#cc66cc","#980098","#984c98","#7f007f","#7f3f7f","#4c004c","#4c264c","#ff00bf","#ff7fdf","#cc0099","#cc66b2","#980072","#984c85","#7f005f","#7f3f6f","#4c0039","#4c2642","#ff007f","#ff7fbf","#cc0066","#cc6699","#98004c","#984c72","#7f003f","#7f3f5f","#4c0026","#4c2639","#ff003f","#ff7f9f","#cc0033","#cc667f","#980026","#984c5f","#7f001f","#7f3f4f","#4c0013","#4c262f","#333333","#5b5b5b","#848484","#adadad","#d6d6d6","#ffffff"]
+const swatch = color => Number.isInteger(color) && color >= 1 && color <= 255
+  ? `<span class="swatch" style="background:${ACI[color - 1]}"></span>${color}`
+  : '<span class="missing">chưa đặt</span>'
+
 async function loadLayers() {
   const { layers } = await (await api('/api/standards/layers')).json()
   $('l-empty').hidden = layers.length > 0
   $('l-rows').innerHTML = layers.map(layer => `
-    <tr data-name="${esc(layer.name)}">
+    <tr data-name="${esc(layer.name)}" data-color="${layer.color ?? ''}">
       <td class="slug">${esc(layer.name)}</td>
       <td>${esc(layer.meaning)}</td>
+      <td class="aci">${swatch(layer.color)}</td>
       <td class="when">${esc(layer.updatedAt)}${layer.updatedBy ? ` · #${layer.updatedBy}` : ''}</td>
-      <td><button class="ghost danger" data-act="del-layer">Xóa</button></td>
+      <td>
+        <button class="ghost" data-act="edit-color">Đổi màu</button>
+        <button class="ghost danger" data-act="del-layer">Xóa</button>
+      </td>
     </tr>`).join('')
 }
 
 $('l-add').addEventListener('click', async () => {
+  const color = $('l-color').value.trim()
   const response = await api('/api/standards/layers', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: $('l-name').value.trim(), meaning: $('l-meaning').value.trim() })
+    body: JSON.stringify({
+      name: $('l-name').value.trim(),
+      meaning: $('l-meaning').value.trim(),
+      color: color === '' ? null : color
+    })
   })
   if (!response.ok) return say(await explain(response))
-  $('l-name').value = $('l-meaning').value = ''
+  $('l-name').value = $('l-meaning').value = $('l-color').value = ''
   say('Đã thêm layer.', 'ok')
   refresh()
 })
 
 $('l-rows').addEventListener('click', async event => {
-  const button = event.target.closest('button[data-act="del-layer"]')
+  const button = event.target.closest('button[data-act]')
   if (!button) return
-  const name = button.closest('tr').dataset.name
-  if (!confirm(`Xóa layer "${name}"?`)) return
-  const response = await api(`/api/standards/layers/${encodeURIComponent(name)}`, { method: 'DELETE' })
-  if (!response.ok) return say(await explain(response))
-  say('Đã xóa.', 'ok')
-  refresh()
+  const row = button.closest('tr')
+  const name = row.dataset.name
+  if (button.dataset.act === 'edit-color') {
+    const next = prompt(`Màu ACI của layer "${name}" (1–255, để trống để bỏ màu):`, row.dataset.color)
+    if (next === null) return
+    const response = await api(`/api/standards/layers/${encodeURIComponent(name)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color: next.trim() === '' ? null : next.trim() })
+    })
+    if (!response.ok) return say(await explain(response))
+    say('Đã đổi màu.', 'ok')
+    return refresh()
+  }
+  if (button.dataset.act === 'del-layer') {
+    if (!confirm(`Xóa layer "${name}"?`)) return
+    const response = await api(`/api/standards/layers/${encodeURIComponent(name)}`, { method: 'DELETE' })
+    if (!response.ok) return say(await explain(response))
+    say('Đã xóa.', 'ok')
+    refresh()
+  }
 })
 
 // --- shell ---

@@ -74,8 +74,8 @@ import {
   AcApSketchCmd,
   AcApSplineCmd,
   AcApSwitchBgCmd,
-  AcApUcsCmd,
   AcApSysVarCmd,
+  AcApUcsCmd,
   AcApUndoCmd,
   AcApUnisolateObjectsCmd,
   AcApXAttachCmd,
@@ -214,8 +214,21 @@ export interface AcApWebworkerFiles {
   mtextRender?: string | URL
 }
 
-/** AutoCAD-era default font fallback chain used when glyphs are missing. */
+/** AutoCAD-era symbol font chain (`%%c`, `%%d`, `%%p`, …). */
 const DEFAULT_FONTS_PRESET = 'modern' as const
+
+/**
+ * Text font fallback chain used when a glyph is missing from the style's font.
+ *
+ * The `modern` preset is `hztxt` → `simsun`: fine for CJK, but neither font
+ * carries Latin Extended Additional, so every Vietnamese letter with a stacked
+ * diacritic (ặ ố ế đ ọ …) rendered as the not-found glyph "?" — in drawings
+ * whose TrueType style could not be resolved, and in every text a template
+ * drew through the `Standard` style, whose font is SimKai. `arial` is a mesh
+ * font on the same CDN with full Vietnamese coverage and no CJK, so putting
+ * it first fixes Latin scripts without changing what CJK falls back to.
+ */
+const DEFAULT_TEXT_FONTS = ['arial', 'hztxt', 'simsun'] as const
 
 /**
  * Options for creating AcApDocManager instance
@@ -448,7 +461,10 @@ export class AcApDocManager {
     } else {
       AcTrMTextRenderer.getInstance().setRenderMode('worker')
     }
-    FontManager.instance.setDefaultFonts(DEFAULT_FONTS_PRESET)
+    // Symbol chain from the preset; text chain is ours (see DEFAULT_TEXT_FONTS).
+    // Order matters: a preset name resets both chains.
+    FontManager.instance.setSymbolFonts(DEFAULT_FONTS_PRESET)
+    FontManager.instance.setDefaultFonts([...DEFAULT_TEXT_FONTS])
     FontManager.instance.lazyFontLoading = true
     FontManager.instance.awaitFontsBeforeDraw = true
     void AcTrMTextRenderer.getInstance().setLazyFontLoading(true)
@@ -804,8 +820,8 @@ export class AcApDocManager {
    * Loads default fonts for CAD text rendering.
    *
    * This method loads either the specified fonts or the configured default font
-   * fallback chains ({@link DEFAULT_FONTS_PRESET}, currently `modern`: text
-   * `hztxt` 鈫?`simsun`, symbol `amgdt`) if no fonts are provided. The loaded
+   * fallback chains ({@link DEFAULT_TEXT_FONTS}: `arial` → `hztxt` → `simsun`;
+   * symbols from {@link DEFAULT_FONTS_PRESET}) if no fonts are provided. The loaded
    * fonts are used for rendering CAD text entities like MText and Text in the viewer.
    *
    * It is better to load default fonts when viewer is initialized so that the viewer can
@@ -1937,7 +1953,9 @@ export class AcApDocManager {
     mtextRenderer.initialize(
       webworkerFileUrls?.mtextRender ?? DEFAULT_WEBWORKER_FILE_URLS.mtextRender
     )
-    void mtextRenderer.setDefaultFonts(DEFAULT_FONTS_PRESET)
+    // The renderer forwards both chains to its workers from FontManager, so the
+    // symbol preset set in the constructor travels along with this list.
+    void mtextRenderer.setDefaultFonts([...DEFAULT_TEXT_FONTS])
   }
 
   /**

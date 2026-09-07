@@ -62,7 +62,10 @@ const ROLE_LAYERS: Record<string, string> = {
   lop_phu: 'KC-LOPPHU',
   coc_khoan_nhoi: 'KC-COC',
   ghi_chu: 'GC-GHICHU',
-  duong_tim: 'TRUC-TIM'
+  duong_tim: 'TRUC-TIM',
+  ong_thoat_nuoc: 'KT-THOATNUOC',
+  ghi_chu_cao_do: 'GC-CAODO',
+  tieu_de_ban_ve: 'GC-TIEUDE'
 }
 
 /**
@@ -106,7 +109,8 @@ const FILES = [
   ['mo_coc_khoan_nhoi.js', 'mo_coc_khoan_nhoi'],
   ['mo_be_mong.js', 'mo_be_mong'],
   ['mo_tuong_than.js', 'mo_tuong_than'],
-  ['mo_tuong_dau.js', 'mo_tuong_dau']
+  ['mo_tuong_dau.js', 'mo_tuong_dau'],
+  ['mo_mat_chinh.js', 'mo_mat_chinh']
 ] as const
 
 describe('every uploadable component', () => {

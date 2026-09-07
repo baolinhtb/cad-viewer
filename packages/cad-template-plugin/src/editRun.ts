@@ -10,7 +10,7 @@ import {
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { entitiesOfRun, listRuns } from './runIdentity'
-import { findTemplate, roleLayers } from './templateRegistry'
+import { findTemplate, layerStyles, roleLayers } from './templateRegistry'
 
 /** Outcome of editing an existing run. */
 export interface AcApRunEditResult {
@@ -71,7 +71,7 @@ export async function editTemplateRun(
       errors: [
         known.length
           ? `Bản vẽ không có lần chạy "${runId}". Đang có: ${known.join(', ')}.`
-          : `Bản vẽ không có lần chạy nào do template dựng, nên không có gì để sửa.`
+          : 'Bản vẽ không có lần chạy nào do template dựng, nên không có gì để sửa.'
       ]
     }
   }
@@ -117,7 +117,7 @@ export async function editTemplateRun(
       id: runId,
       version: template.meta.version,
       values: values as Record<string, number | string | boolean>
-    })
+    }, layerStyles())
     await template.generate(ctx, values)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
