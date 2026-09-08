@@ -4,12 +4,15 @@ import {
   AcDbArc,
   AcDbCircle,
   AcDbDatabase,
+  AcDbDimStyleTableRecord,
+  AcDbDimTextVertical,
   AcDbEntity,
   AcDbHatch,
   AcDbHatchPatternType,
   AcDbHatchStyle,
   AcDbLayerTableRecord,
   AcDbLine,
+  AcDbLinetypeTableRecord,
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
@@ -22,7 +25,7 @@ import {
   HATCH_PATTERN_SOLID
 } from '@mlightcad/data-model'
 
-import { buildDimensionBlock } from './AcTpDimensionBlock'
+import { buildDimensionBlock, formatDimensionText } from './AcTpDimensionBlock'
 import {
   AcTpRunRecord,
   AcTpSemanticTag,
@@ -57,6 +60,16 @@ interface AcTpDrawBase {
    * the engineer drew rather than flattening it.
    */
   color?: number
+  /**
+   * Linetype by name — `CENTER`, `DASHED`, `DASHDOT`, `HIDDEN`, or one the
+   * drawing already defines. Leave unset for ByLayer (continuous).
+   *
+   * A name the drawing lacks is created from {@link TEMPLATE_LINETYPES}, the
+   * AutoCAD definitions the engineer's drawings carry, sized for the drawing's
+   * `LTSCALE` so a centreline dashes the same whether it lands in the office's
+   * file (`LTSCALE 300`) or in a fresh one (`LTSCALE 1`).
+   */
+  lineType?: string
 }
 
 export interface AcTpLineArgs extends AcTpDrawBase {
@@ -110,6 +123,77 @@ export const TEMPLATE_TEXT_STYLES: Readonly<Record<string, { font: string }>> = 
 export const TEMPLATE_TEXT_STYLE = 'Arial'
 
 /**
+ * Dimension styles a template may ask for without the drawing having them.
+ *
+ * `D100` is the engineer's own: their file defines it as `DIMSCALE 100` over
+ * base values (`DIMTXT 1.5`, `DIMASZ 1.3`, `DIMEXO 1`, `DIMEXE 0.7`,
+ * `DIMGAP 0.6`, text above the line, green text, rounded to 1). The data
+ * model's block builder reads the base values without the scale, so the SDK
+ * stores the products with `dimscale 1` — the same drawing, no hidden
+ * multiplication.
+ */
+type AcTpDimStyleAttrs = NonNullable<
+  ConstructorParameters<typeof AcDbDimStyleTableRecord>[0]
+>
+
+export const TEMPLATE_DIM_STYLES: Readonly<Record<string, AcTpDimStyleAttrs>> = {
+  D100: {
+    dimscale: 1,
+    dimtxt: 150,
+    dimasz: 130,
+    dimexo: 100,
+    dimexe: 70,
+    dimgap: 60,
+    dimtad: AcDbDimTextVertical.Above,
+    dimtih: 0,
+    dimtoh: 0,
+    dimdec: 2,
+    dimrnd: 1,
+    dimzin: 8,
+    dimlfac: 1,
+    dimclrt: 3,
+    dimtxsty: TEMPLATE_TEXT_STYLE
+  }
+}
+
+/** Dimension style every template dimension gets unless it asks for another. */
+export const TEMPLATE_DIM_STYLE = 'D100'
+
+/**
+ * Linetypes a template may ask for, as AutoCAD's `acad.lin` defines them and
+ * as the engineer's drawing carries them: lengths in drawing units at
+ * `LTSCALE 1`. Negative is a gap, zero is a dot.
+ */
+export const TEMPLATE_LINETYPES: Readonly<
+  Record<string, { description: string; pattern: readonly number[] }>
+> = {
+  CENTER: {
+    description: 'Center ____ _ ____ _ ____ _ ____ _ ____ _ ____',
+    pattern: [1.25, -0.25, 0.25, -0.25]
+  },
+  DASHED: {
+    description: 'Dashed __ __ __ __ __ __ __ __ __ __ __ __ __ _',
+    pattern: [0.5, -0.25]
+  },
+  DASHDOT: {
+    description: 'Dash dot __ . __ . __ . __ . __ . __ . __ . __',
+    pattern: [0.5, -0.25, 0, -0.25]
+  },
+  HIDDEN: {
+    description: 'Hidden __ __ __ __ __ __ __ __ __ __ __ __ __ _',
+    pattern: [0.25, -0.125]
+  }
+}
+
+/**
+ * `LTSCALE` the office draws at: their millimetre drawings carry 300, which
+ * turns `CENTER`'s 1.25-unit dash into 375 mm — legible at 1:100. A linetype
+ * created in a drawing with a different `LTSCALE` is pre-multiplied by the
+ * ratio so the dashes come out the same length on paper.
+ */
+export const LINETYPE_PLOT_SCALE = 300
+
+/**
  * A linear dimension between two points.
  *
  * `huong` is the axis the dimension measures along, not the direction of the
@@ -133,11 +217,30 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
   /** Axis measured. Defaults to `'ngang'`. */
   huong?: 'ngang' | 'dung' | 'nghieng'
   /**
-   * Overrides the measured value. Leave unset — the entity computes and
-   * formats the real distance, and a hand-written number is a number that
-   * stops matching the geometry the first time a parameter changes.
+   * Overrides the measured value. Leave unset — the context measures along
+   * `huong` and formats the number the way the dimension style says (the
+   * engineer's `D100`: rounded to 1, no trailing zeros), and a hand-written
+   * number is a number that stops matching the geometry the first time a
+   * parameter changes.
    */
   text?: string
+  /**
+   * Dimension style by name. Defaults to {@link TEMPLATE_DIM_STYLE}; must
+   * exist in the drawing or be one of {@link TEMPLATE_DIM_STYLES}.
+   */
+  dimStyle?: string
+}
+
+/**
+ * A leader: a line from the thing being noted to the note, with an arrowhead
+ * at the first point. The arrow is a solid triangle the size of the dimension
+ * style's arrowhead, since that is what AutoCAD draws for a leader too.
+ */
+export interface AcTpLeaderArgs extends AcTpDrawBase {
+  /** Vertices in order; the arrow sits at the first one. At least two. */
+  points: readonly AcGePoint3dLike[]
+  /** Arrow length in drawing units. Defaults to the default dimension style's `dimasz`. */
+  arrowSize?: number
 }
 
 /**
@@ -186,6 +289,8 @@ export interface AcTpDrawContext {
   text(args: AcTpTextArgs): AcDbEntity
   dimension(args: AcTpDimensionArgs): AcDbEntity
   hatch(args: AcTpHatchArgs): AcDbEntity
+  /** Draws the leader line and its arrowhead; returns the line. */
+  leader(args: AcTpLeaderArgs): AcDbEntity
   /** Everything drawn so far in this run, in drawing order. */
   readonly drawn: readonly AcDbEntity[]
 }
@@ -341,6 +446,49 @@ export function createDrawContext(
     )
   }
 
+  /** Creates a dimension style the drawing lacks, from {@link TEMPLATE_DIM_STYLES}. */
+  const ensureDimStyle = (name: string): AcDbDimStyleTableRecord => {
+    const table = db.tables.dimStyleTable
+    const existing = table.getAt(name)
+    if (existing) return existing
+    const known = TEMPLATE_DIM_STYLES[name]
+    if (!known) {
+      throw new Error(
+        `Kiểu kích thước '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_DIM_STYLES).join(', ')} hoặc một kiểu bản vẽ đã khai.`
+      )
+    }
+    if (known.dimtxsty) ensureTextStyle(known.dimtxsty)
+    const record = new AcDbDimStyleTableRecord({ ...known, name })
+    table.add(record)
+    return record
+  }
+
+  /**
+   * Creates a linetype the drawing lacks, from {@link TEMPLATE_LINETYPES},
+   * scaled for the drawing's `LTSCALE` — see {@link LINETYPE_PLOT_SCALE}.
+   */
+  const ensureLinetype = (name: string): void => {
+    const table = db.tables.linetypeTable
+    if (table.has(name)) return
+    const known = TEMPLATE_LINETYPES[name]
+    if (!known) {
+      throw new Error(
+        `Kiểu nét '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_LINETYPES).join(', ')} hoặc một kiểu nét bản vẽ đã khai.`
+      )
+    }
+    const ltscale = (db as { ltscale?: number }).ltscale
+    const k = LINETYPE_PLOT_SCALE / (ltscale && ltscale > 0 ? ltscale : 1)
+    table.add(
+      new AcDbLinetypeTableRecord({
+        name,
+        standardFlag: 0,
+        description: known.description,
+        totalPatternLength: known.pattern.reduce((sum, len) => sum + Math.abs(len) * k, 0),
+        pattern: known.pattern.map(len => ({ elementLength: len * k, elementTypeFlag: 0 }))
+      })
+    )
+  }
+
   const place = (entity: AcDbEntity, args: AcTpDrawBase): AcDbEntity => {
     const layer = args.layer ?? roleLayers[args.role]
     if (!layer) {
@@ -359,6 +507,10 @@ export function createDrawContext(
     if (color !== undefined) {
       entity.color = new AcCmColor(AcCmColorMethod.ByACI, color)
     }
+    if (args.lineType) {
+      ensureLinetype(args.lineType)
+      entity.lineType = args.lineType
+    }
 
     const tag: AcTpSemanticTag = {
       role: args.role,
@@ -374,17 +526,19 @@ export function createDrawContext(
     return entity
   }
 
+  const drawPolyline = (args: AcTpPolylineArgs): AcDbEntity => {
+    const polyline = new AcDbPolyline()
+    args.points.forEach((point, index) =>
+      polyline.addVertexAt(index, new AcGePoint2d(point.x, point.y))
+    )
+    polyline.closed = args.closed ?? false
+    return place(polyline, args)
+  }
+
   return {
     line: args => place(new AcDbLine(args.start, args.end), args),
 
-    polyline: args => {
-      const polyline = new AcDbPolyline()
-      args.points.forEach((point, index) =>
-        polyline.addVertexAt(index, new AcGePoint2d(point.x, point.y))
-      )
-      polyline.closed = args.closed ?? false
-      return place(polyline, args)
-    },
+    polyline: drawPolyline,
 
     circle: args => place(new AcDbCircle(args.center, args.radius), args),
 
@@ -449,12 +603,24 @@ export function createDrawContext(
         }
       }
 
+      // Measured along the axis asked for, not between the points: a
+      // vertical chain whose ends sit at different x must still read the
+      // height. Formatted by the style so the number matches the sheet's
+      // convention (D100: whole millimetres).
+      const styleName = args.dimStyle ?? TEMPLATE_DIM_STYLE
+      const style = ensureDimStyle(styleName)
+      const measured =
+        huong === 'ngang'
+          ? Math.abs(end.x - start.x)
+          : huong === 'dung'
+            ? Math.abs(end.y - start.y)
+            : Math.hypot(end.x - start.x, end.y - start.y)
       const entity = new AcDbRotatedDimension(
         { x: start.x, y: start.y, z: start.z ?? 0 },
         { x: end.x, y: end.y, z: end.z ?? 0 },
         dimLine,
-        args.text ?? null,
-        'Standard'
+        args.text ?? formatDimensionText(measured, style),
+        styleName
       )
       // Rotation is what makes a rotated dimension measure an axis rather than
       // the distance between the points. Left at zero for a skew dimension, the
@@ -507,6 +673,51 @@ export function createDrawContext(
       entity.add(loop)
 
       return place(entity, args)
+    },
+
+    leader: args => {
+      if (args.points.length < 2) {
+        throw new Error(
+          `Đường dẫn '${args.partId}' cần ít nhất 2 điểm, đã nhận ${args.points.length}.`
+        )
+      }
+      const size = args.arrowSize ?? ensureDimStyle(TEMPLATE_DIM_STYLE).dimasz
+      const [tip, next] = args.points
+      const dx = next.x - tip.x
+      const dy = next.y - tip.y
+      const length = Math.hypot(dx, dy)
+      if (length === 0) {
+        throw new Error(
+          `Đường dẫn '${args.partId}' có hai điểm đầu trùng nhau nên không có hướng cho mũi tên.`
+        )
+      }
+      // AutoCAD's closed filled arrowhead: length `size`, width a third of it.
+      const ux = dx / length
+      const uy = dy / length
+      const base = { x: tip.x + ux * size, y: tip.y + uy * size }
+      const half = size / 6
+      const boundary = [
+        { x: tip.x, y: tip.y, z: 0 },
+        { x: base.x - uy * half, y: base.y + ux * half, z: 0 },
+        { x: base.x + uy * half, y: base.y - ux * half, z: 0 }
+      ]
+      const { points: _points, arrowSize: _arrow, ...base_ } = args
+      const line = drawPolyline({ ...base_, points: args.points, closed: false })
+      const arrow = new AcDbHatch()
+      arrow.database = db
+      arrow.patternName = HATCH_PATTERN_SOLID
+      arrow.patternType = AcDbHatchPatternType.Predefined
+      arrow.hatchStyle = AcDbHatchStyle.Normal
+      arrow.isSolidFill = true
+      const loop = new AcGeLoop2d()
+      for (let i = 0; i < boundary.length; i++) {
+        const a = boundary[i]
+        const b = boundary[(i + 1) % boundary.length]
+        loop.add(new AcGeLine2d(new AcGePoint2d(a.x, a.y), new AcGePoint2d(b.x, b.y)))
+      }
+      arrow.add(loop)
+      place(arrow, base_)
+      return line
     },
 
     get drawn() {
