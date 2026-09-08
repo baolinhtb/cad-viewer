@@ -57,9 +57,31 @@ export function setRemoteTemplates(templates: readonly AcApRemoteTemplate[]) {
   }
 }
 
-/** Every template that can be run right now, built-ins first. */
+/**
+ * Every template that can be run right now, built-ins first — one per id.
+ *
+ * The library keeps every uploaded version, and this list used to hand back
+ * all of them. The template dialog then showed two identical cards for a
+ * corrected template and, resolving a card by id, ran the **first** match:
+ * the old version. Measured on the deployment on 2026-09-07 — `mo_mat_chinh`
+ * 1.1.0 was published, the dialog drew 1.0.0 five times in a row, and the
+ * `tuong_phong_ho_btct` card would have drawn 3.0.0, the one with the
+ * railing facing the wrong way. Only the newest version of each id is
+ * offered, which is what {@link findTemplate} already resolves to.
+ * {@link listRegisteredTemplates} keeps every version for the library view.
+ */
 export function listTemplates(): readonly AcTpTemplate[] {
-  return [...BUILT_IN, ...[...remote.values()].map(entry => entry.template)]
+  const newest = new Map<string, AcTpTemplate>()
+  for (const entry of remote.values()) {
+    const current = newest.get(entry.template.meta.id)
+    if (
+      !current ||
+      compareVersions(entry.template.meta.version, current.meta.version) > 0
+    ) {
+      newest.set(entry.template.meta.id, entry.template)
+    }
+  }
+  return [...BUILT_IN, ...newest.values()]
 }
 
 /** The same list with where each one came from. */

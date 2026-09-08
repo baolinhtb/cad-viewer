@@ -10,6 +10,8 @@
 import {
   findRemoteSource,
   findTemplate,
+  listRegisteredTemplates,
+  listTemplates,
   setRemoteTemplates
 } from '../src/templateRegistry'
 
@@ -70,3 +72,22 @@ test('an id nobody uploaded is still not found', () => {
 // tượng để chạy qua. Nhánh xử lý vẫn nằm trong `findTemplate`, chờ ngày lại có
 // built-in; bài kiểm thì không thể dựng một cái giả, vì danh sách là hằng số
 // của module.
+
+describe('the list the dialog offers', () => {
+  test('one card per id, the newest version, whatever order the library sent', () => {
+    // The dialog resolves a card by id and ran the first match, so two
+    // versions of one template meant two identical cards and the old code
+    // behind both of them. Seen on the deployment: 1.1.0 published, 1.0.0 drawn.
+    setRemoteTemplates([
+      entry('mo_mat_chinh', '1.0.0'),
+      entry('tuong_phong_ho_btct', '3.1.0'),
+      entry('mo_mat_chinh', '1.1.0'),
+      entry('tuong_phong_ho_btct', '3.0.0')
+    ])
+    expect(
+      listTemplates().map(t => `${t.meta.id}@${t.meta.version}`)
+    ).toEqual(['mo_mat_chinh@1.1.0', 'tuong_phong_ho_btct@3.1.0'])
+    // Every version is still visible where versions are the point.
+    expect(listRegisteredTemplates()).toHaveLength(4)
+  })
+})
