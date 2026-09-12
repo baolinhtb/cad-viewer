@@ -38,9 +38,9 @@ const ROLE_LAYERS: Record<string, string> = {
   mo_tuong_than: '_33_CAU_MO_Tuongthan',
   mo_tuong_dau: '_33_CAU_MO_Tuongdau',
   mo_tuong_tai: '_33_CAU_MO_Tuongtai',
-  lop_phu: '_Matduong_BTN',
-  coc_khoan_nhoi: 'KC-COC',
-  lan_can: 'KC-LANCAN',
+  lop_phu: '_33_Matduong_BTN',
+  coc_khoan_nhoi: '_33_CAU_MO_Coc',
+  lan_can: '_33_CAU_MIS_Lancan',
   ong_thoat_nuoc: 'KT-THOATNUOC',
   duong_tim: '_33_Timtuyen',
   kich_thuoc: '_33_Duongghikichthuoc',
@@ -55,7 +55,7 @@ const LAYER_STYLES: Record<string, { color: number | null }> = {
   _33_CAU_MO_Tuongthan: { color: 8 },
   _33_Timtuyen: { color: 8 },
   _33_Ghichu: { color: 8 },
-  'KC-LANCAN': { color: 7 }
+  _33_CAU_MIS_Lancan: { color: 7 }
 }
 
 function load() {
@@ -128,7 +128,7 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     const colorOf = (e: AcDbEntity) => e.color.colorIndex
     // Layer do template tạo lấy màu của nền chuẩn hoá; chưa quy định thì trắng.
     expect(database.tables.layerTable.getAt('_33_CAU_MO_Be')!.color.colorIndex).toBe(8)
-    expect(database.tables.layerTable.getAt('KC-LANCAN')!.color.colorIndex).toBe(7)
+    expect(database.tables.layerTable.getAt('_33_CAU_MIS_Lancan')!.color.colorIndex).toBe(7)
     expect(database.tables.layerTable.getAt('_33_CAU_MO_Tuongdau')!.color.colorIndex).toBe(7)
     // Kết cấu theo layer; tim tuyến đỏ; ghi chú xanh đúng năm dòng; mốc vàng.
     expect(colorOf(polyOf(drawn, 'mo_be'))).toBe(256)
