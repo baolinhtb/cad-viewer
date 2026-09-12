@@ -36,10 +36,17 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
  * tương lai." Nên template không cộng thêm khoảng dự phòng nào, và nói ra để
  * người đọc bản vẽ biết đó là cố ý.
  */
+/*
+ * 3.2.0: không ghi cứng tên layer nữa. Bản trước đặt `layer: 'KC-LANCAN'` và
+ * `'KT-THOATNUOC'` thẳng vào từng nét, nên khi phòng đổi quy ước sang
+ * `_33_CAU_MIS_Lancan` (2026-09-12) lan can vẫn nằm ở layer cũ trong khi mọi
+ * bộ phận khác đã theo vai trò. Layer giờ do nền chuẩn hoá quyết định qua vai
+ * trò `lan_can` và `ong_thoat_nuoc`, như các template còn lại.
+ */
 export default {
   meta: {
     id: 'tuong_phong_ho_btct',
-    version: '3.1.0',
+    version: '3.2.0',
     name: 'Lan can cầu (tường phòng hộ bê tông + lan can thép)',
     category: 'Bộ phận cầu',
     description:
@@ -200,7 +207,6 @@ export default {
         h,
         dieuKhoan: 'TCVN 11823-13:2017 §7.3.2.1'
       },
-      layer: 'KC-LANCAN',
       closed: true,
       points: HINH.map(([dx, dy]) => ({
         x: px(dx),
@@ -214,7 +220,6 @@ export default {
       role: 'ong_thoat_nuoc',
       partId: formatPartId({ role: 'ong_thoat_nuoc', side }),
       params: { D: 100 },
-      layer: 'KT-THOATNUOC',
       center: { x: px(203), y: y0 + 727, z: 0 },
       radius: 50
     })
@@ -318,8 +323,7 @@ export default {
       ctx.line({
         role: 'lan_can',
         partId: id(),
-        layer: 'KC-LANCAN',
-        start: { x: px(x1), y: py(y1), z: 0 },
+          start: { x: px(x1), y: py(y1), z: 0 },
         end: { x: px(x2), y: py(y2), z: 0 }
       })
     }
@@ -336,8 +340,7 @@ export default {
       ctx.arc({
         role: 'lan_can',
         partId: id(),
-        layer: 'KC-LANCAN',
-        center: { x: px(cx), y: py(cy), z: 0 },
+          center: { x: px(cx), y: py(cy), z: 0 },
         radius: r,
         startAngle: start,
         endAngle: end
@@ -348,8 +351,7 @@ export default {
       ctx.circle({
         role: 'lan_can',
         partId: id(),
-        layer: 'KC-LANCAN',
-        center: { x: px(cx), y: py(cy), z: 0 },
+          center: { x: px(cx), y: py(cy), z: 0 },
         radius: r
       })
     }
