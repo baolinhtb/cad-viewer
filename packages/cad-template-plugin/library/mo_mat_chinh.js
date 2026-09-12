@@ -43,6 +43,18 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
  * xám nhạt (9). Màu layer do nền chuẩn hoá cấp khi tạo layer; template chỉ
  * đặt màu ở đúng những nét mà bản vẽ gốc cho khác màu layer.
  *
+ * **Mỗi bộ phận một bộ kích thước** (2.0.0). Bản 1.x dùng một bề rộng B cho
+ * bệ, tường thân và tường đầu, nên "bệ rộng 9000" kéo cả hai tường rộng theo.
+ * Kỹ sư yêu cầu các bộ phận độc lập để sửa kích thước linh hoạt: bệ có
+ * bBe/hBe, tường thân bThan/hThan, tường đầu bDau/hDau, tường tai bTai/hTai,
+ * cọc D/soCoc/aCoc/Lcoc/nganm. Quan hệ lắp ghép vẫn giữ: tường thân đứng
+ * trên đỉnh bệ, tường đầu trên đỉnh tường thân (mặt đỉnh tường thân kéo dài
+ * nếu tường đầu rộng hơn), tường tai bám mép tường đầu, lan can ngồi trên
+ * vai kê, cọc chia đều quanh tim và phải cách mép bệ ≥ 300 mm. Bản vẽ mẫu
+ * có cả ba bề rộng bằng 7700 và tim–tim cọc 5300 = B − 2D, nên mặc định vẫn
+ * dựng lại đúng tờ M1. Bản ghi lời gọi 26 tham số cần nhãn XData v4 (chia
+ * nhiều chuỗi) — trình duyệt cũ hơn 2026-09-12 không dựng được template này.
+ *
  * **Kích thước, kiểu nét, đường dẫn** (1.2.0) theo đúng bản vẽ: kích thước
  * dùng kiểu D100 của kỹ sư (chữ 150 xanh lá trên đường, mũi tên 130, số
  * nguyên); tim tuyến nét CENTER, đầu cọc ngàm nét DASHED, tim cọc DASHDOT;
@@ -64,44 +76,31 @@ const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_mat_chinh',
-    version: '1.2.0',
+    version: '2.0.0',
     name: 'Mố cầu — mặt chính hoàn chỉnh (bản vẽ M1)',
     category: 'Mố trụ',
     description:
       'Cả tờ mặt chính mố M1 chuyển từ bản vẽ Phantachcaukienmo_va_dat_ten_layer ' +
-      'của kỹ sư: bê tông lót, bệ, hai cọc khoan nhồi, tường thân, tường đầu ' +
-      'với vai kê, hai tường tai, lớp phủ, hai lan can, tim tuyến, kích thước, ' +
-      'mốc cao độ, ghi chú, ký hiệu mặt cắt và tiêu đề. Tham số là đúng các tên ' +
-      'kỹ sư ghi trên kích thước (HB, H1A, H1B, B mố, D cọc); cọc tim–tim = ' +
-      'B − 2D. Độ dốc ngang nhận hai trị số trái/phải, bản vẽ mẫu 0 %. Gốc x ' +
-      'tại tim, y tại đáy bê tông lót. Kích thước mố do tính toán quyết định — ' +
-      'TCVN 11823-11:2017 không quy định.'
+      'của kỹ sư: bê tông lót, bệ, cọc khoan nhồi, tường thân, tường đầu với ' +
+      'vai kê, hai tường tai, lớp phủ, hai lan can, tim tuyến, kích thước, mốc ' +
+      'cao độ, ghi chú, ký hiệu mặt cắt và tiêu đề. Mỗi bộ phận có kích thước ' +
+      'riêng — bề rộng bệ, tường thân, tường đầu độc lập; cọc theo số lượng và ' +
+      'tim–tim — nên sửa một bộ phận không kéo bộ phận khác. Độ dốc ngang nhận ' +
+      'hai trị số trái/phải, bản vẽ mẫu 0 %. Gốc x tại tim, y tại đáy bê tông ' +
+      'lót. Kích thước mố do tính toán quyết định — TCVN 11823-11:2017 không ' +
+      'quy định.'
   },
   params: [
     {
-      key: 'B',
-      label: 'Bề rộng mố (B mố)',
+      key: 'bBe',
+      label: 'Bề rộng bệ (B mố)',
       type: 'number',
       unit: 'mm',
       min: 2000,
       max: 30000,
       default: 7700,
-      group: 'Kích thước chính',
-      hint:
-        'Chung cho bệ, tường thân và tường đầu; bê tông lót rộng thêm 100 mỗi ' +
-        'bên. Bản vẽ: 7700. Không do tiêu chuẩn quy định; dải chỉ chặn sai số ' +
-        'nhập liệu.'
-    },
-    {
-      key: 'hLot',
-      label: 'Chiều dày bê tông lót',
-      type: 'number',
-      unit: 'mm',
-      min: 50,
-      max: 500,
-      default: 100,
-      group: 'Kích thước chính',
-      hint: 'Bản vẽ: 100, ghi chú "BÊ TÔNG ĐỆM C8". Dải chỉ chặn sai số nhập liệu.'
+      group: 'Bệ móng',
+      hint: 'Bản vẽ: 7700, bằng tường thân và tường đầu; chỉnh riêng được. Bê tông lót rộng thêm phuLot mỗi bên. Không do tiêu chuẩn quy định; dải chỉ chặn sai số nhập liệu.'
     },
     {
       key: 'hBe',
@@ -111,59 +110,30 @@ export default {
       min: 500,
       max: 6000,
       default: 2000,
-      group: 'Kích thước chính',
+      group: 'Bệ móng',
       hint: 'Bản vẽ: 2000, nhãn HB. Do tính toán quyết định.'
     },
     {
-      key: 'hThan',
-      label: 'Chiều cao tường thân tại tim (H1A)',
+      key: 'hLot',
+      label: 'Chiều dày bê tông lót',
       type: 'number',
       unit: 'mm',
-      min: 500,
-      max: 15000,
-      default: 4793.4,
-      group: 'Kích thước chính',
-      hint:
-        'Từ đỉnh bệ tới đỉnh tường thân tại tim. Bản vẽ: 4793,4 (nhãn H1A; ' +
-        'H3A ở mép phải bằng đúng thế vì dốc ngang 0 %). Do tính toán quyết định.'
-    },
-    {
-      key: 'hDau',
-      label: 'Chiều cao tường đầu tại tim (H1B)',
-      type: 'number',
-      unit: 'mm',
-      min: 300,
-      max: 6000,
-      default: 1811.2,
-      group: 'Kích thước chính',
-      hint:
-        'Từ đỉnh tường thân tới mặt trên tường đầu giữa hai vai kê. Bản vẽ: ' +
-        '1811,2 (nhãn H1B). Do tính toán quyết định.'
-    },
-    {
-      key: 'bVaiKe',
-      label: 'Bề rộng vai kê mỗi bên',
-      type: 'number',
-      unit: 'mm',
-      min: 0,
-      max: 2000,
-      default: 350,
-      group: 'Kích thước chính',
-      hint:
-        'Bản vẽ: 350. Quyết định bề rộng mặt đường (B − 2·bVaiKe = 7000, nhãn ' +
-        '"b mặt đường") và vị trí lan can, vì lan can ngồi trên vai kê. Vai kê ' +
-        'hạ 7,08 ở góc ngoài, bằng đúng khấc ở chân lan can.'
-    },
-    {
-      key: 'tLopPhu',
-      label: 'Chiều dày lớp phủ',
-      type: 'number',
-      unit: 'mm',
-      min: 0,
+      min: 50,
       max: 500,
-      default: 70,
-      group: 'Kích thước chính',
-      hint: 'Bản vẽ: 70, layer mặt đường BTN.'
+      default: 100,
+      group: 'Bệ móng',
+      hint: 'Bản vẽ: 100, ghi chú "BÊ TÔNG ĐỆM C8".'
+    },
+    {
+      key: 'phuLot',
+      label: 'Bê tông lót nhô ra mỗi bên',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 1000,
+      default: 100,
+      group: 'Bệ móng',
+      hint: 'Bản vẽ: 100.'
     },
     {
       key: 'D',
@@ -174,10 +144,149 @@ export default {
       max: 3000,
       default: 1200,
       group: 'Cọc',
-      hint:
-        'Bản vẽ: 1200. Tim cọc cách mép bệ đúng D (nhãn "B mố − 2D" = 5300), ' +
-        'nên mặt bên cọc cách mép bệ D/2 = 600 ≥ 300 mm theo TCVN 11823-10:2017 ' +
-        'điều 8.1.2. Đầu cọc ngàm 150 vào bệ, vẽ 1000 dưới đáy bệ tới nét lượn.'
+      hint: 'Bản vẽ: 1200. Mặt bên cọc ngoài cùng phải cách mép bệ ≥ 300 mm theo TCVN 11823-10:2017 điều 8.1.2 — template từ chối nếu vi phạm.'
+    },
+    {
+      key: 'soCoc',
+      label: 'Số cọc trên mặt chính',
+      type: 'integer',
+      min: 1,
+      max: 8,
+      default: 2,
+      group: 'Cọc',
+      hint: 'Bản vẽ: 2 cọc, chia đều quanh tim mố.'
+    },
+    {
+      key: 'aCoc',
+      label: 'Khoảng cách tim–tim cọc',
+      type: 'number',
+      unit: 'mm',
+      min: 1200,
+      max: 12000,
+      default: 5300,
+      group: 'Cọc',
+      hint: 'Bản vẽ: 5300 = B mố − 2D (nhãn "B mố − 2D"). Dưới 4D và 6D phát sinh yêu cầu theo TCVN 11823-10:2017 điều 8.1.2, in thành ghi chú.'
+    },
+    {
+      key: 'Lcoc',
+      label: 'Chiều dài cọc vẽ dưới đáy bệ',
+      type: 'number',
+      unit: 'mm',
+      min: 300,
+      max: 5000,
+      default: 1000,
+      group: 'Cọc',
+      hint: 'Chỉ là phần thể hiện tới nét lượn "còn tiếp", không phải chiều dài cọc thật. Bản vẽ: khoảng 1000.'
+    },
+    {
+      key: 'nganm',
+      label: 'Đầu cọc ngàm vào bệ',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 1000,
+      default: 150,
+      group: 'Cọc',
+      hint: 'Bản vẽ: 150, vẽ nét khuất trong bệ.'
+    },
+    {
+      key: 'bThan',
+      label: 'Bề rộng tường thân',
+      type: 'number',
+      unit: 'mm',
+      min: 2000,
+      max: 30000,
+      default: 7700,
+      group: 'Tường thân',
+      hint: 'Bản vẽ: 7700. Độc lập với bệ và tường đầu.'
+    },
+    {
+      key: 'hThan',
+      label: 'Chiều cao tường thân tại tim (H1A)',
+      type: 'number',
+      unit: 'mm',
+      min: 500,
+      max: 15000,
+      default: 4793.4,
+      group: 'Tường thân',
+      hint: 'Từ đỉnh bệ tới đỉnh tường thân tại tim. Bản vẽ: 4793,4 (nhãn H1A). Do tính toán quyết định.'
+    },
+    {
+      key: 'bDau',
+      label: 'Bề rộng tường đầu',
+      type: 'number',
+      unit: 'mm',
+      min: 2000,
+      max: 30000,
+      default: 7700,
+      group: 'Tường đầu',
+      hint: 'Bản vẽ: 7700. Tường tai bám hai mép này; lan can và lớp phủ tính từ đây trừ vai kê.'
+    },
+    {
+      key: 'hDau',
+      label: 'Chiều cao tường đầu tại tim (H1B)',
+      type: 'number',
+      unit: 'mm',
+      min: 300,
+      max: 6000,
+      default: 1811.2,
+      group: 'Tường đầu',
+      hint: 'Từ đỉnh tường thân tới mặt trên giữa hai vai kê. Bản vẽ: 1811,2 (nhãn H1B). Do tính toán quyết định.'
+    },
+    {
+      key: 'bVaiKe',
+      label: 'Bề rộng vai kê mỗi bên',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 2000,
+      default: 350,
+      group: 'Tường đầu',
+      hint: 'Bản vẽ: 350. Bề mặt đường = bDau − 2·bVaiKe (nhãn "b mặt đường"); lan can ngồi trên vai kê.'
+    },
+    {
+      key: 'hVaiKe',
+      label: 'Độ hạ của vai kê',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 200,
+      default: 7.08,
+      group: 'Tường đầu',
+      hint: 'Góc ngoài vai kê thấp hơn góc trong. Bản vẽ: 7,08, bằng độ chênh khấc ở chân lan can.'
+    },
+    {
+      key: 'tLopPhu',
+      label: 'Chiều dày lớp phủ',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 500,
+      default: 70,
+      group: 'Tường đầu',
+      hint: 'Bản vẽ: 70, layer mặt đường BTN.'
+    },
+    {
+      key: 'bTai',
+      label: 'Bề dày tường tai',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 2000,
+      default: 150,
+      group: 'Tường tai',
+      hint: 'Bản vẽ: 150, tô đặc, bám mép tường đầu. Đặt 0 để bỏ.'
+    },
+    {
+      key: 'hTai',
+      label: 'Chiều cao tường tai trên đỉnh tường thân',
+      type: 'number',
+      unit: 'mm',
+      min: 0,
+      max: 6000,
+      default: 1200,
+      group: 'Tường tai',
+      hint: 'Bản vẽ: 1200.'
     },
     {
       key: 'hLC',
@@ -188,10 +297,7 @@ export default {
       max: 2000,
       default: 1090,
       group: 'Lan can',
-      hint:
-        'Phần bê tông, đo từ chân biên dạng; lan can thép cao thêm 600. Bản vẽ: ' +
-        '1090. Tối thiểu theo cấp thử nghiệm: TL-3 685, TL-4 810, TL-5 1070 mm — ' +
-        'TCVN 11823-13:2017 điều 7.3.2.1.'
+      hint: 'Phần bê tông, đo từ chân biên dạng; lan can thép cao thêm 600. Bản vẽ: 1090. Tối thiểu theo cấp thử nghiệm: TL-3 685, TL-4 810, TL-5 1070 mm — TCVN 11823-13:2017 điều 7.3.2.1.'
     },
     {
       key: 'iTrai',
@@ -202,10 +308,7 @@ export default {
       max: 8,
       default: 0,
       group: 'Độ dốc ngang',
-      hint:
-        'Từ tim ra mép trái; dương là dốc xuống về phía mép. Bản vẽ ghi i=0%. ' +
-        'Mặt bê tông nhựa 1,5–2,0 % theo TCVN 4054:2005 Bảng 9, 1,5–2,5 % theo ' +
-        'TCVN 13592:2022 Bảng 12; siêu cao tối đa 8 % theo TCVN 4054:2005 điều 5.6.'
+      hint: 'Từ tim ra mép trái; dương là dốc xuống về phía mép. Bản vẽ ghi i=0%. Mặt bê tông nhựa 1,5–2,0 % theo TCVN 4054:2005 Bảng 9, 1,5–2,5 % theo TCVN 13592:2022 Bảng 12; siêu cao tối đa 8 % theo TCVN 4054:2005 điều 5.6.'
     },
     {
       key: 'iPhai',
@@ -216,10 +319,7 @@ export default {
       max: 8,
       default: 0,
       group: 'Độ dốc ngang',
-      hint:
-        'Từ tim ra mép phải; dương là dốc xuống về phía mép. Dốc hai mái: hai ' +
-        'trị số cùng dấu; siêu cao một mái: hai trị số trái dấu. Cùng nguồn với ' +
-        'nửa trái — TCVN 4054:2005 Bảng 9, TCVN 13592:2022 Bảng 12.'
+      hint: 'Từ tim ra mép phải; dương là dốc xuống về phía mép. Dốc hai mái: hai trị số cùng dấu; siêu cao một mái: trái dấu. Cùng nguồn với nửa trái — TCVN 4054:2005 Bảng 9, TCVN 13592:2022 Bảng 12.'
     },
     {
       key: 'ghi',
@@ -227,7 +327,10 @@ export default {
       type: 'choice',
       choices: [
         { value: 'du', label: 'Đủ như bản vẽ, kích thước in trị số' },
-        { value: 'ten', label: 'Đủ như bản vẽ, kích thước in tên tham số (HB, H1A…)' },
+        {
+          value: 'ten',
+          label: 'Đủ như bản vẽ, kích thước in tên tham số (HB, H1A…)'
+        },
         { value: 'kt', label: 'Chỉ kích thước' },
         { value: 'khong', label: 'Chỉ hình' }
       ],
@@ -284,19 +387,33 @@ export default {
     const num = (key, fallback) => {
       const raw = values[key]
       const value = typeof raw === 'string' ? Number(raw) : raw
-      return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+      return typeof value === 'number' && Number.isFinite(value)
+        ? value
+        : fallback
     }
     const chon = (key, fallback) =>
-      values[key] === undefined || values[key] === '' ? fallback : String(values[key])
+      values[key] === undefined || values[key] === ''
+        ? fallback
+        : String(values[key])
 
-    const B = num('B', 7700)
-    const hLot = num('hLot', 100)
+    const bBe = num('bBe', 7700)
     const hBe = num('hBe', 2000)
+    const hLot = num('hLot', 100)
+    const phuLot = num('phuLot', 100)
+    const D = num('D', 1200)
+    const soCoc = Math.max(1, Math.round(num('soCoc', 2)))
+    const aCoc = num('aCoc', 5300)
+    const Lcoc = num('Lcoc', 1000)
+    const nganm = num('nganm', 150)
+    const bThan = num('bThan', 7700)
     const hThan = num('hThan', 4793.4)
+    const bDau = num('bDau', 7700)
     const hDau = num('hDau', 1811.2)
     const bVaiKe = num('bVaiKe', 350)
+    const hVaiKe = num('hVaiKe', 7.08)
     const tLopPhu = num('tLopPhu', 70)
-    const D = num('D', 1200)
+    const bTai = num('bTai', 150)
+    const hTai = num('hTai', 1200)
     const hLanCan = num('hLC', 1090)
     const docTrai = num('iTrai', 0)
     const docPhai = num('iPhai', 0)
@@ -309,30 +426,31 @@ export default {
     const tenMo = chon('tenMo', 'M1')
     const caoDoGoc = (() => {
       const raw = values.caoDo
-      if (raw === undefined || raw === null || String(raw).trim() === '') return null
+      if (raw === undefined || raw === null || String(raw).trim() === '')
+        return null
       const v = Number(String(raw).replace(',', '.'))
       return Number.isFinite(v) ? v : null
     })()
+    // Thuần thể hiện, lấy từ bản vẽ: tim giai đoạn hoàn thiện lệch phải 2500.
+    const lech = 2500
 
-    // Trị số thuần thể hiện, lấy nguyên từ bản vẽ. Không làm tham số vì bản
-    // ghi lời gọi của một lượt dựng phải gọn trong một chuỗi XData 255 ký
-    // tự, và 16 tham số trên đã dùng gần hết chỗ ấy.
-    const phuLot = 100 // bê tông lót nhô mỗi bên
-    const hVaiKe = 7.081 // góc ngoài vai kê thấp hơn góc trong, = khấc lan can
-    const bTai = 150 // tường tai
-    const hTai = 1200
-    const Lcoc = 1000 // phần cọc vẽ dưới đáy bệ, tới nét lượn
-    const nganm = 150 // đầu cọc ngàm vào bệ
-    const lech = 2500 // tim giai đoạn hoàn thiện lệch phải so với tim gđ1
-
-    if (2 * bVaiKe >= B) {
+    if (2 * bVaiKe >= bDau) {
       throw new Error(
-        `Hai vai kê ${2 * bVaiKe} mm không nhỏ hơn bề rộng mố ${B} mm nên không còn mặt đường.`
+        `Hai vai kê ${2 * bVaiKe} mm không nhỏ hơn bề rộng tường đầu ${bDau} mm nên không còn mặt đường.`
       )
     }
-    if (B - 2 * D < D) {
+    if (soCoc > 1 && aCoc < D) {
       throw new Error(
-        `Tim–tim cọc B − 2D = ${B - 2 * D} mm nhỏ hơn đường kính ${D} mm nên hai cọc chồng nhau.`
+        `Tim–tim cọc ${aCoc} mm nhỏ hơn đường kính ${D} mm nên các cọc chồng nhau.`
+      )
+    }
+    const spanCoc = (soCoc - 1) * aCoc
+    const mepCoc = bBe / 2 - (spanCoc / 2 + D / 2)
+    if (mepCoc < 300) {
+      throw new Error(
+        `Cự ly từ mặt bên cọc ngoài cùng đến mép bệ chỉ còn ${Math.round(mepCoc)} mm, ` +
+          'dưới mức 300 mm mà TCVN 11823-10:2017 điều 8.1.2 quy định. ' +
+          'Giảm tim–tim, giảm đường kính, bớt cọc hoặc mở rộng bệ.'
       )
     }
 
@@ -341,45 +459,53 @@ export default {
     // Toạ độ cục bộ: dx từ tim, dy từ đáy bê tông lót. `pt` mới dời sang thế
     // giới, nên mọi số đo trong file đọc được ngay từ mã.
     const pt = (dx, dy) => ({ x: x0 + dx, y: y0 + dy, z: 0 })
-    const half = B / 2
-    const w = half - bVaiKe // hoành độ chân mặt vát lan can = mép mặt đường
+    const halfBe = bBe / 2
+    const halfThan = bThan / 2
+    const halfDau = bDau / 2
+    const w = halfDau - bVaiKe // hoành độ chân mặt vát lan can = mép mặt đường
     const yBeDinh = hLot + hBe
     const yThanTim = yBeDinh + hThan
     const yDauTim = yThanTim + hDau
     /** Cao độ một mặt nghiêng tại dx, biết cao độ của nó tại tim. */
-    const mat = (yTim, dx) => yTim - (Math.abs(dx) * (dx < 0 ? docTrai : docPhai)) / 100
+    const mat = (yTim, dx) =>
+      yTim - (Math.abs(dx) * (dx < 0 ? docTrai : docPhai)) / 100
     const dinhThan = dx => mat(yThanTim, dx)
     const dinhDau = dx => mat(yDauTim, dx)
     const matDuong = dx => dinhDau(dx) + tLopPhu
     /** Góc ngoài vai kê ở mép `dir`, thấp hơn mặt trên tường đầu tại mép. */
-    const gocNgoaiVaiKe = dir => dinhDau(dir * half) - hVaiKe
+    const gocNgoaiVaiKe = dir => dinhDau(dir * halfDau) - hVaiKe
     /** Chân biên dạng lan can: khấc 542,937 dưới góc ngoài vai kê (đo từ block). */
     const KHAC = 542.937
     const chanLanCan = dir => gocNgoaiVaiKe(dir) - KHAC
     const dinhLanCanThep = dir => chanLanCan(dir) + hLanCan + 600
-    const bMatDuong = B - 2 * bVaiKe
+    const bMatDuong = bDau - 2 * bVaiKe
     const bCau = bMatDuong + 1000
-    const khoangCoc = B - 2 * D
+    const khoangCoc = aCoc
 
     // --- Bê tông lót và bệ ------------------------------------------------
     ctx.polyline({
       role: 'mo_be_tong_lot',
       partId: formatPartId({ role: 'mo_be_tong_lot' }),
-      params: { hLot, phuLot, beRong: B + 2 * phuLot },
+      params: { hLot, phuLot, beRong: bBe + 2 * phuLot },
       closed: true,
       points: [
-        pt(-half - phuLot, 0),
-        pt(half + phuLot, 0),
-        pt(half + phuLot, hLot),
-        pt(-half - phuLot, hLot)
+        pt(-halfBe - phuLot, 0),
+        pt(halfBe + phuLot, 0),
+        pt(halfBe + phuLot, hLot),
+        pt(-halfBe - phuLot, hLot)
       ]
     })
     ctx.polyline({
       role: 'mo_be',
       partId: formatPartId({ role: 'mo_be' }),
-      params: { B, hBe },
+      params: { bBe, hBe },
       closed: true,
-      points: [pt(-half, hLot), pt(-half, yBeDinh), pt(half, yBeDinh), pt(half, hLot)]
+      points: [
+        pt(-halfBe, hLot),
+        pt(-halfBe, yBeDinh),
+        pt(halfBe, yBeDinh),
+        pt(halfBe, hLot)
+      ]
     })
 
     // --- Cọc khoan nhồi ---------------------------------------------------
@@ -388,12 +514,19 @@ export default {
     // ở 0,22/0,58/0,82 bán kính (132/348/492 trên cọc ⌀1200), đầu cọc ngàm
     // vào bệ, nét tim, nét lượn "còn tiếp".
     const GACH = [0.22, 0.58, 0.82]
-    const cocX = [-(half - D), half - D]
+    const cocX = Array.from(
+      { length: soCoc },
+      (_, i) => -spanCoc / 2 + i * aCoc
+    )
     cocX.forEach((cx, i) => {
       const r = D / 2
       const yT = hLot
       const cocId = formatPartId({ role: 'coc_khoan_nhoi', ordinal: i + 1 })
-      const params = { D, khoangCach: khoangCoc, tyLeTimD: Math.round((khoangCoc / D) * 100) / 100 }
+      const params = {
+        D,
+        khoangCach: khoangCoc,
+        tyLeTimD: Math.round((khoangCoc / D) * 100) / 100
+      }
       for (const dir of [-1, 1]) {
         ctx.line({
           role: 'coc_khoan_nhoi',
@@ -410,7 +543,12 @@ export default {
           params: { nganm },
           lineType: 'DASHED', // block: nét khuất trong bệ
           closed: false,
-          points: [pt(cx - r, yT), pt(cx - r, yT + nganm), pt(cx + r, yT + nganm), pt(cx + r, yT)]
+          points: [
+            pt(cx - r, yT),
+            pt(cx - r, yT + nganm),
+            pt(cx + r, yT + nganm),
+            pt(cx + r, yT)
+          ]
         })
       }
       for (const t of GACH) {
@@ -434,9 +572,16 @@ export default {
       const buoc = D / 6
       const luon = []
       for (let k = 0; k <= 6; k++) {
-        luon.push(pt(cx - r + k * buoc, yT - Lcoc + (k % 2 === 0 ? -bien : bien)))
+        luon.push(
+          pt(cx - r + k * buoc, yT - Lcoc + (k % 2 === 0 ? -bien : bien))
+        )
       }
-      ctx.polyline({ role: 'coc_khoan_nhoi', partId: cocId, closed: false, points: luon })
+      ctx.polyline({
+        role: 'coc_khoan_nhoi',
+        partId: cocId,
+        closed: false,
+        points: luon
+      })
     })
 
     // --- Tường thân, tường đầu, tường tai, lớp phủ ------------------------
@@ -446,35 +591,38 @@ export default {
     ctx.polyline({
       role: 'mo_tuong_than',
       partId: formatPartId({ role: 'mo_tuong_than' }),
-      params: { B, hThan, iTrai: docTrai, iPhai: docPhai },
+      params: { bThan, hThan, iTrai: docTrai, iPhai: docPhai },
       closed: true,
       points: [
-        pt(-half, yBeDinh),
-        pt(-half, dinhThan(-half)),
+        pt(-halfThan, yBeDinh),
+        pt(-halfThan, dinhThan(-halfThan)),
         pt(0, yThanTim),
-        pt(half, dinhThan(half)),
-        pt(half, yBeDinh)
+        pt(halfThan, dinhThan(halfThan)),
+        pt(halfThan, yBeDinh)
       ]
     })
     ctx.polyline({
       role: 'mo_tuong_dau',
       partId: formatPartId({ role: 'mo_tuong_dau' }),
-      params: { B, hDau, bVaiKe, hVaiKe },
+      params: { bDau, hDau, bVaiKe, hVaiKe },
       closed: true,
       points: [
-        pt(half, dinhThan(half)),
-        pt(half, gocNgoaiVaiKe(1)),
+        pt(halfDau, dinhThan(halfDau)),
+        pt(halfDau, gocNgoaiVaiKe(1)),
         pt(w, dinhDau(w)),
         pt(0, yDauTim),
         pt(-w, dinhDau(-w)),
-        pt(-half, gocNgoaiVaiKe(-1)),
-        pt(-half, dinhThan(-half))
+        pt(-halfDau, gocNgoaiVaiKe(-1)),
+        pt(-halfDau, dinhThan(-halfDau))
       ]
     })
     if (bTai > 0 && hTai > 0) {
-      for (const [side, dir] of [['trai', -1], ['phai', 1]]) {
-        const xo = dir * half
-        const xi = dir * (half - bTai)
+      for (const [side, dir] of [
+        ['trai', -1],
+        ['phai', 1]
+      ]) {
+        const xo = dir * halfDau
+        const xi = dir * (halfDau - bTai)
         const goc = [
           pt(xi, dinhThan(xi)),
           pt(xi, dinhThan(xi) + hTai),
@@ -641,12 +789,25 @@ export default {
       [203.5, -362.6, 50, 9]
     ]
     const LC_TRU = [
-      { c: 4, pts: [[40, 0], [40, 126.1], [46.4, 235.2], [63.3, 343.3], [90.7, 449.2], [128.4, 551.8]] }
+      {
+        c: 4,
+        pts: [
+          [40, 0],
+          [40, 126.1],
+          [46.4, 235.2],
+          [63.3, 343.3],
+          [90.7, 449.2],
+          [128.4, 551.8]
+        ]
+      }
     ]
     const rad = deg => (deg * Math.PI) / 180
     const mau = c => (c ? { color: c } : {})
 
-    for (const [side, dir] of [['trai', -1], ['phai', 1]]) {
+    for (const [side, dir] of [
+      ['trai', -1],
+      ['phai', 1]
+    ]) {
       const px = d => dir * (w + 500 - d)
       const yb = chanLanCan(dir)
       const HINH = [
@@ -678,7 +839,13 @@ export default {
       let n = 0
       const id = () => formatPartId({ role: 'lan_can', side, ordinal: ++n })
       for (const [x1, y1, x2, y2, c] of LC_DOAN) {
-        ctx.line({ role: 'lan_can', partId: id(), ...mau(c), start: pt(px(x1), py(y1)), end: pt(px(x2), py(y2)) })
+        ctx.line({
+          role: 'lan_can',
+          partId: id(),
+          ...mau(c),
+          start: pt(px(x1), py(y1)),
+          end: pt(px(x2), py(y2))
+        })
       }
       for (const [cx, cy, r, a1, a2, c] of LC_CUNG) {
         // Mép phải là ảnh gương của hình gốc (mép trái): θ → 180° − θ và hai
@@ -695,7 +862,13 @@ export default {
         })
       }
       for (const [cx, cy, r, c] of LC_TRON) {
-        ctx.circle({ role: 'lan_can', partId: id(), ...mau(c), center: pt(px(cx), py(cy)), radius: r })
+        ctx.circle({
+          role: 'lan_can',
+          partId: id(),
+          ...mau(c),
+          center: pt(px(cx), py(cy)),
+          radius: r
+        })
       }
       for (const { c, pts } of LC_TRU) {
         ctx.polyline({
@@ -744,20 +917,54 @@ export default {
       const yChanVatT = chanLanCan(-1) + 690
       const yChanVatP = chanLanCan(1) + 690
       const yChuoiTren = Math.max(yLcT, yLcP) + 1226.575
-      dim(pt(-w - 500, yLcT), pt(-w, yChanVatT), yChuoiTren - Math.max(yLcT, yChanVatT), 'ngang')
-      dim(pt(-w, yChanVatT), pt(w, yChanVatP), yChuoiTren - Math.max(yChanVatT, yChanVatP), 'ngang', 'b mặt đường')
-      dim(pt(w, yChanVatP), pt(w + 500, yLcP), yChuoiTren - Math.max(yLcP, yChanVatP), 'ngang')
+      dim(
+        pt(-w - 500, yLcT),
+        pt(-w, yChanVatT),
+        yChuoiTren - Math.max(yLcT, yChanVatT),
+        'ngang'
+      )
+      dim(
+        pt(-w, yChanVatT),
+        pt(w, yChanVatP),
+        yChuoiTren - Math.max(yChanVatT, yChanVatP),
+        'ngang',
+        'b mặt đường'
+      )
+      dim(
+        pt(w, yChanVatP),
+        pt(w + 500, yLcP),
+        yChuoiTren - Math.max(yLcP, yChanVatP),
+        'ngang'
+      )
       const yBCau = yChuoiTren + 450
-      dim(pt(-w - 500, yLcT), pt(w + 500, yLcP), yBCau - Math.max(yLcT, yLcP), 'ngang', 'B cầu')
+      dim(
+        pt(-w - 500, yLcT),
+        pt(w + 500, yLcP),
+        yBCau - Math.max(yLcT, yLcP),
+        'ngang',
+        'B cầu'
+      )
 
       // Chuỗi đứng mép trái và mép phải: bê tông lót, bệ.
-      dim(pt(-half, 0), pt(-half, hLot), -1664.723, 'dung')
-      dim(pt(-half, hLot), pt(-half, yBeDinh), -1664.723, 'dung', 'HB')
-      dim(pt(half, 0), pt(half, hLot), 1833.844, 'dung')
-      dim(pt(half, hLot), pt(half, yBeDinh), 1833.844, 'dung', 'HB')
+      dim(pt(-halfBe, 0), pt(-halfBe, hLot), -1664.723, 'dung')
+      dim(pt(-halfBe, hLot), pt(-halfBe, yBeDinh), -1664.723, 'dung', 'HB')
+      dim(pt(halfBe, 0), pt(halfBe, hLot), 1833.844, 'dung')
+      dim(pt(halfBe, hLot), pt(halfBe, yBeDinh), 1833.844, 'dung', 'HB')
       // Mép phải, gần hơn: tường thân, tường đầu tới góc trong vai kê, lan can.
-      dim(pt(half, yBeDinh), pt(half, dinhThan(half)), 1383.844, 'dung', 'H3A')
-      dim(pt(half, dinhThan(half)), pt(w, dinhDau(w)), 1383.844, 'dung', 'H3B')
+      dim(
+        pt(halfThan, yBeDinh),
+        pt(halfThan, dinhThan(halfThan)),
+        1383.844,
+        'dung',
+        'H3A'
+      )
+      dim(
+        pt(halfDau, dinhThan(halfDau)),
+        pt(w, dinhDau(w)),
+        1383.844,
+        'dung',
+        'H3B'
+      )
       dim(pt(w, dinhDau(w)), pt(w, dinhLanCanThep(1)), 1733.844, 'dung')
       dim(pt(-w, dinhDau(-w)), pt(-w, dinhLanCanThep(-1)), -1564.723, 'dung')
       // Chuỗi tại tim.
@@ -765,10 +972,23 @@ export default {
       dim(pt(0, yBeDinh), pt(0, yThanTim), -295.407, 'dung', 'H1A')
       dim(pt(0, yThanTim), pt(0, yDauTim), -295.407, 'dung', 'H1B')
       // Chuỗi dưới đáy bệ: D cọc | B mố − 2D | D cọc, rồi B mố.
-      dim(pt(-half, hLot), pt(cocX[0], hLot), -1544.835, 'ngang', 'D cọc')
-      dim(pt(cocX[0], hLot), pt(cocX[1], hLot), -1544.835, 'ngang', 'B mố - 2D')
-      dim(pt(cocX[1], hLot), pt(half, hLot), -1544.835, 'ngang', 'D cọc')
-      dim(pt(-half, hLot), pt(half, hLot), -1994.835, 'ngang', 'B mố')
+      // Chuỗi cọc: mép bệ → cọc đầu → … → cọc cuối → mép bệ; nhãn theo tờ khi 2 cọc.
+      const cocDau = cocX[0]
+      const cocCuoi = cocX[cocX.length - 1]
+      dim(pt(-halfBe, hLot), pt(cocDau, hLot), -1544.835, 'ngang', 'D cọc')
+      for (let i = 0; i + 1 < cocX.length; i++) {
+        dim(
+          pt(cocX[i], hLot),
+          pt(cocX[i + 1], hLot),
+          -1544.835,
+          'ngang',
+          soCoc === 2 ? 'B mố - 2D' : 'a cọc'
+        )
+      }
+      if (soCoc > 1 || cocCuoi !== cocDau) {
+        dim(pt(cocCuoi, hLot), pt(halfBe, hLot), -1544.835, 'ngang', 'D cọc')
+      }
+      dim(pt(-halfBe, hLot), pt(halfBe, hLot), -1994.835, 'ngang', 'B mố')
     }
 
     if (!ghiChu) return
@@ -789,7 +1009,8 @@ export default {
     // Đường dẫn như LEADER trong file: mũi tên ở điểm đầu, tức điểm được chỉ.
     const dan = (...xy) => {
       const points = []
-      for (let i = 0; i + 1 < xy.length; i += 2) points.push(pt(xy[i], xy[i + 1]))
+      for (let i = 0; i + 1 < xy.length; i += 2)
+        points.push(pt(xy[i], xy[i + 1]))
       return ctx.leader({
         role: 'ghi_chu',
         partId: formatPartId({ role: 'ghi_chu', ordinal: ++nGhiChu }),
@@ -813,9 +1034,10 @@ export default {
     ghi(964.909, 839.152, 'BÊ TÔNG ĐỆM C8', 150, XANH)
 
     const yDan = hLot - 552.677
-    const xChu = cocX[1] + 1063.659
+    const xChu = cocX[cocX.length - 1] + 1063.659
     dan(cocX[0] + D / 2, yDan, xChu + 990.35, yDan)
-    dan(cocX[1] + D / 2, yDan, xChu + 1857.264, yDan)
+    if (cocX.length > 1)
+      dan(cocX[cocX.length - 1] + D / 2, yDan, xChu + 1857.264, yDan)
     ghi(xChu, hLot - 503.765, 'CỌC KHOAN NHỒI', 150, XANH)
     ghi(xChu + 450.56, hLot - 803.581, `D${D} (M)`, 150, XANH)
 
@@ -846,13 +1068,19 @@ export default {
 
     // Hai yêu cầu phát sinh của TCVN 11823-10:2017 §8.1.2, in như template cọc.
     const notes = []
-    if (khoangCoc < 4 * D) {
-      notes.push(`Tim-tim ${Math.round(khoangCoc)} mm < 4D (${4 * D} mm): phai danh gia anh huong tuong tac giua cac coc lien ke - TCVN 11823-10:2017 §8.1.2`)
+    if (soCoc > 1 && khoangCoc < 4 * D) {
+      notes.push(
+        `Tim-tim ${Math.round(khoangCoc)} mm < 4D (${4 * D} mm): phai danh gia anh huong tuong tac giua cac coc lien ke - TCVN 11823-10:2017 §8.1.2`
+      )
     }
-    if (khoangCoc < 6 * D) {
-      notes.push(`Tim-tim ${Math.round(khoangCoc)} mm < 6D (${6 * D} mm): trinh tu khoan coc phai duoc neu ro trong ho so thiet ke - TCVN 11823-10:2017 §8.1.2`)
+    if (soCoc > 1 && khoangCoc < 6 * D) {
+      notes.push(
+        `Tim-tim ${Math.round(khoangCoc)} mm < 6D (${6 * D} mm): trinh tu khoan coc phai duoc neu ro trong ho so thiet ke - TCVN 11823-10:2017 §8.1.2`
+      )
     }
-    notes.forEach((line, index) => ghi(-half, hLot - Lcoc - 400 - index * 320, line, 200))
+    notes.forEach((line, index) =>
+      ghi(-halfBe, hLot - Lcoc - 400 - index * 320, line, 200)
+    )
 
     // --- Mốc cao độ -------------------------------------------------------
     //
@@ -862,8 +1090,12 @@ export default {
     let nMoc = 0
     const moc = (dx, dy, nhan, huong, caoDo) => {
       const partId = formatPartId({ role: 'ghi_chu_cao_do', ordinal: ++nMoc })
-      const text = caoDoGoc === null ? nhan : `${caoDo >= 0 ? '+' : ''}${caoDo.toFixed(3)}`
-      const params = { nhan, ...(caoDoGoc === null ? {} : { caoDo: Math.round(caoDo * 1000) / 1000 }) }
+      const text =
+        caoDoGoc === null ? nhan : `${caoDo >= 0 ? '+' : ''}${caoDo.toFixed(3)}`
+      const params = {
+        nhan,
+        ...(caoDoGoc === null ? {} : { caoDo: Math.round(caoDo * 1000) / 1000 })
+      }
       // Block cd11 vẽ tam giác và vạch màu vàng (2), chữ theo layer.
       ctx.polyline({
         role: 'ghi_chu_cao_do',
@@ -871,7 +1103,11 @@ export default {
         params,
         color: 2,
         closed: true,
-        points: [pt(dx, dy), pt(dx - 59.92, dy + 157.48), pt(dx + 59.92, dy + 157.48)]
+        points: [
+          pt(dx, dy),
+          pt(dx - 59.92, dy + 157.48),
+          pt(dx + 59.92, dy + 157.48)
+        ]
       })
       ctx.line({
         role: 'ghi_chu_cao_do',
@@ -891,15 +1127,27 @@ export default {
       })
     }
     const m = dy => (caoDoGoc ?? 0) + dy / 1000
-    moc(half + 441.7, hLot, 'EL6', 1, m(hLot))
-    moc(half + 494.7, yBeDinh, 'EL5', 1, m(yBeDinh))
-    moc(half + 422.4, dinhThan(half), 'EL4.L', 1, m(dinhThan(half)))
+    moc(halfBe + 441.7, hLot, 'EL6', 1, m(hLot))
+    moc(halfBe + 494.7, yBeDinh, 'EL5', 1, m(yBeDinh))
+    moc(halfThan + 422.4, dinhThan(halfThan), 'EL4.L', 1, m(dinhThan(halfThan)))
     moc(0, yThanTim, 'EL3', -1, m(yThanTim))
-    moc(-half - 272.8, dinhThan(-half), 'EL4.R', -1, m(dinhThan(-half)))
+    moc(
+      -halfThan - 272.8,
+      dinhThan(-halfThan),
+      'EL4.R',
+      -1,
+      m(dinhThan(-halfThan))
+    )
     moc(0, yMD, 'FE', 1, m(yMD))
     moc(lech, matDuong(lech), 'FG', 1, m(matDuong(lech)))
     moc(w + 500 + 437.6, dinhLanCanThep(1), 'EL1.L', 1, m(dinhLanCanThep(1)))
-    moc(-w - 500 - 1466.7, dinhLanCanThep(-1), 'EL1.R', -1, m(dinhLanCanThep(-1)))
+    moc(
+      -w - 500 - 1466.7,
+      dinhLanCanThep(-1),
+      'EL1.R',
+      -1,
+      m(dinhLanCanThep(-1))
+    )
 
     // --- Ký hiệu mặt cắt A-A (tim), B-B (mép phải), C-C (mép trái) ---------
     //

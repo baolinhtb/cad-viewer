@@ -384,8 +384,17 @@ describe('tham số đổi thì cả mố đổi theo', () => {
     expect(than[3]).toEqual([3850, 6816.4])
   })
 
-  test('đổi B và D: cọc giữ đúng quy tắc tim–tim = B − 2D', () => {
-    const { drawn } = run({ B: 9000, D: 1000 })
+  test('bệ rộng hơn: chỉ bệ, bê tông lót và cọc đổi — tường thân, tường đầu giữ nguyên', () => {
+    const { drawn } = run({ bBe: 9000, aCoc: 7000, D: 1000 })
+    expectVertices(polyOf(drawn, 'mo_be'), [
+      [-4500, 100],
+      [-4500, 2100],
+      [4500, 2100],
+      [4500, 100]
+    ])
+    expect(vertices(polyOf(drawn, 'mo_be_tong_lot'))[1]).toEqual([4600, 0])
+    expect(vertices(polyOf(drawn, 'mo_tuong_than'))[0]).toEqual([-3850, 2100])
+    expect(vertices(polyOf(drawn, 'mo_tuong_dau'))[0]).toEqual([3850, 6893.4])
     const ngam = drawn.filter(
       e => role(e) === 'coc_khoan_nhoi' && isPoly(e) && vertices(e).length === 4
     )
@@ -394,6 +403,60 @@ describe('tham số đổi thì cả mố đổi theo', () => {
     expect(readSemanticTag(drawn.find(e => partId(e) === 'coc_khoan_nhoi_01')!)?.params).toEqual(
       expect.objectContaining({ khoangCach: 7000, tyLeTimD: 7 })
     )
+  })
+
+  test('tường thân hẹp hơn: bệ và tường đầu không đổi, tường đầu vẫn ngồi trên mặt đỉnh tường thân', () => {
+    const { drawn } = run({ bThan: 7000 })
+    expectVertices(polyOf(drawn, 'mo_tuong_than'), [
+      [-3500, 2100],
+      [-3500, 6893.4],
+      [0, 6893.4],
+      [3500, 6893.4],
+      [3500, 2100]
+    ])
+    expect(vertices(polyOf(drawn, 'mo_be'))[0]).toEqual([-3850, 100])
+    expect(vertices(polyOf(drawn, 'mo_tuong_dau'))[0]).toEqual([3850, 6893.4])
+  })
+
+  test('tường đầu rộng hơn: tường tai, vai kê, lớp phủ và lan can đi theo, bệ và tường thân đứng yên', () => {
+    const { drawn } = run({ bDau: 8000 })
+    expect(vertices(polyOf(drawn, 'mo_tuong_dau'))[1]).toEqual([4000, 8697.5])
+    expect(vertices(polyOf(drawn, 'mo_tuong_dau'))[2]).toEqual([3650, 8704.6])
+    expect(vertices(polyOf(drawn, 'lop_phu'))[2]).toEqual([3650, 8704.6])
+    expect(vertices(polyOf(drawn, 'lan_can_phai'))[0]).toEqual([3650, 8844.6])
+    const tai = polyOf(drawn, 'mo_tuong_tai_phai')
+    expect(vertices(tai)[3]).toEqual([4000, 6893.4])
+    expect(vertices(polyOf(drawn, 'mo_be'))[2]).toEqual([3850, 2100])
+    expect(vertices(polyOf(drawn, 'mo_tuong_than'))[3]).toEqual([3850, 6893.4])
+  })
+
+  test('ba cọc chia đều quanh tim, chuỗi kích thước đủ bốn đoạn', () => {
+    const { drawn } = run({ soCoc: 3, aCoc: 2500 })
+    const ngam = drawn.filter(
+      e => role(e) === 'coc_khoan_nhoi' && isPoly(e) && vertices(e).length === 4
+    )
+    expect(ngam.map(e => vertices(e)[0][0] + 600)).toEqual([-2500, 0, 2500])
+    const dims = drawn.filter(e => role(e) === 'kich_thuoc')
+    expect(dims.length).toBe(20)
+  })
+
+  test('bản ghi lời gọi 26 tham số ghi vào nhãn và đọc lại nguyên vẹn', () => {
+    // Trước v4 của nhãn XData, một chuỗi 255 ký tự cắt template xuống 16 tham số
+    // và cả ba bề rộng phải dùng chung — đây là chỗ mở khoá cho bộ phận độc lập.
+    const template = load()
+    const values: Record<string, number | string | boolean> = {}
+    for (const param of template.params) values[param.key] = param.default as never
+    Object.assign(values, { x: -314937.691, y: -9495.05, caoDo: '-12.345', tenMo: 'M12' })
+    const database = new AcDbDatabase()
+    database.createDefaultData()
+    const run_ = { id: 'run_0042', version: template.meta.version, values }
+    const ctx = createDrawContext(database, template.meta.id, ROLE_LAYERS, run_, LAYER_STYLES)
+    template.generate(ctx, values)
+    expect(ctx.drawn.length).toBeGreaterThan(300)
+    expect(Object.keys(values).length).toBe(26)
+    expect(JSON.stringify(run_).length).toBeGreaterThan(255)
+    expect(readSemanticTag(ctx.drawn[0])?.run).toEqual(run_)
+    expect(readSemanticTag(ctx.drawn[ctx.drawn.length - 1])?.run).toEqual(run_)
   })
 
   test('nhãn tên tham số như bản vẽ gốc khi được chọn', () => {
@@ -459,25 +522,17 @@ describe('từ chối hình không dựng được, nêu điều khoản', () =>
     expect(errors.join(' ')).toMatch(/685/)
   })
 
-  test('bản ghi lời gọi của một lượt dựng nằm gọn trong một chuỗi XData 255 ký tự', () => {
-    // Trình duyệt ghi { i, v, a: values } vào XData của mọi đối tượng để sửa
-    // tại chỗ được; quá 255 là template không dựng nổi ngoài đời dù suite
-    // này xanh. Đo với trị số dài nhất kỹ sư có thể gõ.
-    const template = load()
-    const values: Record<string, unknown> = {}
-    for (const param of template.params) values[param.key] = param.default
-    Object.assign(values, { x: -314937.691, y: -9495.05, caoDo: '-12.345', tenMo: 'M12' })
-    const sorted: Record<string, unknown> = {}
-    for (const key of Object.keys(values).sort()) sorted[key] = values[key]
-    const record = JSON.stringify({ i: template.meta.id, v: template.meta.version, a: sorted })
-    expect(record.length).toBeLessThanOrEqual(255)
+
+  test('cọc chồng nhau khi tim–tim nhỏ hơn đường kính', () => {
+    // aCoc có sàn 1200 ở dải giá trị; cọc ⌀1500 với tim–tim 1200 là chồng nhau.
+    expect(() => run({ aCoc: 1200, D: 1500 })).toThrow(/chồng/)
   })
 
-  test('cọc chồng nhau khi B − 2D < D', () => {
-    expect(() => run({ B: 3500 })).toThrow(/chồng/)
+  test('cọc sát mép bệ dưới 300 mm bị từ chối, nêu điều 8.1.2', () => {
+    expect(() => run({ bBe: 6000 })).toThrow(/300 mm/)
   })
 
   test('vai kê nuốt hết mặt đường', () => {
-    expect(() => run({ B: 3000, bVaiKe: 1500 })).toThrow(/mặt đường/)
+    expect(() => run({ bDau: 3000, bVaiKe: 1500 })).toThrow(/mặt đường/)
   })
 })

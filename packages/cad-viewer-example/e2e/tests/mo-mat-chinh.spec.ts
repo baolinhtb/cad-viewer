@@ -26,7 +26,7 @@ const templatePath = path.resolve(
   'mo_mat_chinh.js'
 )
 const TEMPLATE_ID = 'mo_mat_chinh'
-const VERSION = '1.0.0'
+const VERSION = '2.0.0'
 
 function sse(type: string, payload: object) {
   return `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`

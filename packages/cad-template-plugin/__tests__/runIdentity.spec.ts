@@ -20,16 +20,15 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
 }))
 
 import {
-  AcDbDatabase,
-  AcDbLine,
-  AcDbOpenMode
-} from '@mlightcad/data-model'
-import {
   createDrawContext,
   readSemanticTag,
   SEED_ROLE_LAYERS,
   writeSemanticTag
 } from '@mlightcad/cad-template-sdk'
+import {
+  AcDbDatabase,
+  AcDbLine,
+} from '@mlightcad/data-model'
 
 import { entitiesOfRun, listRuns, nextRunId } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
@@ -181,11 +180,12 @@ describe('drawings made before this existed', () => {
   })
 })
 
-describe('what will not fit', () => {
-  test('refuses a run record too long for one XData string', () => {
-    // 255 bytes is the ceiling of a single DXF string. Better to refuse at the
-    // point of writing, naming the limit, than to write a truncated record that
-    // reads back as a run with the wrong arguments.
+describe('a run record longer than one XData string', () => {
+  test('forty long-keyed arguments write and read back whole', () => {
+    // One DXF string holds 255 bytes. The tag used to refuse anything past
+    // that, which capped a template at about sixteen arguments; the v4 layout
+    // splits the record across strings, so a large call is recorded rather
+    // than refused — and reads back as exactly the call that was made.
     const db = newDatabase()
     const line = new AcDbLine({ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 })
     line.layer = '0'
@@ -193,14 +193,15 @@ describe('what will not fit', () => {
 
     const enormous: Record<string, number> = {}
     for (let i = 0; i < 40; i++) enormous[`thamSoRatDaiSo${i}`] = 123456
+    const run = { id: 'r1', version: '1.0.0', values: enormous }
+    expect(JSON.stringify(run).length).toBeGreaterThan(255)
 
-    expect(() =>
-      writeSemanticTag(line, {
-        role: 'lan_can',
-        partId: 'lan_can_trai',
-        templateId: 'x',
-        run: { id: 'r1', version: '1.0.0', values: enormous }
-      })
-    ).toThrow(/lượt dựng|255/)
+    writeSemanticTag(line, {
+      role: 'lan_can',
+      partId: 'lan_can_trai',
+      templateId: 'x',
+      run
+    })
+    expect(readSemanticTag(line)?.run).toEqual(run)
   })
 })
