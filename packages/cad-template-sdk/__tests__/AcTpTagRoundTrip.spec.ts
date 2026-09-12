@@ -158,3 +158,33 @@ describe('semantic tags survive a DXF round trip', () => {
     expect(db.tables.appIdTable.has(SEMANTIC_TAG_APP_ID)).toBe(true)
   })
 })
+
+describe('a long run record survives the DXF round trip', () => {
+  test('26 arguments come back from the reloaded file', async () => {
+    const values: Record<string, number | string> = {}
+    for (const key of ['bBe', 'hBe', 'hLot', 'phuLot', 'D', 'aCoc', 'soCoc', 'Lcoc', 'nganm', 'bThan', 'hThan', 'bDau', 'hDau', 'bVaiKe', 'hVaiKe', 'tLopPhu', 'bTai', 'hTai', 'hLC', 'iTrai', 'iPhai', 'x', 'y']) {
+      values[key] = 4793.385
+    }
+    values.ghi = 'du'
+    values.tenMo = 'M1'
+    values.caoDo = ''
+    const run = { id: 'run_0002', version: '2.0.0', values }
+    const saved = new AcDbDatabase()
+    saved.createDefaultData()
+    const ctx = createDrawContext(saved, TEMPLATE_ID, SEED_ROLE_LAYERS, run)
+    ctx.line({
+      role: 'ban_mat_cau',
+      partId: 'bmc_01',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 9000, y: 0, z: 0 }
+    })
+    const dxf = saved.dxfOut() as string
+    const reloaded = new AcDbDatabase()
+    await reloaded.read(
+      new TextEncoder().encode(dxf).buffer as ArrayBuffer,
+      { readOnly: false },
+      AcDbFileType.DXF
+    )
+    expect(collectTags(reloaded).bmc_01?.run).toEqual(run)
+  })
+})

@@ -50,7 +50,11 @@ const ROLE_LAYERS: Record<string, string> = {
   mo_tuong_tai: 'KC-MO-TUONGTAI',
   lop_phu: 'KC-LOPPHU',
   kich_thuoc: 'GC-KICHTHUOC',
-  duong_tim: 'TRUC-TIM'
+  duong_tim: 'TRUC-TIM',
+  // Lan can 3.2.0 không ghi cứng layer nữa, nên cần hai vai trò này như mọi
+  // bộ phận khác.
+  lan_can: 'KC-LANCAN',
+  ong_thoat_nuoc: 'KT-THOATNUOC'
 }
 
 function load(file: string, dir: string = DIR) {

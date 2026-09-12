@@ -25,18 +25,24 @@ export const SEMANTIC_TAG_APP_ID = 'codeco33'
  * drawing generated before the bump stays fully addressable, it just has no
  * recorded parameter values.
  */
-export const SEMANTIC_TAG_SCHEMA_VERSION = 3
+export const SEMANTIC_TAG_SCHEMA_VERSION = 4
 
 /** Schema versions this build can read. */
-const READABLE_SCHEMA_VERSIONS = new Set([1, 2, 3])
+const READABLE_SCHEMA_VERSIONS = new Set([1, 2, 3, 4])
 
 /**
- * A DXF 1000 group holds at most 255 characters. Parameter records are meant
- * to be the handful of numbers that define a part, not a place to park
- * arbitrary state, so exceeding this is a template bug rather than a limit to
- * work around.
+ * A DXF 1000 group holds at most 255 bytes.
+ *
+ * v3 kept the parameter record and the run record to one string each, which
+ * capped a template at about sixteen short-keyed arguments: the abutment
+ * template lost ten of its parameters to that ceiling, and the engineer got
+ * one shared width for footing, stem and backwall. v4 splits each record over
+ * as many strings as it needs, so the cap is AutoCAD's 16 KB per RegApp
+ * instead — room for a few hundred arguments, which no template will reach
+ * and which {@link MAX_TAG_BYTES} still refuses.
  */
-const MAX_PARAMS_JSON = 255
+const MAX_XDATA_STRING_BYTES = 255
+const MAX_TAG_BYTES = 16 * 1024
 
 /**
  * Semantic identity attached to every entity a template draws.
@@ -114,7 +120,10 @@ export const FIELD_ORDER = [
 ] as const
 
 /** Number of fields written by each schema version. */
-const FIELD_COUNT: Readonly<Record<number, number>> = { 1: 4, 2: 5, 3: 6 }
+// v4 writes the four identity fields, then two counts — how many strings the
+// parameter record and the run record were split into — then the chunks, so
+// its fixed part is six strings and its total is variable.
+const FIELD_COUNT: Readonly<Record<number, number>> = { 1: 4, 2: 5, 3: 6, 4: 6 }
 
 /**
  * Registers the semantic-tag RegApp on a database, once.
@@ -154,29 +163,70 @@ export function writeSemanticTag(
   assertNonEmpty(tag.partId, 'partId')
   assertNonEmpty(tag.templateId, 'templateId')
 
+  const paramsChunks = splitForXData(encodeParams(tag.params))
+  const runChunks = splitForXData(encodeRun(tag.run))
+  const str = (value: string): AcDbTypedValue => ({
+    code: AcDbDxfCode.ExtendedDataAsciiString,
+    value
+  })
   const values: AcDbTypedValue[] = [
     {
       code: AcDbDxfCode.ExtendedDataRegAppName,
       value: SEMANTIC_TAG_APP_ID
     },
-    {
-      code: AcDbDxfCode.ExtendedDataAsciiString,
-      value: String(SEMANTIC_TAG_SCHEMA_VERSION)
-    },
-    { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.role },
-    { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.partId },
-    { code: AcDbDxfCode.ExtendedDataAsciiString, value: tag.templateId },
-    {
-      code: AcDbDxfCode.ExtendedDataAsciiString,
-      value: encodeParams(tag.params)
-    },
-    {
-      code: AcDbDxfCode.ExtendedDataAsciiString,
-      value: encodeRun(tag.run)
-    }
+    str(String(SEMANTIC_TAG_SCHEMA_VERSION)),
+    str(tag.role),
+    str(tag.partId),
+    str(tag.templateId),
+    str(String(paramsChunks.length)),
+    str(String(runChunks.length)),
+    ...paramsChunks.map(str),
+    ...runChunks.map(str)
   ]
 
+  const total = values.reduce(
+    (sum, v) => sum + utf8Length(String(v.value)),
+    0
+  )
+  if (total > MAX_TAG_BYTES) {
+    throw new Error(
+      `Nhãn ngữ nghĩa dài ${total} byte, vượt giới hạn ${MAX_TAG_BYTES} byte ` +
+        'XData của một ứng dụng. Bản ghi thông số hay lời gọi chứa quá nhiều dữ liệu.'
+    )
+  }
+
   object.setXData(new AcDbResultBuffer(values))
+}
+
+/** UTF-8 byte length, which is what the 255-byte DXF group limit counts. */
+function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length
+}
+
+/**
+ * Splits a record into strings that each fit one DXF 1000 group.
+ *
+ * Splits on character boundaries, never inside a multi-byte sequence: a
+ * Vietnamese label cut mid-letter would come back as garbage and take the
+ * whole JSON record with it. An empty record becomes no chunks at all.
+ */
+function splitForXData(text: string): string[] {
+  if (!text) return []
+  const chunks: string[] = []
+  let current = ''
+  let bytes = 0
+  for (const char of text) {
+    const size = utf8Length(char)
+    if (bytes + size > MAX_XDATA_STRING_BYTES) {
+      chunks.push(current)
+      current = ''
+      bytes = 0
+    }
+    current += char
+    bytes += size
+  }
+  if (current) chunks.push(current)
+  return chunks
 }
 
 /**
@@ -202,10 +252,31 @@ export function readSemanticTag(
   // current one: a v1 tag has four fields and is complete at four.
   if (strings.length < FIELD_COUNT[1]) return undefined
 
-  const [schemaVersion, role, partId, templateId, rawParams, rawRun] = strings
+  const [schemaVersion, role, partId, templateId] = strings
   const version = Number(schemaVersion)
   if (!READABLE_SCHEMA_VERSIONS.has(version)) return undefined
   if (strings.length < FIELD_COUNT[version]) return undefined
+
+  let rawParams: string | undefined
+  let rawRun: string | undefined
+  if (version === 4) {
+    const nParams = Number(strings[4])
+    const nRun = Number(strings[5])
+    if (
+      !Number.isInteger(nParams) ||
+      !Number.isInteger(nRun) ||
+      nParams < 0 ||
+      nRun < 0 ||
+      strings.length < 6 + nParams + nRun
+    ) {
+      return undefined
+    }
+    rawParams = strings.slice(6, 6 + nParams).join('')
+    rawRun = strings.slice(6 + nParams, 6 + nParams + nRun).join('')
+  } else {
+    rawParams = strings[4]
+    rawRun = strings[5]
+  }
 
   const params = decodeParams(rawParams)
   const run = decodeRun(rawRun)
@@ -236,24 +307,14 @@ function encodeParams(params: AcTpSemanticTag['params']): string {
   const ordered: Record<string, number | string | boolean> = {}
   for (const key of keys.sort()) ordered[key] = params[key]
 
-  const json = JSON.stringify(ordered)
-  if (json.length > MAX_PARAMS_JSON) {
-    throw new Error(
-      `Bản ghi thông số của bộ phận dài ${json.length} ký tự, vượt giới hạn ` +
-        `${MAX_PARAMS_JSON} của một chuỗi XData. Chỉ ghi các giá trị định nghĩa ` +
-        'bộ phận, không dùng nó để lưu trạng thái.'
-    )
-  }
-  return json
+  return JSON.stringify(ordered)
 }
 
 /**
  * Serialises the run record; an absent one becomes ''.
  *
- * Keys are one letter because this shares nothing with `params` — it is its own
- * XData string with its own 255-byte ceiling, and every byte spent on a key
- * name is a byte a template cannot spend on an argument. Measured: the abutment
- * template's eleven arguments come to 138 characters this way.
+ * Keys are one letter: the record is written into every entity of a run, so
+ * every byte of it is multiplied by the entity count of the drawing.
  */
 function encodeRun(run: AcTpSemanticTag['run']): string {
   if (!run) return ''
@@ -262,15 +323,7 @@ function encodeRun(run: AcTpSemanticTag['run']): string {
   // Sorted for the same reason `params` is: identical drawings must not diff.
   for (const key of Object.keys(run.values).sort()) values[key] = run.values[key]
 
-  const json = JSON.stringify({ i: run.id, v: run.version, a: values })
-  if (json.length > MAX_PARAMS_JSON) {
-    throw new Error(
-      `Bản ghi lượt dựng dài ${json.length} ký tự, vượt giới hạn ` +
-        `${MAX_PARAMS_JSON} của một chuỗi XData. Template có quá nhiều tham số ` +
-        'hoặc tên khóa quá dài để ghi lại được lời gọi.'
-    )
-  }
-  return json
+  return JSON.stringify({ i: run.id, v: run.version, a: values })
 }
 
 /**
