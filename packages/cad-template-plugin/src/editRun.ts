@@ -9,8 +9,13 @@ import {
 } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
+import { toDrawingPlacement } from './placement'
 import { entitiesOfRun, listRuns } from './runIdentity'
-import { findTemplate, layerStyles, roleLayers } from './templateRegistry'
+import {
+  findTemplateVersion,
+  layerStyles,
+  roleLayers
+} from './templateRegistry'
 
 /** Outcome of editing an existing run. */
 export interface AcApRunEditResult {
@@ -76,7 +81,7 @@ export async function editTemplateRun(
     }
   }
 
-  const template = findTemplate(run.templateId)
+  const template = findTemplateVersion(run.templateId, run.version)
   if (!template) {
     return {
       runId,
@@ -86,14 +91,16 @@ export async function editTemplateRun(
       values: {},
       errors: [
         `Lần chạy "${runId}" do template "${run.templateId}" dựng, mà template ấy ` +
-          'không còn trong thư viện nên không dựng lại được. Xoá phần cũ rồi vẽ mới, ' +
-          'hoặc tải template ấy lên lại.'
+          `phiên bản ${run.version} không còn trong thư viện nên chưa dựng lại. ` +
+          'Nạp lại đúng phiên bản để giữ nguyên khả năng tái tạo hồ sơ.'
       ]
     }
   }
 
   const values: AcTpParamValues = { ...run.values, ...changes }
   const errors = validateParamValues(template.params, values)
+  if (!errors.length && template.validate)
+    errors.push(...template.validate(values))
   if (errors.length > 0) {
     return { runId, removed: 0, entityCount: 0, layers: [], values, errors }
   }
@@ -113,12 +120,21 @@ export async function editTemplateRun(
       if (entity.erase()) removed += 1
     }
 
-    const ctx = createDrawContext(db, template.meta.id, roleLayers(), {
-      id: runId,
-      version: template.meta.version,
-      values: values as Record<string, number | string | boolean>
-    }, layerStyles())
-    await template.generate(ctx, values)
+    const ctx = createDrawContext(
+      db,
+      template.meta.id,
+      roleLayers(),
+      {
+        id: runId,
+        version: template.meta.version,
+        values: values as Record<string, number | string | boolean>
+      },
+      layerStyles()
+    )
+    await template.generate(
+      ctx,
+      template.placement === 'world' ? values : toDrawingPlacement(values)
+    )
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
   })

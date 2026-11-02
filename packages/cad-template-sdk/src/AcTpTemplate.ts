@@ -86,6 +86,11 @@ export type AcTpParamValues = Record<string, number | string | boolean>
 export interface AcTpTemplate {
   meta: AcTpTemplateMeta
   params: readonly AcTpParamSpec[]
+  /** Sheet layouts use world coordinates; physical parts normally use the
+   * current working datum. */
+  placement?: 'world' | 'current'
+  /** Cross-field constraints. Called before drawing or erasing an old run. */
+  validate?(values: AcTpParamValues): readonly string[]
   /**
    * Draws the whole thing. May be asynchronous; the platform wraps the entire
    * call in a single undo mark, so a template never has to think about undo.

@@ -28,6 +28,38 @@ function freshDb() {
 
 const USER = { id: 1 }
 
+test('Codex bridge keeps browser tools and standards while withholding provider credentials', async () => {
+  const original = process.env.CODEX_BRIDGE_URL
+  process.env.CODEX_BRIDGE_URL = 'http://172.21.0.1:4180/messages'
+  const db = freshDb()
+  try {
+    const capture = {}
+    await sendToProvider(
+      db,
+      USER,
+      {
+        model: 'old-browser-model',
+        messages: [{ role: 'user', content: 'Dựng M1' }],
+        tools: [{ name: 'tao_ho_so_mo', input_schema: { type: 'object' } }]
+      },
+      fakeProvider(OK_REPLY, capture)
+    )
+    assert.equal(capture.url, process.env.CODEX_BRIDGE_URL)
+    assert.equal(capture.headers['x-api-key'], undefined)
+    assert.equal(capture.body.model, 'codex-cli')
+    assert.equal(capture.body.tools[0].name, 'tao_ho_so_mo')
+    assert.match(JSON.stringify(capture.body.system), /NỀN CHUẨN HÓA/)
+    assert.equal(
+      db.prepare('SELECT model FROM ai_calls').get().model,
+      'codex-cli'
+    )
+  } finally {
+    if (original === undefined) delete process.env.CODEX_BRIDGE_URL
+    else process.env.CODEX_BRIDGE_URL = original
+    db.close()
+  }
+})
+
 /** Captures the request the proxy would send, and replies with a canned body. */
 function fakeProvider(reply, capture = {}) {
   return async (url, init) => {
@@ -194,11 +226,17 @@ test('every call is logged, including failed ones', async () => {
       db,
       USER,
       { messages: [{ role: 'user', content: 'y' }] },
-      fakeProvider({ ok: false, status: 429, body: { error: { type: 'rate_limit' } } })
+      fakeProvider({
+        ok: false,
+        status: 429,
+        body: { error: { type: 'rate_limit' } }
+      })
     )
   )
 
-  const rows = db.prepare('SELECT command, error_code FROM ai_calls ORDER BY id').all()
+  const rows = db
+    .prepare('SELECT command, error_code FROM ai_calls ORDER BY id')
+    .all()
   assert.equal(rows.length, 2)
   assert.equal(rows[0].command, 'nâng lan can')
   assert.equal(rows[0].error_code, null)
@@ -260,10 +298,7 @@ test('the monthly figure reports spend and the undo rate together', () => {
 })
 
 test('cost counts cache reads at their own rate', () => {
-  assert.equal(
-    estimateCost({ cache_read_input_tokens: 1_000_000 }),
-    0.5
-  )
+  assert.equal(estimateCost({ cache_read_input_tokens: 1_000_000 }), 0.5)
 })
 
 // --- streaming --------------------------------------------------------------
@@ -305,7 +340,11 @@ const STREAM_EVENTS = [
       }
     }
   },
-  { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+  {
+    type: 'content_block_start',
+    index: 0,
+    content_block: { type: 'text', text: '' }
+  },
   {
     type: 'content_block_delta',
     index: 0,
@@ -323,7 +362,8 @@ const STREAM_EVENTS = [
 async function collect(stream) {
   const decoder = new TextDecoder()
   let out = ''
-  for await (const chunk of stream) out += decoder.decode(chunk, { stream: true })
+  for await (const chunk of stream)
+    out += decoder.decode(chunk, { stream: true })
   return out
 }
 
@@ -341,7 +381,11 @@ test('a client asking for a stream gets one, not a single JSON blob', async () =
     fakeStreamingProvider(STREAM_EVENTS, capture)
   )
 
-  assert.equal(capture.body.stream, true, 'phải chuyển tiếp stream lên nhà cung cấp')
+  assert.equal(
+    capture.body.stream,
+    true,
+    'phải chuyển tiếp stream lên nhà cung cấp'
+  )
   assert.ok(result.stream, 'phải trả về luồng, không phải body')
   assert.equal(result.body, undefined)
 })
@@ -457,7 +501,9 @@ test('an upstream error is still reported as an error when a stream was asked fo
       async () => ({
         ok: false,
         status: 429,
-        json: async () => ({ error: { type: 'rate_limit_error', message: 'chậm lại' } })
+        json: async () => ({
+          error: { type: 'rate_limit_error', message: 'chậm lại' }
+        })
       })
     )
   )
@@ -469,9 +515,7 @@ function step(n) {
   return [
     {
       role: 'assistant',
-      content: [
-        { type: 'tool_use', id: `t${n}`, name: 'draw_line', input: {} }
-      ]
+      content: [{ type: 'tool_use', id: `t${n}`, name: 'draw_line', input: {} }]
     },
     {
       role: 'user',
@@ -655,7 +699,12 @@ test('the block lists published guides by id and description, and no drafts', ()
   assert.match(before, /Hướng dẫn chuyên môn đã công bố[^\n]*\n- \(chưa có\)/)
 
   const guide = (name, description) => ({
-    files: [{ path: 'SKILL.md', content: `---\nname: ${name}\ndescription: ${description}\n---\n# ${name}\nNội dung.` }]
+    files: [
+      {
+        path: 'SKILL.md',
+        content: `---\nname: ${name}\ndescription: ${description}\n---\n# ${name}\nNội dung.`
+      }
+    ]
   })
   uploadSkill(db, 2, guide('tru-cau', 'Dựng trụ cầu.'))
   uploadSkill(db, 2, guide('mo-cau', 'Dựng và sửa mố cầu\n theo tham số.'))

@@ -10,6 +10,7 @@
 import {
   findRemoteSource,
   findTemplate,
+  findTemplateVersion,
   listRegisteredTemplates,
   listTemplates,
   setRemoteTemplates
@@ -66,12 +67,14 @@ test('an id nobody uploaded is still not found', () => {
   expect(findRemoteSource('khong_co')).toBeUndefined()
 })
 
-// Từng có một bài kiểm "built-in vẫn thắng bản tải lên trùng id" ở đây. Bản
-// dựng nay **không biên dịch sẵn template nào** — mọi mẫu ship kèm đều là hình
-// hệ thống suy từ chữ tiêu chuẩn và đã rút hết — nên quy tắc ấy không còn đối
-// tượng để chạy qua. Nhánh xử lý vẫn nằm trong `findTemplate`, chờ ngày lại có
-// built-in; bài kiểm thì không thể dựng một cái giả, vì danh sách là hằng số
-// của module.
+test('regeneration resolves the recorded version rather than the latest one', () => {
+  setRemoteTemplates([entry('x', '1.0.0'), entry('x', '2.0.0')])
+  expect(findTemplate('x')?.meta.version).toBe('2.0.0')
+  expect(findTemplateVersion('x', '1.0.0')?.meta.version).toBe('1.0.0')
+  expect(findTemplateVersion('x', '0.5.0')).toBeUndefined()
+})
+
+// The measured draft dossier is available alongside uploaded office templates.
 
 describe('the list the dialog offers', () => {
   test('one card per id, the newest version, whatever order the library sent', () => {
@@ -84,10 +87,12 @@ describe('the list the dialog offers', () => {
       entry('mo_mat_chinh', '1.1.0'),
       entry('tuong_phong_ho_btct', '3.0.0')
     ])
-    expect(
-      listTemplates().map(t => `${t.meta.id}@${t.meta.version}`)
-    ).toEqual(['mo_mat_chinh@1.1.0', 'tuong_phong_ho_btct@3.1.0'])
+    expect(listTemplates().map(t => `${t.meta.id}@${t.meta.version}`)).toEqual([
+      'mo_mat_chinh@1.1.0',
+      'tuong_phong_ho_btct@3.1.0',
+      'ho_so_mo_m1@0.1.0'
+    ])
     // Every version is still visible where versions are the point.
-    expect(listRegisteredTemplates()).toHaveLength(4)
+    expect(listRegisteredTemplates()).toHaveLength(5)
   })
 })

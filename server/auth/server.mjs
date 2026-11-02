@@ -439,6 +439,7 @@ const server = createServer(async (req, res) => {
         const standards = buildStandardsBlock(db)
         json(res, 200, {
           configured: isAiConfigured(),
+          ...(process.env.CODEX_BRIDGE_URL ? { model: 'codex-cli' } : {}),
           standardsHash: standards.hash,
           // The text itself so the client can show what the assistant was
           // told, and check the hash it computes against the server's.

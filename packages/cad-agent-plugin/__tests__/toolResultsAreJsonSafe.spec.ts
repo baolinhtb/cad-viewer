@@ -17,6 +17,13 @@ const returned: Record<string, unknown> = {}
 
 jest.mock('@mlightcad/cad-template-plugin', () => ({
   __esModule: true,
+  DOSSIER_TOOLS: [
+    'tao_ho_so_mo',
+    'sua_ho_so_mo',
+    'kiem_tra_ho_so',
+    'xuat_ho_so_mo'
+  ].map(name => ({ name, description: name })),
+  runDossierTool: () => Promise.resolve(returned.template),
   SEMANTIC_TOOLS: [
     { name: 'moc_toa_do', description: 'd', input_schema: {} },
     { name: 'mo_ta_ban_ve', description: 'd', input_schema: {} },
@@ -25,8 +32,13 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
   ],
   TAG_TOOL: {
     name: 'gan_nhan_tu_layer',
-    description: 'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
-    input_schema: { type: 'object', properties: {}, additionalProperties: false }
+    description:
+      'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    }
   },
   TEMPLATE_TOOLS: [
     { name: 'chay_template', description: 'd', input_schema: {} },
@@ -58,7 +70,9 @@ function unJsonable(value: unknown, path = '$'): string[] {
     return value.flatMap((v, i) => unJsonable(v, `${path}[${i}]`))
   }
   if (value && typeof value === 'object') {
-    return Object.entries(value).flatMap(([k, v]) => unJsonable(v, `${path}.${k}`))
+    return Object.entries(value).flatMap(([k, v]) =>
+      unJsonable(v, `${path}.${k}`)
+    )
   }
   return []
 }
@@ -76,9 +90,7 @@ describe('results handed back to the model', () => {
       ok: true,
       status: 'ready',
       data: {
-        parts: [
-          { partId: 'ban_mat_cau', ben: undefined, so_thu_tu: undefined }
-        ]
+        parts: [{ partId: 'ban_mat_cau', ben: undefined, so_thu_tu: undefined }]
       }
     }
 

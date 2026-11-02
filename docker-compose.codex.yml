@@ -1,0 +1,6 @@
+# Optional local Codex bridge for the codeco33 test deployment.
+# This private gateway belongs to the existing cad-viewer_default network.
+services:
+  auth:
+    environment:
+      CODEX_BRIDGE_URL: http://172.21.0.1:4180/messages

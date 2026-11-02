@@ -43,12 +43,14 @@
     "lint:fix": "eslint --fix --quiet src/"
   },
   "devDependencies": {
+    "@mlightcad/cad-pdf-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/cad-template-cau-ban-btct": "workspace:*",
     "@mlightcad/data-model": "^1.12.5"
   },
   "peerDependencies": {
+    "@mlightcad/cad-pdf-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/cad-template-cau-ban-btct": "workspace:*",

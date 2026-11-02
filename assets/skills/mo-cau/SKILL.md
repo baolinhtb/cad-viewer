@@ -11,6 +11,33 @@ vẽ mố bằng nét.
 
 ## Việc nào, lệnh nào
 
+### Hồ sơ nhiều tờ — ưu tiên khi yêu cầu bản vẽ đầy đủ
+
+Khi người dùng muốn **hồ sơ mố**, **bản vẽ mố đầy đủ**, mặt bằng + mặt cắt +
+thống kê, dùng `tao_ho_so_mo`, không dùng cách ghép cũ ở bảng dưới.
+Mẫu `ho_so_mo_m1` 0.1.0 lấy từ `02. BTC- mo_2.dwg`; tạo 6 tờ **bản nháp**.
+Chiều dài tính mm, cao độ `caoDoDayBe` tính m, dốc tính %. `Lc` trong bản
+mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lCoc`).
+
+- Sửa: `sua_ho_so_mo` + mã lần dựng từ `mo_ta_ban_ve`; chỉ truyền phần đổi.
+- Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.
+- Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A1, ảnh 200 dpi giữ chữ Việt),
+  `html` (tự chứa, in được), `dxf`, hoặc `json`.
+  Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.
+- Cọc mặc định **2 hàng × 2 cọc D1200**; tim ngang 5300, tim dọc 3600.
+- Dốc ngang dương: **trái tuyến cao**. Trên mặt chính trái tuyến nằm bên phải ảnh.
+- Bề rộng bệ `bBe`, bề rộng thân `bThan` độc lập; `lBe` theo phương dọc.
+- Chưa có chiều dài cọc thì để `lCoc=0`, không tự đoán.
+- Hình học khác mẫu: các tờ thép ghi chưa có phương án; tuyệt đối không kéo
+  giãn thép hoặc lấy khối lượng thép cũ gắn cho hình học mới.
+- Các mâu thuẫn nguồn C8/C10, F3 D22/D25, W16 D14/D16 chưa được tự chốt.
+
+### Một mặt chính hoặc từng cấu kiện — luồng cũ
+
+`mo_mat_chinh` 2.0.0 là mặt chính nhiều tham số độc lập, khác mô hình hồ sơ
+ở trên; `iTrai`/`iPhai` hỗ trợ hai mái. Các giới hạn và bảng tham số sau đây
+chỉ áp dụng cách ghép cũ `mo_cau_hoan_chinh`, không áp dụng hồ sơ nhiều tờ.
+
 | Việc | Lệnh |
 |---|---|
 | Dựng cả mố | `ghep_bo_phan` với mã `mo_cau_hoan_chinh`. Một lệnh, đủ 5 cấu kiện và 2 lan can, cao độ nối nhau, dốc ngang chạy suốt từ đỉnh bệ trở lên. **Ưu tiên tuyệt đối**; đừng chạy 5 template lẻ rồi tự cộng cao độ. |

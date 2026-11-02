@@ -36,6 +36,7 @@ services:
       # id starts with `wrkspc_`). Leave empty for a plain key.
       ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
       AI_MODEL: ${AI_MODEL:-claude-opus-5}
+      CODEX_BRIDGE_URL: ${CODEX_BRIDGE_URL:-}
     volumes:
       - auth-data:/data
     healthcheck:

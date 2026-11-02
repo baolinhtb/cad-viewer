@@ -13,32 +13,63 @@ const calls: { name: string; input: unknown; terms?: unknown }[] = []
 
 jest.mock('@mlightcad/cad-template-plugin', () => ({
   __esModule: true,
+  DOSSIER_TOOLS: [
+    'tao_ho_so_mo',
+    'sua_ho_so_mo',
+    'kiem_tra_ho_so',
+    'xuat_ho_so_mo'
+  ].map(name => ({ name, description: `Hồ sơ mố: ${name}` })),
+  runDossierTool: (name: string, input: unknown) => {
+    calls.push({ name, input })
+    return Promise.resolve({ ok: true, status: 'ready', message: 'bản nháp' })
+  },
   SEMANTIC_TOOLS: [
     {
       name: 'mo_ta_ban_ve',
       description: 'Liệt kê các bộ phận... untagged... không được sửa.',
-      input_schema: { type: 'object', properties: {}, additionalProperties: false }
+      input_schema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
     },
     {
       name: 'tim_bo_phan',
       description: 'Tìm bộ phận... ambiguous... không tự chọn... không đoán.',
-      input_schema: { type: 'object', properties: {}, additionalProperties: false }
+      input_schema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
     },
     {
       name: 'moc_toa_do',
       description: 'Xem hoặc đặt mốc toạ độ đang dùng cho bản vẽ.',
-      input_schema: { type: 'object', properties: {}, additionalProperties: false }
+      input_schema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
     },
     {
       name: 'to_sang_bo_phan',
       description: 'Tô sáng các bộ phận đã tìm được.',
-      input_schema: { type: 'object', properties: {}, additionalProperties: false }
+      input_schema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
     }
   ],
   TAG_TOOL: {
     name: 'gan_nhan_tu_layer',
-    description: 'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
-    input_schema: { type: 'object', properties: {}, additionalProperties: false }
+    description:
+      'Gán nhãn ngữ nghĩa cho bản vẽ chưa có nhãn, dựa trên tên layer.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    }
   },
   TEMPLATE_TOOLS: [
     {
@@ -75,7 +106,9 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     }
   ],
   ensureDeploymentDataLoaded: () => Promise.resolve(true),
-  dictionary: () => [{ role: 'lan_can', label: 'Lan can', aliases: ['tay vịn'] }],
+  dictionary: () => [
+    { role: 'lan_can', label: 'Lan can', aliases: ['tay vịn'] }
+  ],
   runSemanticTool: (name: string, input: unknown, terms: unknown) => {
     calls.push({ name, input, terms })
     return { ok: true, status: 'ready', message: 'xong' }
@@ -92,10 +125,7 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
 
 jest.mock('../src/tools/CadActionExecutor', () => ({
   __esModule: true,
-  cadActionExecutor: new Proxy(
-    {},
-    { get: () => () => ({ success: true }) }
-  )
+  cadActionExecutor: new Proxy({}, { get: () => () => ({ success: true }) })
 }))
 
 import { createCadTools } from '../src/tools/cadTools'
@@ -125,7 +155,9 @@ describe('the tool set offered to the model', () => {
     // Order is the only nudge available in a flat tool list, and locating a
     // part by name has to come before drawing at a coordinate.
     const names = Object.keys(tools)
-    expect(names.indexOf('tim_bo_phan')).toBeLessThan(names.indexOf('draw_line'))
+    expect(names.indexOf('tim_bo_phan')).toBeLessThan(
+      names.indexOf('draw_line')
+    )
   })
 
   test('the tagging tool is offered, and reaches the one implementation', async () => {
@@ -145,7 +177,9 @@ describe('the tool set offered to the model', () => {
     expect(names.indexOf('chay_template')).toBeLessThan(
       names.indexOf('tra_cuu_tieu_chuan')
     )
-    expect(names.indexOf('chay_template')).toBeLessThan(names.indexOf('draw_line'))
+    expect(names.indexOf('chay_template')).toBeLessThan(
+      names.indexOf('draw_line')
+    )
   })
 
   test('the template description carries the runnable catalogue', () => {
@@ -211,7 +245,10 @@ describe('executing them', () => {
     // The tool fills in declared defaults; handing it `undefined` would make
     // that path depend on the caller instead.
     await tools.chay_template.execute({ ma_template: 'cau_ban_btct' })
-    expect(calls[0].input).toEqual({ ma_template: 'cau_ban_btct', thong_so: {} })
+    expect(calls[0].input).toEqual({
+      ma_template: 'cau_ban_btct',
+      thong_so: {}
+    })
   })
 
   test('the company dictionary is handed over on every call', async () => {
@@ -233,7 +270,9 @@ describe('the guide tool', () => {
     // is how the body gets read. A description that did not name the block
     // would leave the model with a tool it has no reason to call.
     expect(tools.doc_huong_dan).toBeDefined()
-    expect(tools.doc_huong_dan.description).toContain('Hướng dẫn chuyên môn đã công bố')
+    expect(tools.doc_huong_dan.description).toContain(
+      'Hướng dẫn chuyên môn đã công bố'
+    )
     expect(tools.doc_huong_dan.description).toContain('tep=')
   })
 
@@ -241,8 +280,14 @@ describe('the guide tool', () => {
     // A guide says which template to run for this request; the standard says
     // what a number must be. The guide answers the earlier question.
     const names = Object.keys(tools)
-    expect(names.indexOf('doc_huong_dan')).toBeGreaterThan(names.indexOf('chay_template'))
-    expect(names.indexOf('doc_huong_dan')).toBeLessThan(names.indexOf('tra_cuu_tieu_chuan'))
-    expect(names.indexOf('doc_huong_dan')).toBeLessThan(names.indexOf('draw_line'))
+    expect(names.indexOf('doc_huong_dan')).toBeGreaterThan(
+      names.indexOf('chay_template')
+    )
+    expect(names.indexOf('doc_huong_dan')).toBeLessThan(
+      names.indexOf('tra_cuu_tieu_chuan')
+    )
+    expect(names.indexOf('doc_huong_dan')).toBeLessThan(
+      names.indexOf('draw_line')
+    )
   })
 })

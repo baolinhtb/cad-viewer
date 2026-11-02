@@ -22,7 +22,9 @@ import {
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
   SEED_ROLE_LAYERS: { lan_can: 'KC-LANCAN' },
-  SEED_DICTIONARY: [{ role: 'lan_can', label: 'Lan can', aliases: [], layer: 'KC-LANCAN' }]
+  SEED_DICTIONARY: [
+    { role: 'lan_can', label: 'Lan can', aliases: [], layer: 'KC-LANCAN' }
+  ]
 }))
 
 /** A template as the library returns it, without evaluating any module. */
@@ -100,15 +102,12 @@ describe('recognising an uploaded module', () => {
 })
 
 describe('the registry', () => {
-  // Không còn template nào biên dịch sẵn: cả bốn mẫu từng ship kèm đều là
-  // hình hệ thống suy từ chữ tiêu chuẩn chứ không đo từ bản vẽ, và đã rút hết.
-  const BUILT_IN_IDS: string[] = []
+  // Only the measured, explicitly draft dossier ships with the application.
+  const BUILT_IN_IDS: string[] = ['ho_so_mo_m1']
 
   beforeEach(() => setRemoteTemplates([]))
 
-  test('không có gì được chào ra khi thư viện còn trống', () => {
-    // Hệ quả cố ý của việc rút hết mẫu tự sinh: muốn dựng thì phải tải lên một
-    // template trước. Một mẫu ship sẵn là mẫu kỹ sư sẽ với tay lấy theo phản xạ.
+  test('the explicitly draft M1 dossier is available without a server library', () => {
     expect(listTemplates().map(t => t.meta.id)).toEqual(BUILT_IN_IDS)
   })
 
@@ -124,8 +123,8 @@ describe('the registry', () => {
       }
     ])
     expect(listTemplates().map(t => t.meta.id)).toEqual([
-      ...BUILT_IN_IDS,
-      'cau_dam_i'
+      'cau_dam_i',
+      ...BUILT_IN_IDS
     ])
     expect(listRegisteredTemplates().map(t => t.origin)).toEqual([
       ...BUILT_IN_IDS.map(() => 'built-in'),
@@ -266,7 +265,9 @@ describe('the company layer mapping', () => {
       })
     }))
     expect(applied).toBe(true)
-    expect(layerStyles()).toEqual({ 'CTY-LANCAN': { color: 8, lineType: null } })
+    expect(layerStyles()).toEqual({
+      'CTY-LANCAN': { color: 8, lineType: null }
+    })
   })
 
   test('a server that sends no colours leaves every layer undecided, not stale', async () => {
@@ -325,7 +326,12 @@ describe('the company dictionary', () => {
       status: 200,
       json: async () => ({
         terms: [
-          { role: 'lan_can', label: 'Lan can', aliases: ['tay vịn'], layer: 'CTY-LANCAN' }
+          {
+            role: 'lan_can',
+            label: 'Lan can',
+            aliases: ['tay vịn'],
+            layer: 'CTY-LANCAN'
+          }
         ]
       })
     }))
@@ -366,7 +372,10 @@ describe('the company dictionary', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        terms: [{ label: 'Không có role' }, { role: 'lan_can', label: 'Lan can' }]
+        terms: [
+          { label: 'Không có role' },
+          { role: 'lan_can', label: 'Lan can' }
+        ]
       })
     }))
     expect(dictionary().map(term => term.role)).toEqual(['lan_can'])

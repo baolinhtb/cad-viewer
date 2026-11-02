@@ -139,6 +139,17 @@ const { chat, resetChat } = useAgentChatRef(() => ({
 
 onMounted(async () => {
   const loaded = await loadLlmSettings()
+  if (loaded.provider === 'proxy') {
+    try {
+      const response = await fetch('/api/ai/context', {
+        signal: AbortSignal.timeout(5000)
+      })
+      if (response.ok && (await response.json()).model === 'codex-cli')
+        loaded.model = 'codex-cli'
+    } catch {
+      // Offline/dev hosts keep the saved provider settings.
+    }
+  }
   applyingLoadedSettings = true
   try {
     settings.value = { ...loaded }

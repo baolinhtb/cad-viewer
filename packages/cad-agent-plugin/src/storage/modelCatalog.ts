@@ -30,6 +30,12 @@ export const PROVIDER_MODEL_OPTIONS: Record<
   // screenshot, and offering a text-only model would disable that silently.
   proxy: [
     {
+      value: 'codex-cli',
+      labelEn: 'Codex CLI (server)',
+      labelZh: 'Codex CLI (server)',
+      supportsVision: true
+    },
+    {
       value: 'claude-opus-5',
       labelEn: 'Claude Opus 5',
       labelZh: 'Claude Opus 5',

@@ -53,13 +53,16 @@ export async function runTemplate(
   // với gốc đang dùng; dời sang toạ độ thế giới trước rồi mới kiểm thì trên bản
   // vẽ theo lý trình mọi vị trí đều vượt dải, kể cả vị trí đúng.
   const errors = validateParamValues(template.params, values)
+  if (!errors.length && template.validate)
+    errors.push(...template.validate(values))
   if (errors.length > 0) {
     return { entityCount: 0, layers: [], errors }
   }
 
   // Dời gốc ngay trước khi vẽ, nên mọi lối vào `runTemplate` đều được, và chỉ
   // dời đúng một lần.
-  const placed = toDrawingPlacement(values)
+  const placed =
+    template.placement === 'world' ? values : toDrawingPlacement(values)
 
   const db = database ?? AcApDocManager.instance.curDocument.database
   let entityCount = 0
@@ -69,13 +72,19 @@ export async function runTemplate(
   // not just what each part is, but which call made it and with what arguments.
   const runId = nextRunId(db)
   await acapRunGroupedEdit(db, template.meta.name, async () => {
-    const ctx = createDrawContext(db, template.meta.id, roleLayers(), {
-      id: runId,
-      version: template.meta.version,
-      // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
-      // này về sau là sửa lại chính những trị số ấy.
-      values: values as Record<string, number | string | boolean>
-    }, layerStyles())
+    const ctx = createDrawContext(
+      db,
+      template.meta.id,
+      roleLayers(),
+      {
+        id: runId,
+        version: template.meta.version,
+        // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
+        // này về sau là sửa lại chính những trị số ấy.
+        values: values as Record<string, number | string | boolean>
+      },
+      layerStyles()
+    )
     await template.generate(ctx, placed)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
@@ -92,7 +101,11 @@ export async function runTemplate(
   // can be proven at all. A failure here is not the engineer's problem: they
   // got their drawing, and the template stays a draft until the next run.
   const source = findRemoteSource(template.meta.id)
-  if (source && source.source.status === 'draft' && entityCount > 0) {
+  if (
+    source?.template === template &&
+    source.source.status === 'draft' &&
+    entityCount > 0
+  ) {
     try {
       const published = await markTemplateVerified(
         source.source.templateId,

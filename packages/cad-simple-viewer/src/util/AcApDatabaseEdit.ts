@@ -210,7 +210,27 @@ export async function acapRunGroupedEdit(
   // The mark-only check is separate because between two of that group's edits
   // there is no open transaction, so `isUndoRecording()` would say false and
   // this would open a competing mark.
-  if (openGroup(db) || (db.isUndoRecording?.() ?? false)) {
+  const enclosingGroup = openGroup(db)
+  if (enclosingGroup) {
+    // A dossier replacement must be atomic even inside the AI turn's
+    // mark-only group. Joining the mark does not mean skipping a transaction:
+    // otherwise erasing the old sheets then failing halfway loses the dossier.
+    const tm = db.transactionManager
+    const ownsTransaction = !tm.hasTransaction()
+    if (ownsTransaction) tm.startTransaction()
+    try {
+      await fn()
+      if (ownsTransaction) {
+        tm.commitTransaction()
+        enclosingGroup.edits += 1
+      }
+    } catch (error) {
+      if (ownsTransaction && tm.hasTransaction()) tm.abortTransaction()
+      throw error
+    }
+    return
+  }
+  if (db.isUndoRecording?.() ?? false) {
     await fn()
     return
   }

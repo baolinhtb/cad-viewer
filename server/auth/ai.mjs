@@ -106,7 +106,7 @@ class AiError extends Error {
 
 /** True when the deployment has been given a provider key. */
 export function isConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY)
+  return Boolean(process.env.CODEX_BRIDGE_URL || process.env.ANTHROPIC_API_KEY)
 }
 
 /**
@@ -138,7 +138,9 @@ export function buildStandardsBlock(db) {
   const templates = listTemplates(db, null, { includeDrafts: false })
     .slice()
     .sort((a, b) =>
-      `${a.templateId}@${a.version}`.localeCompare(`${b.templateId}@${b.version}`)
+      `${a.templateId}@${a.version}`.localeCompare(
+        `${b.templateId}@${b.version}`
+      )
     )
     .map(template => {
       const params = template.params
@@ -224,7 +226,11 @@ export function cacheConversation(messages) {
     return {
       ...message,
       content: message.content.map(block => {
-        if (!block || typeof block !== 'object' || !('cache_control' in block)) {
+        if (
+          !block ||
+          typeof block !== 'object' ||
+          !('cache_control' in block)
+        ) {
           return block
         }
         const { cache_control: _dropped, ...rest } = block
@@ -265,11 +271,7 @@ function assertRequest(body) {
     throw new AiError(ERRORS.INVALID, { reason: 'Thiếu danh sách messages.' })
   }
   if (Buffer.byteLength(JSON.stringify(body), 'utf8') > MAX_AI_REQUEST_BYTES) {
-    throw new AiError(
-      ERRORS.TOO_LARGE,
-      { limit: MAX_AI_REQUEST_BYTES },
-      413
-    )
+    throw new AiError(ERRORS.TOO_LARGE, { limit: MAX_AI_REQUEST_BYTES }, 413)
   }
 }
 
@@ -286,8 +288,9 @@ export async function sendToProvider(
 ) {
   assertRequest(body)
 
+  const bridge = process.env.CODEX_BRIDGE_URL
   const key = process.env.ANTHROPIC_API_KEY
-  if (!key) {
+  if (!bridge && !key) {
     throw new AiError(
       ERRORS.NOT_CONFIGURED,
       {
@@ -299,7 +302,7 @@ export async function sendToProvider(
   }
 
   const standards = buildStandardsBlock(db)
-  const model = body.model || DEFAULT_MODEL
+  const model = bridge ? 'codex-cli' : body.model || DEFAULT_MODEL
 
   // The standards block is its own system block, marked for caching. It is
   // identical on every call and would otherwise be the largest thing paid for
@@ -376,9 +379,11 @@ export async function sendToProvider(
 
   let response
   try {
-    response = await fetchImpl(ANTHROPIC_URL, {
+    response = await fetchImpl(bridge || ANTHROPIC_URL, {
       method: 'POST',
-      headers: providerHeaders(key),
+      headers: bridge
+        ? { 'content-type': 'application/json' }
+        : providerHeaders(key),
       body: JSON.stringify(payload)
     })
   } catch (error) {
@@ -391,9 +396,8 @@ export async function sendToProvider(
 
   // An upstream failure is JSON even when a stream was asked for, so the error
   // path below stays common to both.
-  const result = response.ok && wantsStream
-    ? null
-    : await response.json().catch(() => ({}))
+  const result =
+    response.ok && wantsStream ? null : await response.json().catch(() => ({}))
 
   if (!response.ok) {
     recordCall(db, {
@@ -406,7 +410,10 @@ export async function sendToProvider(
     })
     throw new AiError(
       ERRORS.UPSTREAM,
-      { status: response.status, reason: result?.error?.message ?? 'Lỗi từ nhà cung cấp.' },
+      {
+        status: response.status,
+        reason: result?.error?.message ?? 'Lỗi từ nhà cung cấp.'
+      },
       502
     )
   }
@@ -426,7 +433,9 @@ export async function sendToProvider(
     return {
       callId,
       standardsHash: standards.hash,
-      stream: tapUsage(response.body, usage => updateCallUsage(db, callId, usage))
+      stream: tapUsage(response.body, usage =>
+        updateCallUsage(db, callId, usage)
+      )
     }
   }
 

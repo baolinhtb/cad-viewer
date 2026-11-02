@@ -1,0 +1,23 @@
+[Unit]
+Description=CAD Viewer Codex CLI bridge
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/srv/cad-viewer
+Environment=HOME=/root
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=CODEX_COMMAND=/root/.local/bin/codex
+Environment=CODEX_BRIDGE_HOST=172.21.0.1
+Environment=CODEX_BRIDGE_PEERS=172.21.0.2,172.21.0.1
+EnvironmentFile=-/etc/cad-codex-bridge.env
+ExecStart=/usr/local/bin/node /srv/cad-viewer/tools/codex-cad/bridge.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

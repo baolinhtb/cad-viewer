@@ -1,14 +1,15 @@
 import {
+  assemblyToolDescription,
   dictionary,
   ensureDeploymentDataLoaded,
   runSemanticTool,
-  assemblyToolDescription,
   runTemplateTool,
   SEMANTIC_TOOLS,
   TAG_TOOL,
   TEMPLATE_TOOLS,
   templateToolDescription
 } from '@mlightcad/cad-template-plugin'
+import { DOSSIER_TOOLS, runDossierTool } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 // `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
 // handing it a v3-classic schema makes the checker relate the two model
@@ -137,6 +138,55 @@ function withJsonSafeResults<T extends Record<string, unknown>>(tools: T): T {
 
 export function createCadTools() {
   return withJsonSafeResults({
+    tao_ho_so_mo: tool({
+      description: DOSSIER_TOOLS.find(t => t.name === 'tao_ho_so_mo')!
+        .description,
+      inputSchema: z
+        .object({
+          thong_so: z
+            .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+            .optional()
+        })
+        .strict(),
+      execute: async input => {
+        await ready()
+        return runDossierTool('tao_ho_so_mo', input)
+      }
+    }),
+    sua_ho_so_mo: tool({
+      description: DOSSIER_TOOLS.find(t => t.name === 'sua_ho_so_mo')!
+        .description,
+      inputSchema: z
+        .object({
+          ma_lan_chay: z.string().min(1),
+          thong_so: z.record(
+            z.string(),
+            z.union([z.number(), z.string(), z.boolean()])
+          )
+        })
+        .strict(),
+      execute: async input => {
+        await ready()
+        return runDossierTool('sua_ho_so_mo', input)
+      }
+    }),
+    kiem_tra_ho_so: tool({
+      description: DOSSIER_TOOLS.find(t => t.name === 'kiem_tra_ho_so')!
+        .description,
+      inputSchema: z.object({ ma_lan_chay: z.string().min(1) }).strict(),
+      execute: async input => runDossierTool('kiem_tra_ho_so', input)
+    }),
+    xuat_ho_so_mo: tool({
+      description: DOSSIER_TOOLS.find(t => t.name === 'xuat_ho_so_mo')!
+        .description,
+      inputSchema: z
+        .object({
+          ma_lan_chay: z.string().min(1),
+          dinh_dang: z.enum(['pdf', 'html', 'dxf', 'json'])
+        })
+        .strict(),
+      execute: async input => runDossierTool('xuat_ho_so_mo', input)
+    }),
     // The semantic group comes first because it is what the model should reach
     // for first: the geometry tools below act on coordinates and object ids,
     // and arriving at either without having located a part by name is how an
@@ -196,7 +246,8 @@ export function createCadTools() {
     // Mốc toạ độ: thứ khiến một vị trí nói ra được. Trên bản vẽ theo lý trình,
     // "cách mốc M1 3850 sang phải" chỉ có nghĩa khi có chỗ giữ M1 nằm đâu.
     moc_toa_do: tool({
-      description: SEMANTIC_TOOLS.find(t => t.name === 'moc_toa_do')!.description,
+      description: SEMANTIC_TOOLS.find(t => t.name === 'moc_toa_do')!
+        .description,
       inputSchema: z.object({
         hanh_dong: z
           .enum(['xem', 'dat', 'goi', 'luu', 'the_gioi'])
@@ -301,11 +352,15 @@ export function createCadTools() {
         ten: z
           .string()
           .regex(/^[a-z0-9][a-z0-9_-]*$/)
-          .describe('Mã hướng dẫn đúng như trong mục "Hướng dẫn chuyên môn đã công bố", ví dụ "mo-cau".'),
+          .describe(
+            'Mã hướng dẫn đúng như trong mục "Hướng dẫn chuyên môn đã công bố", ví dụ "mo-cau".'
+          ),
         tep: z
           .string()
           .optional()
-          .describe('Đường dẫn một tệp kèm theo, ví dụ "references/tham-so.md". Bỏ trống để đọc thân hướng dẫn.')
+          .describe(
+            'Đường dẫn một tệp kèm theo, ví dụ "references/tham-so.md". Bỏ trống để đọc thân hướng dẫn.'
+          )
       }),
       execute: async input => readGuide(input.ten, input.tep)
     }),
@@ -535,10 +590,10 @@ export function createCadTools() {
     }),
     list_blocks: tool({
       description:
-        "List the blocks this drawing defines and the attribute tags each one " +
-        "expects. Call it before insert_block: a block can only be placed by a " +
-        "name the drawing already has, and those names belong to the office " +
-        "that drew it. Anonymous blocks (names starting with '*') are omitted " +
+        'List the blocks this drawing defines and the attribute tags each one ' +
+        'expects. Call it before insert_block: a block can only be placed by a ' +
+        'name the drawing already has, and those names belong to the office ' +
+        'that drew it. Anonymous blocks (names starting with \'*\') are omitted ' +
         'because they are dimension and layout internals, not things to insert.',
       inputSchema: z.object({}),
       execute: async () => cadActionExecutor.listBlocks()

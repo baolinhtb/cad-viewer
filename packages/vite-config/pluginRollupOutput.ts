@@ -80,6 +80,14 @@ function matchThreePackage(id: string): boolean {
  * Groups monorepo packages into predictable Rollup chunks for example app builds.
  */
 export const exampleManualChunks: ManualChunksOption = (id: string) => {
+  // Keep packet export's standalone entry out of the CAD/PDF-import chunk.
+  // Merging it back would recreate the dependency graph its subpath avoids.
+  const normalized = id.replace(/\\/g, '/')
+  if (
+    /\/cad-pdf-plugin\/dist\/(cad-pdf-sheets|AcApSheetPdf-)/.test(normalized)
+  ) {
+    return 'cad-pdf-sheets'
+  }
   for (const pluginId of PLUGIN_PACKAGE_IDS) {
     if (!matchMonorepoPackage(id, pluginId)) {
       continue

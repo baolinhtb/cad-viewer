@@ -373,6 +373,9 @@ importers:
 
   packages/cad-template-plugin:
     devDependencies:
+      '@mlightcad/cad-pdf-plugin':
+        specifier: workspace:*
+        version: link:../cad-pdf-plugin
       '@mlightcad/cad-simple-viewer':
         specifier: workspace:*
         version: link:../cad-simple-viewer

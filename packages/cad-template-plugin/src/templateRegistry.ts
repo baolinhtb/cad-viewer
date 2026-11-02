@@ -5,10 +5,11 @@ import type {
 } from '@mlightcad/cad-template-sdk'
 import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
 
+import { abutmentDossierTemplate } from './dossier/template'
 import type { AcApRemoteTemplate } from './remoteTemplates'
 
 /**
- * Templates compiled into this build: deliberately none.
+ * The measured M1 dossier is bundled as an explicitly draft template.
  *
  * Four used to ship here — `cau_ban_btct`, `ban_mat_cau_btct`,
  * `go_chan_banh_tcvn`, `lan_can_tcvn` — so that the generate flow had
@@ -19,15 +20,14 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
  * guessed outline sitting next to a measured one is worse than no outline at
  * all — nothing on screen says which is which.
  *
- * The consequence is deliberate and worth stating: **a deployment with an
- * empty library now offers no templates whatsoever.** Generating requires
- * uploading a template first. That is the correct trade here, because a
- * template that ships by default is one an engineer will reach for by default.
+ * The M1 dossier differs: it is derived from the supplied DWG and carries
+ * provenance, unresolved source conflicts and draft labels on every sheet.
+ * It is available offline, alongside the office's uploaded templates.
  *
  * The source of all four is still in `@mlightcad/cad-template-cau-ban-btct`;
  * putting any back is one line in this list.
  */
-const BUILT_IN: readonly AcTpTemplate[] = []
+const BUILT_IN: readonly AcTpTemplate[] = [abutmentDossierTemplate]
 
 /** Templates fetched from the library, keyed by `id@version`. */
 const remote = new Map<string, AcApRemoteTemplate>()
@@ -81,7 +81,11 @@ export function listTemplates(): readonly AcTpTemplate[] {
       newest.set(entry.template.meta.id, entry.template)
     }
   }
-  return [...BUILT_IN, ...newest.values()]
+  // Office templates remain first; the measured, explicitly draft dossier is
+  // also available without uploading a module to a remote server.
+  return [...newest.values()]
+    .filter(t => !BUILT_IN.some(b => b.meta.id === t.meta.id))
+    .concat(BUILT_IN)
 }
 
 /** The same list with where each one came from. */
@@ -129,6 +133,17 @@ export function findTemplate(id: string): AcTpTemplate | undefined {
   return findRemoteSource(id)?.template
 }
 
+/** Regeneration uses the recorded generator, never silently upgrades a run. */
+export function findTemplateVersion(
+  id: string,
+  version: string
+): AcTpTemplate | undefined {
+  return (
+    BUILT_IN.find(t => t.meta.id === id && t.meta.version === version) ??
+    remote.get(`${id}@${version}`)?.template
+  )
+}
+
 /** Library entry a template came from, when it came from the library. */
 export function findRemoteSource(id: string): AcApRemoteTemplate | undefined {
   // Newest version wins. The library holds every uploaded version — they are
@@ -141,7 +156,8 @@ export function findRemoteSource(id: string): AcApRemoteTemplate | undefined {
     if (entry.template.meta.id !== id) continue
     if (
       !best ||
-      compareVersions(entry.template.meta.version, best.template.meta.version) > 0
+      compareVersions(entry.template.meta.version, best.template.meta.version) >
+        0
     ) {
       best = entry
     }
