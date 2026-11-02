@@ -1,12 +1,16 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
 # compiled output
-docs
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 dist
 dist-runner
 lib
 tmp
+tmp-*/
 tsconfig.tsbuildinfo
+# Copied from cad-html-plugin/dist during cad-html-exporter build
+packages/cad-html-exporter/runtime/
 
 # dependencies
 node_modules
@@ -23,6 +27,7 @@ auto-imports.d.ts
 *.launch
 .settings/
 *.sublime-workspace
+.trae
 
 # IDE - VSCode
 .vscode/*
@@ -52,3 +57,9 @@ Thumbs.db
 
 # BMAD generated documents
 _bmad-output/
+
+# Upstream machine-local settings and paint benches
+.env.local
+.env.*.local
+*.ts.bench-bak
+.bench-out/

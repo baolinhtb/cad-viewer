@@ -1,5 +1,290 @@
 # @mlightcad/cad-simple-viewer
 
+## 1.7.8
+
+### Patch Changes
+
+- feat: adds dimension drawing commands with an annotation scale selector, rebuilds the Dimension Style Manager with AutoCAD-style tabs, and moves the ribbon dimension tools into the Annotation dropdown. Adds a script-first MCP server with headed/idle session control and `cad.file.saveDxf`, and splits the script runtime into `@mlightcad/cad-script-core`. Fixes repeated redo and redone-entity rendering, box selection through paper-space viewports, offline HTML layout framing, coordinate-bubble drift, embedded raster images, ACI-7 block colours on layer 0, and large-coordinate glyph precision.
+- Updated dependencies [05fdcf3]
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8
+
+## 1.7.8-preview.6
+
+### Patch Changes
+
+- 42351f3: fix: keep explicit ACI-7 block colours on layer 0 instead of inheriting the INSERT layer
+
+  A block entity authored on layer `0` with an explicit ACI-7 (foreground) colour
+  was rebound to the INSERT layer's colour, so a title frame that AutoCAD draws
+  white rendered red on a red INSERT layer.
+
+  The two cases were indistinguishable: `AcGiSubEntityTraits.color` is stored
+  pre-resolved, so ByLayer content on an ACI-7 layer also arrives as an absolute
+  ACI 7. `data-model` now records the original provenance on the traits
+  (`isColorByLayer`), and `three-renderer` uses it to set `isByLayerColor`
+  truthfully. `AcTrInheritedLayerMaterialMapper` can then decide directly: a
+  ByLayer colour inherits the INSERT layer, an explicit colour does not.
+
+  Missing bindings (`isByLayerColor == null`, from conversion paths that drop the
+  flag) are still inferred from the remaining ByLayer markers, so the earlier
+  fixes for ByLayer legend headers (#602) and lost-flag DXF conversions keep
+  working.
+
+  The material cache key now includes that provenance. A ByLayer colour on an
+  ACI-7 layer and an explicit ACI-7 resolve to the same symbolic colour, so they
+  previously shared one cache entry and the first creator's `isByLayerColor`
+  leaked to every later user. Which one won depended on draw order, so the same
+  title frame could inherit the INSERT colour, and inherited ByLayer content could
+  fall back to black on model-space (dark) backgrounds. Traits without provenance
+  keep the historical key.
+
+- 57c330c: fix: box-select model entities through paper-space viewports
+
+  A drag rectangle in a paper-space layout queried only that layout's spatial
+  index, so model-space content rendered inside a viewport could be clicked
+  (pick drills through the viewport) but was never box-selected — reported for
+  LEADER handles 72834 / 72832 / 72CCB in `布局1` where clicking worked and
+  dragging did not.
+
+  `AcEdBaseView.collectSelectionIdsByBox` now merges a drill-through pass from
+  `collectViewportDrillThroughSelectionIds`, implemented by `AcTrView2d` and
+  exported as the pure helper `acedCollectViewportBoxSelectionIds`. Each
+  viewport maps the visible part of the pick rectangle into model WCS, queries
+  the model-space layout, and maps hits back to paper space so window still
+  requires full containment and crossing still requires a real geometric hit.
+  Hit testing respects the viewport border (clipped content is never selected),
+  VPLAYER-frozen layers, block-reference child boxes, and overlapping viewports.
+
+  Two refinements keep the new pass exact:
+  - The selection mode is forwarded to the model-space spatial query. Only the
+    index knows the full child set of a block reference — the hits it returns
+    list just the children that intersect the query box — so deriving window
+    containment from those children alone would select a partially overlapping
+    INSERT. Block hits are now also tested child by child instead of as one
+    union box, because the union of two distant children covers the empty gap
+    between them.
+  - Crossing hits are geometry-tested in paper space. For a viewport with a
+    non-zero `viewTwistAngle` the paper pick rectangle is rotated relative to
+    model WCS, so the model-space query box is a superset of the real region and
+    a leader crossing only its corner would be wrongly selected.
+
+- fix: box selection in paper-space viewports now reaches model entities, offline HTML exports frame every layout with its own export-time extents, and the coordinate bubble stays anchored to its point while zooming. Explicit ACI-7 block colours on layer 0 keep their colour instead of inheriting the INSERT layer, and the layer-material cache no longer leaks ByLayer provenance between entities.
+- Updated dependencies [42351f3]
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.6
+
+## 1.7.8-preview.5
+
+### Patch Changes
+
+- 1020d4d: fix: leader entities now expose their properties in the properties palette with localized labels, and TrueType text glyphs are parented to the layout that owns them, so model-space text no longer disappears inside paper-space viewports or headless HTML exports. Dependencies move to data-model 1.15.19 and libredwg-converter 3.15.19.
+- Updated dependencies [1020d4d]
+  - @mlightcad/three-renderer@1.7.8-preview.5
+
+## 1.7.8-preview.4
+
+### Patch Changes
+
+- fix: headless HTML export now embeds raster and OLE images. Node has no canvas, so IMAGE and OLE textures were omitted from offline HTML. The exporter decodes PNG, JPEG, and BMP and writes those pixels back into the snapshot as PNG, so pictures in paper drawings survive a headless export.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.4
+
+## 1.7.8-preview.3
+
+### Patch Changes
+
+- fix: HTML export now includes instanced block geometry from a hidden model layout, so paper viewports keep walls, fills, and borders. ACI color 7 is remapped onto the selected canvas background, and gradient hatch endpoints flip when the offline viewer changes that background. This preview also upgrades realdwg-web to 1.15.18.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.3
+
+## 1.7.8-preview.2
+
+### Patch Changes
+
+- 8a2d140: feat: rebuild Dimension Style Manager tabs after AutoCAD
+
+  Replace the plain field grids with AutoCAD-style layouts for Lines,
+  Symbols and Arrows, Text, Fit, Primary Units, Alternate Units, and
+  Tolerances. The Text tab adds text style ("..." opens Text Style),
+  text/fill color, height, fraction height scale, draw text frame,
+  position, view direction, and alignment. The live SVG preview now
+  honors text background fills (DIMTFILL/DIMTFILLCLR), the text frame
+  (negative DIMGAP), right-to-left text (DIMTXTDIRECTION), and outside
+  alignment (DIMTOH). Requires the new `@mlightcad/data-model` DIMSTYLE
+  fields (1.15.16+).
+
+- 07ef40e: fix: allow multiple consecutive redo steps
+
+  `AcDbUndoStack` re-pushed the redone record through `push()`, which also
+  clears the redo stack. As a result the second redo step was lost: after
+  creating two shapes, undoing twice and redoing once, the redo button
+  became disabled and the second shape could not be restored.
+
+  Redo now re-pushes through a dedicated `pushUndo()` that keeps the
+  remaining redo entries, while `push()` still drops them when a new edit
+  is made. Requires `@mlightcad/data-model` 1.15.17+.
+
+- 07ef40e: fix: restore entities after undo then redo
+
+  `AcTrView2d.batchConvert` claims an object id before committing its geometry
+  and keeps that claim for as long as the entity stays in the scene. Undo erases
+  the entity from the database, which calls `AcTrView2d.removeEntity`; that
+  dropped the scene drawable but left the convert claim behind. The redo pass then
+  hit the "already scheduled" skip in `batchConvert`, so a redone line or circle
+  never reappeared in the view even though the database and the undo/redo stack
+  were correct.
+
+  `removeEntity` now releases the claim and bumps the per-id convert generation,
+  so the redone entity converts again while an in-flight convert or deferred glyph
+  commit for the erased id can no longer re-add geometry.
+
+- feat: adds dimension drawing commands and annotation scale UI, rebuilds the Dimension Style Manager tabs to follow AutoCAD layouts for lines, symbols, text, fit, units, and tolerances, and moves the ribbon dimension commands into the Annotation panel dropdown. Undo/redo is fixed so repeated redo steps work and redone entities reappear, and the proprietary parser document now describes pricing as a one-time payment with an annual license fee.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.2
+
+## 1.7.8-preview.1
+
+### Patch Changes
+
+- fix: include the Node-safe cad-agent-core script-api Vite bundle in the Nx CI build so npm packages ship dist/cad-agent-core-script-api.js. Without it, @mlightcad/cad-mcp-server failed to resolve @mlightcad/cad-agent-core/script-api after install because the project build only ran the main lib Vite step and skipped vite.script-api.config.ts
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.1
+
+## 1.7.8-preview.0
+
+### Patch Changes
+
+- feat: adds a script-first cad-mcp-server for third-party agents, batches TrueType mesh glyphs with harder MTEXT editing, keeps INSERT block TEXT when PDF glyphs settle late, and updates the demo gallery landing page plus plugin documentation
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.8-preview.0
+
+## 1.7.7
+
+### Patch Changes
+
+- feat: adds Node HTML export with thumbnails and complex linetype SVG previews, plus a script-first CAD agent with measure APIs, searchable built-in scripts, and a Vue-free script console. Fixes layout framing via openViewMode, locked-layer edits, INSERT highlight/pan stability, agent tool streaming, and MTEXT ribbon hangs in production. Externalizes data-model in the HTML exporter Node build, pins @mlightcad packages to exact releases, and upgrades data-model/libredwg-converter and three.js rendering deps
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.7
+
+## 1.7.7-preview.1
+
+### Patch Changes
+
+- fix: stops the MTEXT ribbon from hanging in production builds and externalizes data-model in the HTML exporter Node build so Node consumers resolve correctly. Pins @mlightcad package versions to exact releases for reproducible installs, and adds a development guide for contributors
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.7-preview.1
+
+## 1.7.7-preview.0
+
+### Patch Changes
+
+- feat: adds Node HTML export with thumbnails and complex linetype SVG previews, plus a script-first CAD agent with measure APIs, searchable built-in scripts, and a Vue-free script console. Fixes layout framing via openViewMode, locked-layer edits, INSERT highlight/pan stability, and agent tool streaming. Also upgrades data-model/libredwg-converter and three.js rendering deps
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.7-preview.0
+
+## 1.7.6
+
+### Patch Changes
+
+- feat: ships whole-drawing FIND with one-click navigation, Quick Select by entity handle, and paper-space fixes for osnap, properties, VPLAYER-frozen layers, and annotative MTEXT viewport scales. INSERT rendering shares block geometry, hatch islands and pattern lines stay correct, and HTML export adds base85 snapshots plus optional gzip chunks. Also fixes shared-geometry reading-mode tint, viewer teardown, and linear-time MTEXT parsing
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.6
+
+## 1.7.6-preview.0
+
+### Patch Changes
+
+- feat: ships whole-drawing FIND search across all layouts with one-click navigation and an explicit current-layout-only mode in both the Vue and simple-UI shells. Paper-space viewports now hide VPLAYER-frozen layers, INSERT rendering shares block geometry and defers spatial indexes for faster opens, and headless export skips duplicate converts on a headless GPU. Plus mobile-bridge and DWG/DXF foundations, hatch pattern transform and mtext \pxq fixes, and Changesets pre mode for npm preview prereleases
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.6-preview.0
+
+## 1.7.5
+
+### Patch Changes
+
+- feat: adds OneDrive and Google Drive data-source plugins, upgrades the data model, and falls back when the linetype shader is broken. Speeds headless HTML export open and package builds, fixes SVG INSERT cloning and finite-extents framing, and stops dual font parse plus worker-pool fan-out during open. Also hides landing-page viewer chrome, defaults MSAL redirect to the current path, isolates the file-open theme, and swallows missed-font worker rejections.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.5
+
+## 1.7.4
+
+### Patch Changes
+
+- feat: adds a radius measure tool and async smart extents with cache and busy overlay, and maps PDF optional content groups to CAD layers. Fixes cover wipeout paint order, drawable scene extents, stalled font open overlays, PDF MText colours and INSERT labels, inline ACI-7 MText, selection glow scaling, Fit-to-screen measure badges, multi-attribute edit, and a font CDN notice
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.4
+
+## 1.7.3
+
+### Patch Changes
+
+- feat: brings smart extents and AutoCAD saved-view zoom to live viewer toolbars, and cuts open-time stalls by speeding INSERT indexing and font regeneration. Fallback fonts preload before the first glyph bake so text no longer flashes with missing glyphs, and docs link the proprietary DWG converter install guide to the wiki
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.3
+
+## 1.7.2
+
+### Patch Changes
+
+- feat: draws complex TEXT and SHAPE linetypes as strokes and glyphs, renders closed wide polylines as offset rings, and adds HTML export smart extents plus AutoCAD saved-view zoom. The CLI gains a self-hosted base URL and open-view, no-plot, and circle-sides options. Dynamic blocks and arc-aligned text come with the data-model upgrade. Drawing open is faster with font preload and lighter line batches, and fixes cover raster and OLE textures, PDF PDMODE, and progressive open.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- feat: adds a native AcGi PDF renderer with direct vector export and lower-memory text modes, plus HTML export that embeds progressive ACEX chunks, multi-file ZIP packages, and leaner multi-layout switching. Shared toolbar and notification engines land across viewers, with reading mode, mobile session accessories, and parallel package downloads. Fixes cover font sync, hatch shaders, mirrored INSERTs, OLE2Frame embeds, selection, and PDSIZE/highlight/dashed-line rendering
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.1
+
+## 1.7.0
+
+### Minor Changes
+
+- feat: expands mobile and touch review with responsive phone/pad toolbars, a long-press snap loupe, confirmed pick marks, and a command session panel with live metrics. Measurement gains continuous distance, a results list palette, endpoint grips with osnap, unit conversion, and zoom-scaled hairline overlays. HTML export adds multi-file ACEX packages, paper-space background choice, and lazy font catalogs, plus reading mode and a VitePress multi-language docs site
+
+### Patch Changes
+
+- Updated dependencies
+  - @mlightcad/three-renderer@1.7.0
+
+## 1.6.3
+
+### Patch Changes
+
+- feat: ships a CAD diff viewer with MDI document sessions, COMPARE sysvar support, revision-cloud grouping, and polished compare display with shared toolbar icons and a locale picker. Design Review gains callouts attached to shape markups and a reordered review toolbar. HTML export can require expiry and a password. Arabic locale is complete, UI-component locales sync with the CAD viewer, and toolbar SVGs are consolidated with a unified clear icon
+- Updated dependencies
+  - @mlightcad/three-renderer@1.6.3
+
+## 1.6.2
+
+### Patch Changes
+
+- feat: adds an in-browser DWG/DXF to offline HTML converter, HTML export of paper-space viewports with layout switching, and a drawing layout switcher in the simple-ui toolbar. Object snap gains AutoCAD-style center ticks and intersection snaps. Overlay toolbars keep style controls while markup or measure is selected, restore named ACI colors, and restore undo for deleted entities. Arc-length measure locks onto circles, and hatch fills stay below linework in HTML export.
+- Updated dependencies
+  - @mlightcad/three-renderer@1.6.2
+
+## 1.6.1
+
+### Patch Changes
+
+- feat: extends Design Review markup and measurement to the HTML viewer with sidecar persistence, aligned review icons, and HTML-only measure overlays that avoid forcing WebGL redraws. Also preserves absolute hatch colours when only lineweight is ByLayer, and documents GitMCP servers in the README and Cursor config
+- Updated dependencies
+  - @mlightcad/three-renderer@1.6.1
+
+## 1.6.0
+
+### Minor Changes
+
+- feat: adds Design Review markup and measurement overlays with sidecar JSON persistence, undoable edits, draw-style controls, and AutoCAD-style REVCLOUD/SKETCH tools. Review overlays pick by stroke, support in-place text and window/crossing selection, and render on HTML canvas without forcing WebGL redraws. Ships a zero-build CDN bootstrap example, makes LibreDWG DWG support host opt-in, and retires cad-html-exporter-cli in favor of cad-simple-viewer-cli
+
+### Patch Changes
+
+- Updated dependencies
+  - @mlightcad/three-renderer@1.6.0
+
 ## 1.5.11
 
 ### Patch Changes
@@ -104,7 +389,7 @@
 
 ### Patch Changes
 
-- fix: fix issue 103 and update cad-simple-viewer-example to be able to verify it
+- fix: fix issue 103 and update cad-simple-viewer-demo to be able to verify it
 
 ## 1.4.8
 
@@ -140,7 +425,7 @@
 
 ### Patch Changes
 
-- feat: refine cad-simple-viewer-example to show how to config 'webworkerFileUrls'
+- feat: refine cad-simple-viewer-demo to show how to config 'webworkerFileUrls'
 
 ## 1.4.2
 
@@ -314,7 +599,7 @@
 
 ### Patch Changes
 
-- feat: move some logic to repo cad-simple-viewer-example
+- feat: move some logic to repo cad-simple-viewer-demo
 
 ## 1.0.21
 

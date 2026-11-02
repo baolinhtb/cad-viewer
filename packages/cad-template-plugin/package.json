@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-template-plugin",
-  "version": "1.5.11",
+  "version": "1.7.8",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -47,13 +47,13 @@
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/cad-template-cau-ban-btct": "workspace:*",
-    "@mlightcad/data-model": "^1.12.5"
+    "@mlightcad/data-model": "1.15.21"
   },
   "peerDependencies": {
     "@mlightcad/cad-pdf-plugin": "workspace:*",
     "@mlightcad/cad-simple-viewer": "workspace:*",
     "@mlightcad/cad-template-sdk": "workspace:*",
     "@mlightcad/cad-template-cau-ban-btct": "workspace:*",
-    "@mlightcad/data-model": "^1.12.5"
+    "@mlightcad/data-model": "1.15.21"
   }
 }

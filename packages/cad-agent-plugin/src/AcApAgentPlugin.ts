@@ -7,17 +7,14 @@ import {
 import packageJson from '../package.json'
 import { AcApAgentCmd } from './command/AcApAgentCmd'
 
-/** Registered name of the CAD Agent plugin in the plugin manager. */
-export const AGENT_PLUGIN_NAME = 'AgentPlugin'
-
 /**
  * CAD Agent plugin: natural-language drawing via LLM tool calling.
  *
- * Registers the `agent` command, which opens the agent chat panel in the tool palette.
+ * Registers the `agent` chat command.
  */
 export class AcApAgentPlugin implements AcApPlugin {
-  /** Plugin identifier used by {@link AcApPluginManager}. */
-  name = AGENT_PLUGIN_NAME
+  /** Plugin identifier used by {@link AcApPluginManager}. Must match `AGENT_PLUGIN_NAME`. */
+  name = 'AgentPlugin'
   /** Semantic version from `package.json`. */
   version = packageJson.version
   /** Short human-readable description shown in plugin listings. */
@@ -27,7 +24,7 @@ export class AcApAgentPlugin implements AcApPlugin {
   private registeredCommands: Array<{ group: string; name: string }> = []
 
   /**
-   * Registers the `agent` system command that opens the agent palette tab.
+   * Registers the `agent` system command.
    *
    * @param _context - Application context (unused).
    * @param commandManager - Command stack used to register {@link AcApAgentCmd}.

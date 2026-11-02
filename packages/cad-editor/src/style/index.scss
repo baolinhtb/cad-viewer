@@ -1,0 +1,59 @@
+// import dark theme
+@use 'element-plus/theme-chalk/src/dark/css-vars.scss' as *;
+
+// "Phòng kỹ thuật" tokens. Must come after Element Plus' own dark css-vars so
+// the mappings in it win.
+@use './design-tokens.scss' as *;
+
+:root {
+  --ml-status-bar-height: 30px;
+}
+
+html,
+body {
+  // Teleported tooltips (e.g. right-docked toolbar) must not grow page width.
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--cv-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+/**
+ * Constrain Element Plus tooltips so long CJK descriptions wrap instead of
+ * extending past the right edge of a right-docked toolbar.
+ */
+.el-popper[role='tooltip'] {
+  max-width: min(280px, calc(100vw - 24px));
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+a {
+  color: var(--el-color-primary);
+}
+
+code {
+  border-radius: 2px;
+  padding: 2px 4px;
+  background-color: var(--el-color-primary-light-9);
+  color: var(--elcolor-primary);
+}
+
+// A ribbon group that sizes to its content measures only its buttons, so a
+// group holding one narrow button ends up narrower than its own label — "Ghi
+// chú" rendered as "G...". The cause is the percentage `max-width` the ribbon
+// puts on the title: a percentage makes the element's intrinsic contribution
+// indeterminate, so `width: max-content` on the group ignores it entirely.
+// Dropping the cap lets the label count towards the group's width again.
+//
+// Left unfixed this only worsens as labels get longer — English "Annotation"
+// already showed as "Ann...". Widening a group is the lesser cost: the ribbon
+// moves whatever no longer fits into its overflow menu on its own.
+.ml-ribbon-group--auto-width .ml-ribbon-group__title {
+  max-width: none;
+}

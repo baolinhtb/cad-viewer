@@ -1,6 +1,6 @@
 {
   "name": "@mlightcad/cad-template-cau-ban-btct",
-  "version": "1.5.11",
+  "version": "1.7.8",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -32,10 +32,10 @@
   },
   "devDependencies": {
     "@mlightcad/cad-template-sdk": "workspace:*",
-    "@mlightcad/data-model": "^1.12.5"
+    "@mlightcad/data-model": "1.15.21"
   },
   "peerDependencies": {
     "@mlightcad/cad-template-sdk": "workspace:*",
-    "@mlightcad/data-model": "^1.12.5"
+    "@mlightcad/data-model": "1.15.21"
   }
 }

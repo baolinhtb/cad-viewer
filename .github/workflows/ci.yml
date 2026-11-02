@@ -17,7 +17,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,8 +49,35 @@ jobs:
         run: pnpm lint
 
       - name: Build projects
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          # SPA client ids / API keys are public at runtime; this repo stores them
+          # as Actions secrets. `vars.*` and `secrets.*` are different stores —
+          # using the wrong one injects an empty string, which Vite will not
+          # override from .env files. Do not export empty VITE_* for that reason.
+          MSAL_CLIENT_ID: ${{ secrets.VITE_MSAL_CLIENT_ID || vars.VITE_MSAL_CLIENT_ID }}
+          MSAL_TENANT_ID: ${{ secrets.VITE_MSAL_TENANT_ID || vars.VITE_MSAL_TENANT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID || vars.VITE_GOOGLE_CLIENT_ID }}
+          GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY || vars.VITE_GOOGLE_API_KEY }}
+          GOOGLE_APP_ID: ${{ secrets.VITE_GOOGLE_APP_ID || vars.VITE_GOOGLE_APP_ID }}
         run: |
-          export NODE_OPTIONS="--max-old-space-size=4096"
+          if [ -n "${MSAL_CLIENT_ID:-}" ]; then
+            export VITE_MSAL_CLIENT_ID="$MSAL_CLIENT_ID"
+          fi
+          if [ -n "${MSAL_TENANT_ID:-}" ]; then
+            export VITE_MSAL_TENANT_ID="$MSAL_TENANT_ID"
+          fi
+          # Do not set VITE_MSAL_REDIRECT_URI here — production uses the current
+          # page URL (e.g. https://mlightcad.com/cad-viewer/cad-viewer/).
+          if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
+            export VITE_GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID"
+          fi
+          if [ -n "${GOOGLE_API_KEY:-}" ]; then
+            export VITE_GOOGLE_API_KEY="$GOOGLE_API_KEY"
+          fi
+          if [ -n "${GOOGLE_APP_ID:-}" ]; then
+            export VITE_GOOGLE_APP_ID="$GOOGLE_APP_ID"
+          fi
           pnpm run build
 
       - name: Run tests
@@ -60,10 +86,10 @@ jobs:
       # Use system Google Chrome (preinstalled on ubuntu-latest) via channel "chrome".
       # Avoids playwright install chromium, which often hangs at zip extraction on CI.
       - name: Install Playwright system dependencies
-        run: pnpm --filter @mlightcad/cad-viewer-example exec playwright install-deps chromium
+        run: pnpm --filter @mlightcad/cad-editor-demo exec playwright install-deps chromium
 
       - name: Run E2E tests
-        run: pnpm --filter @mlightcad/cad-viewer-example test:e2e
+        run: pnpm --filter @mlightcad/cad-editor-demo test:e2e
         env:
           PLAYWRIGHT_BROWSER_CHANNEL: chrome
 
@@ -73,54 +99,125 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            packages/cad-viewer-example/playwright-report/
-            packages/cad-viewer-example/test-results/
+            packages/cad-editor-demo/playwright-report/
+            packages/cad-editor-demo/test-results/
           if-no-files-found: ignore
 
-      - name: Build docs
-        run: pnpm docs:build
+      # GitHub Pages hosts the VitePress user guide only. The TypeDoc API
+      # reference is built and served by Read the Docs (see .readthedocs.yaml).
+      - name: Build user guide
+        run: DOCS_BASE=/cad-viewer/docs/ pnpm docs:build
 
       - name: Pre-serve
         run: pnpm pre-serve
 
-      # Authenticates via npm Trusted Publishing (OIDC); no NPM_TOKEN needed.
-      # Configure each package on npmjs.com → Settings → Trusted publishing:
-      #   Provider: GitHub Actions
-      #   Repository: mlightcad/cad-viewer
-      #   Workflow filename: ci.yml
-      #   Environment: release  (must match the job environment below)
+      # Builds canteen.html (single-file) and canteen.zip (multi-file ACEX),
+      # then extracts the zip to self-contained-html/canteen-progressive/ so
+      # GitHub Pages can serve progressive chunk loading without a zip download.
+      - name: Export self-contained HTML demos
+        if: github.ref == 'refs/heads/main'
+        run: node packages/cad-demo-gallery/exportDemoHtml.js
+        env:
+          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+
+      - name: Verify progressive package extracted for Pages
+        if: github.ref == 'refs/heads/main'
+        run: |
+          test -f packages/cad-demo-gallery/public/self-contained-html/canteen.html
+          test -f packages/cad-demo-gallery/public/self-contained-html/canteen.zip
+          test -f packages/cad-demo-gallery/public/self-contained-html/canteen-progressive/viewer.html
+
+      # Keep release/pages-only actions out of this job so PR builds do not
+      # download softprops/action-gh-release or upload-pages-artifact (GitHub
+      # fetches every uses: action at job setup, even when step if: is false).
+      - name: Upload pages source
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v6
+        with:
+          name: pages-source
+          path: packages/cad-demo-gallery/public/
+          retention-days: 1
+
+  # Authenticates via npm Trusted Publishing (OIDC); no NPM_TOKEN needed.
+  # Configure each package on npmjs.com → Settings → Trusted publishing:
+  #   Provider: GitHub Actions
+  #   Repository: mlightcad/cad-viewer
+  #   Workflow filename: ci.yml
+  #   Environment: release
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.4
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@mlightcad'
+
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build projects
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          pnpm run build
+
       - name: Publish packages to npm
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           npm --version
           # setup-node writes an empty _authToken line that blocks OIDC fallback
           if [ -f "$HOME/.npmrc" ]; then
             sed -i '/_authToken/d' "$HOME/.npmrc"
           fi
-          pnpm publish:viewer
+          # Preview tags (vX.Y.Z-preview.N) must not become npm "latest"
+          if [[ "${{ github.ref_name }}" == *-preview.* ]]; then
+            pnpm publish:viewer:preview
+          else
+            pnpm publish:viewer
+          fi
 
       - name: Create github release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-preview.') }}
 
-      - name: Export self-contained HTML demo
-        if: github.ref == 'refs/heads/main'
-        run: node packages/examples/exportDemoHtml.js
-        env:
-          PLAYWRIGHT_BROWSER_CHANNEL: chrome
+  upload-pages:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pages source
+        uses: actions/download-artifact@v6
+        with:
+          name: pages-source
+          path: packages/cad-demo-gallery/public/
 
       - name: Upload github pages artifact
-        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v4
         with:
-          path: './packages/examples/public/'
+          path: './packages/cad-demo-gallery/public/'
 
   deploy-pages:
-    needs: build
+    needs: upload-pages
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

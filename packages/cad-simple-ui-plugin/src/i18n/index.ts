@@ -1,5 +1,7 @@
 import { AcApI18n } from '@mlightcad/cad-simple-viewer'
 
+import { ar } from './ar'
+import { commandAr } from './command-ar'
 import { commandCs } from './command-cs'
 import { commandEn } from './command-en'
 import { commandTr } from './command-tr'
@@ -17,7 +19,7 @@ interface LocaleMessageTree {
   [key: string]: string | LocaleMessageTree
 }
 
-/** Whether {@link registerSimpleUiI18n} has already run. */
+/** Whether {@link acuiRegisterSimpleUiI18n} has already run. */
 let isRegistered = false
 
 /**
@@ -48,7 +50,7 @@ function flatToNested(flat: Record<string, string>): LocaleMessageTree {
  *
  * Safe to call multiple times; subsequent calls are no-ops.
  */
-export function registerSimpleUiI18n(): void {
+export function acuiRegisterSimpleUiI18n(): void {
   if (isRegistered) return
   AcApI18n.mergeLocaleMessage('en', {
     command: commandEn,
@@ -66,23 +68,29 @@ export function registerSimpleUiI18n(): void {
     command: commandTr,
     [MESSAGE_PREFIX]: flatToNested(tr)
   })
+  AcApI18n.mergeLocaleMessage('ar', {
+    command: commandAr,
+    [MESSAGE_PREFIX]: flatToNested(ar)
+  })
   isRegistered = true
 }
 
 /**
  * Scoped translation helper for plugin UI strings under the `simpleUi` namespace.
  */
-export class AcExI18n {
+export class AcUiI18n {
   /**
    * Translates a key relative to the `simpleUi` namespace.
    *
    * @param key - Message key without the `simpleUi.` prefix (for example `toolbar.select`).
    * @param params - Optional `{name}` placeholder replacements.
-   * @returns Translated string, or the key when no translation exists.
+   * @returns Translated string; the English message when the active locale has
+   * none; the key itself only when no locale has the message.
    */
   t(key: string, params?: Record<string, string>): string {
     const fullKey = `${MESSAGE_PREFIX}.${key}`
-    const template = AcApI18n.t(fullKey, { fallback: key })
+    let template = AcApI18n.t(fullKey, { fallback: key })
+    if (template === key) template = en[key] ?? key
     if (!params) return template
     return Object.keys(params).reduce(
       (result, name) => result.replace(`{${name}}`, params[name]),

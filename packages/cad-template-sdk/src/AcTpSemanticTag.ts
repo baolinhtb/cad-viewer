@@ -184,10 +184,7 @@ export function writeSemanticTag(
     ...runChunks.map(str)
   ]
 
-  const total = values.reduce(
-    (sum, v) => sum + utf8Length(String(v.value)),
-    0
-  )
+  const total = values.reduce((sum, v) => sum + utf8Length(String(v.value)), 0)
   if (total > MAX_TAG_BYTES) {
     throw new Error(
       `Nhãn ngữ nghĩa dài ${total} byte, vượt giới hạn ${MAX_TAG_BYTES} byte ` +
@@ -307,7 +304,7 @@ function encodeParams(params: AcTpSemanticTag['params']): string {
   const ordered: Record<string, number | string | boolean> = {}
   for (const key of keys.sort()) ordered[key] = params[key]
 
-  return JSON.stringify(ordered)
+  return asciiJson(ordered)
 }
 
 /**
@@ -321,9 +318,10 @@ function encodeRun(run: AcTpSemanticTag['run']): string {
 
   const values: Record<string, number | string | boolean> = {}
   // Sorted for the same reason `params` is: identical drawings must not diff.
-  for (const key of Object.keys(run.values).sort()) values[key] = run.values[key]
+  for (const key of Object.keys(run.values).sort())
+    values[key] = run.values[key]
 
-  return JSON.stringify({ i: run.id, v: run.version, a: values })
+  return asciiJson({ i: run.id, v: run.version, a: values })
 }
 
 /**
@@ -386,4 +384,14 @@ function assertNonEmpty(value: string, field: string): void {
   if (!value || !value.trim()) {
     throw new Error(`Trường '${field}' không được để trống.`)
   }
+}
+
+/** Keep XData chunks ASCII so DXF Unicode escaping cannot expand a chunk past
+ * 255 bytes and cause the writer to split it again, invalidating v4 counts.
+ * JSON escapes decode identically for both in-memory and reopened drawings. */
+function asciiJson(value: unknown): string {
+  return JSON.stringify(value).replace(
+    /[\u0080-\uffff]/g,
+    char => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0')
+  )
 }

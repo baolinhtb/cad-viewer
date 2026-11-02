@@ -1,0 +1,151 @@
+import { AcApI18n, type AcApLocale } from '@mlightcad/cad-simple-viewer'
+import { AcDbEntity } from '@mlightcad/data-model'
+import { createI18n } from 'vue-i18n'
+
+import arCommand from './ar/command'
+import arDialog from './ar/dialog'
+import arEntity from './ar/entity'
+import arMain from './ar/main'
+import csCommand from './cs/command'
+import csDialog from './cs/dialog'
+import csEntity from './cs/entity'
+import csMain from './cs/main'
+import enCommand from './en/command'
+import enDialog from './en/dialog'
+import enEntity from './en/entity'
+import enMain from './en/main'
+import { pluralRules } from './pluralRules'
+import trCommand from './tr/command'
+import trDialog from './tr/dialog'
+import trEntity from './tr/entity'
+import trMain from './tr/main'
+import viCommand from './vi/command'
+import viDialog from './vi/dialog'
+import viEntity from './vi/entity'
+import viMain from './vi/main'
+import zhCommand from './zh/command'
+import zhDialog from './zh/dialog'
+import zhEnity from './zh/entity'
+import zhMain from './zh/main'
+
+// Get language of browser - use same logic as useLocale
+const getInitialLocale = (): AcApLocale => {
+  const stored = localStorage.getItem('preferred_lang')
+  if (
+    stored === 'en' ||
+    stored === 'zh' ||
+    stored === 'tr' ||
+    stored === 'cs' ||
+    stored === 'ar' ||
+    stored === 'vi'
+  )
+    return stored
+
+  const browserLang = navigator.language.toLowerCase()
+  const browserLocale = browserLang.substring(0, 2)
+  if (browserLocale === 'zh') return 'zh'
+  if (browserLocale === 'tr') return 'tr'
+  if (browserLocale === 'cs') return 'cs'
+  if (browserLocale === 'ar') return 'ar'
+  if (browserLocale === 'vi') return 'vi'
+  return 'en'
+}
+
+const messages = {
+  ar: { main: arMain, command: arCommand, dialog: arDialog, entity: arEntity },
+  en: {
+    main: enMain,
+    command: enCommand,
+    dialog: enDialog,
+    entity: enEntity
+  },
+  zh: {
+    main: zhMain,
+    command: zhCommand,
+    dialog: zhDialog,
+    entity: zhEnity
+  },
+  tr: {
+    main: trMain,
+    command: trCommand,
+    dialog: trDialog,
+    entity: trEntity
+  },
+  cs: {
+    main: csMain,
+    command: csCommand,
+    dialog: csDialog,
+    entity: csEntity
+  },
+  // `entity.color` is the one gap: the CSS colour-name list falls back to
+  // English on purpose. See the note in `vi/entity.ts`.
+  vi: {
+    main: viMain,
+    command: viCommand,
+    dialog: viDialog,
+    entity: viEntity
+  }
+}
+
+AcApI18n.mergeLocaleMessage('ar', messages.ar)
+AcApI18n.mergeLocaleMessage('en', messages.en)
+AcApI18n.mergeLocaleMessage('zh', messages.zh)
+AcApI18n.mergeLocaleMessage('tr', messages.tr)
+AcApI18n.mergeLocaleMessage('cs', messages.cs)
+AcApI18n.mergeLocaleMessage('vi', messages.vi)
+
+export const i18n = createI18n({
+  legacy: false,
+  messages: AcApI18n.messages,
+  locale: getInitialLocale(),
+  fallbackLocale: 'en',
+  pluralRules,
+  allowComposition: true,
+  globalInjection: true
+})
+AcApI18n.events.localeChanged.addEventListener(args => {
+  i18n.global.locale.value = args.new
+})
+AcApI18n.setCurrentLocale(getInitialLocale())
+
+export const entityName = (entity: AcDbEntity) => {
+  const t = i18n.global.t
+  const key = 'entity.entityName.' + entity.type
+  return t(key, entity.type, { missingWarn: false })
+}
+
+export const entityPropName = (name: string) => {
+  const t = i18n.global.t
+  const key = 'entity.property.' + name
+  return t(key, name, { missingWarn: false })
+}
+
+export const entityPropEnum = (name: string) => {
+  const t = i18n.global.t
+  const key = 'entity.enum.' + name
+  return t(key, name, { missingWarn: true })
+}
+
+export const colorName = (colorKeyName: string) => {
+  if (colorKeyName == 'ByLayer' || colorKeyName == 'ByBlock') {
+    return colorKeyName
+  } else {
+    const t = i18n.global.t
+    const key = 'entity.color.' + colorKeyName.toLowerCase()
+    return t(key, colorKeyName, { missingWarn: false })
+  }
+}
+
+export const toolPaletteTitle = (name: string) => {
+  const t = i18n.global.t
+  const key = `main.toolPalette.${name}.title`
+  return t(key, name, { missingWarn: false })
+}
+
+export const toolPaletteTabName = (name: string) => {
+  const t = i18n.global.t
+  const key = `main.toolPalette.${name}.tab`
+  return t(key, name, { missingWarn: false })
+}
+
+export default i18n

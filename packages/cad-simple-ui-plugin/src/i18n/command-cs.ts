@@ -5,6 +5,15 @@ export const commandCs = {
   ACAD: {
     layer: {
       description: 'Otevře nebo zavře dokovací panel správce hladin'
+    },
+    markuppanel: {
+      description: 'Otevře dokovací panel kontroly'
+    },
+    measurementpanel: {
+      description: 'Otevře dokovací panel seznamu měření'
+    },
+    find: {
+      description: 'Otevře dokovací panel hledání textu'
     }
   }
 }

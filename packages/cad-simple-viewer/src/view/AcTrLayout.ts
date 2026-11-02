@@ -4,14 +4,19 @@ import {
   AcTrEntity,
   AcTrEntityPreview,
   AcTrGroup,
+  AcTrMTextRenderer,
   disposePreviewSubset
 } from '@mlightcad/three-renderer'
 import * as THREE from 'three'
 
 import { AcEdLayerInfo, AcEdSpatialQueryResultItem } from '../editor'
 import { unionSpatialQueryItems } from '../editor/view/AcEdSpatialQueryResult'
-import { AcTrHierarchicalSpatialIndex } from '../spatialIndex'
+import {
+  AcTrHierarchicalSpatialIndex,
+  type AcTrLazySpatialChildren
+} from '../spatialIndex'
 import type { AcTrSpatialSearchOptions } from '../spatialIndex/AcTrSpatialIndex'
+import { isFiniteSpatialBBox } from './AcTrGroupWcsBboxAssert'
 import { AcTrLayer, AcTrLayerStats } from './AcTrLayer'
 
 /** Options for {@link AcTrLayout.createEntityPreviewRoot}. */
@@ -96,6 +101,13 @@ export class AcTrLayout {
   private _spatialIndex: AcTrHierarchicalSpatialIndex
   /** Cached layout bounds derived from packed batch vertex buffers */
   private _cachedBox: THREE.Box3
+  /** Cached smart-extents box; cleared whenever layout geometry extents change */
+  private _cachedSmartExtents: AcGeBox2d | undefined
+  /**
+   * Bumped whenever {@link _cachedSmartExtents} is cleared so in-flight async
+   * smart-extents work can detect stale results and skip writing the cache.
+   */
+  private _smartExtentsGeneration = 0
   /** When true, {@link box} is recomputed from batch geometry on next read */
   private _boxDirty: boolean
   /** Entity ids excluded from layout bounds (e.g. RAY/XLINE) */
@@ -110,11 +122,24 @@ export class AcTrLayout {
   /** The flag indicating whether the layout is loaded/activated */
   private _isLoaded: boolean
   /**
+   * When true, {@link addEntity} / {@link addDirectEntity} skip spatial-index
+   * registration. Used by headless HTML/JPEG export where pick queries are unused.
+   */
+  skipSpatialIndex = false
+  /**
    * True when this layout renders a read-only reference/overlay drawing.
    * Reference layouts are not registered in {@link AcTrScene}'s layout map
    * and must not participate in selection, grips, or host edits.
    */
   isReference = false
+  /**
+   * Last compare-display options applied to this layout. Replayed onto
+   * layers created after {@link setCompareDisplay} so late layer groups
+   * still receive role tints.
+   */
+  private _compareDisplayOptions?: Parameters<
+    AcTrLayer['setCompareDisplay']
+  >[0]
 
   /**
    * Creates a new layout instance.
@@ -124,6 +149,7 @@ export class AcTrLayout {
     this._group = new THREE.Group()
     this._spatialIndex = new AcTrHierarchicalSpatialIndex()
     this._cachedBox = new THREE.Box3()
+    this._cachedSmartExtents = undefined
     this._boxDirty = true
     this._extentExcludedObjectIds = new Set()
     this._layers = new Map()
@@ -187,6 +213,12 @@ export class AcTrLayout {
 
   private invalidateBox() {
     this._boxDirty = true
+    this.clearSmartExtentsCache()
+  }
+
+  private clearSmartExtentsCache() {
+    this._cachedSmartExtents = undefined
+    this._smartExtentsGeneration++
   }
 
   /**
@@ -302,6 +334,7 @@ export class AcTrLayout {
     })
     this._layers.clear()
     this._cachedBox.makeEmpty()
+    this.clearSmartExtentsCache()
     this._boxDirty = true
     this._extentExcludedObjectIds.clear()
     this._insertLayerByObjectId.clear()
@@ -311,14 +344,65 @@ export class AcTrLayout {
 
   /**
    * Re-render points with latest point style settings.
-   * Updates the visual representation of all point entities across all layers.
+   * Updates the visual representation of all point entities across all layers
+   * and refreshes spatial-index boxes so enlarged markers stay selectable.
    *
    * @param displayMode - Input display mode of points
+   * @param displaySize - Input display size of points (`PDSIZE`)
    */
-  rerenderPoints(displayMode: number) {
+  rerenderPoints(displayMode: number, displaySize: number = 0) {
     this._layers.forEach(layer => {
-      layer.rerenderPoints(displayMode)
+      layer.rerenderPoints(displayMode, displaySize)
     })
+    this.refreshPointSpatialIndexes()
+  }
+
+  /**
+   * Syncs root spatial-index boxes with point / point-symbol batch AABBs after
+   * a `PDMODE` / `PDSIZE` refresh.
+   *
+   * Pure point entities replace their root box. Block references that own a
+   * child index only expand so coarse INSERT bounds are never shrunk to the
+   * point-symbol subset.
+   */
+  private refreshPointSpatialIndexes() {
+    const boxes = new Map<string, THREE.Box3>()
+    this._layers.forEach(layer => {
+      layer.collectPointObjectWorldBoxes(boxes)
+    })
+
+    boxes.forEach((box, objectId) => {
+      if (this._spatialIndex.hasChildIndex(objectId)) {
+        const existing = this._spatialIndex.getRootById(objectId)
+        if (existing) {
+          this._spatialIndex.insert({
+            id: objectId,
+            minX: Math.min(existing.minX, box.min.x),
+            minY: Math.min(existing.minY, box.min.y),
+            maxX: Math.max(existing.maxX, box.max.x),
+            maxY: Math.max(existing.maxY, box.max.y)
+          })
+          return
+        }
+      }
+      this.registerSpatialIndexBox(objectId, box)
+    })
+    // Point symbol AABBs feed smart extents; discard any cached fit.
+    this.clearSmartExtentsCache()
+  }
+
+  /**
+   * Applies ACI-7 / foreground colour to owned batch material clones in this layout.
+   */
+  repaintForegroundMaterials(color: number) {
+    this._layers.forEach(layer => layer.repaintForegroundMaterials(color))
+  }
+
+  /**
+   * Updates wipeout / background-fill materials after a canvas theme flip.
+   */
+  repaintBackgroundMaterials(color: number) {
+    this._layers.forEach(layer => layer.repaintBackgroundMaterials(color))
   }
 
   /**
@@ -334,7 +418,12 @@ export class AcTrLayout {
       const layer = layers[index]
       if (layer && layer.isIntersectWith(objectId, raycaster)) return true
     }
-    return false
+    // Mesh-glyph InstancedMeshes live under layer groups but are not registered
+    // in BatchedGroup entity slots — test them after the batch path misses.
+    return AcTrMTextRenderer.getInstance().intersectMeshGlyphObjectId(
+      objectId,
+      raycaster
+    )
   }
 
   hasVisibleEntity(objectId: AcDbObjectId) {
@@ -699,6 +788,9 @@ export class AcTrLayout {
       layer = new AcTrLayer(info)
       this._layers.set(name, layer)
       this._group.add(layer.internalObject)
+      if (this._compareDisplayOptions) {
+        layer.setCompareDisplay(this._compareDisplayOptions)
+      }
     }
     return layer
   }
@@ -812,6 +904,16 @@ export class AcTrLayout {
   }
 
   /**
+   * Applies compare-display coloring across all layers in this layout.
+   *
+   * @param options - Compare colors and per-entity role overrides.
+   */
+  setCompareDisplay(options: Parameters<AcTrLayer['setCompareDisplay']>[0]) {
+    this._compareDisplayOptions = options
+    this._layers.forEach(layer => layer.setCompareDisplay(options))
+  }
+
+  /**
    * Groups entity ids by render layer and applies one bulk highlight call per layer.
    *
    * @param ids - Entity object ids whose highlight state should change.
@@ -853,6 +955,65 @@ export class AcTrLayout {
       },
       options
     )
+  }
+
+  /**
+   * Collects finite spatial-index AABBs for intelligent zoom-to-fit.
+   *
+   * Prefers child-level boxes when present so INSERT/hatch islands contribute
+   * separately rather than one oversized root union.
+   *
+   * @returns Flat list of finite world XY boxes.
+   */
+  collectSpatialExtentBoxes(): AcEdSpatialQueryResultItem[] {
+    return this._spatialIndex.all().filter(isFiniteSpatialBBox)
+  }
+
+  /**
+   * Async variant of {@link collectSpatialExtentBoxes} that yields while
+   * flattening large spatial indexes.
+   *
+   * @param work - Cooperative yield helper.
+   */
+  async collectSpatialExtentBoxesAsync(work: {
+    maybeYield(): Promise<void>
+  }): Promise<AcEdSpatialQueryResultItem[]> {
+    const all = await this._spatialIndex.allAsync(work)
+    const result: AcEdSpatialQueryResultItem[] = []
+    for (let i = 0; i < all.length; i++) {
+      const item = all[i]!
+      if (isFiniteSpatialBBox(item)) {
+        result.push(item)
+      }
+      if ((i & 0x7ff) === 0x7ff) {
+        await work.maybeYield()
+      }
+    }
+    return result
+  }
+
+  /**
+   * Returns the cached smart-extents box when still valid for this layout.
+   */
+  get cachedSmartExtents(): AcGeBox2d | undefined {
+    return this._cachedSmartExtents
+  }
+
+  /**
+   * Generation counter for smart-extents cache invalidation. Capture before
+   * async work and compare after; mismatch means geometry changed mid-flight.
+   */
+  get smartExtentsGeneration(): number {
+    return this._smartExtentsGeneration
+  }
+
+  /**
+   * Stores the last computed smart-extents box until geometry extents change.
+   * Only write when {@link smartExtentsGeneration} still matches the value
+   * captured before the async computation started.
+   */
+  set cachedSmartExtents(box: AcGeBox2d | undefined) {
+    this._cachedSmartExtents = box
   }
 
   /**
@@ -931,6 +1092,26 @@ export class AcTrLayout {
    *                 membership is updated.
    */
   private registerEntitySpatialIndex(entity: AcTrEntity) {
+    if (this.skipSpatialIndex) {
+      return
+    }
+    const lazyChildren = (
+      entity.userData as { lazySpatialChildren?: AcTrLazySpatialChildren }
+    ).lazySpatialChildren
+    if (lazyChildren && lazyChildren.boxes.length > 0) {
+      const rootBox = {
+        minX: entity.wcsBbox.min.x,
+        minY: entity.wcsBbox.min.y,
+        maxX: entity.wcsBbox.max.x,
+        maxY: entity.wcsBbox.max.y,
+        id: entity.objectId
+      }
+      if (isFiniteSpatialBBox(rootBox)) {
+        this._spatialIndex.insert(rootBox)
+      }
+      this._spatialIndex.setLazyChildSource(entity.objectId, lazyChildren)
+      return
+    }
     const spatialIndexChildBoxes = this.getSpatialIndexChildBoxes(entity)
 
     let rootBox: {
@@ -977,22 +1158,28 @@ export class AcTrLayout {
       }
     }
 
-    this._spatialIndex.insert({
-      minX: rootBox.minX,
-      minY: rootBox.minY,
-      maxX: rootBox.maxX,
-      maxY: rootBox.maxY,
-      id: entity.objectId
-    })
+    // Skip non-finite roots (empty THREE.Box3 → ±Infinity, or NaN after a bad
+    // applyMatrix4). Inserting NaN into RBush poisons all spatial searches.
+    if (isFiniteSpatialBBox(rootBox)) {
+      this._spatialIndex.insert({
+        minX: rootBox.minX,
+        minY: rootBox.minY,
+        maxX: rootBox.maxX,
+        maxY: rootBox.maxY,
+        id: entity.objectId
+      })
 
-    if (spatialIndexChildBoxes && spatialIndexChildBoxes.length > 0) {
-      entity.wcsBbox.min.set(rootBox.minX, rootBox.minY, entity.wcsBbox.min.z)
-      entity.wcsBbox.max.set(rootBox.maxX, rootBox.maxY, entity.wcsBbox.max.z)
+      if (spatialIndexChildBoxes && spatialIndexChildBoxes.length > 0) {
+        entity.wcsBbox.min.set(rootBox.minX, rootBox.minY, entity.wcsBbox.min.z)
+        entity.wcsBbox.max.set(rootBox.maxX, rootBox.maxY, entity.wcsBbox.max.z)
+      }
     }
 
     // Some INSERT rendering paths split one block reference into multiple layer
     // groups (AcTrEntity instead of AcTrGroup). Keep child-box index via userData
     // so object snap can still resolve gsMark to sub-entities.
+    // ensureChildIndex may still register a finite root from child unions when
+    // the coarse root above was skipped.
     if (spatialIndexChildBoxes) {
       this._spatialIndex.ensureChildIndex(
         entity.objectId,
@@ -1008,12 +1195,19 @@ export class AcTrLayout {
    * Registers a simple axis-aligned WCS box in the spatial index by object id.
    */
   private registerSpatialIndexBox(objectId: AcDbObjectId, wcsBbox: THREE.Box3) {
-    this._spatialIndex.insert({
+    if (this.skipSpatialIndex) {
+      return
+    }
+    const box = {
       minX: wcsBbox.min.x,
       minY: wcsBbox.min.y,
       maxX: wcsBbox.max.x,
       maxY: wcsBbox.max.y,
       id: objectId
-    })
+    }
+    if (!isFiniteSpatialBBox(box)) {
+      return
+    }
+    this._spatialIndex.insert(box)
   }
 }

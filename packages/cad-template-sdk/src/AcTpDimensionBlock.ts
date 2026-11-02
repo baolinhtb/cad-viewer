@@ -57,7 +57,8 @@ export function buildDimensionBlock(
 
 /**
  * Applies what the data model's builder ignores: text height, text colour,
- * text placement above the line, and arrowhead size.
+ * and arrowhead size. Native 1.15 handles DIMTAD/DIMGAP positioning; applying
+ * the old relative text offset again would lift it twice.
  *
  * `dimscale` is not multiplied in here. The engineer's drawings carry a style
  * scaled 100× with base values (`DIMTXT 1.5`, `DIMASZ 1.3`), and the builder
@@ -66,29 +67,20 @@ export function buildDimensionBlock(
  */
 export function applyDimStyleToBlock(
   block: { newIterator(): Iterable<unknown> },
-  dim: AcDbAlignedDimension,
+  _dim: AcDbAlignedDimension,
   style: AcDbDimStyleTableRecord
 ) {
-  const rotation = (dim as { rotation?: number }).rotation ?? 0
-  // Perpendicular to the dimension line, on the side "above" the text's
-  // reading direction: up for a horizontal chain, left for a vertical one
-  // read bottom-to-top — where AutoCAD puts DIMTAD = 1 text.
-  const normal = { x: -Math.sin(rotation), y: Math.cos(rotation) }
   for (const entity of block.newIterator()) {
     if (entity instanceof AcDbMText) {
       entity.height = style.dimtxt
-      if (Number.isInteger(style.dimclrt) && style.dimclrt >= 1 && style.dimclrt <= 255) {
+      if (
+        Number.isInteger(style.dimclrt) &&
+        style.dimclrt >= 1 &&
+        style.dimclrt <= 255
+      ) {
         entity.color = new AcCmColor(AcCmColorMethod.ByACI, style.dimclrt)
       }
-      if (style.dimtad !== 0) {
-        const lift = style.dimtxt / 2 + style.dimgap
-        const at = entity.location
-        entity.location = {
-          x: at.x + normal.x * lift,
-          y: at.y + normal.y * lift,
-          z: at.z ?? 0
-        }
-      }
+      // data-model 1.15 handles DIMTAD/DIMGAP placement; do not offset twice.
     } else if (
       entity instanceof AcDbBlockReference &&
       entity.blockName === ARROW_BLOCK
@@ -108,10 +100,14 @@ export function applyDimStyleToBlock(
  */
 export function formatDimensionText(
   value: number,
-  style: Pick<AcDbDimStyleTableRecord, 'dimrnd' | 'dimdec' | 'dimzin' | 'dimlfac'>
+  style: Pick<
+    AcDbDimStyleTableRecord,
+    'dimrnd' | 'dimdec' | 'dimzin' | 'dimlfac'
+  >
 ): string {
   let measured = value * (style.dimlfac || 1)
-  if (style.dimrnd > 0) measured = Math.round(measured / style.dimrnd) * style.dimrnd
+  if (style.dimrnd > 0)
+    measured = Math.round(measured / style.dimrnd) * style.dimrnd
   const decimals = Math.max(0, Math.min(8, Math.round(style.dimdec)))
   let text = measured.toFixed(decimals)
   if ((style.dimzin & 8) !== 0 && text.includes('.')) {

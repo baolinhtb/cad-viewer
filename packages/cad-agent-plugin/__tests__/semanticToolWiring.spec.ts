@@ -1,3 +1,4 @@
+jest.mock('@mlightcad/cad-agent-core', () => ({ createCadToolCatalog: () => [] }))
 /**
  * The agent's tool set has to expose the semantic group, not just the geometry
  * one.

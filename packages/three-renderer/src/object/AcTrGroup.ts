@@ -2,10 +2,16 @@ import { AcDbObjectId, AcGeMatrix3d } from '@mlightcad/data-model'
 import { FontManager } from '@mlightcad/mtext-renderer'
 import * as THREE from 'three'
 
+import {
+  asyncDrawSharedGlyphGroup,
+  syncDrawSharedGlyphGroup
+} from '../linetype/AcTrComplexLineBuilder'
 import { AcTrRenderContext } from '../renderer/AcTrRenderContext'
 import { AcTrMatrixUtil, effectiveLayer } from '../util'
 import { AcTrEntity } from './AcTrEntity'
+import { AcTrGlyphEntity } from './AcTrGlyphEntity'
 import { AcTrGroupCompactor } from './AcTrGroupCompactor'
+
 export interface AcTrEntityBox {
   minX: number
   minY: number
@@ -82,6 +88,8 @@ export class AcTrGroup extends AcTrEntity {
       } else {
         this.add(entity)
         this.registerSourceEntities(entity)
+        this.storeBoxes(entity, true)
+        return
       }
       this.storeBoxes(entity)
     })
@@ -170,6 +178,38 @@ export class AcTrGroup extends AcTrEntity {
   get wcsChildBoxes() {
     this.materializeWcsChildBoxes()
     return this._wcsChildBoxes
+  }
+
+  /**
+   * Number of per-child boxes, including a lazy template that has not been
+   * copied yet.
+   */
+  get childBoxCount() {
+    const pending = this._wcsChildBoxesTemplate?.length ?? 0
+    return this._wcsChildBoxes.length + pending
+  }
+
+  /**
+   * Block-local child boxes shared by every INSERT of this template, plus the
+   * matrix that maps them into WCS.
+   *
+   * Does not copy the box list. Returns null once boxes have been materialized
+   * for this instance (for example after an attribute was appended).
+   *
+   * @returns Shared boxes and a cloned INSERT matrix, or null when this
+   *   instance already owns a private box list.
+   */
+  peekLazyChildBoxes(): {
+    boxes: readonly AcTrEntityBox[]
+    matrix: THREE.Matrix4
+  } | null {
+    if (!this._wcsChildBoxesTemplate || this._wcsChildBoxes.length > 0) {
+      return null
+    }
+    const matrix = this._wcsChildBoxesPendingMatrix
+      ? this._wcsChildBoxesPendingMatrix.clone()
+      : new THREE.Matrix4()
+    return { boxes: this._wcsChildBoxesTemplate, matrix }
   }
 
   /**
@@ -273,11 +313,9 @@ export class AcTrGroup extends AcTrEntity {
     for (const entity of this._sourceEntities) {
       this.appendSourceEntityWcsChildBox(entity, scratch)
     }
+    const sourceEntities = new Set(this._sourceEntities)
     this.children.forEach(child => {
-      if (
-        child instanceof AcTrEntity &&
-        !this._sourceEntities.includes(child)
-      ) {
+      if (child instanceof AcTrEntity && !sourceEntities.has(child)) {
         this.appendTreeEntityWcsChildBox(child, scratch)
       }
     })
@@ -313,11 +351,12 @@ export class AcTrGroup extends AcTrEntity {
       }
     }
 
+    const sourceEntities = new Set(this._sourceEntities)
     this.children.forEach(child => {
       if (!(child instanceof AcTrEntity)) {
         return
       }
-      if (this._sourceEntities.includes(child)) {
+      if (sourceEntities.has(child)) {
         return
       }
       const existing = boxById.get(child.objectId)
@@ -339,6 +378,31 @@ export class AcTrGroup extends AcTrEntity {
   }
 
   /**
+   * Groups handle-less complex-linetype glyphs that can share one mesh.
+   *
+   * Real TEXT/MTEXT/SHAPE entities keep their database handle and are drawn
+   * individually. Generated linetype symbols have no handle.
+   *
+   * @returns True when `child` was added to a shared group.
+   */
+  private bucketSharedLinetypeGlyph(
+    child: AcTrEntity,
+    shared: Map<string, AcTrGlyphEntity[]>
+  ): boolean {
+    if (child.objectId || !(child instanceof AcTrGlyphEntity)) {
+      return false
+    }
+    const key = child.glyphStyleShareKey
+    const bucket = shared.get(key)
+    if (bucket) {
+      bucket.push(child)
+    } else {
+      shared.set(key, [child])
+    }
+    return true
+  }
+
+  /**
    * Finishes deferred geometry for block-definition entities and attributes,
    * then refreshes spatial-index bounds.
    *
@@ -348,14 +412,22 @@ export class AcTrGroup extends AcTrEntity {
    * {@link syncDraw} on each entity that has not yet produced drawable children.
    */
   override syncDraw(): void {
+    const sourceEntities = new Set(this.getSourceEntities())
+    const shared = new Map<string, AcTrGlyphEntity[]>()
     const finalizeDeferredEntity = (child: AcTrEntity) => {
       if (child.hasDrawableGeometry()) {
         return
       }
+      if (this.bucketSharedLinetypeGlyph(child, shared)) {
+        return
+      }
+      if (this.objectId && child instanceof AcTrGlyphEntity) {
+        child.userData.meshGlyphBatchObjectId = this.objectId
+      }
       child.syncDraw()
     }
 
-    this.getSourceEntities().forEach(finalizeDeferredEntity)
+    sourceEntities.forEach(finalizeDeferredEntity)
     this.traverse(child => {
       if (child === this) {
         return
@@ -363,11 +435,14 @@ export class AcTrGroup extends AcTrEntity {
       if (!(child instanceof AcTrEntity)) {
         return
       }
-      if (this.getSourceEntities().includes(child)) {
+      if (sourceEntities.has(child)) {
         return
       }
       finalizeDeferredEntity(child)
     })
+    for (const group of shared.values()) {
+      syncDrawSharedGlyphGroup(group)
+    }
     this.refreshWcsChildBoxesFromChildren()
   }
 
@@ -376,31 +451,105 @@ export class AcTrGroup extends AcTrEntity {
    * children can wait for fonts without using the sync fallback path.
    */
   override async asyncDraw(): Promise<void> {
-    const tasks: Promise<void>[] = []
-    const finalizeDeferredEntity = (child: AcTrEntity) => {
+    await this.asyncDrawPendingGlyphs()
+    this.refreshWcsChildBoxesFromChildren()
+  }
+
+  /**
+   * Draws empty glyph shells on this group.
+   *
+   * @param options.chunkSize - Glyphs started per micro-batch (default 24).
+   * @param options.yieldBudgetMs - Wall time between cooperative yields.
+   *   Defaults to 32 when {@link AcTrRenderContext.yieldDuringAsyncDraw} is
+   *   set, and to no yield for headless export.
+   */
+  private async asyncDrawPendingGlyphs(
+    options: { chunkSize?: number; yieldBudgetMs?: number } = {}
+  ): Promise<void> {
+    const chunkSize = options.chunkSize ?? 24
+    const yieldBudgetMs =
+      options.yieldBudgetMs ??
+      (this.renderContext.yieldDuringAsyncDraw ? 32 : Number.POSITIVE_INFINITY)
+    const sourceEntities = this.getSourceEntities()
+    const tasks: Array<() => Promise<void>> = []
+    const shared = new Map<string, AcTrGlyphEntity[]>()
+    const seen = new Set<AcTrEntity>()
+    const enqueue = (child: AcTrEntity) => {
+      if (seen.has(child)) {
+        return
+      }
+      seen.add(child)
       if (child.hasDrawableGeometry()) {
         return
       }
-      tasks.push(child.asyncDraw())
+      if (this.bucketSharedLinetypeGlyph(child, shared)) {
+        return
+      }
+      // Stamp INSERT id so mesh-glyph InstancedMesh slots / pick / highlight
+      // key by the selectable block reference, not ATTRIB handles.
+      if (this.objectId && child instanceof AcTrGlyphEntity) {
+        child.userData.meshGlyphBatchObjectId = this.objectId
+      }
+      tasks.push(() => child.asyncDraw())
     }
 
-    this.getSourceEntities().forEach(finalizeDeferredEntity)
-    this.traverse(child => {
-      if (child === this) {
-        return
-      }
-      if (!(child instanceof AcTrEntity)) {
-        return
-      }
-      if (this.getSourceEntities().includes(child)) {
-        return
-      }
-      finalizeDeferredEntity(child)
-    })
-    if (tasks.length > 0) {
-      await Promise.all(tasks)
+    for (const entity of sourceEntities) {
+      enqueue(entity)
     }
-    this.refreshWcsChildBoxesFromChildren()
+    // Only walk AcTrEntity containers — never dive into flattened mesh/line
+    // leaves (a mega-block may have 100k+ of those).
+    this.enqueuePendingGlyphEntitiesFromTree(this, enqueue)
+
+    for (const group of shared.values()) {
+      tasks.push(() => asyncDrawSharedGlyphGroup(group))
+    }
+    if (tasks.length === 0) {
+      return
+    }
+    // Start glyph draws in small batches and return to the event loop so a
+    // block with tens of thousands of texts cannot allocate them all at once.
+    let budgetStart = performance.now()
+    for (let i = 0; i < tasks.length; i += chunkSize) {
+      const end = Math.min(i + chunkSize, tasks.length)
+      const pending: Promise<void>[] = []
+      for (let j = i; j < end; j++) {
+        pending.push(tasks[j]())
+      }
+      await Promise.all(pending)
+      if (end < tasks.length && performance.now() - budgetStart >= yieldBudgetMs) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0))
+        budgetStart = performance.now()
+      }
+    }
+  }
+
+  /**
+   * Collects nested {@link AcTrEntity} glyph hosts under `root` without
+   * walking drawable mesh/line leaves.
+   */
+  private enqueuePendingGlyphEntitiesFromTree(
+    root: THREE.Object3D,
+    enqueue: (entity: AcTrEntity) => void
+  ): void {
+    const children = root.children
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i]
+      if (child instanceof AcTrGlyphEntity) {
+        enqueue(child)
+        continue
+      }
+      if (child instanceof AcTrGroup) {
+        for (const entity of child.getSourceEntities()) {
+          enqueue(entity)
+        }
+        this.enqueuePendingGlyphEntitiesFromTree(child, enqueue)
+        continue
+      }
+      if (child instanceof AcTrEntity) {
+        enqueue(child)
+        this.enqueuePendingGlyphEntitiesFromTree(child, enqueue)
+      }
+    }
   }
 
   /**
@@ -428,7 +577,7 @@ export class AcTrGroup extends AcTrEntity {
     // Materialize before storeBoxes so appended attribute boxes are not lost.
     this.materializeWcsChildBoxes()
     this.registerSourceEntities(entity)
-    this.storeBoxes(entity)
+    this.storeBoxes(entity, true)
     this.syncWcsBboxFromChildBoxes()
   }
 
@@ -456,8 +605,15 @@ export class AcTrGroup extends AcTrEntity {
         }
       })
     }
-    this.applyMatrix4(threeMatrix)
-    this.updateMatrixWorld(true)
+    this.applyFullMatrix4(threeMatrix)
+    if (this._wcsChildBoxesTemplate) {
+      // Keep the per-child list lazy. Transform only the aggregate box so a
+      // 100k-box floor plan does not materialize on every INSERT.
+      if (!this._wcsBbox.isEmpty()) {
+        this._wcsBbox.applyMatrix4(threeMatrix)
+      }
+      return
+    }
     this.syncWcsBboxFromChildBoxes()
   }
 
@@ -482,9 +638,22 @@ export class AcTrGroup extends AcTrEntity {
     // one pass. Struct copies are cheap compared to geometry / source-entity
     // clones; the snapshot also prevents later in-place transforms on the
     // source group from corrupting cached templates.
-    object.materializeWcsChildBoxes()
-    this._wcsChildBoxes = []
-    this._wcsChildBoxesTemplate = object._wcsChildBoxes.map(box => ({ ...box }))
+    // Compacted templates are immutable. Clones share that box array and apply
+    // the INSERT transform lazily, instead of allocating one box object per
+    // child per INSERT (floor-plan blocks are 100k+ boxes).
+    if (object._compacted && !object._wcsChildBoxesPendingMatrix) {
+      this._wcsChildBoxes = []
+      this._wcsChildBoxesTemplate =
+        object._wcsChildBoxes.length > 0
+          ? object._wcsChildBoxes
+          : (object._wcsChildBoxesTemplate ?? object._wcsChildBoxes)
+    } else {
+      object.materializeWcsChildBoxes()
+      this._wcsChildBoxes = []
+      this._wcsChildBoxesTemplate = object._wcsChildBoxes.map(box => ({
+        ...box
+      }))
+    }
     this._wcsChildBoxesPendingMatrix = null
 
     if (object._compacted) {
@@ -507,10 +676,9 @@ export class AcTrGroup extends AcTrEntity {
    *
    * When the source {@link isCompacted}, leaf {@link THREE.BufferGeometry}
    * buffers are shared by default so INSERT cache hits avoid deep copies.
-   * Uncompacted templates deep-clone buffers instead: {@link AcDbRenderingCache}
-   * may still run {@link compactForInstancing} on first reuse, which disposes
-   * template leaves — sharing beforehand would corrupt earlier INSERT instances
-   * and stall scene convert / batching.
+   * Uncompacted templates are sealed or compacted on the first
+   * {@link fastDeepClone} so every later INSERT aliases those buffers instead
+   * of deep-cloning them (which OOMed drawings with many block references).
    *
    * Materials are reused. When compacted, detached source-entity shells are
    * not cloned. Callers must treat compacted templates as immutable: batching
@@ -518,10 +686,21 @@ export class AcTrGroup extends AcTrEntity {
    * shared geometries marked with `sharesTemplateGeometry`.
    *
    * @param shareGeometry - Override buffer sharing. Defaults to
-   *   {@link isCompacted} so lazy mid-size compact stays safe.
+   *   {@link isCompacted} (or true after auto-compact above).
    * @returns Independent group instance suitable for one INSERT.
    */
   fastDeepClone(shareGeometry: boolean = this._compacted) {
+    // Data-model only compacts templates with 8+ direct children, and a
+    // coalesced symbol often has a single mesh. Seal or compact before the
+    // first clone so every INSERT shares the template buffers.
+    if (!this._compacted && this.childCount >= 1) {
+      if (this.childCount >= 2) {
+        this.compactForInstancing()
+      } else {
+        this.sealForSharedClone()
+      }
+      shareGeometry = true
+    }
     const cloned = new AcTrGroup([], this.renderContext)
     cloned.copy(this, false)
     this.copyGeometry(this, cloned, shareGeometry)
@@ -637,6 +816,51 @@ export class AcTrGroup extends AcTrEntity {
   }
 
   /**
+   * Appends spatial boxes for block lines that were merged into shared
+   * geometries and therefore have no per-entity scene-graph node.
+   */
+  addExternalChildBoxes(
+    boxes: readonly {
+      minX: number
+      minY: number
+      maxX: number
+      maxY: number
+      id: string
+    }[]
+  ) {
+    for (let i = 0; i < boxes.length; i++) {
+      const box = boxes[i]
+      if (AcTrGroup.isFiniteEntityBox(box)) {
+        this._wcsChildBoxes.push({
+          minX: box.minX,
+          minY: box.minY,
+          maxX: box.maxX,
+          maxY: box.maxY,
+          id: box.id
+        })
+      }
+    }
+    this.syncWcsBboxFromChildBoxes()
+  }
+
+  /**
+   * Marks this group as a shared block template after simple lines were
+   * already merged into a few meshes.
+   *
+   * {@link AcDbRenderingCache} only compacts templates with at least eight
+   * direct children. A coalesced block often has one mesh, so
+   * {@link fastDeepClone} would otherwise deep-copy that buffer for every
+   * INSERT. Sealing shares the buffer and drops the empty source shells.
+   */
+  sealForSharedClone() {
+    if (this._compacted) {
+      return
+    }
+    this._compacted = true
+    this.releaseDetachedSourceShells()
+  }
+
+  /**
    * Recomputes the aggregate {@link wcsBbox} as the union of {@link _wcsChildBoxes}.
    *
    * {@link _wcsChildBoxes} is the source of truth for per-child spatial-index
@@ -696,7 +920,7 @@ export class AcTrGroup extends AcTrEntity {
    * @param object - Block-definition entity or nested group whose bounds
    *   should be recorded for spatial indexing.
    */
-  private storeBoxes(object: THREE.Object3D) {
+  private storeBoxes(object: THREE.Object3D, knownSource = false) {
     if (object instanceof AcTrGroup) {
       // Use the public getter so a still-lazy nested group materializes first.
       object.wcsChildBoxes.forEach(box => {
@@ -712,7 +936,9 @@ export class AcTrGroup extends AcTrEntity {
     }
 
     const scratch = new THREE.Box3()
-    if (this._sourceEntities.includes(object)) {
+    // Callers that just registered `object` pass knownSource so a 20k-line
+    // block does not pay Array.includes (O(n²)) once per entity.
+    if (knownSource || this._sourceEntities.includes(object)) {
       this.appendSourceEntityWcsChildBox(object, scratch)
       return
     }

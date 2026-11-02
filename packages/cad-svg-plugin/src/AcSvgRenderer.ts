@@ -1,16 +1,23 @@
 import {
   AcCmColor,
   AcCmTransparency,
+  AcCmUiYieldGate,
+  acdbDrawTessellateOptions,
   AcDbRenderingCache,
   AcGeArea2d,
   AcGeBox2d,
   AcGeCircArc3d,
   AcGeEllipseArc3d,
+  AcGePoint2d,
   AcGePoint3d,
   AcGePoint3dLike,
+  AcGePolyline2d,
+  ACGI_DARK_THEME_FOREGROUND,
+  ACGI_LIGHT_THEME_FOREGROUND,
   AcGiContext,
   AcGiFontMapping,
   AcGiImageStyle,
+  acgiIsLightBackground,
   AcGiLineWeight,
   AcGiMTextData,
   AcGiPointStyle,
@@ -25,6 +32,7 @@ import { AcSvgCircArc } from './AcSvgCircArc'
 import { AcTrEllipticalArc } from './AcSvgEllipticalArc'
 import { AcSvgEntity } from './AcSvgEntity'
 import { AcSvgExportUtil } from './AcSvgExportUtil'
+import { computeSvgViewBox } from './AcSvgExtents'
 import { AcSvgGroup } from './AcSvgGroup'
 import { AcSvgImage } from './AcSvgImage'
 import { AcSvgLine } from './AcSvgLine'
@@ -33,6 +41,9 @@ import { AcSvgMText } from './AcSvgMText'
 import { AcSvgPoint } from './AcSvgPoint'
 import { AcSvgShape } from './AcSvgShape'
 import { AcSvgStyleContext, AcSvgStyleUtil } from './AcSvgStyleUtil'
+
+/** Time budget between UI yields while serializing SVG markup. */
+const SVG_SERIALIZE_YIELD_BUDGET_MS = 200
 
 export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
   /**
@@ -57,12 +68,16 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
   private _foregroundColor = 0x000000
   private _showLineWeight = false
   private _pendingImages: Promise<void>[]
+  private readonly _context: AcGiContext
 
   constructor() {
     this._entities = []
     this._bbox = new AcGeBox2d()
     this._fontMapping = {}
     this._pendingImages = []
+    this._context = AcGiContext.fromBackgroundColor(
+      this._currentBackgroundColor
+    )
     this._subEntityTraits = {
       color: new AcCmColor(),
       lineType: {
@@ -97,7 +112,7 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
    * @inheritdoc
    */
   get context(): AcGiContext {
-    return AcGiContext.fromBackgroundColor(this._currentBackgroundColor)
+    return this._context
   }
 
   /**
@@ -132,6 +147,9 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
 
   set currentBackgroundColor(value: number) {
     this._currentBackgroundColor = value
+    this._context.backgroundIsDark = !acgiIsLightBackground(value)
+    this._context.foregroundOnDark = ACGI_DARK_THEME_FOREGROUND
+    this._context.foregroundOnLight = ACGI_LIGHT_THEME_FOREGROUND
   }
 
   /**
@@ -199,7 +217,12 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
    */
   circularArc(arc: AcGeCircArc3d) {
     return this.pushEntity(
-      new AcSvgCircArc(arc, this._subEntityTraits, this.styleContext)
+      new AcSvgCircArc(
+        arc,
+        this._subEntityTraits,
+        this.styleContext,
+        acdbDrawTessellateOptions(this)
+      )
     )
   }
 
@@ -211,7 +234,8 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
       new AcTrEllipticalArc(
         ellipseArc,
         this._subEntityTraits,
-        this.styleContext
+        this.styleContext,
+        acdbDrawTessellateOptions(this)
       )
     )
   }
@@ -245,8 +269,42 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
    */
   area(area: AcGeArea2d) {
     return this.pushEntity(
-      new AcSvgArea(area, this._subEntityTraits, this.styleContext)
+      new AcSvgArea(
+        area,
+        this._subEntityTraits,
+        this.styleContext,
+        acdbDrawTessellateOptions(this)
+      )
     )
+  }
+
+  /**
+   * @inheritdoc
+   *
+   * SVG has no separate ring primitive. Rebuild the two loops as an area so
+   * the fill matches the previous closed wide-polyline output, and stroke the
+   * centerline so sub-pixel world widths stay visible (same as WebGL).
+   */
+  offsetRing(outer: AcGePoint3dLike[], inner: AcGePoint3dLike[]) {
+    const area = new AcGeArea2d()
+    area.add(
+      new AcGePolyline2d(
+        outer.map(point => new AcGePoint2d(point.x, point.y)),
+        true
+      )
+    )
+    area.add(
+      new AcGePolyline2d(
+        inner.map(point => new AcGePoint2d(point.x, point.y)),
+        true
+      )
+    )
+    const fill = this.area(area)
+    const centerline = offsetRingCenterline(outer, inner)
+    if (!centerline) {
+      return fill
+    }
+    return this.group([fill, this.lines(centerline)])
   }
 
   /**
@@ -297,29 +355,100 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
   }
 
   /**
-   * Exports accumulated SVG markup. Awaits any pending raster images first.
+   * Exports SVG markup. Awaits pending raster images and yields periodically
+   * so a host busy indicator can keep animating.
+   *
+   * Prefer explicit {@link roots} from top-level `worldDraw` return values.
+   * The internal `_entities` list is polluted by {@link AcDbRenderingCache}:
+   * it leaves untransformed block templates in place while returning
+   * `applyMatrix`'d clones that are never pushed here.
    */
-  async exportAsync(): Promise<string> {
+  async exportAsync(roots?: AcSvgEntity[]): Promise<string> {
     await Promise.all(this._pendingImages)
-    return this.export()
+    return this.exportMarkup(true, roots)
   }
 
   /**
    * Synchronous export. Raster images added via {@link image} may be missing
    * unless {@link exportAsync} is used.
+   *
+   * @param roots - Optional top-level drawables; see {@link exportAsync}.
    */
-  export() {
+  export(roots?: AcSvgEntity[]) {
+    return this.exportMarkup(false, roots)
+  }
+
+  /**
+   * Drops drawables accumulated in the internal entity list.
+   */
+  resetCollected(): void {
+    this._entities.length = 0
+  }
+
+  private exportMarkup(cooperative: false, roots?: AcSvgEntity[]): string
+  private exportMarkup(
+    cooperative: true,
+    roots?: AcSvgEntity[]
+  ): Promise<string>
+  private exportMarkup(
+    cooperative: boolean,
+    roots?: AcSvgEntity[]
+  ): string | Promise<string> {
+    if (cooperative) {
+      return this.exportMarkupCooperative(roots)
+    }
+    return this.assembleMarkup(this.collectEntityParts(roots))
+  }
+
+  private collectEntityParts(roots?: AcSvgEntity[]): {
+    parts: string[]
+    boxes: AcGeBox2d[]
+  } {
+    const entities = roots ?? this._entities
     const parts: string[] = []
-    const bbox = new AcGeBox2d()
-    for (const entity of this._entities) {
+    const boxes: AcGeBox2d[] = []
+    for (const entity of entities) {
       const svg = entity.renderSvg()
       if (svg) {
         parts.push(svg)
-        bbox.union(entity.box)
+        boxes.push(entity.box)
       }
     }
-    this._bbox = bbox
-    const elements = parts.join('\n')
+    return { parts, boxes }
+  }
+
+  private async exportMarkupCooperative(
+    roots?: AcSvgEntity[]
+  ): Promise<string> {
+    const entities = roots ?? this._entities
+    const parts: string[] = []
+    const boxes: AcGeBox2d[] = []
+    const yieldGate = new AcCmUiYieldGate(SVG_SERIALIZE_YIELD_BUDGET_MS)
+    const yieldToEventLoop = () =>
+      new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    for (const entity of entities) {
+      const svg = entity.renderSvg()
+      if (svg) {
+        parts.push(svg)
+        boxes.push(entity.box)
+      }
+      await yieldGate.maybeYield(yieldToEventLoop)
+    }
+
+    // Let the busy spinner paint before the final join / sanitize pass.
+    await yieldToEventLoop()
+    return this.assembleMarkup({ parts, boxes })
+  }
+
+  private assembleMarkup(collected: {
+    parts: string[]
+    boxes: AcGeBox2d[]
+  }): string {
+    // Skip non-finite / outlier-scale entity boxes so one corrupt AABB cannot
+    // inflate viewBox to ~1e149 while path coordinates stay finite (#690).
+    this._bbox = computeSvgViewBox(collected.boxes)
+    const elements = collected.parts.join('\n')
     const padding = this._bbox.isEmpty()
       ? 0
       : Math.max(
@@ -339,22 +468,31 @@ export class AcSvgRenderer implements AcGiRenderer<AcSvgEntity> {
           width: this._bbox.max.x - this._bbox.min.x + padding * 2,
           height: this._bbox.max.y - this._bbox.min.y + padding * 2
         }
-    const width = Math.max(viewBox.width, 1)
-    const height = Math.max(viewBox.height, 1)
-    const backgroundRect = this.buildBackgroundRect(viewBox)
+    // Use percentage size (not CAD drawing units) so browsers scale the SVG to
+    // the viewport / container via viewBox, instead of treating large drawings
+    // as hundreds of thousands of CSS pixels.
+    const vbWidth = Math.max(viewBox.width, 1)
+    const vbHeight = Math.max(viewBox.height, 1)
+    const backgroundRect = this.buildBackgroundRect({
+      ...viewBox,
+      width: vbWidth,
+      height: vbHeight
+    })
     const svgMarkup = AcSvgExportUtil.sanitizeExternalReferences(
       `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
   preserveAspectRatio="xMinYMin meet"
-  viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}"
-  width="${width}" height="${height}">
+  viewBox="${viewBox.x} ${viewBox.y} ${vbWidth} ${vbHeight}"
+  width="100%" height="100%">
 ${backgroundRect}
   <g transform="matrix(1,0,0,-1,0,0)">
 ${elements}
   </g>
 </svg>`
     )
-    return svgMarkup
+    // Final pass: strip illegal XML chars that may appear outside escaped
+    // text (e.g. leftover control bytes in attributes from CAD metadata).
+    return AcSvgExportUtil.stripInvalidXmlChars(svgMarkup)
   }
 
   private buildBackgroundRect(viewBox: {
@@ -371,3 +509,45 @@ ${elements}
 }
 
 const _tempEntity = /*@__PURE__*/ new AcSvgEntity()
+
+/**
+ * Midpoint loop for wide-polyline offset rings (sub-pixel visibility stroke).
+ * Same rules as three-renderer's `buildOffsetRingCenterline`: equal open-loop
+ * counts after dropping a repeated closing vertex.
+ */
+function offsetRingCenterline(
+  outer: AcGePoint3dLike[],
+  inner: AcGePoint3dLike[]
+): AcGePoint3dLike[] | null {
+  const outerCount = openLoopCount(outer)
+  const innerCount = openLoopCount(inner)
+  if (outerCount !== innerCount || outerCount < 2) {
+    return null
+  }
+  const centerline: AcGePoint3dLike[] = new Array(outerCount + 1)
+  for (let i = 0; i < outerCount; i++) {
+    const outerPoint = outer[i]
+    const innerPoint = inner[i]
+    centerline[i] = {
+      x: (outerPoint.x + innerPoint.x) * 0.5,
+      y: (outerPoint.y + innerPoint.y) * 0.5,
+      z: ((outerPoint.z ?? 0) + (innerPoint.z ?? 0)) * 0.5
+    }
+  }
+  const first = centerline[0]
+  centerline[outerCount] = { x: first.x, y: first.y, z: first.z }
+  return centerline
+}
+
+/** Drops a repeated closing vertex so a closed loop can be stitched by index. */
+function openLoopCount(points: Array<{ x: number; y: number }>): number {
+  const count = points.length
+  if (
+    count > 1 &&
+    points[0].x === points[count - 1].x &&
+    points[0].y === points[count - 1].y
+  ) {
+    return count - 1
+  }
+  return count
+}

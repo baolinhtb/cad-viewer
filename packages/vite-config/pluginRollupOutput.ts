@@ -1,4 +1,72 @@
+import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
+
 import type { ManualChunksOption, OutputOptions } from 'rollup'
+import type { Alias } from 'vite'
+
+function resolvePackageEntry(
+  req: NodeRequire,
+  name: string
+): string | undefined {
+  try {
+    // `require.resolve` follows the Node "require"/"main" condition, which for
+    // our libraries is often `*.umd.cjs`. Vite example apps import with ESM
+    // named exports, so prefer the sibling ESM build when present.
+    const resolved = req.resolve(name)
+    if (resolved.endsWith('.umd.cjs')) {
+      const esm = resolved.slice(0, -'.umd.cjs'.length) + '.js'
+      if (existsSync(esm)) {
+        return esm
+      }
+    }
+    // three 0.186's require export is build/three.cjs. That file calls
+    // process.emitWarning when loaded, which throws in the browser.
+    if (resolved.endsWith('.cjs')) {
+      const esm = resolved.slice(0, -'.cjs'.length) + '.module.js'
+      if (existsSync(esm)) {
+        return esm
+      }
+    }
+    return resolved
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Resolves peer packages from the example app so nested imports inside
+ * `cad-pdf-plugin/dist` (pnpm isolation) still bundle.
+ *
+ * Resolve the package entry (`require.resolve(name)`), not `name/package.json`:
+ * many `@mlightcad/*` packages omit `package.json` from `exports`.
+ */
+export function examplePeerPackageAliases(fromPackageDir: string): Alias[] {
+  const require = createRequire(fromPackageDir + '/package.json')
+  const fallbackRequire = createRequire(
+    fromPackageDir + '/../cad-simple-viewer/package.json'
+  )
+  const names = [
+    '@mlightcad/mtext-renderer',
+    '@mlightcad/three-renderer',
+    'three'
+  ] as const
+  const aliases: Alias[] = []
+  for (const name of names) {
+    const direct = resolvePackageEntry(require, name)
+    const fallback = direct
+      ? undefined
+      : resolvePackageEntry(fallbackRequire, name)
+    const replacement = direct ?? fallback
+    if (!replacement) {
+      continue
+    }
+    aliases.push({
+      find: name === 'three' ? /^three$/ : name,
+      replacement
+    })
+  }
+  return aliases
+}
 
 /** Export plugins with a separate lazy `/register` entry. */
 export const PLUGIN_PACKAGE_IDS = [
@@ -8,14 +76,21 @@ export const PLUGIN_PACKAGE_IDS = [
   'cad-simple-ui-plugin',
   'cad-agent-plugin',
   'cad-template-plugin',
-  'cad-storage-plugin'
+  'cad-storage-plugin',
+  'cad-script-plugin',
+  'cad-onedrive-plugin',
+  'cad-google-drive-plugin'
 ] as const
 
 /** Core viewer libraries shipped from this monorepo. */
 export const VIEWER_PACKAGE_IDS = [
   'cad-simple-viewer',
+  'cad-diff-viewer',
   'cad-viewer',
-  'three-renderer'
+  'three-renderer',
+  'cad-html-core',
+  'cad-agent-core',
+  'cad-script-core'
 ] as const
 
 /**
@@ -50,9 +125,16 @@ function isPluginRegisterModule(id: string, pluginId: string): boolean {
   )
 }
 
+/** Folder under packages/ may differ from the published package id (cad-viewer → cad-editor). */
+function monorepoPackageFolder(packageId: string): string {
+  return packageId === 'cad-viewer' ? 'cad-editor' : packageId
+}
+
 function matchMonorepoPackage(id: string, packageId: string): boolean {
   const normalized = id.replace(/\\/g, '/')
+  const folderId = monorepoPackageFolder(packageId)
   return (
+    normalized.includes(`/packages/${folderId}/`) ||
     normalized.includes(`/packages/${packageId}/`) ||
     normalized.includes(`/node_modules/@mlightcad/${packageId}/`) ||
     normalized.includes(`@mlightcad/${packageId}/`) ||
@@ -88,6 +170,12 @@ export const exampleManualChunks: ManualChunksOption = (id: string) => {
   ) {
     return 'cad-pdf-sheets'
   }
+  if (
+    matchMonorepoPackage(id, 'pdf-renderer') ||
+    /(?:^|\/)pdf-lib(?:\/|$)/.test(normalized)
+  )
+    return 'cad-pdf-plugin'
+  if (matchMonorepoPackage(id, 'cad-html-core')) return 'cad-html-plugin'
   for (const pluginId of PLUGIN_PACKAGE_IDS) {
     if (!matchMonorepoPackage(id, pluginId)) {
       continue

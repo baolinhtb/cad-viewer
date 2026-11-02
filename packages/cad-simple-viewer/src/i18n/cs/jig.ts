@@ -1,3 +1,5 @@
+import enJig from '../en/jig'
+
 export default {
   arc: {
     startPointOrCenter: 'Zadejte počáteční bod oblouku nebo',
@@ -53,8 +55,7 @@ export default {
         'Neplatný vstup úhlu: středový úhel musí být větší než 0 a menší než 360 stupňů.',
       chordLength:
         'Neplatná délka tětivy: hodnota je mimo rozsah pro aktuální poloměr.',
-      direction:
-        'Neplatný směr: z tohoto směru tečny nelze sestrojit oblouk.',
+      direction: 'Neplatný směr: z tohoto směru tečny nelze sestrojit oblouk.',
       radius:
         'Neplatný poloměr: zadaný poloměr nemůže spojit počáteční a koncový bod.'
     }
@@ -93,8 +94,7 @@ export default {
     displacementOrArray: 'Zadejte přemístění nebo',
     secondPointOrArray: 'Zadejte druhý bod nebo',
     modePrompt: 'Zadejte volbu režimu kopírování',
-    arrayItemCount:
-      'Zadejte počet položek v poli včetně originálu',
+    arrayItemCount: 'Zadejte počet položek v poli včetně originálu',
     arraySecondPointOrFit: 'Zadejte druhý bod nebo',
     arrayFitSecondPoint: 'Zadejte druhý bod',
     keywords: {
@@ -131,10 +131,19 @@ export default {
     }
   },
   dimlinear: {
+    ...enJig.dimlinear,
     xLine1Point: 'Zadejte počátek první pomocné čáry',
     xLine2Point: 'Zadejte počátek druhé pomocné čáry',
     dimLinePoint: 'Zadejte umístění kótovací čáry'
   },
+  dimaligned: { ...enJig.dimaligned },
+  dimradius: { ...enJig.dimradius },
+  dimdiameter: { ...enJig.dimdiameter },
+  dimangular: { ...enJig.dimangular },
+  dimarc: { ...enJig.dimarc },
+  dimordinate: { ...enJig.dimordinate },
+  dimcontinue: { ...enJig.dimcontinue },
+  dimbaseline: { ...enJig.dimbaseline },
   ellipse: {
     axisEndpointOrOptions: 'Zadejte koncový bod osy elipsy nebo',
     arcAxisEndpointOrCenter: 'Zadejte koncový bod osy eliptického oblouku nebo',
@@ -662,7 +671,10 @@ export default {
   measureArc: {
     startPoint: 'Zadejte počáteční bod oblouku',
     throughPoint: 'Zadejte bod na oblouku',
-    endPoint: 'Zadejte koncový bod oblouku'
+    endPoint: 'Zadejte koncový bod oblouku',
+    lockedEndPoint:
+      'Zadejte koncový bod oblouku (Ctrl přepne velký/malý oblouk)',
+    invalidPoints: 'Tři body jsou kolineární a nedefinují oblouk.'
   },
   measureArea: {
     firstPoint: 'Zadejte první bod',
@@ -672,8 +684,79 @@ export default {
     firstPoint: 'Zadejte první bod',
     secondPoint: 'Zadejte druhý bod'
   },
+  measureContinuous: {
+    firstPoint: 'Zadejte první bod',
+    nextPoint: 'Zadejte další bod (nebo stiskněte Enter pro dokončení)'
+  },
   measurePoint: {
     point: 'Zadejte bod'
+  },
+  measurement: {
+    import: {
+      chooseFile: 'Vyberte sidecar JSON soubor měření'
+    }
+  },
+  markup: {
+    author: 'Zadejte autora kontroly (uloží se pro pozdější použití)',
+    text: {
+      point: 'Zadejte bod textové poznámky',
+      content: 'Zadejte text poznámky'
+    },
+    line: {
+      firstPoint: 'Zadejte první bod úsečkové poznámky',
+      secondPoint: 'Zadejte druhý bod úsečkové poznámky'
+    },
+    arrow: {
+      firstPoint: 'Zadejte počáteční bod šipky',
+      secondPoint: 'Zadejte hrot šipky'
+    },
+    cloud: {
+      firstCorner: 'Zadejte první roh obláčku',
+      secondCorner: 'Zadejte protilehlý roh obláčku'
+    },
+    rect: {
+      firstCorner: 'Zadejte první roh obdélníku',
+      secondCorner: 'Zadejte protilehlý roh obdélníku'
+    },
+    circle: {
+      center: 'Zadejte střed kružnice',
+      radius: 'Zadejte poloměr kružnice'
+    },
+    shape: {
+      calloutOn: '[Odkaz zapnut]',
+      calloutOff: '[Odkaz vypnut]',
+      calloutAnchor: 'Zadejte umístění textu odkazu',
+      keywords: {
+        callout: {
+          display: 'Odkaz(C)',
+          local: 'Odkaz',
+          global: 'Callout'
+        },
+        noCallout: {
+          display: 'BezOdkazu(N)',
+          local: 'BezOdkazu',
+          global: 'NoCallout'
+        }
+      }
+    },
+    highlight: {
+      firstCorner: 'Zadejte první roh zvýraznění',
+      secondCorner: 'Zadejte protilehlý roh zvýraznění'
+    },
+    callout: {
+      tip: 'Zadejte hrot vodítka, nebo obrys obláčku/obdélníku/kružnice bez odkazu',
+      anchor: 'Zadejte umístění textu odkazu',
+      content: 'Zadejte text odkazu'
+    },
+    stamp: {
+      kind: 'Zadejte identifikátor razítka [approved/rejected/revised/for-review/custom]',
+      imageUrl: 'Zadejte URL vlastního obrázku razítka (volitelné)',
+      caption: 'Zadejte popisek razítka (volitelné)',
+      point: 'Zadejte bod vložení razítka'
+    },
+    import: {
+      chooseFile: 'Vyberte sidecar JSON soubor poznámek'
+    }
   },
   move: {
     basePointOrDisplacement: 'Zadejte základní bod nebo',
@@ -697,6 +780,16 @@ export default {
   },
   mtext: {
     point: 'Zadejte bod vložení víceřádkového textu'
+  },
+  bmpout: {
+    boundsFirstCorner: 'Zadejte první roh rozsahu',
+    boundsSecondCorner: 'Zadejte protilehlý roh',
+    longSidePrompt: 'Zadejte velikost delší strany v pixelech'
+  },
+  jpgout: {
+    boundsFirstCorner: 'Zadejte první roh rozsahu',
+    boundsSecondCorner: 'Zadejte protilehlý roh',
+    longSidePrompt: 'Zadejte velikost delší strany v pixelech'
   },
   pngout: {
     boundsFirstCorner: 'Zadejte první roh rozsahu',
@@ -832,8 +925,7 @@ export default {
     areaLengthOrWidth: 'Zadejte délku obdélníku',
     areaSpecifyWidth: 'Zadejte šířku obdélníku',
     invalidPositive: 'Neplatný vstup. Zadejte hodnotu větší než 0.',
-    invalidRect:
-      'Nelze vytvořit obdélník. Zadejte platné rohy nebo rozměry.',
+    invalidRect: 'Nelze vytvořit obdélník. Zadejte platné rohy nebo rozměry.',
     thicknessNotSupported:
       'Tloušťka obdélníku se aktuálně nezapisuje do dat entity. Nastavení tloušťky se ignoruje.',
     keywords: {
@@ -917,9 +1009,119 @@ export default {
       referencePoints: 'Neplatné referenční body: body musí být různé.'
     }
   },
-  sketch: {
+  revcloud: {
+    firstCornerOrOptions: 'Zadejte první rohový bod nebo',
+    firstCorner: 'Zadejte první rohový bod',
+    oppositeCorner: 'Zadejte protilehlý roh',
+    startPoint: 'Zadejte počáteční bod',
+    nextPoint: 'Zadejte další bod',
+    nextPointOrUndo: 'Zadejte další bod nebo',
     firstPoint: 'Zadejte první bod',
-    nextPoint: 'Zadejte koncový bod'
+    guideCursor: 'Veďte kurzor podél obláčku (Enter dokončí)',
+    arcLength: 'Zadejte délku oblouku',
+    selectObject: 'Vyberte objekt',
+    style: 'Zadejte styl oblouků revizního obláčku',
+    reverseDirection: 'Obrátit směr',
+    invalidArcLength: 'Délka oblouku musí být větší než 0.',
+    invalidObject: 'Vybraný objekt nelze převést na revizní obláček.',
+    keywords: {
+      arcLength: {
+        display: 'Délka oblouku(A)',
+        local: 'Délka oblouku',
+        global: 'ArcLength'
+      },
+      object: {
+        display: 'Objekt(O)',
+        local: 'Objekt',
+        global: 'Object'
+      },
+      rectangular: {
+        display: 'Obdélníkový(R)',
+        local: 'Obdélníkový',
+        global: 'Rectangular'
+      },
+      polygonal: {
+        display: 'Mnohoúhelníkový(P)',
+        local: 'Mnohoúhelníkový',
+        global: 'Polygonal'
+      },
+      freehand: {
+        display: 'Od ruky(F)',
+        local: 'Od ruky',
+        global: 'Freehand'
+      },
+      style: {
+        display: 'Styl(S)',
+        local: 'Styl',
+        global: 'Style'
+      },
+      normal: {
+        display: 'Normální(N)',
+        local: 'Normální',
+        global: 'Normal'
+      },
+      calligraphy: {
+        display: 'Kaligrafie(C)',
+        local: 'Kaligrafie',
+        global: 'Calligraphy'
+      },
+      undo: {
+        display: 'Zpět(U)',
+        local: 'Zpět',
+        global: 'Undo'
+      },
+      yes: {
+        display: 'Ano(Y)',
+        local: 'Ano',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Ne(N)',
+        local: 'Ne',
+        global: 'No'
+      }
+    }
+  },
+  sketch: {
+    specifySketch: 'Zadejte skicu nebo',
+    sketching: 'Pohybem ukazatele kreslete (kliknutím nebo Enter zastavíte)',
+    type: 'Zadejte typ skici',
+    increment: 'Zadejte přírůstek skici',
+    tolerance: 'Zadejte toleranci splajnu',
+    firstPoint: 'Zadejte první bod',
+    nextPoint: 'Zadejte koncový bod',
+    keywords: {
+      type: {
+        display: 'Typ(T)',
+        local: 'Typ',
+        global: 'Type'
+      },
+      increment: {
+        display: 'Přírůstek(I)',
+        local: 'Přírůstek',
+        global: 'Increment'
+      },
+      tolerance: {
+        display: 'toLerance(L)',
+        local: 'toLerance',
+        global: 'Tolerance'
+      },
+      line: {
+        display: 'Úsečky(L)',
+        local: 'Úsečky',
+        global: 'Lines'
+      },
+      polyline: {
+        display: 'Křivka(P)',
+        local: 'Křivka',
+        global: 'Polyline'
+      },
+      spline: {
+        display: 'Splajn(S)',
+        local: 'Splajn',
+        global: 'Spline'
+      }
+    }
   },
   spline: {
     firstPoint: 'Zadejte první bod',
@@ -1014,6 +1216,21 @@ export default {
         local: 'Předchozí',
         global: 'Previous'
       },
+      original: {
+        display: 'Původní(O)',
+        local: 'Původní',
+        global: 'Original'
+      },
+      saved: {
+        display: 'Uložený(V)',
+        local: 'Uložený',
+        global: 'Saved'
+      },
+      smart: {
+        display: 'Chytrý(I)',
+        local: 'Chytrý',
+        global: 'Smart'
+      },
       scale: {
         display: 'Měřítko(S)',
         local: 'Měřítko',
@@ -1027,10 +1244,25 @@ export default {
     }
   },
   chtml: {
+    exportFormat: 'Formát exportu',
     exportInvisibleLayers: 'Exportovat neviditelné hladiny',
+    exportLayouts: 'Exportovat rozvržení',
+    background: 'Barva pozadí',
     initialView: 'Počáteční pohled při otevření HTML',
     viewerMode: 'Režim offline prohlížeče',
+    chunkSizeMiB: 'Velikost části v MiB (vícesouborový balíček)',
+    compressChunks: 'Komprimovat části (vícesouborový balíček)',
     keywords: {
+      single: {
+        display: 'Jeden soubor(S)',
+        local: 'Jeden soubor',
+        global: 'Single'
+      },
+      multi: {
+        display: 'Vícesouborový balíček(M)',
+        local: 'Vícesouborový balíček',
+        global: 'Multi'
+      },
       yes: {
         display: 'Ano(Y)',
         local: 'Ano',
@@ -1057,9 +1289,61 @@ export default {
         global: 'View'
       },
       measure: {
-        display: 'Měření(M)',
-        local: 'Měření',
+        display: 'Měření a kontrola(M)',
+        local: 'Měření a kontrola',
         global: 'Measure'
+      },
+      black: {
+        display: 'Černá(B)',
+        local: 'Černá',
+        global: 'Black'
+      },
+      white: {
+        display: 'Bílá(W)',
+        local: 'Bílá',
+        global: 'White'
+      },
+      space: {
+        display: 'Prostor(S)',
+        local: 'Prostor',
+        global: 'Space'
+      }
+    }
+  },
+  cpdf: {
+    modelSpaceFit: 'Rám modelového prostoru',
+    exportLayouts: 'Exportovat rozvržení',
+    textMode: 'Vykreslení textu',
+    keywords: {
+      extents: {
+        display: 'Rozsah(E)',
+        local: 'Rozsah',
+        global: 'Extents'
+      },
+      display: {
+        display: 'Zobrazení(D)',
+        local: 'Zobrazení',
+        global: 'Display'
+      },
+      text: {
+        display: 'Text(T)',
+        local: 'Text',
+        global: 'Text'
+      },
+      vector: {
+        display: 'Vektor(V)',
+        local: 'Vektor',
+        global: 'Vector'
+      },
+      yes: {
+        display: 'Ano(Y)',
+        local: 'Ano',
+        global: 'Yes'
+      },
+      no: {
+        display: 'Ne(N)',
+        local: 'Ne',
+        global: 'No'
       }
     }
   }

@@ -151,7 +151,7 @@ export async function runDossierTool(
         db
       )
       if (result.errors.length) throw new Error(result.errors.join('\n'))
-      if (!database) await AcApDocManager.instance.regen()
+      if (!database) await refreshDossierView()
       return summary(model.values, result.runId!, {
         soDoiTuong: result.entityCount,
         macDinhTuMau: DOSSIER_PARAMS.filter(
@@ -187,7 +187,7 @@ export async function runDossierTool(
         throw new Error(`Tên ${renamed} đã thuộc hồ sơ khác; chưa sửa gì.`)
       const result = await editTemplateRun(runId, changes, db)
       if (result.errors.length) throw new Error(result.errors.join('\n'))
-      if (!database) await AcApDocManager.instance.regen()
+      if (!database) await refreshDossierView()
       return summary(result.values, runId, {
         soDoiTuong: result.entityCount,
         soDoiTuongXoa: result.removed
@@ -262,4 +262,15 @@ export async function runDossierTool(
       message: error instanceof Error ? error.message : String(error)
     }
   }
+}
+
+/** Finish regeneration before framing the generated sheets; a successful tool
+ * must show its result even in Simple mode, which does not run a zoom round. */
+async function refreshDossierView(): Promise<void> {
+  const manager = AcApDocManager.instance
+  await manager.regen()
+  const view = manager.curView
+  await view.waitUntilIdle(120000)
+  const extents = view.getDrawingExtents()
+  if (extents) view.zoomTo(extents)
 }

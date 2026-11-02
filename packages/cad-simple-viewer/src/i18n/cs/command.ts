@@ -31,11 +31,17 @@ export default {
       description:
         'Nastaví přesnost zobrazení úhlů, používá se společně s AUNITS'
     },
+    bmpout: {
+      description: 'Exportuje do BMP'
+    },
     cdxf: {
       description: 'Exportuje aktuální výkres do DXF'
     },
     cpdf: {
       description: 'Exportuje aktuální výkres do PDF'
+    },
+    '-cpdf': {
+      description: 'Exportuje aktuální výkres do PDF pomocí příkazového řádku'
     },
     cecolor: {
       description: 'Nastaví aktuální výchozí barvu pro nově vytvářené objekty'
@@ -94,11 +100,38 @@ export default {
     dimlinear: {
       description: 'Vytvoří lineární kóty'
     },
+    dimaligned: {
+      description: 'Vytvoří zarovnanou lineární kótu'
+    },
+    dimradius: {
+      description: 'Vytvoří poloměrové kóty kruhů a oblouků'
+    },
+    dimdiameter: {
+      description: 'Vytvoří průměrové kóty kruhů a oblouků'
+    },
+    dimangular: {
+      description: 'Vytvoří úhlové kóty'
+    },
+    dimarc: {
+      description: 'Vytvoří kótu délky oblouku'
+    },
+    dimordinate: {
+      description: 'Vytvoří souřadnicovou kótu'
+    },
+    dimcontinue: {
+      description: 'Vytvoří řetězovou kótu'
+    },
+    dimbaseline: {
+      description: 'Vytvoří základnovou kótu'
+    },
     dimstyle: {
       description: 'Nastaví název aktuálního stylu kótování'
     },
     dwgname: {
       description: 'Ukládá název aktuálního souboru výkresu (pouze pro čtení)'
+    },
+    loginname: {
+      description: 'Zobrazí přihlašovací jméno uživatele (pouze pro čtení)'
     },
     dynmode: {
       description: 'Řídí nastavení dynamického zadávání u kurzoru'
@@ -211,6 +244,9 @@ export default {
       description:
         'Určuje jednotky výkresu pro automatické měřítko vkládaných bloků, obrázků nebo externích referencí'
     },
+    jpgout: {
+      description: 'Exportuje do JPEG'
+    },
     laycur: {
       description: 'Změní hladinu vybraných objektů na aktuální hladinu',
       prompt: 'Vyberte objekty pro změnu na aktuální hladinu'
@@ -274,7 +310,19 @@ export default {
       description: 'Řídí, zda se ve výkresu zobrazují tloušťky čar'
     },
     clearmeasurements: {
-      description: 'Odstraní z pohledu všechna aktivní měření'
+      description: 'Odstraní všechna měření z aktuálního rozvržení'
+    },
+    measurementvis: {
+      description: 'Zobrazí nebo skryje měření na aktuálním rozvržení'
+    },
+    measurementpanel: {
+      description: 'Otevře paletu měření'
+    },
+    measurementexport: {
+      description: 'Exportuje měření do sidecar JSON souboru'
+    },
+    measurementimport: {
+      description: 'Importuje měření ze sidecar JSON souboru'
     },
     measurearea: {
       description: 'Vypočítá plochu a obvod vybraných objektů nebo bodů'
@@ -287,6 +335,10 @@ export default {
     },
     measuredistance: {
       description: 'Změří vzdálenost a přírůstky mezi dvěma body'
+    },
+    measurecontinuous: {
+      description:
+        'Měří řetězené vzdálenosti postupným zadáváním bodů, dokud nestisknete Enter nebo Zrušit'
     },
     measurepoint: {
       description: 'Změří souřadnice X/Y vybraného bodu'
@@ -377,6 +429,9 @@ export default {
     qnew: {
       description: 'Zahájí nový výkres'
     },
+    close: {
+      description: 'Zavře aktuální výkres'
+    },
     ray: {
       description:
         'Vytvoří polopřímku, která začíná v bodě a pokračuje do nekonečna'
@@ -388,7 +443,50 @@ export default {
       description: 'Překreslí aktuální výkres'
     },
     revcloud: {
-      description: 'Vytvoří revizní obláček obdélníkového tvaru'
+      description: 'Vytvoří nebo upraví revizní obláček'
+    },
+    markuptext: {
+      description: 'Umístí textovou poznámku'
+    },
+    markupline: {
+      description: 'Vytvoří úsečkovou poznámku'
+    },
+    markuparrow: {
+      description: 'Vytvoří šipkovou poznámku'
+    },
+    markupcloud: {
+      description: 'Vytvoří revizní obláček'
+    },
+    markuprect: {
+      description: 'Vytvoří obdélníkovou poznámku'
+    },
+    markupcircle: {
+      description: 'Vytvoří kruhovou poznámku'
+    },
+    markuphighlight: {
+      description: 'Vytvoří zvýrazňovací obdélník'
+    },
+    markupcallout: {
+      description:
+        'Vytvoří odkazovou poznámku: zadejte hrot odkazu, umístěte textové pole a zadejte text'
+    },
+    markupstamp: {
+      description: 'Umístí razítko nebo vlastní symbol'
+    },
+    markupvis: {
+      description: 'Zobrazí nebo skryje poznámky'
+    },
+    clearmarkups: {
+      description: 'Vymaže všechny poznámky na aktuálním rozvržení'
+    },
+    markupexport: {
+      description: 'Exportuje poznámky do sidecar JSON souboru'
+    },
+    markupimport: {
+      description: 'Importuje poznámky ze sidecar JSON souboru'
+    },
+    markuppanel: {
+      description: 'Otevře paletu poznámek'
     },
     rotate: {
       description: 'Otočí vybrané objekty kolem základního bodu',
@@ -401,8 +499,7 @@ export default {
       description: 'Řídí dostupnost místních nabídek v oblasti výkresu'
     },
     sketch: {
-      description:
-        'Vytvoří skicovací čáru pomocí křivky, která sleduje pohyb myši'
+      description: 'Vytvoří řadu úseček kreslených od ruky'
     },
     spline: {
       description: 'Vytvoří hladkou křivku splajn zadáním řídicích bodů'

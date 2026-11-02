@@ -18,7 +18,7 @@ const MODES: readonly AgentMode[] = ['gon', 'simple', 'high-inference']
 /** What an earlier build called the compact mode, kept so a saved choice survives. */
 const RENAMED: Readonly<Record<string, AgentMode>> = { 'mot-lenh': 'gon' }
 
-const DEFAULT_MODE: AgentMode = 'high-inference'
+const DEFAULT_MODE: AgentMode = 'simple'
 
 /**
  * How many model calls one turn may make, per mode.

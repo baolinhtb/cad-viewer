@@ -12,6 +12,9 @@ export default {
     acadver: {
       description: '存储图形数据库版本标识符（只读）'
     },
+    annoallvisible: {
+      description: '控制不支持当前注释比例的注释性对象是否显示'
+    },
     angbase: {
       description: '设置当前 UCS 中 0 度的基准角方向'
     },
@@ -27,11 +30,20 @@ export default {
     auprec: {
       description: '设置角度显示精度（小数位数），与 AUNITS 配合使用'
     },
+    bmpout: {
+      description: '导出为 BMP 图片'
+    },
+    cannoscale: {
+      description: '设置当前注释比例名称'
+    },
     cdxf: {
       description: '导出当前图纸为DXF格式'
     },
     cpdf: {
       description: '导出当前图纸为PDF格式'
+    },
+    '-cpdf': {
+      description: '使用命令行选项将当前图纸导出为PDF'
     },
     cecolor: {
       description: '设置新创建对象的当前默认颜色'
@@ -85,11 +97,38 @@ export default {
     dimlinear: {
       description: '创建线性尺寸标注'
     },
+    dimaligned: {
+      description: '创建对齐线性尺寸标注'
+    },
+    dimradius: {
+      description: '为圆和圆弧创建半径尺寸标注'
+    },
+    dimdiameter: {
+      description: '为圆和圆弧创建直径尺寸标注'
+    },
+    dimangular: {
+      description: '创建角度尺寸标注'
+    },
+    dimarc: {
+      description: '创建弧长标注'
+    },
+    dimordinate: {
+      description: '创建坐标标注'
+    },
+    dimcontinue: {
+      description: '创建连续标注'
+    },
+    dimbaseline: {
+      description: '创建基线标注'
+    },
     dimstyle: {
       description: '设置当前标注样式的名称'
     },
     dwgname: {
       description: '存储当前图形文件的名称（只读）'
+    },
+    loginname: {
+      description: '显示当前用户的登录名（只读）'
     },
     dynmode: {
       description: '控制光标处的动态输入设置'
@@ -184,6 +223,9 @@ export default {
     insunits: {
       description: '指定插入块、图像或外部参照时用于自动缩放的图形单位'
     },
+    jpgout: {
+      description: '导出为 JPEG 图片'
+    },
     laycur: {
       description: '将所选对象的图层属性更改为当前图层',
       prompt: '选择要更改到当前图层的对象'
@@ -245,7 +287,19 @@ export default {
       description: '用于控制是否在图纸中显示线宽效果'
     },
     clearmeasurements: {
-      description: '清除视图中的所有测量标注'
+      description: '清除当前布局上的所有测量标注'
+    },
+    measurementvis: {
+      description: '显示或隐藏当前布局上的测量标注'
+    },
+    measurementpanel: {
+      description: '打开测量面板'
+    },
+    measurementexport: {
+      description: '将测量标注导出为 sidecar JSON 文件'
+    },
+    measurementimport: {
+      description: '从 sidecar JSON 文件导入测量标注'
     },
     measurearea: {
       description: '计算所选对象或点定义区域的面积和周长'
@@ -258,6 +312,9 @@ export default {
     },
     measuredistance: {
       description: '测量两点之间的距离及坐标增量'
+    },
+    measurecontinuous: {
+      description: '连续拾取多个点测量各段距离，直到按 Enter 或取消'
     },
     measurepoint: {
       description: '测量拾取点的 X/Y 坐标'
@@ -277,6 +334,10 @@ export default {
     move: {
       description: '通过位移向量移动所选图元',
       prompt: '选择对象'
+    },
+    objectscale: {
+      description: '为选定的注释性对象添加或删除支持的注释比例',
+      prompt: '选择注释性对象'
     },
     offset: {
       description: '按指定距离创建平行曲线、多段线或圆'
@@ -338,6 +399,9 @@ export default {
     qnew: {
       description: '创建新图纸'
     },
+    close: {
+      description: '关闭当前图纸'
+    },
     ray: {
       description: '创建从起点向单一方向无限延伸的射线'
     },
@@ -348,7 +412,49 @@ export default {
       description: '重绘图纸'
     },
     revcloud: {
-      description: '创建矩形修订云线'
+      description: '创建或修改修订云线'
+    },
+    markuptext: {
+      description: '放置文字批注'
+    },
+    markupline: {
+      description: '创建直线批注'
+    },
+    markuparrow: {
+      description: '创建箭头批注'
+    },
+    markupcloud: {
+      description: '创建修订云线批注'
+    },
+    markuprect: {
+      description: '创建矩形批注'
+    },
+    markupcircle: {
+      description: '创建圆形批注'
+    },
+    markuphighlight: {
+      description: '创建高亮矩形批注'
+    },
+    markupcallout: {
+      description: '创建标注：先指定引线尖端，再放置文字框，最后输入文字'
+    },
+    markupstamp: {
+      description: '放置图章或自定义符号'
+    },
+    markupvis: {
+      description: '显示或隐藏批注'
+    },
+    clearmarkups: {
+      description: '清除当前布局上的所有批注'
+    },
+    markupexport: {
+      description: '将批注导出为 sidecar JSON 文件'
+    },
+    markupimport: {
+      description: '从 sidecar JSON 文件导入批注'
+    },
+    markuppanel: {
+      description: '打开批注面板'
     },
     rotate: {
       description: '绕基点旋转所选图元',
@@ -361,7 +467,7 @@ export default {
       description: '控制图形区域中快捷菜单的可用性'
     },
     sketch: {
-      description: '使用多段线创建手绘线，跟踪鼠标移动'
+      description: '创建一系列徒手线段'
     },
     spline: {
       description: '通过指定控制点创建平滑的样条曲线'
@@ -374,6 +480,9 @@ export default {
     },
     switchbg: {
       description: '切换绘图区域背景颜色，在白色和黑色背景之间切换'
+    },
+    readingmode: {
+      description: '切换阅读模式：白底黑线，便于阅读复杂图纸'
     },
     unisolateobjects: {
       description: '重新显示 HIDEOBJECTS 隐藏的所有对象'

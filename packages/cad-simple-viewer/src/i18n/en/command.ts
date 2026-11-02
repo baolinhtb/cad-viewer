@@ -13,6 +13,10 @@ export default {
     acadver: {
       description: 'Stores the drawing database version identifier (read-only)'
     },
+    annoallvisible: {
+      description:
+        'Controls whether annotative objects that do not support the current annotation scale are displayed'
+    },
     angbase: {
       description:
         'Sets the base angle 0 direction with respect to the current UCS'
@@ -31,11 +35,20 @@ export default {
       description:
         'Sets the display precision for angles, used together with AUNITS'
     },
+    bmpout: {
+      description: 'Exports to BMP'
+    },
+    cannoscale: {
+      description: 'Sets the name of the current annotation scale'
+    },
     cdxf: {
       description: 'Exports current drawing to DXF'
     },
     cpdf: {
       description: 'Exports current drawing to PDF'
+    },
+    '-cpdf': {
+      description: 'Exports current drawing to PDF using command-line options'
     },
     cecolor: {
       description: 'Sets the current default color for newly created objects'
@@ -92,11 +105,38 @@ export default {
     dimlinear: {
       description: 'Creates linear dimensions'
     },
+    dimaligned: {
+      description: 'Creates an aligned linear dimension'
+    },
+    dimradius: {
+      description: 'Creates radial dimensions for circles and arcs'
+    },
+    dimdiameter: {
+      description: 'Creates diameter dimensions for circles and arcs'
+    },
+    dimangular: {
+      description: 'Creates angular dimensions'
+    },
+    dimarc: {
+      description: 'Creates arc length dimensions'
+    },
+    dimordinate: {
+      description: 'Creates ordinate dimensions'
+    },
+    dimcontinue: {
+      description: 'Creates a continued dimension'
+    },
+    dimbaseline: {
+      description: 'Creates a baseline dimension'
+    },
     dimstyle: {
       description: 'Sets the name of the current dimension style'
     },
     dwgname: {
       description: 'Stores the name of the current drawing file (read-only)'
+    },
+    loginname: {
+      description: 'Displays the user\'s login name (read-only)'
     },
     dynmode: {
       description: 'Controls Dynamic Input settings at the cursor'
@@ -208,6 +248,9 @@ export default {
       description:
         'Specifies drawing units for automatic scaling of inserted blocks, images, or xrefs'
     },
+    jpgout: {
+      description: 'Exports to JPEG'
+    },
     laycur: {
       description:
         'Changes the layer property of selected objects to the current layer',
@@ -272,7 +315,19 @@ export default {
       description: 'Controls whether lineweights are displayed in the drawing'
     },
     clearmeasurements: {
-      description: 'Removes all active measurements from the view'
+      description: 'Removes all measurements from the current layout'
+    },
+    measurementvis: {
+      description: 'Shows or hides measurements on the current layout'
+    },
+    measurementpanel: {
+      description: 'Opens the measurement palette'
+    },
+    measurementexport: {
+      description: 'Exports measurements to a sidecar JSON file'
+    },
+    measurementimport: {
+      description: 'Imports measurements from a sidecar JSON file'
     },
     measurearea: {
       description:
@@ -286,6 +341,10 @@ export default {
     },
     measuredistance: {
       description: 'Measures the distance and delta values between two points'
+    },
+    measurecontinuous: {
+      description:
+        'Measures chained distances by picking successive points until Enter or Cancel'
     },
     measurepoint: {
       description: 'Measures the X/Y coordinates of a picked point'
@@ -306,6 +365,11 @@ export default {
     move: {
       description: 'Moves selected entities by a displacement vector',
       prompt: 'Select entities'
+    },
+    objectscale: {
+      description:
+        'Adds or deletes supported annotation scales for selected annotative objects',
+      prompt: 'Select annotative objects'
     },
     offset: {
       description:
@@ -376,6 +440,9 @@ export default {
     qnew: {
       description: 'Starts a new drawing'
     },
+    close: {
+      description: 'Closes the current drawing'
+    },
     ray: {
       description:
         'Creates a ray that starts at a point and extends to infinity'
@@ -387,7 +454,50 @@ export default {
       description: 'Redraws the current drawing'
     },
     revcloud: {
-      description: 'Creates a revision cloud (cloud line) in rectangular shape'
+      description: 'Creates or modifies a revision cloud'
+    },
+    markuptext: {
+      description: 'Places a text markup label'
+    },
+    markupline: {
+      description: 'Creates a line markup'
+    },
+    markuparrow: {
+      description: 'Creates an arrow markup'
+    },
+    markupcloud: {
+      description: 'Creates a revision cloud markup'
+    },
+    markuprect: {
+      description: 'Creates a rectangle markup'
+    },
+    markupcircle: {
+      description: 'Creates a circle markup'
+    },
+    markuphighlight: {
+      description: 'Creates a highlight rectangle markup'
+    },
+    markupcallout: {
+      description:
+        'Creates a callout: pick leader tip, place text box, then enter text'
+    },
+    markupstamp: {
+      description: 'Places a stamp or custom symbol'
+    },
+    markupvis: {
+      description: 'Shows or hides markups'
+    },
+    clearmarkups: {
+      description: 'Clears all markups on the current layout'
+    },
+    markupexport: {
+      description: 'Exports markups to a sidecar JSON file'
+    },
+    markupimport: {
+      description: 'Imports markups from a sidecar JSON file'
+    },
+    markuppanel: {
+      description: 'Opens the markup palette'
     },
     rotate: {
       description: 'Rotates selected entities around a base point',
@@ -401,8 +511,7 @@ export default {
         'Controls the availability of shortcut menus in the drawing area'
     },
     sketch: {
-      description:
-        'Creates a sketch line using polyline that tracks mouse movement'
+      description: 'Creates a series of freehand line segments'
     },
     spline: {
       description: 'Creates a smooth spline curve by specifying control points'
@@ -416,6 +525,10 @@ export default {
     },
     switchbg: {
       description: 'Toggles the drawing area background between white and black'
+    },
+    readingmode: {
+      description:
+        'Toggles reading mode: black linework on a white canvas for easier review'
     },
     unisolateobjects: {
       description: 'Redisplay all objects hidden by HIDEOBJECTS'

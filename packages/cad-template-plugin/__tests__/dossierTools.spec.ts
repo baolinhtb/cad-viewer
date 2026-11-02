@@ -26,6 +26,41 @@ const entities = (db: AcDbDatabase) => [
 ]
 
 describe('dossier tools against a real database', () => {
+  test('a live create waits for scene regeneration and frames its result in Simple mode', async () => {
+    const db = database()
+    const manager = jest.requireMock('@mlightcad/cad-simple-viewer')
+      .AcApDocManager.instance
+    const box = { min: { x: 0, y: 0 }, max: { x: 250000, y: 150000 } }
+    let release!: (value: boolean) => void
+    let entered!: () => void
+    const idle = new Promise<boolean>(resolve => {
+      release = resolve
+    })
+    const waiting = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    manager.curDocument = { database: db }
+    manager.curView = {
+      waitUntilIdle: jest.fn(() => {
+        entered()
+        return idle
+      }),
+      getDrawingExtents: jest.fn(() => box),
+      zoomTo: jest.fn()
+    }
+    manager.regen.mockResolvedValue(undefined)
+    const pending = runDossierTool('tao_ho_so_mo', {
+      thong_so: { thep: 'khong' }
+    })
+    await waiting
+    expect(manager.curView.zoomTo).not.toHaveBeenCalled()
+    release(true)
+    expect((await pending).ok).toBe(true)
+    expect(manager.curView.zoomTo).toHaveBeenCalledWith(box)
+    delete manager.curDocument
+    delete manager.curView
+  })
+
   test('one prompt call draws six tagged sheets, duplicate create is refused, and undo removes it all', async () => {
     const db = database()
     const result = await runDossierTool('tao_ho_so_mo', {}, db)
@@ -132,6 +167,7 @@ describe('dossier tools against a real database', () => {
     expect(listRuns(db)).toHaveLength(1)
     expect(listRuns(db)[0].templateId).toBe('ho_so_mo_m1')
     expect(listRuns(db)[0].values.soHangCoc).toBe(2)
+    expect(listRuns(db)[0].values.congTrinh).toBe(scene.model.values.congTrinh)
     expect(
       (
         await runDossierTool(

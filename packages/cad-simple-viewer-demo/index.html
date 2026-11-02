@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en" data-ml-ui-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CAD Simple Viewer Example</title>
+    <style>
+      :root {
+        --ml-ui-text: #e5eaf3;
+        --ml-ui-text-muted: #cfd3dc;
+        --ml-ui-bg: #1d1e1f;
+        --ml-ui-bg-page: #141414;
+        --ml-ui-bg-fill: #262727;
+        --ml-ui-border: #4c4d4f;
+        --ml-ui-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        --ml-ui-overlay: rgba(0, 0, 0, 0.5);
+        --ml-ui-accent: #409eff;
+        --ml-ui-accent-alt: #909399;
+        --ml-ui-danger: #f56c6c;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        height: 100%;
+        color-scheme: dark;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .app-shell {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .file-sidebar-column {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: row;
+        min-width: 0;
+        width: 180px;
+      }
+
+      .file-sidebar-column.is-hidden {
+        display: none;
+      }
+
+      .file-sidebar {
+        flex: 1 1 auto;
+        min-width: 0;
+        background: var(--ml-ui-bg-page);
+        border-right: none;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        overflow: auto;
+      }
+
+      .file-sidebar-resize-handle {
+        flex: 0 0 6px;
+        width: 6px;
+        cursor: ew-resize;
+        background: transparent;
+        touch-action: none;
+        border-right: 1px solid var(--ml-ui-border);
+      }
+
+      .file-sidebar-resize-handle:hover,
+      .file-sidebar-resize-handle:active {
+        background: var(--ml-ui-bg-fill);
+      }
+
+      .file-sidebar-toggle {
+        display: none;
+      }
+
+      .sidebar-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--ml-ui-accent);
+      }
+
+      .sidebar-help {
+        font-size: 0.82rem;
+        color: var(--ml-ui-text-muted);
+        line-height: 1.4;
+        margin-bottom: 0.75rem;
+      }
+
+      .file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .file-list-item {
+        width: 100%;
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 8px;
+        background: var(--ml-ui-bg-fill);
+        color: var(--ml-ui-text);
+        text-align: left;
+        padding: 0.65rem 0.7rem;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .file-list-item:hover {
+        background: color-mix(in srgb, var(--ml-ui-accent) 12%, var(--ml-ui-bg-fill));
+        border-color: var(--ml-ui-accent);
+      }
+
+      .file-list-item.active {
+        border-color: var(--ml-ui-accent);
+        background: color-mix(in srgb, var(--ml-ui-accent) 32%, var(--ml-ui-bg));
+      }
+
+      .viewer-pane {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--ml-ui-bg);
+      }
+
+      .dev-toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.65rem;
+        border-bottom: 1px solid var(--ml-ui-border);
+        background: var(--ml-ui-bg-page);
+      }
+
+      .dev-toolbar.is-disabled {
+        opacity: 0.55;
+      }
+
+      .dev-toolbar.is-disabled .dev-toolbar-primary {
+        opacity: 1;
+      }
+
+      .dev-toolbar button {
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 6px;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        font-size: 0.82rem;
+        padding: 0.35rem 0.65rem;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .dev-toolbar button:hover:not(:disabled) {
+        border-color: var(--ml-ui-accent);
+        background: color-mix(in srgb, var(--ml-ui-accent) 22%, var(--ml-ui-bg));
+      }
+
+      .dev-toolbar button.is-active {
+        border-color: var(--ml-ui-accent);
+        background: var(--ml-ui-accent);
+        color: #ffffff;
+      }
+
+      .dev-toolbar button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .dev-toolbar-menu-wrap {
+        position: relative;
+        display: inline-flex;
+      }
+
+      .dev-toolbar-menu {
+        position: absolute;
+        z-index: 120;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 220px;
+        padding: 0.5rem;
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 8px;
+        background: var(--ml-ui-bg);
+        box-shadow: var(--ml-ui-shadow);
+      }
+
+      .dev-toolbar-menu[hidden] {
+        display: none;
+      }
+
+      .dev-toolbar-menu-section + .dev-toolbar-menu-section {
+        margin-top: 0.55rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid var(--ml-ui-border);
+      }
+
+      .dev-toolbar-menu-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--ml-ui-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .dev-toolbar-menu-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.35rem;
+      }
+
+      .dev-toolbar-menu-actions button.is-selected {
+        border-color: var(--ml-ui-accent);
+        background: var(--ml-ui-accent);
+        color: #ffffff;
+      }
+
+      .dev-toolbar-menu-toggle {
+        width: 100%;
+      }
+
+      .dev-toolbar-menu-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .dev-toolbar-menu-field input[type='number'] {
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 6px;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        font-size: 0.82rem;
+        padding: 0.35rem 0.5rem;
+        width: 100%;
+      }
+
+      .dev-toolbar-menu-field input[type='number']:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .dev-toolbar-menu-field select {
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 6px;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        font-size: 0.82rem;
+        padding: 0.35rem 0.5rem;
+        width: 100%;
+        cursor: pointer;
+      }
+
+      .dev-toolbar-menu-field select:hover:not(:disabled) {
+        border-color: var(--ml-ui-accent);
+      }
+
+      .dev-toolbar-menu-field select:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .dev-toolbar-menu-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.82rem;
+        color: var(--ml-ui-text);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .dev-toolbar-menu-check input[type='checkbox'] {
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--ml-ui-accent);
+        cursor: pointer;
+      }
+
+      .dev-toolbar-menu-check input[type='checkbox']:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .demo-dock-tab-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 12px;
+        font-size: 12px;
+        color: var(--ml-ui-text);
+      }
+
+      .demo-dock-tab-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .demo-dock-tab-title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--ml-ui-text);
+      }
+
+      .demo-dock-tab-description {
+        margin: 0;
+        color: var(--ml-ui-text-muted);
+        line-height: 1.45;
+      }
+
+      .demo-dock-tab-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .demo-dock-tab-field-inline {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .demo-dock-tab-label {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--ml-ui-text-muted);
+      }
+
+      .demo-dock-tab-control {
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 6px;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        font: inherit;
+        padding: 0.4rem 0.55rem;
+      }
+
+      .demo-dock-tab-control[type='checkbox'] {
+        width: 1rem;
+        height: 1rem;
+        padding: 0;
+      }
+
+      .demo-dock-tab-control[type='range'] {
+        padding: 0;
+        border: none;
+        background: transparent;
+      }
+
+      .demo-dock-tab-field:has(input[type='range']) {
+        position: relative;
+      }
+
+      .demo-dock-tab-range-value {
+        position: absolute;
+        right: 0;
+        top: 0;
+        font-size: 0.75rem;
+        color: var(--ml-ui-text-muted);
+      }
+
+      .demo-dock-tab-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .demo-dock-tab-btn {
+        border: 1px solid var(--ml-ui-border);
+        border-radius: 6px;
+        background: var(--ml-ui-bg);
+        color: var(--ml-ui-text);
+        font-size: 0.82rem;
+        padding: 0.35rem 0.75rem;
+        cursor: pointer;
+      }
+
+      .demo-dock-tab-btn:hover {
+        border-color: var(--ml-ui-accent);
+      }
+
+      .demo-dock-tab-btn-primary {
+        border-color: var(--ml-ui-accent);
+        background: var(--ml-ui-accent);
+        color: #ffffff;
+      }
+
+      .demo-dock-tab-btn-primary:hover {
+        filter: brightness(1.08);
+      }
+
+      .demo-dock-tab-status {
+        padding: 0.55rem 0.65rem;
+        border-radius: 6px;
+        border: 1px solid var(--ml-ui-border);
+        background: var(--ml-ui-bg-fill);
+        color: var(--ml-ui-text-muted);
+        line-height: 1.45;
+        word-break: break-word;
+      }
+
+      .viewer-canvas-area {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      #cad-container {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      #cad-container canvas {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      .empty-state {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        z-index: 20;
+        pointer-events: none;
+        /* Opaque so blank viewer chrome never shows through the landing panel. */
+        background: var(--ml-ui-bg);
+      }
+
+      .empty-state.hidden {
+        display: none;
+      }
+
+      .empty-font-cdn-notice {
+        pointer-events: auto;
+        max-width: min(420px, calc(100% - 2rem));
+        font-size: 0.82rem;
+        line-height: 1.45;
+        text-align: center;
+        color: #fbbf24;
+        background: rgba(251, 191, 36, 0.08);
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        border-radius: 10px;
+        padding: 0.7rem 0.9rem;
+      }
+
+      .file-open-panel-host {
+        pointer-events: auto;
+        width: min(420px, calc(100% - 2rem));
+        box-sizing: border-box;
+      }
+
+      #fileInputElement {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="file-sidebar-column" id="fileSidebarColumn">
+      <aside class="file-sidebar" id="fileSidebar">
+        <h2 class="sidebar-title sidebar-title-desktop">Predefined Files</h2>
+        <button
+          type="button"
+          class="file-sidebar-toggle"
+          id="fileSidebarToggle"
+          aria-expanded="false"
+          aria-controls="fileSidebarBody"
+        >
+          <span class="file-sidebar-toggle-label">
+            <span class="sidebar-title">Predefined Files</span>
+            <span class="file-sidebar-toggle-subtitle" id="fileSidebarSubtitle">
+              Tap to browse sample files
+            </span>
+          </span>
+          <span class="file-sidebar-chevron" aria-hidden="true">&#x25BC;</span>
+        </button>
+        <div class="file-sidebar-body" id="fileSidebarBody">
+          <p class="sidebar-help">Select one file below or open a local DXF/DWG file.</p>
+          <div class="file-list" id="predefinedFileList">
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/canteen.dwg"
+          >
+            canteen.dwg
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/baseline-sample.dwg"
+          >
+            baseline-sample.dwg
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/hatch.dxf"
+          >
+            hatch.dxf
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/block-color.dxf"
+          >
+            block-color.dxf
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/lockers.dwg"
+          >
+            lockers.dwg
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/map-of-uae.dwg"
+          >
+            map-of-uae.dwg
+          </button>
+          <button
+            type="button"
+            class="file-list-item"
+            data-file-url="https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/data/patient-chairs.dwg"
+          >
+            patient-chairs.dwg
+          </button>
+          </div>
+        </div>
+      </aside>
+      <div
+        class="file-sidebar-resize-handle"
+        id="fileSidebarResizeHandle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize predefined files panel"
+        tabindex="-1"
+      ></div>
+      </div>
+
+      <main class="viewer-pane" id="viewerPane">
+        <div class="dev-toolbar is-disabled" id="devToolbar" role="toolbar" aria-label="Viewer demo controls">
+          <button type="button" id="devNewButton" class="dev-toolbar-primary" aria-label="New drawing">
+            New
+          </button>
+          <div class="dev-toolbar-menu-wrap">
+            <button type="button" id="devDockButton" disabled aria-haspopup="menu" aria-expanded="false">
+              Dock
+            </button>
+            <div id="devDockMenu" class="dev-toolbar-menu" hidden role="menu" aria-label="Dock panel controls">
+              <div class="dev-toolbar-menu-section">
+                <button type="button" id="devDockOpenToggle" class="dev-toolbar-menu-toggle" role="menuitem">
+                  Open Dock
+                </button>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <button type="button" id="devDockAddTab" class="dev-toolbar-menu-toggle" role="menuitem">
+                  Add Dock Tab
+                </button>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-field" for="devDockSizeInput">
+                  <span class="dev-toolbar-menu-label" id="devDockSizeLabel">Width (px)</span>
+                  <input
+                    type="number"
+                    id="devDockSizeInput"
+                    min="120"
+                    max="9999"
+                    step="1"
+                    value="280"
+                    disabled
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="dev-toolbar-menu-wrap">
+            <button type="button" id="devViewerToolbarButton" disabled aria-haspopup="menu" aria-expanded="false">
+              Toolbar
+            </button>
+            <div id="devViewerToolbarMenu" class="dev-toolbar-menu" hidden role="menu" aria-label="Toolbar controls">
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-field" for="devToolbarLayoutSelect">
+                  <span class="dev-toolbar-menu-label">Items layout</span>
+                  <select id="devToolbarLayoutSelect" disabled aria-label="Toolbar items layout">
+                    <option value="default">Built-in default</option>
+                  </select>
+                </label>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <span class="dev-toolbar-menu-label">Position</span>
+                <div class="dev-toolbar-menu-actions" role="group" aria-label="Toolbar position">
+                  <button type="button" data-viewer-toolbar-placement="top" role="menuitem">Top</button>
+                  <button type="button" data-viewer-toolbar-placement="bottom" role="menuitem">Bottom</button>
+                  <button type="button" data-viewer-toolbar-placement="left" role="menuitem">Left</button>
+                  <button type="button" data-viewer-toolbar-placement="right" role="menuitem">Right</button>
+                </div>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-field" for="devViewerToolbarEdgeOffset">
+                  <span class="dev-toolbar-menu-label">Edge inset (px)</span>
+                  <input
+                    type="number"
+                    id="devViewerToolbarEdgeOffset"
+                    min="0"
+                    max="128"
+                    step="1"
+                    value="8"
+                    disabled
+                  />
+                </label>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <button type="button" id="devViewerToolbarVisibilityToggle" class="dev-toolbar-menu-toggle" role="menuitem">
+                  Hide Toolbar
+                </button>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <button type="button" id="devViewerToolbarCollapseToggle" class="dev-toolbar-menu-toggle" role="menuitem">
+                  Collapse Toolbar
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="dev-toolbar-menu-wrap">
+            <button type="button" id="devDisplayButton" disabled aria-haspopup="menu" aria-expanded="false">
+              Display
+            </button>
+            <div id="devDisplayMenu" class="dev-toolbar-menu" hidden role="menu" aria-label="Display controls">
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-check" for="devDisplayLineWeight">
+                  <input type="checkbox" id="devDisplayLineWeight" disabled />
+                  <span>Line weight</span>
+                </label>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-check" for="devDisplayCommandLine">
+                  <input type="checkbox" id="devDisplayCommandLine" disabled />
+                  <span>Command line</span>
+                </label>
+              </div>
+              <div class="dev-toolbar-menu-section">
+                <label class="dev-toolbar-menu-check" for="devDisplaySidebar">
+                  <input type="checkbox" id="devDisplaySidebar" disabled />
+                  <span>Sidebar</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <section class="viewer-canvas-area">
+          <div class="empty-state" id="emptyState">
+            <div class="file-open-panel-host" id="fileOpenPanelHost"></div>
+            <p class="empty-font-cdn-notice">
+              If you are in a country or region with network access restrictions, please turn on a
+              VPN. Default font files are hosted on GitHub; when access is limited they load very
+              slowly, which can make opening drawings slow or cause text not to display correctly.
+            </p>
+          </div>
+          <input type="file" id="fileInputElement" accept=".dxf,.dwg" />
+          <div id="cad-container"></div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

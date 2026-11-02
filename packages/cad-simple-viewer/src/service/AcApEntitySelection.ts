@@ -1,12 +1,9 @@
 import { AcDbEntity, AcDbObjectId } from '@mlightcad/data-model'
 
-import { AcApAnnotation, AcApContext, AcApDocManager } from '../app'
-import {
-  AcEdOpenMode,
-  AcEdPromptSelectionOptions,
-  AcEdPromptStatus
-} from '../editor'
+import { AcApContext, AcApDocManager } from '../app'
+import { AcEdPromptSelectionOptions, AcEdPromptStatus } from '../editor'
 import { AcApI18n } from '../i18n'
+import { excludeLockedLayerIds } from './AcApLockedLayer'
 
 /**
  * Prompts for a selection and returns entity ids when the user confirms.
@@ -27,7 +24,38 @@ async function promptForSelectionIds(
   ) {
     return undefined
   }
-  return selectionResult.value.ids
+  return omitLockedSelection(selectionResult.value.ids)
+}
+
+/**
+ * Removes locked-layer entities from a selection and reports the exclusion.
+ *
+ * @param ids - Candidate entity ids.
+ * @param selectionSet - Optional set to drop the excluded ids from.
+ */
+function omitLockedSelection(
+  ids: AcDbObjectId[],
+  selectionSet?: { delete: (ids: AcDbObjectId[]) => void }
+): AcDbObjectId[] {
+  const db = AcApDocManager.tryGetInstance?.()?.curDocument?.database
+  const filtered = excludeLockedLayerIds(db, ids)
+  if (filtered.lockedCount > 0) {
+    const kept = new Set(filtered.ids)
+    const dropped = ids.filter(id => !kept.has(id))
+    if (dropped.length > 0) selectionSet?.delete(dropped)
+    reportLockedLayerExclusion(filtered.lockedCount)
+  }
+  return filtered.ids
+}
+
+function reportLockedLayerExclusion(lockedCount: number): void {
+  if (lockedCount <= 0) return
+  const editor = AcApDocManager.tryGetInstance?.()?.editor
+  if (!editor) return
+  editor.showMessage(
+    `${lockedCount} ${AcApI18n.t('main.message.onLockedLayer')}`,
+    'warning'
+  )
 }
 
 /**
@@ -53,8 +81,6 @@ export interface AcApResolveSelectedResult {
 /**
  * Resolves selected entities from preselection or an interactive prompt.
  *
- * In review mode, annotation entities are filtered from the selection.
- *
  * @param context - Application context with view, document, and editor access.
  * @param options - Prompt and empty-selection behavior.
  * @returns Resolved entities and ids, or `undefined` when nothing is selected.
@@ -64,32 +90,27 @@ export async function resolveSelectedEntities(
   options: AcApResolveSelectedOptions = {}
 ): Promise<AcApResolveSelectedResult | undefined> {
   const selectionSet = context.view.selectionSet
-  const annotation = new AcApAnnotation(context.doc.database)
   const blockTable = context.doc.database.tables.blockTable
   const clearOnEmpty = options.clearOnEmpty ?? true
 
   let selectionIds: AcDbObjectId[] | undefined
   if (selectionSet.count > 0) {
-    selectionIds = selectionSet.ids
+    selectionIds = omitLockedSelection(selectionSet.ids, selectionSet)
   } else if (options.promptKey) {
     selectionIds = await promptForSelectionIds(options.promptKey)
   }
 
   if (!selectionIds || selectionIds.length === 0) return undefined
 
-  const ids =
-    context.doc.openMode == AcEdOpenMode.Review
-      ? annotation.filterAnnotationEntities(selectionIds)
-      : selectionIds
-
-  if (ids.length === 0) {
-    if (clearOnEmpty) selectionSet.clear()
-    return undefined
+  const entities: AcDbEntity[] = []
+  const ids: AcDbObjectId[] = []
+  for (const id of selectionIds) {
+    const entity = blockTable.getEntityById(id)
+    if (entity) {
+      entities.push(entity)
+      ids.push(id)
+    }
   }
-
-  const entities = ids
-    .map(id => blockTable.getEntityById(id))
-    .filter((entity): entity is AcDbEntity => !!entity)
 
   if (entities.length === 0) {
     if (clearOnEmpty) selectionSet.clear()
@@ -103,7 +124,6 @@ export async function resolveSelectedEntities(
  * Resolves entity ids from selection, supporting erase-style preselection handling.
  *
  * Uses the active selection set when non-empty; otherwise prompts with `promptKey`.
- * In review mode, annotation entities are filtered out.
  *
  * @param context - Application context with view, document, and editor access.
  * @param promptKey - I18n `sysCmdPrompt` key for the selection prompt.
@@ -114,22 +134,12 @@ export async function resolveSelectedIds(
   promptKey: string
 ): Promise<AcDbObjectId[] | undefined> {
   const selectionSet = context.view.selectionSet
-  const annotation = new AcApAnnotation(context.doc.database)
 
   if (selectionSet.count > 0) {
-    const ids =
-      context.doc.openMode == AcEdOpenMode.Review
-        ? annotation.filterAnnotationEntities(selectionSet.ids)
-        : selectionSet.ids
+    const ids = omitLockedSelection(selectionSet.ids, selectionSet)
     return ids.length > 0 ? ids : undefined
   }
 
   const selectionIds = await promptForSelectionIds(promptKey)
-  if (!selectionIds) return undefined
-
-  let ids = selectionIds
-  if (context.doc.openMode == AcEdOpenMode.Review) {
-    ids = annotation.filterAnnotationEntities(ids)
-  }
-  return ids.length > 0 ? ids : undefined
+  return selectionIds && selectionIds.length > 0 ? selectionIds : undefined
 }

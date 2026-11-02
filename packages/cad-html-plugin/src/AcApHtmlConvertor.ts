@@ -1,3 +1,17 @@
+import type { AcExSnapshot } from '@mlightcad/cad-html-core'
+import {
+  applyAcExHtmlBackground,
+  protectAcExHtmlEncodedSnapshot,
+  resolveAcApHtmlExpiresAt
+} from '@mlightcad/cad-html-core'
+import {
+  packHtmlEmbeddedPackage,
+  shouldEmbedAcExChunks
+} from '@mlightcad/cad-html-core'
+import { packHtml } from '@mlightcad/cad-html-core'
+import { buildAcExPackageAsync } from '@mlightcad/cad-html-core'
+import { zipAcExPackageFiles } from '@mlightcad/cad-html-core'
+import { encodeSnapshot } from '@mlightcad/cad-html-core'
 import {
   AcApDocManager,
   AcEdBaseView,
@@ -10,23 +24,29 @@ import { accmYieldForPaint } from '@mlightcad/data-model'
 import {
   type AcApHtmlExportOptions,
   captureAcApHtmlViewState,
-  resolveAcApHtmlExportOptions
+  resolveAcApHtmlExportOptions,
+  resolveAcApHtmlPackageBuildOptions
 } from './AcApHtmlExportOptions'
 import {
   type AcApHtmlPluginOptions,
   resolveViewerRuntimeUrl
 } from './AcApHtmlPluginOptions'
 import { AcApHtmlSnapshotBuilder } from './AcApHtmlSnapshotBuilder'
-import { packHtml } from './AcExHtmlPackager'
-import type { AcExSnapshot } from './AcExSnapshotTypes'
+
+function logExportTiming(label: string, ms: number) {
+  console.log(`[chtml] ${label}: ${ms.toFixed(0)} ms`)
+}
 
 /**
- * Orchestrates export of the active drawing to a downloadable HTML file.
+ * Orchestrates export of the active drawing to a downloadable HTML file
+ * or multi-file ACEX package zip.
  *
  * Workflow:
  * 1. Build a display-only {@link AcExSnapshot} from the current scene and database.
  * 2. Fetch the IIFE viewer runtime (inlined into the HTML).
- * 3. Package snapshot + runtime via `packHtml` and trigger a browser download.
+ * 3. Package as self-contained HTML (`single`) or zip of package files (`multi`).
+ *    For `single`, large drawings automatically embed progressive ACEC chunks;
+ *    small drawings keep a monolithic ACEX payload.
  *
  * A busy indicator is shown for the duration of the operation. The UI thread
  * is yielded between heavy steps so the browser can repaint.
@@ -52,7 +72,10 @@ export class AcApHtmlConvertor {
    */
   async prepareAcTrView2dForHtmlExport(
     view: AcEdBaseView | null | undefined,
-    options: Pick<AcApHtmlExportOptions, 'exportInvisibleLayers'> = {}
+    options: Pick<
+      AcApHtmlExportOptions,
+      'exportInvisibleLayers' | 'exportLayouts'
+    > = {}
   ): Promise<AcTrView2d> {
     if (!view || !('cadScene' in view) || !view.cadScene) {
       throw new Error(
@@ -65,9 +88,11 @@ export class AcApHtmlConvertor {
       )
     }
     const resolved = resolveAcApHtmlExportOptions(options)
-    await view.ensureEntitiesConvertedForExport({
-      includeInvisibleLayers: resolved.exportInvisibleLayers
-    })
+    const conversionOptions = {
+      includeInvisibleLayers: resolved.exportInvisibleLayers,
+      includeLayouts: resolved.exportLayouts
+    }
+    await view.ensureEntitiesConvertedForExport(conversionOptions)
     await accmYieldForPaint()
     return view
   }
@@ -76,9 +101,8 @@ export class AcApHtmlConvertor {
    * Exports the document currently open in {@link AcApDocManager}.
    *
    * @param fileName - Optional base name for the download (without extension).
-   *   When omitted, the active document's `fileName` is used. A `.html` suffix
-   *   is always applied; `.dwg` / `.dxf` suffixes on the input are stripped.
-   * @param options - Export options such as invisible-layer inclusion and initial view.
+   *   When omitted, the active document's `fileName` is used.
+   * @param options - Export options including {@link AcApHtmlExportOptions.exportFormat}.
    * @param view - Optional view to export from. Defaults to the active view.
    * @returns Resolves when packaging and download complete.
    */
@@ -89,47 +113,102 @@ export class AcApHtmlConvertor {
   ) {
     const docManager = AcApDocManager.instance
     const resolved = resolveAcApHtmlExportOptions(options)
+    const totalT0 = performance.now()
 
     await docManager.withBusyIndicator(async () => {
       await accmYieldForPaint()
 
       const document = docManager.curDocument
+      let t0 = performance.now()
       const exportView = await this.prepareAcTrView2dForHtmlExport(
         view ?? docManager.curView,
         resolved
       )
+      logExportTiming('prepare (missing entities)', performance.now() - t0)
 
       const sourceName = fileName || document.fileName || document.docTitle
+      const baseName = getDrawingExportBaseName(sourceName)
+      t0 = performance.now()
       const snapshot = await this._snapshotBuilder.buildAsync(
         exportView.cadScene,
         document.database,
         {
-          title: getDrawingExportBaseName(sourceName),
+          title: baseName,
           background: exportView.backgroundColor,
           exportInvisibleLayers: resolved.exportInvisibleLayers,
+          exportLayouts: resolved.exportLayouts,
           initialView: resolved.initialView,
           viewerMode: resolved.viewerMode,
           viewState:
-            resolved.initialView === 'current'
+            resolved.initialView === 'current' &&
+            (resolved.exportLayouts ||
+              exportView.activeLayoutBtrId === exportView.modelSpaceBtrId)
               ? captureAcApHtmlViewState(exportView)
-              : undefined
+              : undefined,
+          canvasAspectRatio: exportView.width / Math.max(exportView.height, 1)
         }
       )
+      // Live geometry is baked for the active layout canvas (white in paper
+      // space). Remap near-black / near-white ink onto the chosen canvas.
+      // `'space'` remaps each layout on its own: model black, paper white.
+      applyAcExHtmlBackground(
+        snapshot,
+        exportView.backgroundColor,
+        resolved.background
+      )
+      logExportTiming('snapshot build', performance.now() - t0)
 
       await accmYieldForPaint()
 
+      t0 = performance.now()
       const viewerRuntime = await this.loadViewerRuntime()
+      logExportTiming('load viewer runtime', performance.now() - t0)
 
       await accmYieldForPaint()
 
-      const html = packHtml(snapshot, {
-        title: snapshot.meta.title,
-        viewerRuntime
+      if (resolved.exportFormat === 'multi') {
+        t0 = performance.now()
+        const packageBuild = resolveAcApHtmlPackageBuildOptions(resolved)
+        const pkg = await buildAcExPackageAsync(snapshot, {
+          viewerRuntime,
+          baseName,
+          ...packageBuild
+        })
+        logExportTiming(
+          packageBuild.compressChunks
+            ? 'package + gzip chunks'
+            : 'package chunks',
+          performance.now() - t0
+        )
+        t0 = performance.now()
+        const zipBytes = zipAcExPackageFiles(pkg)
+        logExportTiming('zip package', performance.now() - t0)
+        await accmYieldForPaint()
+        this.downloadBytes(
+          zipBytes,
+          resolveExportDownloadName(sourceName, 'zip'),
+          'application/zip'
+        )
+        logExportTiming('chtml total', performance.now() - totalT0)
+        return
+      }
+
+      const expiresAt = resolveAcApHtmlExpiresAt(
+        resolved.expiryDays,
+        Date.now(),
+        resolved.expiresAt
+      )
+      t0 = performance.now()
+      const html = await this.packSelfContainedHtml(snapshot, viewerRuntime, {
+        expiresAt,
+        password: resolved.password || undefined
       })
+      logExportTiming('pack self-contained html', performance.now() - t0)
 
       await accmYieldForPaint()
 
       this.downloadHtml(html, resolveExportDownloadName(sourceName, 'html'))
+      logExportTiming('chtml total', performance.now() - totalT0)
     })
   }
 
@@ -139,7 +218,7 @@ export class AcApHtmlConvertor {
    * Skips scene collection; useful for tests, CLI tooling, or re-exporting a
    * snapshot produced elsewhere.
    *
-   * @param snapshot - Complete v1 snapshot to embed in the HTML.
+   * @param snapshot - Complete snapshot to embed in the HTML.
    * @param downloadName - File name passed to the browser download API (should
    *   include the `.html` extension).
    * @returns Resolves when packaging and download complete.
@@ -151,12 +230,44 @@ export class AcApHtmlConvertor {
       await accmYieldForPaint()
       const viewerRuntime = await this.loadViewerRuntime()
       await accmYieldForPaint()
-      const html = packHtml(snapshot, {
-        title: snapshot.meta.title,
-        viewerRuntime
+      const html = await this.packSelfContainedHtml(snapshot, viewerRuntime, {
+        expiresAt: null
       })
       await accmYieldForPaint()
       this.downloadHtml(html, downloadName)
+    })
+  }
+
+  /**
+   * Packages a snapshot as self-contained HTML.
+   * Large drawings embed progressive ACEC chunks; small ones keep a monolithic ACEX.
+   */
+  private async packSelfContainedHtml(
+    snapshot: AcExSnapshot,
+    viewerRuntime: string,
+    options: { expiresAt: number | null; password?: string }
+  ): Promise<string> {
+    if (shouldEmbedAcExChunks(snapshot)) {
+      return packHtmlEmbeddedPackage(snapshot, {
+        title: snapshot.meta.title,
+        viewerRuntime,
+        expiresAt: options.expiresAt,
+        password: options.password
+      })
+    }
+
+    const protectedSnapshot = await protectAcExHtmlEncodedSnapshot(
+      encodeSnapshot(snapshot),
+      {
+        expiresAt: options.expiresAt,
+        password: options.password
+      }
+    )
+    return packHtml(snapshot, {
+      title: snapshot.meta.title,
+      viewerRuntime,
+      encoded: protectedSnapshot.encoded,
+      accessManifest: protectedSnapshot.manifest
     })
   }
 
@@ -186,7 +297,24 @@ export class AcApHtmlConvertor {
    * @param downloadName - Value for the anchor `download` attribute.
    */
   private downloadHtml(content: string, downloadName: string) {
-    const blob = new Blob([content], { type: 'text/html;charset=utf-8' })
+    this.downloadBytes(
+      new TextEncoder().encode(content),
+      downloadName,
+      'text/html;charset=utf-8'
+    )
+  }
+
+  /**
+   * Triggers a client-side download of raw bytes.
+   */
+  private downloadBytes(
+    bytes: Uint8Array,
+    downloadName: string,
+    mimeType: string
+  ) {
+    const copy = new Uint8Array(bytes.byteLength)
+    copy.set(bytes)
+    const blob = new Blob([copy], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

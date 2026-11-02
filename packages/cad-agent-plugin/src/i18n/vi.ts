@@ -9,6 +9,13 @@
  * `verificationTitle` where it meant "Kiểm tra bản vẽ".
  */
 export const agentVi = {
+  baseUrlHint: 'Địa chỉ API của nhà cung cấp; có thể dùng proxy cùng máy chủ.',
+  copyTool: 'Sao chép lời gọi công cụ (đầu vào và kết quả)',
+  toolCopied: 'Đã sao chép',
+  imageOnlyRequest: 'Đọc ảnh đính kèm và dựng bản vẽ CAD theo yêu cầu.',
+  prepareImageFailed:
+    'Không xử lý được ảnh đính kèm. Hãy thử ảnh PNG hoặc JPEG nhỏ hơn.',
+
   tab: 'Trợ lý',
   title: 'CAD Agent',
   settings: 'Thiết lập',

@@ -5,7 +5,7 @@
 
 This package provides the **high-performance** core components of a CAD viewer such as document management, command handling, and collaboration between the UI and rendering engines. It's designed for optimal performance when handling large CAD files.
 
-This module doesn't depend on any UI framework and doesn't provide any UI except canvas. If you want to integrate a high-performance CAD viewer into a web application with your own UI, this module is the correct choice.
+This module doesn't depend on any UI framework and doesn't provide any UI except canvas. If you want to integrate a high-performance CAD viewer into a web application with your own UI, this module is the correct choice. It fully supports **mobile layout and touch interaction**—responsive chrome for phones and tablets, plus pinch-to-zoom, single-finger pan, and tap-to-select—so hosts can ship a mobile-friendly viewer without a separate mobile stack.
 
 ## Key Features
 - Document management optimized for large files
@@ -13,6 +13,7 @@ This module doesn't depend on any UI framework and doesn't provide any UI except
 - Optimized integration with rendering engines
 - Performance-focused settings and context management
 - Framework-agnostic design for maximum flexibility
+- Mobile-ready layout and touch gestures for phones and tablets
 
 ## When Should You Choose cad-simple-viewer?
 
@@ -40,7 +41,16 @@ npm install @mlightcad/cad-simple-viewer
 
 ## Usage
 
-Please refer to [cad-simple-viewer-example](https://github.com/mlight-lee/cad-simple-viewer-example) on basic usage and advanced usage.
+Please refer to [cad-simple-viewer-demo](https://github.com/mlight-lee/cad-simple-viewer-demo) on basic usage and advanced usage.
+
+To learn about the built-in notification center (and how to replace the default bell UI while still receiving font-missing and unsupported-entity alerts), see [docs/notification-center.md](./docs/notification-center.md).
+
+For the plain-DOM toolbar engine (`AcUiToolbar`, shortcut bar, and host customization), see [docs/toolbar.md](./docs/toolbar.md).
+
+### Plugins and data sources
+
+- **`pluginManager`** — load command plugins (`AcApPlugin`) via `loadPlugin` / `registerLazyPlugin`.
+- **`dataSourceManager`** — registry of drawing origins (built-in **local** and **URL**, plus optional cloud plugins such as `@mlightcad/cad-onedrive-plugin` and `@mlightcad/cad-google-drive-plugin`). Open menus in hosts rebuild from `acapBuildDataSourceMenu(dataSourceManager.list())`. Cloud sources that use a popup File Picker must keep **Sign in** and **Open** as separate clicks so browsers do not block the picker.
 
 While `cad-simple-viewer` doesn't support saving drawings to DWG/DXF files, it provides comprehensive support for **modifying drawings in real-time**. You can add, edit, and delete entities within the drawing, and the viewer will automatically update to reflect these changes.
 
@@ -53,7 +63,7 @@ This capability makes `cad-simple-viewer` suitable for applications that need to
 
 **Important Note**: The usage patterns in `cad-simple-viewer` are **very similar to AutoCAD RealDWG**. If you're familiar with AutoCAD RealDWG development, you'll find the API structure and workflow nearly identical. The main difference is that we use the [**realdwg-web API**](https://mlight-lee.github.io/realdwg-web/) instead of the native RealDWG libraries.
 
-In [cad-simple-viewer-example](https://github.com/mlight-lee/cad-simple-viewer-example) it demonstrates how to create one drawing with [**realdwg-web API**](https://mlight-lee.github.io/realdwg-web/).
+In [cad-simple-viewer-demo](https://github.com/mlight-lee/cad-simple-viewer-demo) it demonstrates how to create one drawing with [**realdwg-web API**](https://mlight-lee.github.io/realdwg-web/).
 
 ## Layer services
 
@@ -72,12 +82,12 @@ The `LockAndFade` isolation keyword matches AutoCAD naming but the viewer **lock
 
 ## Web Worker deployment
 
-The viewer loads worker scripts for DWG parsing and MTEXT rendering. DXF is
-parsed by the built-in converter in `@mlightcad/data-model` (no separate worker).
-Host applications must deploy the DWG/MTEXT worker files and point to them via
-`webworkerFileUrls` in `AcApDocManager.createInstance()`.
-
-Before calling `openDocument()`, verify that the workers are reachable. Use the built-in readiness API rather than downloading worker bodies with a plain GET request (the LibreDWG worker alone is ~12 MB):
+The viewer ships an MTEXT layout worker. DXF is parsed by the built-in converter
+in `@mlightcad/data-model` (no separate worker). **DWG support is opt-in**: this
+package does not depend on or register `@mlightcad/libredwg-converter` (GPL).
+Hosts that need DWG must add that dependency (or another converter), deploy its
+worker (+ wasm) assets, register the converter, and optionally pass
+`webworkerFileUrls.dwgParser` for readiness checks.
 
 ```typescript
 import {
@@ -85,9 +95,24 @@ import {
   LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
+import {
+  AcDbDatabaseConverterManager,
+  AcDbFileType
+} from '@mlightcad/data-model'
+import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
+
+const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+AcDbDatabaseConverterManager.instance.register(
+  AcDbFileType.DWG,
+  new AcDbLibreDwgConverter({
+    convertByEntityType: false,
+    useWorker: true,
+    parserWorkerUrl: dwgParserUrl
+  })
+)
 
 const workerUrls = {
-  dwgParser: `./workers/${LIBREDWG_PARSER_WORKER_FILE}`,
+  dwgParser: dwgParserUrl,
   mtextRender: `./workers/${MTEXT_RENDERER_WORKER_FILE}`
 }
 
@@ -105,7 +130,7 @@ if (!(await manager.areWorkersReady())) {
 }
 ```
 
-`areWorkersReady()` and `checkWebworkerReadiness()` use HEAD requests internally. Successful URL probes are cached for the current page lifecycle; failures are not cached at the probe layer, so a transient network error can succeed on a later `areWorkersReady()` call. After each check, `manager.workersReady` is `true` or `false` (`null` only before the first check).
+`areWorkersReady()` and `checkWebworkerReadiness()` use HEAD requests internally. Successful URL probes are cached for the current page lifecycle; failures are not cached at the probe layer, so a transient network error can succeed on a later `areWorkersReady()` call. After each check, `manager.workersReady` is `true` or `false` (`null` only before the first check). Only URLs you pass are probed — `dwgParser` is skipped when omitted.
 
 You can also enable automatic checks during initialization:
 

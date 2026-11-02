@@ -2,11 +2,21 @@ import { AcGiLineWeight, AcGiSubEntityTraits } from '@mlightcad/data-model'
 import * as THREE from 'three'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 
+import {
+  isComplexPatternElement,
+  normalizeComplexPatternElement
+} from '../linetype/AcTrLineTypeWalker'
 import { AcTrLinePatternShaders } from './AcTrLinePatternShaders'
 import { AcTrMaterialManager } from './AcTrMaterialManager'
 
 export interface AcTrLineMaterialOptions {
   basicMaterialOnly?: boolean
+  /**
+   * Antialiased screen-space strokes (Line2) even when lineweight is ByLayer
+   * or lineweight display is off. Used by complex TEXT/SHAPE linetypes:
+   * WebGL's 1px `GL_LINES` stay device pixels when zoomed and look stair-stepped.
+   */
+  fatLines?: boolean
 }
 
 /**
@@ -36,12 +46,13 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
     const mode = this.getMaterialMode(traits, options)
     const drawOrderSuffix = this.buildDrawOrderSuffix(traits)
     const colorKey = this.buildKeyColorSegment(traits)
+    const fatSuffix = options.fatLines ? '_aaline' : ''
 
     if (mode === 'shader') {
       return `${traits.layer}_${mode}_${traits.lineType.name}_${colorKey}_${traits.lineTypeScale}_${lineWidth}${drawOrderSuffix}`
     }
 
-    return `${traits.layer}_${mode}_${colorKey}_${lineWidth}${drawOrderSuffix}`
+    return `${traits.layer}_${mode}_${colorKey}_${lineWidth}${fatSuffix}${drawOrderSuffix}`
   }
 
   /** Returns true if a shader material is required. */
@@ -49,6 +60,12 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
     traits: AcGiSubEntityTraits,
     options: AcTrLineMaterialOptions
   ): boolean {
+    if (options.fatLines) {
+      return false
+    }
+    // Complex TEXT/SHAPE patterns still use the dash shader for their simple
+    // dash/gap elements when {@link buildComplexLineTypeGeometry} declines
+    // (density fallback). The shader skips complex elements itself.
     return !!(
       !options.basicMaterialOnly &&
       traits.lineType.pattern &&
@@ -60,6 +77,7 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
     traits: AcGiSubEntityTraits,
     options: AcTrLineMaterialOptions
   ): 'shader' | 'basic' | 'fat' {
+    if (options.fatLines) return 'fat'
     if (this.isShaderMaterial(traits, options)) return 'shader'
     return options.basicMaterialOnly ? 'basic' : 'fat'
   }
@@ -76,14 +94,21 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
     const scale = scales.ltscale * scales.celtscale * traits.lineTypeScale
 
     if (this.isShaderMaterial(traits, options)) {
-      material = AcTrLinePatternShaders.createLineShaderMaterial(
-        traits.lineType.pattern!,
-        rgb,
-        scale,
-        this.options.viewportScaleUniform,
-        AcTrMaterialManager.CameraZoomUniform
-      )
-    } else if (options.basicMaterialOnly || traits.lineWeight < 0) {
+      if (this.options.linePatternShaderBroken) {
+        material = this.createDashedFatLineMaterial(traits, rgb, scale)
+      } else {
+        material = AcTrLinePatternShaders.createLineShaderMaterial(
+          traits.lineType.pattern!,
+          rgb,
+          scale,
+          this.options.viewportScaleUniform,
+          AcTrMaterialManager.CameraZoomUniform
+        )
+      }
+    } else if (
+      !options.fatLines &&
+      (options.basicMaterialOnly || traits.lineWeight < 0)
+    ) {
       material = new THREE.LineBasicMaterial({
         color: rgb
       })
@@ -108,6 +133,47 @@ export class AcTrLineMaterialManager extends AcTrMaterialManager<AcTrLineMateria
   private resolveLineWidth(lineWeight: AcGiLineWeight): number {
     if (lineWeight < 0) return 1
     return Math.max(1, lineWeight / 40)
+  }
+
+  /**
+   * Builds a dashed {@link LineMaterial} for patterned lines when the GPU
+   * cannot render the custom linetype shader on native `gl.LINES` (see
+   * {@link AcTrStyleManagerOptions.linePatternShaderBroken}). The CAD pattern
+   * is approximated as one dash (sum of pen-down segments) and one gap (sum of
+   * pen-up segments), scaled by the active linetype scale.
+   *
+   * Element classification matches {@link AcTrLinePatternShaders}: real
+   * TEXT/SHAPE elements are skipped, and a non-zero `elementTypeFlag` on an
+   * ordinary dash or gap (LibreDWG stray flags on BORDER2 / DASHEDX2) does
+   * not flip the sign.
+   */
+  private createDashedFatLineMaterial(
+    traits: AcGiSubEntityTraits,
+    rgb: number,
+    scale: number
+  ): THREE.Material {
+    let dashSize = 0
+    let gapSize = 0
+    for (const el of traits.lineType.pattern!) {
+      if (isComplexPatternElement(normalizeComplexPatternElement(el))) {
+        continue
+      }
+      let len = el.elementLength * scale
+      // Same stand-in the shader uses: a dot is a fixed 0.5 dash.
+      if (len === 0) len = 0.5
+      if (len > 0) dashSize += len
+      else gapSize += Math.abs(len)
+    }
+    if (dashSize === 0) dashSize = 0.5
+    const dashedLineMaterial = new LineMaterial({
+      color: rgb,
+      linewidth: this.resolveLineWidth(traits.lineWeight),
+      dashed: true,
+      dashSize,
+      gapSize
+    })
+    dashedLineMaterial.resolution.copy(this.options.resolution)
+    return dashedLineMaterial
   }
 
   updateResolution() {

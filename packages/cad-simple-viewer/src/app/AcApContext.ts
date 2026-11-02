@@ -1,4 +1,5 @@
 import {
+  AcCmEventManager,
   AcDbEntity,
   AcDbLayout,
   AcDbSystemVariables,
@@ -12,6 +13,7 @@ import {
   type AcDbEntityModifiedEventArgs,
   canApplyVisibilityOnlySceneUpdate
 } from './AcApEntityUpdate'
+import { acapIsLayoutEntity } from './AcApLayoutEntityOwner'
 
 function asEntityList(entity: AcDbEntity | AcDbEntity[]): AcDbEntity[] {
   return Array.isArray(entity) ? entity : [entity]
@@ -30,6 +32,10 @@ function asEntityList(entity: AcDbEntity | AcDbEntity[]): AcDbEntity[] {
  * - System variable changes (like point display mode)
  * - Entity selection and highlighting
  *
+ * Call {@link dispose} when the document is closed. Use {@link suspend} /
+ * {@link resume} when parking an inactive document so its database events do
+ * not mutate the shared view while another document is on screen.
+ *
  * @example
  * ```typescript
  * const document = new AcApDocument();
@@ -45,6 +51,10 @@ export class AcApContext {
   private _view: AcEdBaseView
   /** The document containing the CAD database */
   private _doc: AcApDocument
+  /** When false, database and selection listeners no-op (inactive MDI session). */
+  private _active = true
+  /** Unbind functions registered in the constructor. */
+  private readonly _disposers: Array<() => void> = []
 
   /**
    * Creates a new application context that binds a document with its view.
@@ -62,11 +72,25 @@ export class AcApContext {
     this._view = view
     this._doc = doc
 
+    const bind = <T>(
+      manager: AcCmEventManager<T>,
+      listener: (args: T) => void
+    ) => {
+      manager.addEventListener(listener)
+      this._disposers.push(() => manager.removeEventListener(listener))
+    }
+
     // Add entity to scene
-    doc.database.events.entityAppended.addEventListener(args => {
-      const pending = asEntityList(args.entity).filter(
-        entity => !this.view.hasEntity(entity.objectId)
-      )
+    bind(doc.database.events.entityAppended, args => {
+      if (!this._active) return
+      // Only layout-space entities belong in the scene. Dimension jig rebuilds
+      // `*UDIM` inside an undo transaction; on commit every preview MTEXT/line
+      // was incorrectly notified here and converted as top-level drawables
+      // (ghost dim text at every cursor sample, visible only after pan/flush).
+      const pending = asEntityList(args.entity).filter(entity => {
+        if (this.view.hasEntity(entity.objectId)) return false
+        return acapIsLayoutEntity(doc.database, entity)
+      })
       if (pending.length === 0) {
         return
       }
@@ -74,17 +98,18 @@ export class AcApContext {
     })
 
     // Update entity
-    doc.database.events.entityModified.addEventListener(args => {
+    bind(doc.database.events.entityModified, args => {
+      if (!this._active) return
       const eventArgs = args as AcDbEntityModifiedEventArgs
-      const view = this.view
+      const currentView = this.view
       if (
-        view instanceof AcTrView2d &&
+        currentView instanceof AcTrView2d &&
         canApplyVisibilityOnlySceneUpdate(
           eventArgs,
-          objectId => view.hasEntity(objectId),
-          objectId => view.getEntityVisible(objectId)
+          objectId => currentView.hasEntity(objectId),
+          objectId => currentView.getEntityVisible(objectId)
         ) &&
-        view.updateEntityVisibility(eventArgs.entity)
+        currentView.updateEntityVisibility(eventArgs.entity)
       ) {
         return
       }
@@ -92,7 +117,8 @@ export class AcApContext {
     })
 
     // Erase entity
-    doc.database.events.entityErased.addEventListener(args => {
+    bind(doc.database.events.entityErased, args => {
+      if (!this._active) return
       const pending = asEntityList(args.entity).filter(entity =>
         this.view.hasEntity(entity.objectId)
       )
@@ -103,45 +129,59 @@ export class AcApContext {
     })
 
     // Set layer visibility
-    doc.database.events.layerAppended.addEventListener(args => {
+    bind(doc.database.events.layerAppended, args => {
+      if (!this._active) return
       this._view.addLayer(args.layer)
     })
 
     // Update layer information such as visibility
-    doc.database.events.layerModified.addEventListener(args => {
+    bind(doc.database.events.layerModified, args => {
+      if (!this._active) return
       this._view.updateLayer(args.layer, args.changes)
     })
 
-    // Set point display mode
-    AcDbSysVarManager.instance().events.sysVarChanged.addEventListener(args => {
-      if (args.name == AcDbSystemVariables.PDMODE.toLowerCase()) {
-        ;(this._view as AcTrView2d).rerenderPoints(args.database.pdmode)
+    // Set point display mode / size. Sysvars are global; ignore other documents.
+    bind(AcDbSysVarManager.instance().events.sysVarChanged, args => {
+      if (!this._active || args.database !== this._doc.database) {
+        return
+      }
+      if (
+        args.name == AcDbSystemVariables.PDMODE.toLowerCase() ||
+        args.name == AcDbSystemVariables.PDSIZE.toLowerCase()
+      ) {
+        ;(this._view as AcTrView2d).rerenderPoints(
+          args.database.pdmode,
+          args.database.pdsize
+        )
       } else if (args.name == AcDbSystemVariables.LWDISPLAY.toLowerCase()) {
-        const view = this._view as AcTrView2d
+        const currentView = this._view as AcTrView2d
         const showLineWeight = !!args.database.lwdisplay
-        if (view.renderer.showLineWeight !== showLineWeight) {
-          view.renderer.showLineWeight = showLineWeight
+        if (currentView.renderer.showLineWeight !== showLineWeight) {
+          currentView.renderer.showLineWeight = showLineWeight
           // Existing line objects may need different geometry/material classes.
           // Regenerate to rebuild scene content using the new display mode.
-          view.clear()
+          currentView.clear()
           args.database.regen()
         }
       }
     })
 
-    doc.database.events.dictObjetSet.addEventListener(args => {
+    bind(doc.database.events.dictObjetSet, args => {
+      if (!this._active) return
       if (args.object instanceof AcDbLayout) {
         this._view.addLayout(args.object as AcDbLayout)
       }
     })
 
     // Show their grip points when entities are selected
-    view.selectionSet.events.selectionAdded.addEventListener(args => {
+    bind(view.selectionSet.events.selectionAdded, args => {
+      if (!this._active) return
       view.highlight(args.ids)
     })
 
     // Hide their grip points when entities are deselected
-    view.selectionSet.events.selectionRemoved.addEventListener(args => {
+    bind(view.selectionSet.events.selectionRemoved, args => {
+      if (!this._active) return
       view.unhighlight(args.ids)
     })
   }
@@ -162,5 +202,37 @@ export class AcApContext {
    */
   get doc(): AcApDocument {
     return this._doc
+  }
+
+  /**
+   * Whether this context currently forwards database events to the shared view.
+   */
+  get isActive() {
+    return this._active
+  }
+
+  /**
+   * Stops forwarding database events to the view (document is no longer on screen).
+   */
+  suspend() {
+    this._active = false
+  }
+
+  /**
+   * Resumes forwarding database events after {@link suspend}.
+   */
+  resume() {
+    this._active = true
+  }
+
+  /**
+   * Removes all event listeners. Call when the document session is discarded.
+   */
+  dispose() {
+    this._active = false
+    for (const dispose of this._disposers) {
+      dispose()
+    }
+    this._disposers.length = 0
   }
 }

@@ -1,3 +1,4 @@
+jest.mock('@mlightcad/cad-agent-core', () => ({ createCadToolCatalog: () => [] }))
 /**
  * Whatever a tool returns has to be something JSON can carry.
  *

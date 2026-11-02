@@ -18,7 +18,10 @@ jest.mock('../src/app/AcApProgress', () => ({
     const instance = {
       hide: jest.fn(),
       show: jest.fn(),
-      setMessage: jest.fn()
+      setMessage: jest.fn(),
+      setHost: jest.fn(),
+      setOverlayColor: jest.fn(),
+      setPointerEventsBlocked: jest.fn()
     }
     mockProgressInstances.push(instance)
     return instance
@@ -45,6 +48,7 @@ describe('AcApOpenFileProgressController', () => {
     hide: jest.Mock
     show: jest.Mock
     setMessage: jest.Mock
+    setPointerEventsBlocked: jest.Mock
   }
 
   beforeEach(() => {
@@ -56,6 +60,7 @@ describe('AcApOpenFileProgressController', () => {
     progress.hide.mockClear()
     progress.show.mockClear()
     progress.setMessage.mockClear()
+    progress.setPointerEventsBlocked.mockClear()
   })
 
   it('emits normalized monotonic open-file progress', () => {
@@ -92,6 +97,9 @@ describe('AcApOpenFileProgressController', () => {
       stage: 'FETCH_FILE',
       subStageStatus: 'END'
     })
+    // Leading FETCH_FILE END must not hide — convert is about to start.
+    expect(progress.hide).not.toHaveBeenCalled()
+
     const next = controller.handle({
       database,
       percentage: 5,
@@ -101,6 +109,34 @@ describe('AcApOpenFileProgressController', () => {
     })
 
     expect(next.percentage).toBe(5)
+    expect(progress.hide).not.toHaveBeenCalled()
+  })
+
+  it('does not flash the overlay between leading FETCH_FILE END and CONVERSION', () => {
+    const database = {}
+
+    controller.handle({
+      database,
+      percentage: 10,
+      stage: 'FETCH_FILE',
+      subStageStatus: 'IN-PROGRESS'
+    })
+    controller.handle({
+      database,
+      percentage: 100,
+      stage: 'FETCH_FILE',
+      subStageStatus: 'END'
+    })
+    controller.handle({
+      database,
+      percentage: 5,
+      stage: 'CONVERSION',
+      subStage: 'PARSE',
+      subStageStatus: 'START'
+    })
+
+    expect(progress.hide).not.toHaveBeenCalled()
+    expect(progress.show).toHaveBeenCalled()
   })
 
   it('hides the overlay when open-file progress completes', () => {
@@ -109,6 +145,26 @@ describe('AcApOpenFileProgressController', () => {
       percentage: 100,
       stage: 'CONVERSION',
       subStage: 'END',
+      subStageStatus: 'END'
+    })
+
+    expect(progress.hide).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides on trailing FETCH_FILE END after conversion has ended', () => {
+    controller.handle({
+      database: {},
+      percentage: 100,
+      stage: 'CONVERSION',
+      subStage: 'END',
+      subStageStatus: 'END'
+    })
+    progress.hide.mockClear()
+
+    controller.handle({
+      database: {},
+      percentage: 100,
+      stage: 'FETCH_FILE',
       subStageStatus: 'END'
     })
 
@@ -204,5 +260,106 @@ describe('AcApOpenFileProgressController', () => {
     expect(progress.setMessage).toHaveBeenNthCalledWith(1, 'main.progress.parse')
     expect(progress.setMessage).toHaveBeenNthCalledWith(2, 'main.progress.style')
     expect(progress.show).toHaveBeenCalledTimes(1)
+  })
+
+  it('holds Rendering drawing ... until the busy gate is idle for two polls', () => {
+    jest.useFakeTimers()
+    let busy = true
+    controller.setSceneBusyGate(() => busy)
+
+    controller.handle({
+      database: {},
+      percentage: 100,
+      stage: 'CONVERSION',
+      subStage: 'END',
+      subStageStatus: 'END'
+    })
+
+    expect(progress.hide).not.toHaveBeenCalled()
+    expect(progress.setMessage).toHaveBeenCalledWith('main.progress.rendering')
+
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).not.toHaveBeenCalled()
+
+    busy = false
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).not.toHaveBeenCalled()
+
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).toHaveBeenCalledTimes(1)
+
+    jest.useRealTimers()
+  })
+
+  it('progressive: keeps overlay through ENTITY, hides at CONVERSION END', () => {
+    const onHidden = jest.fn()
+    controller.setOnHidden(onHidden)
+    controller.setSeeThroughOverlay(true)
+    controller.setSceneBusyGate(() => true)
+
+    controller.handle({
+      database: {},
+      percentage: 5,
+      stage: 'CONVERSION',
+      subStage: 'PARSE',
+      subStageStatus: 'IN-PROGRESS'
+    })
+    expect(progress.show).toHaveBeenCalled()
+    expect(progress.setPointerEventsBlocked).toHaveBeenCalledWith(true)
+
+    controller.handle({
+      database: {},
+      percentage: 40,
+      stage: 'CONVERSION',
+      subStage: 'ENTITY',
+      subStageStatus: 'IN-PROGRESS'
+    })
+    expect(progress.hide).not.toHaveBeenCalled()
+    expect(progress.setMessage).toHaveBeenCalledWith('main.progress.entity')
+    expect(onHidden).not.toHaveBeenCalled()
+
+    controller.handle({
+      database: {},
+      percentage: 100,
+      stage: 'CONVERSION',
+      subStage: 'END',
+      subStageStatus: 'END'
+    })
+    expect(progress.hide).toHaveBeenCalledTimes(1)
+    expect(onHidden).toHaveBeenCalledTimes(1)
+    expect(progress.setMessage).not.toHaveBeenCalledWith(
+      'main.progress.rendering'
+    )
+  })
+
+  it('resets the idle streak if the busy gate becomes busy again', () => {
+    jest.useFakeTimers()
+    let busy = true
+    controller.setSceneBusyGate(() => busy)
+
+    controller.handle({
+      database: {},
+      percentage: 100,
+      stage: 'CONVERSION',
+      subStage: 'END',
+      subStageStatus: 'END'
+    })
+
+    busy = false
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).not.toHaveBeenCalled()
+
+    busy = true
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).not.toHaveBeenCalled()
+
+    busy = false
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).not.toHaveBeenCalled()
+
+    jest.advanceTimersByTime(50)
+    expect(progress.hide).toHaveBeenCalledTimes(1)
+
+    jest.useRealTimers()
   })
 })

@@ -4,6 +4,7 @@ import type { LanguageModel } from 'ai'
 
 import type { LlmSettings } from '../storage/LlmSettingsStore'
 import { createProxyFetch } from './drawingIdentity'
+import { normalizeLlmBaseUrl } from './normalizeLlmBaseUrl'
 import { createOpenAiCompatibleFetch } from './openAiCompatibleFetch'
 
 /**
@@ -39,10 +40,12 @@ export function createModelFromSettings(settings: LlmSettings): LanguageModel {
     throw new Error('API key is required. Open Agent settings to configure it.')
   }
 
+  const baseURL = normalizeLlmBaseUrl(settings.baseUrl)
+
   if (settings.provider === 'anthropic') {
     const anthropic = createAnthropic({
       apiKey: settings.apiKey,
-      baseURL: settings.baseUrl || undefined
+      baseURL
     })
     return anthropic(settings.model)
   }

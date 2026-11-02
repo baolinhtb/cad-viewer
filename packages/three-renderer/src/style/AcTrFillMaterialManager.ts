@@ -34,6 +34,74 @@ export interface AcTrFillMaterialOptions {
   side?: AcTrMaterialSide
 }
 
+const PATTERN_BASE_WRAP_EPS = 1e-9
+
+const _wrapScratch = /*@__PURE__*/ new THREE.Vector2()
+
+/** Matches hatch shader `rotate` (column-vector convention). */
+function rotatePatternVec2(
+  x: number,
+  y: number,
+  angle: number,
+  out: THREE.Vector2
+): THREE.Vector2 {
+  const c = Math.cos(angle)
+  const s = Math.sin(angle)
+  return out.set(c * x - s * y, c * y + s * x)
+}
+
+/**
+ * Wraps an origin-shifted pattern `base` into one pattern period so
+ * `v_pos - base` stays float32-friendly in the hatch shader.
+ *
+ * Pattern bases are often near WCS (0,0) while geometry is origin-shifted to a
+ * far survey coordinate. Subtracting `rebaseOffset` alone leaves `|base|` huge,
+ * and `fract(dist / spacing)` collapses again. Reducing `base` by integer
+ * periods in the sample frame preserves the pattern phase.
+ *
+ * @param base - Mutable base already subtracted by the geometry origin.
+ * @param offset - Pattern offset already rotated by `-lineAngle` (same frame as
+ *   the hatch shader uniform / exported AcEx hatch line offset).
+ * @param lineAngle - Definition-line angle in radians.
+ * @param patternAngle - Hatch-level pattern angle in radians.
+ * @param patternLength - Dash repeat length (`0` for continuous lines).
+ */
+export function wrapPatternBaseToLocalFrame(
+  base: THREE.Vector2,
+  offset: THREE.Vector2,
+  lineAngle: number,
+  patternAngle: number,
+  patternLength: number
+): void {
+  const spacing = Math.abs(offset.y)
+  if (
+    spacing <= PATTERN_BASE_WRAP_EPS &&
+    patternLength <= PATTERN_BASE_WRAP_EPS
+  ) {
+    return
+  }
+
+  // samplePos = rotate(v - base, -(lineAngle + patternAngle))
+  const totalAngle = lineAngle + patternAngle
+  const inSample = rotatePatternVec2(base.x, base.y, -totalAngle, _wrapScratch)
+
+  if (spacing > PATTERN_BASE_WRAP_EPS) {
+    const periods = Math.round(inSample.y / spacing)
+    inSample.y -= periods * spacing
+    // Parallel-line steps also shift dash phase by offset.x (AutoCAD PAT model).
+    inSample.x -= periods * offset.x
+  }
+  if (patternLength > PATTERN_BASE_WRAP_EPS) {
+    inSample.x -= Math.round(inSample.x / patternLength) * patternLength
+  } else {
+    // Continuous lines ignore along-line phase; clear it so `base` stays small
+    // in XY and `v_pos - base` does not reintroduce large float32 magnitudes.
+    inSample.x = 0
+  }
+
+  rotatePatternVec2(inSample.x, inSample.y, totalAngle, base)
+}
+
 /**
  * Material manager for hatch and solid fill entities.
  *
@@ -76,11 +144,16 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
    * Hatch-tier fills (`drawOrder < 0`, including solid and patterned
    * hatches) also invert with the theme so ACI 7 stays visible against
    * both light and dark canvases, matching AutoCAD model-space behaviour.
+   *
+   * Background fills (wipeouts) never invert — they fuse with the canvas.
    */
   protected shouldTrackForeground(
     traits: AcGiSubEntityTraits,
     _options: AcTrFillMaterialOptions
   ): boolean {
+    if (traits.isBackgroundFill) {
+      return false
+    }
     const style = traits.fillType
     const isVisibleHatch =
       (traits.drawOrder ?? 0) < 0 &&
@@ -90,6 +163,17 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       traits.color.isForeground &&
       ((traits.drawOrder ?? 0) >= 0 || isVisibleHatch)
     )
+  }
+
+  /**
+   * Wipeouts opt into canvas-background tracking so the masked area stays
+   * fused with MODELBKCOLOR / PAPERBKCOLOR across theme flips.
+   */
+  protected shouldTrackBackground(
+    traits: AcGiSubEntityTraits,
+    _options: AcTrFillMaterialOptions
+  ): boolean {
+    return traits.isBackgroundFill === true
   }
 
   /**
@@ -127,6 +211,8 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       material = this.createHatchShaderMaterial(traits, rgb, options, threeSide)
     }
 
+    this.applyTransparency(material, traits)
+
     // Store side in userData so getBackSideVariant can check idempotency.
     // Draw-order metadata is stamped by the base material manager from
     // `traits.drawOrder`.
@@ -134,6 +220,28 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       side
     })
     return material
+  }
+
+  /**
+   * Honours {@link AcGiSubEntityTraits.transparency} on fill meshes.
+   * Fully transparent fills (alpha 0) stay raycastable for IMAGE/OLE frames
+   * while remaining invisible — matching AutoCAD pick-through-frame behaviour.
+   */
+  private applyTransparency(
+    material: THREE.Material,
+    traits: AcGiSubEntityTraits
+  ) {
+    const transparency = traits.transparency
+    if (!transparency || typeof transparency.alpha !== 'number') {
+      return
+    }
+    const alpha = transparency.alpha
+    if (alpha >= 255) {
+      return
+    }
+    material.transparent = true
+    material.opacity = Math.max(0, Math.min(1, alpha / 255))
+    material.depthWrite = alpha > 0
   }
 
   private createGradientShaderMaterial(
@@ -160,8 +268,6 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
     threeSide: THREE.Side
   ): THREE.Material {
     const style = traits.fillType
-    const RATIO_FOR_NONDOT_PATTERN = 0.005
-    const RATIO_FOR_DOT_PATTERN = 0.05
 
     // Get a max size to be used for all patternLines, this value will be used during
     // glsl compile time, and it cannot be 0 (compile error) and cannot be 1 (run time warning).
@@ -173,8 +279,9 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       )
     })
 
-    let currentUniformCount = 0
-
+    // Pattern lines are uploaded via a float DataTexture (see
+    // createHatchPatternShaderMaterial), so there is no fragment-uniform
+    // budget truncating large user patterns (#743).
     const patternLines: AcTrPatternLine[] = []
     const tempCenter = new THREE.Vector2()
     for (const hatchPatternLine of style.definitionLines) {
@@ -194,30 +301,18 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       }
 
       const numberOfDashes = hatchPatternLine.dashLengths.length
-      // Indicates the dot pattern when the dashPatterns contain only 0 and negative numbers
-      let bDotPattern = true
-      // calculates the total length of the pattern
-      let length = 0
-      for (let i = 0; i < numberOfDashes; ++i) {
-        const value = hatchPatternLine.dashLengths[i]
-        if (value > 0) {
-          bDotPattern = false
-        }
-        length += Math.abs(value)
-      }
 
-      // TODO: because we cannot (or, it's kind of hard to) draw a dot, let's draw a short dash.
-      const ratio = bDotPattern
-        ? RATIO_FOR_DOT_PATTERN
-        : RATIO_FOR_NONDOT_PATTERN
-
+      // A dash length of 0 is AutoCAD's "dot" marker: a zero-length element
+      // that draws a small mark and consumes no along-line distance. Pass it
+      // through unchanged -- substituting a length here (as a fraction of
+      // the pattern's total length) turned dots into dashes that grew with
+      // pattern density (#728). The shader (`getPatternIndex` in
+      // AcTrHatchPatternShaders) gives zero-length entries a hittable,
+      // thickness-sized window so they still render.
       const dashLengths: number[] = []
       let patternLength = 0
       for (let i = 0; i < numberOfDashes; ++i) {
         dashLengths[i] = hatchPatternLine.dashLengths[i]
-        if (dashLengths[i] === 0) {
-          dashLengths[i] = ratio * length
-        }
         patternLength += Math.abs(dashLengths[i])
       }
 
@@ -226,25 +321,23 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
         dashLengths[i] = 0
       }
 
-      const angle = hatchPatternLine.angle
-      const patternLine = {
-        angle,
+      // Keep (v_pos - base) small after geometry origin-shift. Pattern bases are
+      // often near WCS 0 while verts are rebased to a far local origin.
+      wrapPatternBaseToLocalFrame(
+        base,
+        offset,
+        hatchPatternLine.angle,
+        style.patternAngle,
+        patternLength
+      )
+
+      patternLines.push({
+        angle: hatchPatternLine.angle,
         base,
         offset,
         dashLengths,
         patternLength
-      }
-
-      currentUniformCount += 4 // angle, base, offset, patternLength
-      currentUniformCount += maxPatternSegmentCount // dashLengths, consistent with HatchPatternShader
-      currentUniformCount += 4 // patternLength
-      if (currentUniformCount > this.options.maxFragmentUniforms) {
-        log.warn(
-          'There will be warning in fragment shader when number of uniforms exceeds 1024, so extra hatch line patterns are ignored here!'
-        )
-        break
-      }
-      patternLines.push(patternLine)
+      })
     }
 
     const material = createHatchPatternShaderMaterial(
@@ -291,6 +384,7 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
     const style = traits.fillType
     const sideSuffix = options.side === 'back' ? '_back' : ''
     const drawOrderSuffix = this.buildDrawOrderSuffix(traits)
+    const bgFillSuffix = traits.isBackgroundFill ? '_bgfill' : ''
     const colorKey = this.buildKeyColorSegment(traits)
     // Use colour semantics + layer + rebaseOffset + pattern info for key
     if (style.gradient) {
@@ -311,14 +405,17 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
         bounds.minY,
         bounds.maxX,
         bounds.maxY,
+        `a${this.transparencyKey(traits)}`,
         sideSuffix,
-        drawOrderSuffix
+        drawOrderSuffix,
+        bgFillSuffix
       ].join('_')
     }
 
     const isSolid = !style.definitionLines || style.definitionLines.length === 0
+    const alphaKey = this.transparencyKey(traits)
     if (isSolid) {
-      return `solid_${traits.layer}_${colorKey}${sideSuffix}${drawOrderSuffix}`
+      return `solid_${traits.layer}_${colorKey}_a${alphaKey}${sideSuffix}${drawOrderSuffix}${bgFillSuffix}`
     }
 
     const patternHash = style.definitionLines
@@ -345,9 +442,16 @@ export class AcTrFillMaterialManager extends AcTrMaterialManager<AcTrFillMateria
       options.rebaseOffset.x,
       options.rebaseOffset.y,
       patternHash,
+      `a${alphaKey}`,
       sideSuffix,
-      drawOrderSuffix
+      drawOrderSuffix,
+      bgFillSuffix
     ].join('_')
+  }
+
+  private transparencyKey(traits: AcGiSubEntityTraits): number {
+    const alpha = traits.transparency?.alpha
+    return typeof alpha === 'number' ? alpha : 255
   }
 
   /**

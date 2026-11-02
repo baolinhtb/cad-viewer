@@ -1,5 +1,7 @@
 import { AcApI18n, type AcApLocale } from '@mlightcad/cad-simple-viewer'
 
+import { agentAr } from './ar'
+import { agentCommandDescriptions } from './command'
 import { agentCs } from './cs'
 import { agentEn } from './en'
 import { agentTr } from './tr'
@@ -18,10 +20,11 @@ export type AgentChatLabels = Record<AgentChatLabelKey, string>
 /** Locale-specific flat message tables before nesting under `main.toolPalette.agent`. */
 const agentMessagesByLocale = {
   en: agentEn,
-  zh: agentZh,
-  tr: agentTr,
-  cs: agentCs,
-  vi: agentVi
+  ar: { ...agentEn, ...agentAr },
+  zh: { ...agentEn, ...agentZh },
+  tr: { ...agentEn, ...agentTr },
+  cs: { ...agentEn, ...agentCs },
+  vi: { ...agentEn, ...agentVi }
 } as const satisfies Record<AcApLocale, AgentChatLabels>
 
 /** Every locale the agent ships strings for. */
@@ -39,7 +42,13 @@ let isRegistered = false
  * @returns Messages shaped for `mergeLocaleMessage`.
  */
 function buildVueMessages(locale: AcApLocale) {
+  const descriptions = agentCommandDescriptions[locale]
   return {
+    command: {
+      ACAD: {
+        agent: { description: descriptions.agent }
+      }
+    },
     main: {
       toolPalette: {
         agent: agentMessagesByLocale[locale]
@@ -91,7 +100,7 @@ export function agentT(key: AgentChatLabelKey): string {
 /**
  * Builds a reactive-friendly map of all agent labels for the current locale.
  *
- * All label keys are derived from {@link agentEn} — add new strings in en.ts/zh.ts only.
+ * All label keys are derived from {@link agentEn}. Add each new string to every locale file.
  *
  * @returns Every {@link AgentChatLabelKey} mapped to its translation.
  */

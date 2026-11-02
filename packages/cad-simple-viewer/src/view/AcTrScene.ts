@@ -4,6 +4,7 @@ import {
   AcTrEntity,
   AcTrEntityPreview,
   AcTrHtmlTransientManager,
+  AcTrMTextRenderer,
   AcTrPreviewOverlayManager,
   AcTrTransientManager
 } from '@mlightcad/three-renderer'
@@ -102,6 +103,11 @@ export class AcTrScene {
   private _htmlTransientManager: AcTrHtmlTransientManager
   /** Batched preview overlay manager */
   private _previewOverlayManager: AcTrPreviewOverlayManager
+  /**
+   * When true, layouts skip spatial-index registration during convert.
+   * Headless HTML/JPEG export sets this so pick indexes are not built.
+   */
+  private _skipSpatialIndex = false
 
   /**
    * Creates a new CAD scene instance.
@@ -117,6 +123,17 @@ export class AcTrScene {
     this._layouts = new Map()
     this._activeLayoutBtrId = ''
     this._modelSpaceBtrId = ''
+  }
+
+  get skipSpatialIndex() {
+    return this._skipSpatialIndex
+  }
+
+  set skipSpatialIndex(value: boolean) {
+    this._skipSpatialIndex = value
+    for (const layout of this._layouts.values()) {
+      layout.skipSpatialIndex = value
+    }
   }
 
   /**
@@ -278,6 +295,7 @@ export class AcTrScene {
     if (existing) return existing
 
     const layout = new AcTrLayout()
+    layout.skipSpatialIndex = this._skipSpatialIndex
     this._layouts.set(ownerId, layout)
     this._scene.add(layout.internalObject)
     layout.visible = ownerId == this._activeLayoutBtrId
@@ -321,6 +339,7 @@ export class AcTrScene {
   hover(ids: AcDbObjectId[]) {
     if (this._layouts.size === 0) return false
     this._layouts.forEach(layout => layout.hover(ids))
+    this.applyMeshGlyphHighlight(ids, 'hover', true)
     return true
   }
 
@@ -331,6 +350,7 @@ export class AcTrScene {
   unhover(ids: AcDbObjectId[]) {
     if (this._layouts.size === 0) return false
     this._layouts.forEach(layout => layout.unhover(ids))
+    this.applyMeshGlyphHighlight(ids, 'hover', false)
     return true
   }
 
@@ -354,6 +374,7 @@ export class AcTrScene {
   select(ids: AcDbObjectId[]) {
     if (this._layouts.size === 0) return false
     this._layouts.forEach(layout => layout.select(ids))
+    this.applyMeshGlyphHighlight(ids, 'select', true)
     return true
   }
 
@@ -364,7 +385,40 @@ export class AcTrScene {
   unselect(ids: AcDbObjectId[]) {
     if (this._layouts.size === 0) return false
     this._layouts.forEach(layout => layout.unselect(ids))
+    this.applyMeshGlyphHighlight(ids, 'select', false)
     return true
+  }
+
+  /**
+   * Forwards selection/hover to scene-level mesh-glyph InstancedMeshes
+   * (they are not registered in {@link AcTrBatchedGroup} entity slots).
+   */
+  private applyMeshGlyphHighlight(
+    ids: AcDbObjectId[],
+    kind: 'select' | 'hover',
+    enabled: boolean
+  ): void {
+    const renderer = AcTrMTextRenderer.getInstance()
+    if (!renderer.getMeshGlyphInstancing()) {
+      return
+    }
+    for (const id of ids) {
+      renderer.setMeshGlyphHighlight(id, kind, enabled)
+    }
+  }
+
+  /**
+   * Applies compare-display coloring to every non-reference layout in the scene.
+   * Overlay/reference layouts must be updated via their own {@link AcTrLayout.setCompareDisplay}.
+   *
+   * @param options - Compare colors and per-entity role overrides.
+   */
+  setCompareDisplay(options: Parameters<AcTrLayout['setCompareDisplay']>[0]) {
+    this._layouts.forEach(layout => {
+      if (!layout.isReference) {
+        layout.setCompareDisplay(options)
+      }
+    })
   }
 
   /**
@@ -428,6 +482,20 @@ export class AcTrScene {
   }
 
   /**
+   * Applies ACI-7 / foreground colour to owned batch material clones across layouts.
+   */
+  repaintForegroundMaterials(color: number) {
+    this._layouts.forEach(layout => layout.repaintForegroundMaterials(color))
+  }
+
+  /**
+   * Updates wipeout / background-fill materials after a canvas theme flip.
+   */
+  repaintBackgroundMaterials(color: number) {
+    this._layouts.forEach(layout => layout.repaintBackgroundMaterials(color))
+  }
+
+  /**
    * Add the specified transient entity into this scene
    * @param entity Input one transient entity
    */
@@ -444,18 +512,38 @@ export class AcTrScene {
   }
 
   /**
+   * Show or hide one transient entity already published in this scene.
+   * @returns `true` when the entity exists and visibility was updated.
+   */
+  setTransientEntityVisible(objectId: AcDbObjectId, visible: boolean): boolean {
+    const entity = this._transientManager.get(objectId)
+    if (!entity) return false
+    if (entity.visible === visible) return false
+    entity.visible = visible
+    return true
+  }
+
+  /**
    * Applies world transforms to existing transient entities without reconverting
    * database entities on every cursor move.
+   *
+   * Also forwards matching ids to {@link AcTrHtmlTransientManager} so HTML
+   * overlays receive the same delta as WebGL transients.
+   *
+   * @returns Which renderer layers actually changed, so the view can dirty
+   *   WebGL and CSS2D independently.
    */
   updateTransientPreviewTransforms(
     transforms: ReadonlyArray<{ objectId: AcDbObjectId; matrix: THREE.Matrix4 }>
-  ): boolean {
-    return this._transientManager.applyTransforms(
-      transforms.map(entry => ({
-        id: entry.objectId,
-        matrix: entry.matrix
-      }))
-    )
+  ): { webgl: boolean; html: boolean } {
+    const mapped = transforms.map(entry => ({
+      id: entry.objectId,
+      matrix: entry.matrix
+    }))
+    return {
+      webgl: this._transientManager.applyTransforms(mapped),
+      html: this._htmlTransientManager.applyTransforms(mapped)
+    }
   }
 
   /**
@@ -790,8 +878,13 @@ export class AcTrScene {
    * @returns Return true if remove the specified entity successfully. Otherwise, return false.
    */
   removeEntity(objectId: AcDbObjectId) {
+    // Mesh-glyph InstancedMesh slots live outside the entity tree — always
+    // clear them for this id (layout remove may no-op if already gone).
+    AcTrMTextRenderer.getInstance().removeMeshGlyphInstances(objectId)
     for (const [_, layout] of this._layouts) {
-      if (layout.removeEntity(objectId)) return true
+      if (layout.removeEntity(objectId)) {
+        return true
+      }
     }
     return false
   }
@@ -829,6 +922,9 @@ export class AcTrScene {
       if (layout.setEntityVisible(objectId, visible)) {
         updated = true
       }
+    }
+    if (updated) {
+      AcTrMTextRenderer.getInstance().setMeshGlyphVisible(objectId, visible)
     }
     return updated
   }

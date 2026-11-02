@@ -1,22 +1,27 @@
-import type { AcExHtmlI18n } from './AcExHtmlI18n'
-import { acExHtmlIcons, acExToolbarButton } from './AcExHtmlIcons'
+import {
+  ACEX_DEFAULT_POLAR_ANGLE,
+  ACEX_ORTHO_POLAR_ANGLE,
+  ACEX_POLAR_ANGLE_INCREMENTS,
+  type AcExHtmlI18n
+} from '@mlightcad/cad-html-core'
+
 import type { AcExMeasureController } from './AcExMeasurement'
 import type { AcExTrackingOptions } from './AcExMeasureTracking'
+
+export {
+  ACEX_DEFAULT_POLAR_ANGLE,
+  ACEX_ORTHO_POLAR_ANGLE,
+  ACEX_POLAR_ANGLE_INCREMENTS,
+  buildAcExHtmlLocaleStrip,
+  buildAcExHtmlPolarAnglesPanel,
+  buildAcExHtmlSnapStrip
+} from '@mlightcad/cad-html-core'
 
 /** Default measurement accent color (`--mlcad-accent`). */
 export const ACEX_DEFAULT_MEASURE_COLOR = 0x08e8de
 
 /** `localStorage` key for persisted measure settings. */
 export const ACEX_MEASURE_SETTINGS_STORAGE_KEY = 'mlcad-html-measure-settings'
-
-/** Common polar angle increments for the offline HTML viewer. */
-export const ACEX_POLAR_ANGLE_INCREMENTS = [90, 45, 30, 23, 18, 10, 5] as const
-
-/** Polar increment equivalent to orthogonal mode. */
-export const ACEX_ORTHO_POLAR_ANGLE = 90
-
-/** Default polar increment when polar tracking is enabled. */
-export const ACEX_DEFAULT_POLAR_ANGLE = ACEX_ORTHO_POLAR_ANGLE
 
 /** Persisted measure settings for the offline HTML viewer. */
 export interface AcExMeasureSettingsState {
@@ -139,52 +144,6 @@ function savePersistedSettings(state: AcExMeasureSettingsState): void {
   }
 }
 
-/**
- * Language toggle button shared by view-mode toolbar and measure settings strip.
- */
-export function buildAcExLanguageToolbarButton(): string {
-  return `<button type="button" class="mlcad-tool-btn mlcad-lang-btn" id="mlcad-lang-btn" data-i18n-key="toolbar.languageSwitch" data-i18n-attr="title aria-label" title="Switch language" aria-label="Switch language">
-            ${acExHtmlIcons.language}
-            <span class="mlcad-lang-badge" id="mlcad-lang-badge">EN</span>
-          </button>`
-}
-
-/**
- * Builds the settings strip markup inserted beside the toolbar in {@link buildAcExHtmlShellBody}.
- */
-export function buildAcExHtmlSettingsStrip(): string {
-  const polarAngleButtons = ACEX_POLAR_ANGLE_INCREMENTS.map(
-    angle =>
-      `<button type="button" class="mlcad-tool-btn mlcad-settings-option-btn mlcad-polar-angle-btn" data-polar-ang="${angle}" title="${angle}°" aria-label="${angle}°"><span class="mlcad-settings-option-indicator" aria-hidden="true"></span><span class="mlcad-settings-option-text">${angle}°</span></button>`
-  ).join('')
-
-  return `
-      <div id="mlcad-settings-wrap" hidden>
-        <div id="mlcad-settings-strip" role="toolbar" data-i18n-attr="aria-label" data-i18n-key="settings.toolbar" aria-label="Measure settings">
-          <button type="button" class="mlcad-tool-btn mlcad-color-btn" id="mlcad-measure-color-btn" data-i18n-key="settings.measureColor" data-i18n-attr="title aria-label" title="Measure color" aria-label="Measure color">
-            ${acExHtmlIcons.color}
-          </button>
-          <input type="color" id="mlcad-measure-color-input" class="mlcad-color-input" value="${hexToCss(ACEX_DEFAULT_MEASURE_COLOR)}" tabindex="-1" aria-hidden="true" />
-          ${acExToolbarButton(acExHtmlIcons.orthoMode, 'Orthogonal mode', {
-            id: 'mlcad-ortho-btn',
-            'data-toggle': 'ortho',
-            'data-i18n-key': 'settings.ortho',
-            'data-i18n-attr': 'title aria-label'
-          })}
-          ${acExToolbarButton(acExHtmlIcons.polarTracking, 'Polar tracking', {
-            id: 'mlcad-polar-btn',
-            'data-toggle': 'polar',
-            'data-i18n-key': 'settings.polar',
-            'data-i18n-attr': 'title aria-label'
-          })}
-          ${buildAcExLanguageToolbarButton()}
-        </div>
-        <div id="mlcad-polar-angles" role="group" data-i18n-attr="aria-label" data-i18n-key="settings.polarAngles" aria-label="Polar tracking angles" hidden>
-          ${polarAngleButtons}
-        </div>
-      </div>`
-}
-
 /** Live measure settings exposed to the measurement controller. */
 export interface AcExHtmlMeasureSettingsController {
   /** Current settings snapshot. */
@@ -193,10 +152,25 @@ export interface AcExHtmlMeasureSettingsController {
   getTrackingOptions(): AcExTrackingOptions
   /** Reapplies i18n labels after locale change. */
   refreshLabels: () => void
+  /** Closes the polar-angle panel. */
+  close: () => void
+  /** Toggles orthogonal mode (closes the polar panel). */
+  toggleOrtho: () => void
+  /** Whether orthogonal mode is enabled. */
+  isOrtho: () => boolean
+  /**
+   * Toggles the polar-angle panel. Returns whether the panel is open afterwards.
+   */
+  togglePolarPanel: () => boolean
+  /** Whether the polar-angle panel is currently open. */
+  isPolarPanelOpen: () => boolean
 }
 
 /**
- * Wires the measure settings strip: color picker, ortho, and polar tracking.
+ * Wires ortho / polar tracking state and the polar-angle panel.
+ *
+ * Ortho / polar toggles are driven by {@link AcUiToolbar} (or legacy strip
+ * buttons when present). Drawing color / font size live on the session panel.
  */
 export function setupAcExHtmlMeasureSettings(
   ctx: AcExHtmlMeasureSettingsContext
@@ -210,21 +184,15 @@ export function setupAcExHtmlMeasureSettings(
   }
   normalizeTrackingState(state)
 
-  const settingsBtn = document.getElementById('mlcad-settings-btn')
-  const settingsWrap = document.getElementById('mlcad-settings-wrap')
   const polarPanel = document.getElementById('mlcad-polar-angles')
   const orthoBtn = document.getElementById('mlcad-ortho-btn')
   const polarBtn = document.getElementById('mlcad-polar-btn')
-  const colorBtn = document.getElementById('mlcad-measure-color-btn')
-  const colorInput = document.getElementById(
-    'mlcad-measure-color-input'
-  ) as HTMLInputElement | null
 
   const persist = () => savePersistedSettings(state)
 
   const syncMeasureColor = () => {
     applyMeasureColorCss(state.measureColor)
-    ctx.measure.setMeasureColor(state.measureColor)
+    ctx.measure.setDrawStyle({ colorHex: state.measureColor })
   }
 
   const syncTrackingButtons = () => {
@@ -234,6 +202,17 @@ export function setupAcExHtmlMeasureSettings(
       'active',
       polarPanelOpen || (state.polar && !state.ortho)
     )
+    document
+      .querySelectorAll<HTMLElement>('[data-toolbar-item-id="ortho"]')
+      .forEach(btn => btn.classList.toggle('is-toggled', state.ortho))
+    document
+      .querySelectorAll<HTMLElement>('[data-toolbar-item-id="polar"]')
+      .forEach(btn =>
+        btn.classList.toggle(
+          'is-toggled',
+          polarPanelOpen || (state.polar && !state.ortho)
+        )
+      )
   }
 
   const isPolarAngleSelected = (angle: number): boolean => {
@@ -252,13 +231,6 @@ export function setupAcExHtmlMeasureSettings(
         const ang = Number(btn.getAttribute('data-polar-ang'))
         btn.classList.toggle('active', isPolarAngleSelected(ang))
       })
-  }
-
-  const setSettingsOpen = (open: boolean) => {
-    if (settingsWrap) settingsWrap.hidden = !open
-    settingsBtn?.classList.toggle('active', open)
-    settingsBtn?.setAttribute('aria-expanded', String(open))
-    if (!open) setPolarPanelOpen(false)
   }
 
   const setPolarPanelOpen = (open: boolean) => {
@@ -306,43 +278,33 @@ export function setupAcExHtmlMeasureSettings(
     persist()
   }
 
-  syncMeasureColor()
-  syncTrackingButtons()
-  syncPolarAngleButtons()
-  if (colorInput) colorInput.value = hexToCss(state.measureColor)
-
-  settingsBtn?.addEventListener('click', event => {
-    event.stopPropagation()
-    const open = settingsWrap?.hidden !== false
-    setSettingsOpen(open)
-  })
-
-  colorBtn?.addEventListener('click', event => {
-    event.stopPropagation()
-    colorInput?.click()
-  })
-
-  colorInput?.addEventListener('input', () => {
-    const hex = Number.parseInt(colorInput.value.slice(1), 16)
-    if (!Number.isFinite(hex)) return
-    state.measureColor = hex
-    syncMeasureColor()
-    persist()
-  })
-
-  orthoBtn?.addEventListener('click', event => {
-    event.stopPropagation()
+  const toggleOrtho = () => {
     setPolarPanelOpen(false)
     if (state.ortho) {
       disableOrtho()
     } else {
       enableOrtho()
     }
+  }
+
+  const togglePolarPanel = (): boolean => {
+    const nextOpen = polarPanel?.hidden !== false
+    setPolarPanelOpen(nextOpen)
+    return nextOpen
+  }
+
+  syncMeasureColor()
+  syncTrackingButtons()
+  syncPolarAngleButtons()
+
+  orthoBtn?.addEventListener('click', event => {
+    event.stopPropagation()
+    toggleOrtho()
   })
 
   polarBtn?.addEventListener('click', event => {
     event.stopPropagation()
-    setPolarPanelOpen(polarPanel?.hidden !== false)
+    togglePolarPanel()
   })
 
   document
@@ -360,18 +322,11 @@ export function setupAcExHtmlMeasureSettings(
       })
     })
 
-  document.addEventListener('click', event => {
-    if (settingsWrap?.hidden) return
-    const target = event.target
-    if (!(target instanceof Node)) return
-    const sidebar = document.getElementById('mlcad-sidebar')
-    if (sidebar?.contains(target)) return
-    setSettingsOpen(false)
-  })
+  // Polar panel stays until polar is toggled or the snap strip closes.
 
   const refreshLabels = () => {
     ctx.i18n.applyToDocument(
-      document.getElementById('mlcad-settings-wrap') ?? undefined
+      document.getElementById('mlcad-snap-strip-wrap') ?? undefined
     )
     syncPolarAngleButtons()
   }
@@ -389,6 +344,11 @@ export function setupAcExHtmlMeasureSettings(
         angdir: ctx.angdir
       }
     },
-    refreshLabels
+    refreshLabels,
+    close: () => setPolarPanelOpen(false),
+    toggleOrtho,
+    isOrtho: () => state.ortho,
+    togglePolarPanel,
+    isPolarPanelOpen: () => (polarPanel ? !polarPanel.hidden : false)
   }
 }

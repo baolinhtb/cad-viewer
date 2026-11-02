@@ -104,6 +104,9 @@ export class AcTrLayer {
   constructor(layer: AcEdLayerInfo) {
     this._group = new AcTrBatchedGroup()
     this._name = layer.name
+    // Name the THREE group so paper-space viewports can hide VPLAYER-frozen
+    // layers by matching {@link AcGiViewport.frozenLayers} during render.
+    this._group.name = layer.name
     this._cachedBox = new THREE.Box3()
     this._boxDirty = true
     this._group.visible = AcTrLayer.isLayerVisible(layer)
@@ -117,6 +120,7 @@ export class AcTrLayer {
   }
   set name(value: string) {
     this._name = value
+    this._group.name = value
   }
 
   /**
@@ -187,7 +191,7 @@ export class AcTrLayer {
    */
   update(value: AcEdLayerInfo) {
     const wasVisible = this.visible
-    this._name = value.name
+    this.name = value.name
     this._group.visible = AcTrLayer.isLayerVisible(value)
     if (wasVisible !== this.visible) {
       this._boxDirty = true
@@ -224,15 +228,14 @@ export class AcTrLayer {
       ([oldId, material]) => material.id !== Number(oldId)
     )
 
-    if (needsIdPatch) {
-      for (const id in materials) {
-        const oldId = Number(id)
-        const material = materials[id]
-        if (material.id === oldId) {
-          continue
-        }
-        this.updateMaterial(oldId, material)
-      }
+    // Always push cache materials into batch containers. Batches own private
+    // material clones (highlight isolation); an in-place colour refresh on the
+    // style-manager cache (same material id) would otherwise leave clones stale
+    // after switchbg / ACI-7 foreground inversion.
+    for (const id in materials) {
+      const oldId = Number(id)
+      const material = materials[id]
+      this.updateMaterial(oldId, material)
     }
 
     this._group.syncAppearanceFromRecord(
@@ -285,9 +288,36 @@ export class AcTrLayer {
   /**
    * Re-render points with latest point style settings
    * @param displayMode Input display mode of points
+   * @param displaySize Input display size of points (`PDSIZE`)
    */
-  rerenderPoints(displayMode: number) {
-    this._group.rerenderPoints(displayMode)
+  rerenderPoints(displayMode: number, displaySize: number = 0) {
+    this._group.rerenderPoints(displayMode, displaySize)
+  }
+
+  /**
+   * Collects world-space AABBs for point / point-symbol batch slots in this layer.
+   *
+   * @param out - Map of object id to world AABB; values are unioned across layers.
+   * @returns The same map instance passed in {@link out}.
+   */
+  collectPointObjectWorldBoxes(
+    out: Map<string, THREE.Box3> = new Map()
+  ): Map<string, THREE.Box3> {
+    return this._group.collectPointObjectWorldBoxes(out)
+  }
+
+  /**
+   * Applies ACI-7 / foreground colour to owned batch material clones in this layer.
+   */
+  repaintForegroundMaterials(color: number) {
+    this._group.repaintForegroundMaterials(color)
+  }
+
+  /**
+   * Updates wipeout / background-fill materials after a canvas theme flip.
+   */
+  repaintBackgroundMaterials(color: number) {
+    this._group.repaintBackgroundMaterials(color)
   }
 
   /**
@@ -495,5 +525,16 @@ export class AcTrLayer {
       return
     }
     this._group.unselectMany(ids)
+  }
+
+  /**
+   * Applies compare-display coloring to entities in this layer.
+   *
+   * @param options - Compare colors and per-entity role overrides.
+   */
+  setCompareDisplay(
+    options: Parameters<AcTrBatchedGroup['setCompareDisplay']>[0]
+  ) {
+    this._group.setCompareDisplay(options)
   }
 }

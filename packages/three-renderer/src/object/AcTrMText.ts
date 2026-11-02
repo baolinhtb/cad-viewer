@@ -3,10 +3,11 @@ import {
   AcGiSubEntityTraits,
   AcGiTextStyle
 } from '@mlightcad/data-model'
-import { MTextData } from '@mlightcad/mtext-renderer'
+import { MTextData, MTextObject } from '@mlightcad/mtext-renderer'
 
 import { AcTrMTextRenderer } from '../renderer/AcTrMTextRenderer'
 import { AcTrRenderContext } from '../renderer/AcTrRenderContext'
+import { resolveMTextRenderRoot } from '../util/AcTrObjectUserData'
 import { AcTrGlyphEntity } from './AcTrGlyphEntity'
 
 /**
@@ -57,15 +58,80 @@ export class AcTrMText extends AcTrGlyphEntity {
         x: position.x,
         y: position.y,
         z: 0
-      }
+      },
+      // Open/convert paths pick via mesh AABB (`bboxIntersectionCheck`), not
+      // per-glyph char boxes. Skipping them avoids 100k+ bbox copies on text-
+      // heavy drawings. Callers that need char-level hit testing can set
+      // `collectCharBoxes: true` on the source payload.
+      collectCharBoxes: source.collectCharBoxes ?? false
     }
+  }
+
+  /**
+   * Key for sharing mesh buffers across identical complex-linetype TEXT labels.
+   * Placement is applied via this object's transform, not baked into the key.
+   */
+  get linetypeGlyphShareKey(): string {
+    return [
+      this._text.text,
+      this._text.height,
+      this._style.font ?? '',
+      this._style.extendedFont ?? '',
+      this._style.widthFactor ?? 1,
+      this._text.widthFactor ?? 1
+    ].join('\0')
+  }
+
+  /** @inheritdoc */
+  protected override contentShareKey(): string {
+    return this.linetypeGlyphShareKey
   }
 
   /**
    * @inheritdoc
    */
   protected override getDrawPosition() {
-    return this._text.position
+    // Complex-linetype labels store WCS placement on this.position.
+    const textPos = this._text.position
+    if (
+      textPos &&
+      textPos.x === 0 &&
+      textPos.y === 0 &&
+      textPos.z === 0 &&
+      (this.position.x !== 0 || this.position.y !== 0 || this.position.z !== 0)
+    ) {
+      return {
+        x: this.position.x,
+        y: this.position.y,
+        z: this.position.z
+      }
+    }
+    return textPos
+  }
+
+  /**
+   * Annotative MTEXT must stay unbatched so paper-space viewports can rescale
+   * individual drawables for the active annotation scale.
+   */
+  override resolveDrawMode() {
+    if (this.hasAnnotationScaleMetadata()) {
+      return 'unbatch'
+    }
+    return super.resolveDrawMode()
+  }
+
+  /**
+   * MTEXT payload for the active draw. Jig / transient overlays force
+   * `meshGlyphOutputMode: 'merge'` so glyphs stay as local meshes — placement
+   * mode only appears after InstancedMesh flush, which is wrong for previews
+   * (invisible during drag, then a trail of every cursor sample on flush).
+   */
+  private mtextDataForRender(): MTextData {
+    const data = this.toPlanViewMTextData()
+    if (this.shouldSkipMeshGlyphInstancing()) {
+      return { ...data, meshGlyphOutputMode: 'merge' }
+    }
+    return data
   }
 
   /**
@@ -73,7 +139,7 @@ export class AcTrMText extends AcTrGlyphEntity {
    */
   protected override renderSync(renderer: AcTrMTextRenderer) {
     return renderer.syncRenderMText(
-      this.toPlanViewMTextData(),
+      this.mtextDataForRender(),
       this._style,
       this._colorSettings
     )
@@ -83,11 +149,27 @@ export class AcTrMText extends AcTrGlyphEntity {
    * @inheritdoc
    */
   protected override async renderAsync(renderer: AcTrMTextRenderer) {
-    return renderer.asyncRenderMText(
-      this.toPlanViewMTextData(),
+    const rendered = await renderer.asyncRenderMText(
+      this.mtextDataForRender(),
       this._style,
       this._colorSettings
     )
+    return rendered
+  }
+
+  /**
+   * Copies annotation-scale metadata onto the rendered glyph root so it
+   * survives unbatched cloning into the scene graph.
+   */
+  protected override attachRendered(rendered: MTextObject) {
+    super.attachRendered(rendered)
+    const annotationScale = (
+      this.userData as { annotationScale?: unknown }
+    ).annotationScale
+    if (!annotationScale) return
+    const root = resolveMTextRenderRoot(rendered)
+    ;(root.userData as { annotationScale?: unknown }).annotationScale =
+      annotationScale
   }
 
   /**

@@ -6,9 +6,11 @@ import {
 } from '@mlightcad/data-model'
 
 import { AcApDocManager } from '../../app'
+import { isEntityOnLockedLayer } from '../../service/AcApLockedLayer'
 import { AcEdMTextEditor } from '../input/ui/AcEdMTextEditor'
 import { AcEdBaseView } from '../view/AcEdBaseView'
 import {
+  applyGripAppearanceToHost,
   isGripAppearanceSysVar,
   readGripAppearance
 } from './AcEdGripAppearance'
@@ -88,6 +90,9 @@ export class AcEdGripManager {
   constructor(view: AcEdBaseView) {
     this._view = view
     this.bindEvents()
+    // The view is constructed during `AcApDocManager.createInstance()`, before
+    // the singleton is assigned. Defer so CAD square grips still inherit GRIPSIZE.
+    queueMicrotask(() => this.applyAppearance())
   }
 
   /**
@@ -122,6 +127,7 @@ export class AcEdGripManager {
    */
   refresh() {
     this.clearEntries()
+    this.applyAppearance()
     if (!this.canShowGrips()) {
       return
     }
@@ -132,7 +138,7 @@ export class AcEdGripManager {
 
     for (const entityId of this._view.selectionSet.ids) {
       const entity = blockTable.getEntityById(entityId)
-      if (!entity) continue
+      if (!entity || isEntityOnLockedLayer(doc.database, entity)) continue
 
       const gripPoints = entity.subGetGripPoints()
       for (let gripIndex = 0; gripIndex < gripPoints.length; ++gripIndex) {
@@ -230,18 +236,27 @@ export class AcEdGripManager {
   }
 
   /**
-   * Updates size and colours on existing grip handles from current sysvars.
+   * Updates size and colours on the view container (and existing handles)
+   * from current sysvars. Always writes CSS variables so CAD square grips
+   * inherit `GRIPSIZE` even when no entities are currently selected.
    */
   private applyAppearance() {
-    if (this._entries.length === 0) {
-      return
-    }
-
-    const appearance = readGripAppearance(
-      AcApDocManager.instance.curDocument.database
-    )
-    for (const entry of this._entries) {
-      entry.handle.applyAppearance(appearance)
+    try {
+      const doc = AcApDocManager.instance.curDocument
+      if (!doc?.database) return
+      const appearance = readGripAppearance(doc.database)
+      applyGripAppearanceToHost(this._view.container, appearance)
+      for (const entry of this._entries) {
+        entry.handle.applyAppearance(appearance)
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('instance is not created yet')
+      ) {
+        return
+      }
+      throw error
     }
   }
 

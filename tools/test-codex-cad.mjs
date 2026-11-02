@@ -13,7 +13,7 @@ import { CodexCadSession } from './codex-cad/app-server.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(
-  path.join(root, 'packages/cad-viewer-example/package.json')
+  path.join(root, 'packages/cad-editor-demo/package.json')
 )
 const { chromium } = require('@playwright/test')
 const args = process.argv.slice(2).filter(a => a !== '--')
@@ -89,7 +89,7 @@ try {
       'pnpm',
       [
         '--filter',
-        '@mlightcad/cad-viewer-example',
+        '@mlightcad/cad-editor-demo',
         'exec',
         'vite',
         '--host',
@@ -149,7 +149,7 @@ try {
     .setInputFiles(
       path.join(
         root,
-        'packages/cad-viewer-example/e2e/fixtures/minimal-line.dxf'
+        'packages/cad-editor-demo/e2e/fixtures/minimal-line.dxf'
       )
     )
   await page.waitForFunction(() => {

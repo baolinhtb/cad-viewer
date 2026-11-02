@@ -4,6 +4,8 @@ class MockAcApFontLoader {
   private _baseUrl = ''
   load = jest.fn(() => Promise.resolve())
   avaiableFonts = []
+  fontLoader = {}
+  getAvaiableFonts = jest.fn(async () => [])
 
   constructor() {
     mockFontLoaderInstances.push(this)
@@ -20,9 +22,12 @@ class MockAcApFontLoader {
 
 const mockInitialize = jest.fn()
 const mockSetRenderMode = jest.fn()
+const mockGetRenderMode = jest.fn(() => 'worker')
 const mockSetDefaultFonts = jest.fn(() => Promise.resolve())
 const mockSetLazyFontLoading = jest.fn(() => Promise.resolve())
 const mockSetAwaitFontsBeforeDraw = jest.fn(() => Promise.resolve())
+const mockSetFontUrl = jest.fn()
+const mockLoadFonts = jest.fn(() => Promise.resolve([]))
 
 jest.mock('../src/app/AcApFontLoader', () => ({
   AcApFontLoader: MockAcApFontLoader
@@ -33,9 +38,12 @@ jest.mock('@mlightcad/three-renderer', () => ({
     getInstance: jest.fn(() => ({
       initialize: mockInitialize,
       setRenderMode: mockSetRenderMode,
+      getRenderMode: mockGetRenderMode,
       setDefaultFonts: mockSetDefaultFonts,
       setLazyFontLoading: mockSetLazyFontLoading,
-      setAwaitFontsBeforeDraw: mockSetAwaitFontsBeforeDraw
+      setAwaitFontsBeforeDraw: mockSetAwaitFontsBeforeDraw,
+      setFontUrl: mockSetFontUrl,
+      loadFonts: mockLoadFonts
     })),
     resetInstance: jest.fn()
   }
@@ -46,17 +54,37 @@ jest.mock('../src/view', () => ({
     container: {},
     editor: {
       clearScriptInputs: jest.fn(),
-      enqueueScriptInputs: jest.fn()
+      enqueueScriptInputs: jest.fn(),
+      inputManager: {
+        isMobilePromptOpen: false,
+        mobileChrome: { prepareAccessory: jest.fn(), clearAccessory: jest.fn() },
+        sessionAccessoryHost: {
+          host: {},
+          type: 'desktop'
+        },
+        selectionSessionAccessory: null
+      }
     },
     renderer: {},
     clear: jest.fn(),
     zoomToFitDrawing: jest.fn(),
-    zoomTo: jest.fn()
+    zoomToSmartExtents: jest.fn(),
+    zoomTo: jest.fn(),
+    bindDrawDatabase: jest.fn(),
+    syncDisplaySysVars: jest.fn(),
+    captureSessionState: jest.fn(() => ({})),
+    restoreSessionState: jest.fn(),
+    beginNewSession: jest.fn(() => ({})),
+    stopAnimationLoop: jest.fn(),
+    disposeSessionState: jest.fn(),
+    selectionSet: { ids: [], clear: jest.fn(), add: jest.fn() }
   }))
 }))
 
 jest.mock('../src/app/AcApDocument', () => ({
   AcApDocument: jest.fn().mockImplementation(() => ({
+    isReusableUntitled: true,
+    destroy: jest.fn(),
     openMode: 0,
     database: {
       events: {
@@ -82,6 +110,14 @@ jest.mock('../src/app/AcApDocument', () => ({
   }))
 }))
 
+jest.mock('../src/app/AcApXrefManager', () => ({
+  AcApXrefManager: {
+    instance: {
+      clearAll: jest.fn()
+    }
+  }
+}))
+
 jest.mock('../src/app/AcApProgress', () => ({
   AcApProgress: jest.fn().mockImplementation(() => ({
     hide: jest.fn(),
@@ -91,12 +127,19 @@ jest.mock('../src/app/AcApProgress', () => ({
 }))
 
 jest.mock('../src/app/AcApContext', () => ({
-  AcApContext: jest.fn().mockImplementation((view, doc) => ({ view, doc }))
+  AcApContext: jest.fn().mockImplementation((view, doc) => ({
+    view,
+    doc,
+    suspend: jest.fn(),
+    resume: jest.fn(),
+    dispose: jest.fn()
+  }))
 }))
 
 jest.mock('../src/plugin/AcApPluginManager', () => ({
   AcApPluginManager: jest.fn().mockImplementation(() => ({
     unloadAllPlugins: jest.fn(() => Promise.resolve()),
+    setContext: jest.fn(),
     loadPluginsFromConfig: jest.fn(() =>
       Promise.resolve({ loaded: [], failed: [] })
     ),
@@ -106,12 +149,40 @@ jest.mock('../src/plugin/AcApPluginManager', () => ({
   }))
 }))
 
+jest.mock('../src/ui/AcUiDrawStyleSessionAccessory', () => ({
+  AcUiDrawStyleSessionAccessory: jest.fn().mockImplementation(() => ({
+    setActiveKind: jest.fn(),
+    createSessionAccessory: jest.fn(),
+    dispose: jest.fn()
+  }))
+}))
+
+jest.mock('../src/editor/input/ui/AcEdDesktopSessionAccessoryChrome', () => ({
+  AcEdDesktopSessionAccessoryChrome: jest.fn().mockImplementation(() => ({
+    dispose: jest.fn()
+  }))
+}))
+
+jest.mock('../src/command/measure/AcApRegisterMeasureCommands', () => ({
+  registerMeasureCommands: jest.fn()
+}))
+
+jest.mock('../src/command/markup/AcApRegisterMarkupCommands', () => ({
+  registerMarkupCommands: jest.fn()
+}))
+
+jest.mock('../src/command/AcApInstallDrawStyleSessionAccessory', () => ({
+  acapInstallDrawStyleSessionAccessory: jest.fn(),
+  acapGetDrawStyleSessionAccessory: jest.fn()
+}))
+
 jest.mock('../src/editor', () => ({
   AcEdCommandStack: jest.fn().mockImplementation(() => ({
     addCommand: jest.fn(),
     lookupGlobalCmd: jest.fn(),
     lookupLocalCmd: jest.fn(),
-    searchCommandsByPrefix: jest.fn()
+    searchCommandsByPrefix: jest.fn(),
+    cancelActive: jest.fn(() => Promise.resolve())
   })),
   AcEdOpenMode: {
     Read: 0
@@ -127,13 +198,26 @@ jest.mock('../src/command', () => {
     'AcApArcCmd',
     'AcApCacheFontCmd',
     'AcApCircleCmd',
+    'AcApClearMarkupsCmd',
     'AcApClearMeasurementsCmd',
+    'AcApCloseCmd',
+    'AcApConvertToBmpCmd',
     'AcApConvertToDxfCmd',
+    'AcApConvertToJpgCmd',
     'AcApConvertToPngCmd',
     'AcApEntityPreviewCmd',
     'AcApCopyCmd',
+    'AcApDimAlignedCmd',
+    'AcApDimAngularCmd',
+    'AcApDimArcCmd',
+    'AcApDimBaselineCmd',
+    'AcApDimContinueCmd',
+    'AcApDimDiameterCmd',
     'AcApDimLinearCmd',
+    'AcApDimOrdinateCmd',
+    'AcApDimRadiusCmd',
     'AcApEllipseCmd',
+    'AcApObjectScaleCmd',
     'AcApEraseCmd',
     'AcApHideObjectsCmd',
     'AcApHatchCmd',
@@ -154,10 +238,26 @@ jest.mock('../src/command', () => {
     'AcApLayoffCmd',
     'AcApLineCmd',
     'AcApLogCmd',
+    'AcApMarkupArrowCmd',
+    'AcApMarkupCalloutCmd',
+    'AcApMarkupCircleCmd',
+    'AcApMarkupCloudCmd',
+    'AcApMarkupExportCmd',
+    'AcApMarkupHighlightCmd',
+    'AcApMarkupImportCmd',
+    'AcApMarkupLineCmd',
+    'AcApMarkupRectCmd',
+    'AcApMarkupStampCmd',
+    'AcApMarkupTextCmd',
+    'AcApMarkupVisibilityCmd',
     'AcApMeasureAngleCmd',
     'AcApMeasureArcCmd',
     'AcApMeasureAreaCmd',
+    'AcApMeasureContinuousCmd',
     'AcApMeasureDistanceCmd',
+    'AcApMeasurementExportCmd',
+    'AcApMeasurementImportCmd',
+    'AcApMeasurementVisibilityCmd',
     'AcApMeasurePointCmd',
     'AcApMLineCmd',
     'AcApMoveCmd',
@@ -170,12 +270,10 @@ jest.mock('../src/command', () => {
     'AcApPolylineCmd',
     'AcApQNewCmd',
     'AcApRayCmd',
+    'AcApReadingModeCmd',
     'AcApRectCmd',
     'AcApRegenCmd',
-    'AcApRevCircleCmd',
     'AcApRevCloudCmd',
-    'AcApRevRectCmd',
-    'AcApRevVisibilityCmd',
     'AcApRedoCmd',
     'AcApRotateCmd',
     'AcApSelectCmd',
@@ -190,18 +288,25 @@ jest.mock('../src/command', () => {
     'AcApXLineCmd',
     'AcApZoomCmd'
   ]
-  return Object.fromEntries(
-    commandNames.map(name => [
-      name,
-      jest.fn().mockImplementation(() => ({ trigger: jest.fn() }))
-    ])
-  )
+  return {
+    ...Object.fromEntries(
+      commandNames.map(name => [
+        name,
+        jest.fn().mockImplementation(() => ({ trigger: jest.fn() }))
+      ])
+    ),
+    acapBindMarkupSession: jest.fn(),
+    acapDisposeMarkupSession: jest.fn(),
+    resetMarkupSession: jest.fn(),
+    resetMeasurementSession: jest.fn()
+  }
 })
 
 jest.mock('@mlightcad/data-model', () => ({
   AcCmColor: jest.fn(),
   AcCmEventManager: jest.fn().mockImplementation(() => ({
     addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
     dispatch: jest.fn()
   })),
   AcDbDatabaseConverterManager: {
@@ -213,9 +318,20 @@ jest.mock('@mlightcad/data-model', () => ({
     DXF: 'DXF',
     DWG: 'DWG'
   },
+  AcDbSystemVariables: {
+    CANNOSCALE: 'CANNOSCALE',
+    ANNOALLVISIBLE: 'ANNOALLVISIBLE'
+  },
   AcDbSysVarManager: {
     instance: jest.fn(() => ({
-      getAllDescriptors: jest.fn(() => [])
+      getAllDescriptors: jest.fn(() => []),
+      events: {
+        sysVarChanged: {
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+          dispatch: jest.fn()
+        }
+      }
     }))
   },
   AcGeBox2d: jest.fn(),
@@ -227,21 +343,24 @@ jest.mock('@mlightcad/data-model', () => ({
   }
 }))
 
-jest.mock('@mlightcad/libredwg-converter', () => ({
-  AcDbLibreDwgConverter: jest.fn()
-}))
-
 import { AcApDocManager } from '../src/app/AcApDocManager'
+import { acapDisposeNotificationService } from '../src/app/notification'
 
 describe('AcApDocManager font URL configuration', () => {
   beforeEach(() => {
     ;(AcApDocManager as unknown as { _instance: unknown })._instance = undefined
+    acapDisposeNotificationService()
     mockFontLoaderInstances.length = 0
     mockInitialize.mockClear()
     mockSetRenderMode.mockClear()
+    mockGetRenderMode.mockClear()
+    mockGetRenderMode.mockReturnValue('worker')
     mockSetDefaultFonts.mockClear()
     mockSetLazyFontLoading.mockClear()
     mockSetAwaitFontsBeforeDraw.mockClear()
+    mockSetFontUrl.mockClear()
+    mockLoadFonts.mockClear()
+    mockLoadFonts.mockResolvedValue([])
   })
 
   it('configures the font loader to download fonts from the custom base URL', async () => {
@@ -276,5 +395,174 @@ describe('AcApDocManager font URL configuration', () => {
     expect(mockSetRenderMode.mock.invocationCallOrder[0]).toBeLessThan(
       mockInitialize.mock.invocationCallOrder[0]
     )
+  })
+})
+
+describe('AcApDocManager preset fonts for open', () => {
+  beforeEach(() => {
+    ;(AcApDocManager as unknown as { _instance: unknown })._instance = undefined
+    acapDisposeNotificationService()
+    mockGetRenderMode.mockReset()
+    mockGetRenderMode.mockReturnValue('worker')
+    mockLoadFonts.mockReset()
+    mockLoadFonts.mockResolvedValue([])
+  })
+
+  it('loads the full preset into all workers and reuses the promise', async () => {
+    const manager = AcApDocManager.createInstance({})
+    mockLoadFonts.mockClear()
+
+    const first = manager!.ensurePresetFontsForOpen()
+    const second = manager!.ensurePresetFontsForOpen()
+    expect(first).toBe(second)
+
+    await first
+
+    expect(mockLoadFonts).toHaveBeenCalledTimes(1)
+    const call = mockLoadFonts.mock.calls[0] as unknown as [
+      string[],
+      { scope?: string } | undefined
+    ]
+    const names = call[0]
+    const options = call[1]
+    expect(names.length).toBeGreaterThan(0)
+    expect(names).toEqual(
+      expect.arrayContaining(['simsun', 'hztxt', 'amgdt'])
+    )
+    expect(options).toEqual({ scope: 'all' })
+    expect(manager!.lastPresetFontsForOpen).toEqual(names)
+  })
+
+  it('loads preset via FontManager.requestFonts in main-thread mode', async () => {
+    const { FontManager } = await import('@mlightcad/mtext-renderer')
+    const requestFonts = jest
+      .spyOn(FontManager.instance, 'requestFonts')
+      .mockResolvedValue([])
+    mockGetRenderMode.mockReturnValue('main')
+
+    const manager = AcApDocManager.createInstance({
+      useMainThreadDraw: true
+    })
+    mockLoadFonts.mockClear()
+    requestFonts.mockClear()
+
+    await manager!.ensurePresetFontsForOpen()
+
+    expect(mockLoadFonts).not.toHaveBeenCalled()
+    expect(requestFonts).toHaveBeenCalledTimes(1)
+    const requested = requestFonts.mock.calls[0][0] as readonly string[]
+    expect(requested.length).toBeGreaterThan(0)
+    requestFonts.mockRestore()
+  })
+
+  it('kicks ensurePresetFontsForOpen from onBeforeOpenDocument without awaiting it', () => {
+    const manager = AcApDocManager.createInstance({})
+    let ensureCalled = false
+    let ensureSettled = false
+    let settleTimer: ReturnType<typeof setTimeout> | undefined
+    ;(manager as unknown as { ensurePresetFontsForOpen: () => Promise<void> }).ensurePresetFontsForOpen =
+      () => {
+        ensureCalled = true
+        return new Promise<void>(resolve => {
+          settleTimer = setTimeout(() => {
+            ensureSettled = true
+            resolve()
+          }, 50)
+        })
+      }
+    ;(
+      manager as unknown as {
+        _openFileProgress: { setSeeThroughOverlay: (v: boolean) => void }
+      }
+    )._openFileProgress.setSeeThroughOverlay = jest.fn()
+    ;(
+      manager as unknown as {
+        _openFileProfiler: { begin: (db: unknown) => void }
+      }
+    )._openFileProfiler.begin = jest.fn()
+
+    ;(
+      manager as unknown as {
+        onBeforeOpenDocument: (options?: unknown, replace?: boolean) => void
+      }
+    ).onBeforeOpenDocument({}, false)
+
+    expect(ensureCalled).toBe(true)
+    // Open continues while preset load is still in flight.
+    expect(ensureSettled).toBe(false)
+    if (settleTimer) clearTimeout(settleTimer)
+  })
+})
+
+describe('AcApDocManager disableExport', () => {
+  beforeEach(() => {
+    ;(AcApDocManager as unknown as { _instance: unknown })._instance = undefined
+    acapDisposeNotificationService()
+  })
+
+  it('defaults to enabling export commands', () => {
+    const manager = AcApDocManager.createInstance({})
+    expect(manager?.disableExport).toBe(false)
+
+    const addCommand = (
+      manager!.commandManager as unknown as { addCommand: jest.Mock }
+    ).addCommand
+    const registered = addCommand.mock.calls.map(
+      (call: unknown[]) => call[1] as string
+    )
+    expect(registered).toContain('cdxf')
+    expect(registered).toContain('pngout')
+    expect(registered).toContain('jpgout')
+    expect(registered).toContain('bmpout')
+  })
+
+  it('skips built-in export commands when disableExport is true', () => {
+    const manager = AcApDocManager.createInstance({
+      disableExport: true
+    })
+    expect(manager?.disableExport).toBe(true)
+
+    const addCommand = (
+      manager!.commandManager as unknown as { addCommand: jest.Mock }
+    ).addCommand
+    const registered = addCommand.mock.calls.map(
+      (call: unknown[]) => call[1] as string
+    )
+    expect(registered).not.toContain('cdxf')
+    expect(registered).not.toContain('pngout')
+    expect(registered).not.toContain('jpgout')
+    expect(registered).not.toContain('bmpout')
+    expect(registered).toContain('open')
+  })
+})
+
+describe('AcApDocManager document sessions', () => {
+  beforeEach(() => {
+    ;(AcApDocManager as unknown as { _instance: unknown })._instance = undefined
+    acapDisposeNotificationService()
+  })
+
+  it('starts with one document session', () => {
+    const manager = AcApDocManager.createInstance({})
+    expect(manager?.documentCount).toBe(1)
+    expect(manager?.documents).toHaveLength(1)
+    expect(manager?.mdiActiveDocument).toBe(manager?.curDocument)
+    expect(manager?.activeSessionId).toMatch(/^doc-/)
+  })
+
+  it('activateDocument is a no-op for the current document', async () => {
+    const manager = AcApDocManager.createInstance({})
+    await expect(
+      manager!.activateDocument(manager!.curDocument)
+    ).resolves.toBe(true)
+    expect(manager!.documentCount).toBe(1)
+  })
+
+  it('closeDocument on the last drawing keeps one untitled session', async () => {
+    const manager = AcApDocManager.createInstance({})
+    const first = manager!.curDocument
+    await manager!.closeDocument()
+    expect(manager!.documentCount).toBe(1)
+    expect(manager!.curDocument).not.toBe(first)
   })
 })

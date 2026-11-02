@@ -95,6 +95,9 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
     )
     ensureSlotIdAttribute(this.geometry, this._maxSegmentCount)
     this._copyStaticAttributes(reference)
+    if (this._isDashedMaterial()) {
+      this._ensureDistanceAttributes()
+    }
     this._geometryInitialized = true
   }
 
@@ -112,12 +115,111 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
       if (
         key === 'instanceStart' ||
         key === 'instanceEnd' ||
-        key === 'slotId'
+        key === 'slotId' ||
+        // Dash distance storage is batch-sized and managed separately
+        // (see _ensureDistanceAttributes / _writeSlotDistances).
+        key === 'instanceDistanceStart' ||
+        key === 'instanceDistanceEnd'
       ) {
         continue
       }
       dstGeometry.setAttribute(key, reference.getAttribute(key).clone())
     }
+  }
+
+  /** Whether the batch material renders a dash pattern (dashed lines). */
+  private _isDashedMaterial(): boolean {
+    return (this.material as LineMaterial | undefined)?.dashed === true
+  }
+
+  /**
+   * Allocates `instanceDistanceStart`/`instanceDistanceEnd` storage sized to
+   * the packed segment capacity. Dashed {@link LineMaterial} requires these
+   * attributes to render dash patterns; solid batches skip them entirely.
+   */
+  private _ensureDistanceAttributes() {
+    const geometry = this.geometry as LineSegmentsGeometry
+    if (geometry.getAttribute('instanceDistanceStart')) {
+      return
+    }
+    const distances = new Float32Array(this._maxSegmentCount * 2)
+    const buffer = new THREE.InstancedInterleavedBuffer(distances, 2, 1)
+    geometry.setAttribute(
+      'instanceDistanceStart',
+      new THREE.InterleavedBufferAttribute(buffer, 1, 0)
+    )
+    geometry.setAttribute(
+      'instanceDistanceEnd',
+      new THREE.InterleavedBufferAttribute(buffer, 1, 1)
+    )
+  }
+
+  /**
+   * Allocates dash-distance storage when this batch's material is dashed,
+   * then rebuilds every active slot from zero.
+   *
+   * Used after a layer rebind swaps a dashed {@link LineMaterial} onto a
+   * wide-line batch that was packed as solid lines.
+   */
+  ensureDashDistances() {
+    if (!this._isDashedMaterial() || !this._geometryInitialized) {
+      return
+    }
+    this._ensureDistanceAttributes()
+    for (let i = 0; i < this._geometryCount; i++) {
+      const info = this._geometryInfo[i]
+      if (!info || !isBatchGeometryActive(info.flags) || info.vertexCount < 1) {
+        continue
+      }
+      this._writeSlotDistances(
+        info.vertexStart,
+        info.vertexCount,
+        info.reservedVertexCount
+      )
+    }
+  }
+
+  /**
+   * Writes entity-local dash distances for one packed slot.
+   *
+   * Segments inside the slot chain, so one polyline keeps a continuous
+   * pattern. The slot itself always starts at 0: continuing from the
+   * previous entity pushes later lines into linetype gaps (the same rule
+   * as {@link AcTrBatchedLine.ensureLineDistanceAttribute}).
+   * Reserved padding past `segmentCount` is cleared.
+   */
+  private _writeSlotDistances(
+    segmentStart: number,
+    segmentCount: number,
+    reservedCount: number
+  ) {
+    const distanceStart = this.geometry.getAttribute(
+      'instanceDistanceStart'
+    ) as THREE.InterleavedBufferAttribute | undefined
+    const distanceEnd = this.geometry.getAttribute('instanceDistanceEnd') as
+      | THREE.InterleavedBufferAttribute
+      | undefined
+    if (!distanceStart || !distanceEnd) {
+      return
+    }
+    const instanceStart = this.geometry.getAttribute('instanceStart')
+    const instanceEnd = this.geometry.getAttribute('instanceEnd')
+    let cumulative = 0
+    for (let i = 0; i < segmentCount; i++) {
+      const index = segmentStart + i
+      _segmentStart.fromBufferAttribute(instanceStart, index)
+      _segmentEnd.fromBufferAttribute(instanceEnd, index)
+      distanceStart.setX(index, cumulative)
+      cumulative += _segmentStart.distanceTo(_segmentEnd)
+      distanceEnd.setX(index, cumulative)
+    }
+    for (let i = segmentCount; i < reservedCount; i++) {
+      const index = segmentStart + i
+      distanceStart.setX(index, 0)
+      distanceEnd.setX(index, 0)
+    }
+    distanceStart.data.needsUpdate = true
+    distanceEnd.data.needsUpdate = true
   }
 
   private _validateGeometry(geometry: LineSegmentsGeometry) {
@@ -329,6 +431,15 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
       geometryId
     )
 
+    // This slot's dash phase starts at 0. Neighboring entities keep theirs.
+    if (this._isDashedMaterial()) {
+      this._writeSlotDistances(
+        segmentStart,
+        segmentCount,
+        geometryInfo.reservedVertexCount
+      )
+    }
+
     return geometryId
   }
 
@@ -383,6 +494,17 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
     instanceStart.needsUpdate = true
     instanceEnd.needsUpdate = true
 
+    // Compaction moves slots. Each entity still restarts its own dash phase.
+    if (this._isDashedMaterial()) {
+      for (const { info } of entries) {
+        this._writeSlotDistances(
+          info.vertexStart,
+          info.vertexCount,
+          info.reservedVertexCount
+        )
+      }
+    }
+
     syncBatchDrawVisibilityAfterOptimize(this.geometry, this._geometryInfo)
 
     return this
@@ -429,6 +551,181 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
     return target
   }
 
+  /**
+   * Computes the object-space AABB of one packed slot by scanning the packed
+   * `instanceStart`/`instanceEnd` segment data.
+   *
+   * Overrides the mixin default so aggregate bounds queries (frustum culling,
+   * layout extents, picking) never go through the lazily cached slot `Box3`:
+   * one cached box per slot would stay resident for the whole session
+   * (~234B × slot count, i.e. ~100MB on a large drawing).
+   *
+   * Numerically identical to {@link getBoundingBoxAt}: both expand `start` and
+   * `end` in the same order with the same float values, so aggregate spheres
+   * and boxes are bit-for-bit unchanged. The contiguous fast path only skips
+   * the `fromBufferAttribute` indirection.
+   *
+   * @param geometryId - Slot index to query.
+   * @param target - Reusable {@link THREE.Box3} that receives the result.
+   * @returns `target` when the id is valid, otherwise `null`.
+   */
+  override computeBoundingBoxAt(
+    geometryId: number,
+    target: THREE.Box3
+  ) {
+    if (geometryId >= this._geometryCount) {
+      return null
+    }
+
+    const geometryInfo = this._geometryInfo[geometryId]
+    const start = this.geometry.getAttribute('instanceStart')
+    const end = this.geometry.getAttribute('instanceEnd')
+    const vertexStart = geometryInfo.vertexStart
+    const vertexEnd = vertexStart + geometryInfo.vertexCount
+    target.makeEmpty()
+
+    const interleavedStart =
+      start instanceof THREE.InterleavedBufferAttribute ? start : null
+    const interleavedEnd =
+      end instanceof THREE.InterleavedBufferAttribute ? end : null
+    if (
+      interleavedStart !== null &&
+      interleavedEnd !== null &&
+      interleavedEnd.data === interleavedStart.data &&
+      interleavedStart.itemSize === 3 &&
+      interleavedEnd.itemSize === 3 &&
+      interleavedStart.offset === 0 &&
+      interleavedEnd.offset === 3 &&
+      interleavedStart.data.stride === 6
+    ) {
+      // instanceStart/instanceEnd share one interleaved [sx,sy,sz,ex,ey,ez]
+      // buffer; read it as a flat Float32Array.
+      const packed = interleavedStart.data.array as Float32Array
+      for (let i = vertexStart; i < vertexEnd; i++) {
+        const offset = i * 6
+        target.expandByPoint(
+          _vector.set(packed[offset], packed[offset + 1], packed[offset + 2])
+        )
+        target.expandByPoint(
+          _vector2.set(
+            packed[offset + 3],
+            packed[offset + 4],
+            packed[offset + 5]
+          )
+        )
+      }
+      return target
+    }
+
+    for (let i = vertexStart; i < vertexEnd; i++) {
+      target.expandByPoint(_vector.fromBufferAttribute(start, i))
+      target.expandByPoint(_vector2.fromBufferAttribute(end, i))
+    }
+    return target
+  }
+
+  /**
+   * Aggregate object-space bounding sphere from one pass over the packed
+   * segment ranges of every active slot.
+   *
+   * Replaces the mixin's per-slot `Box3` + `Sphere.union` with plain min/max
+   * comparisons on the contiguous packed buffer: no per-slot object is
+   * allocated and the packed data is touched once. The resulting sphere is the
+   * circumsphere of the aggregate AABB of the same active slot set, so it
+   * still encloses every active vertex — frustum culling can only ever drop a
+   * batch whose geometry is entirely outside the frustum, exactly as before.
+   *
+   * @param target - Sphere that receives the aggregate result.
+   * @returns `target`, or `null` when no bounds could be derived.
+   */
+  override computeAggregateBoundingSphere(target: THREE.Sphere) {
+    const start = this.geometry.getAttribute('instanceStart')
+    const end = this.geometry.getAttribute('instanceEnd')
+    if (!start || !end) {
+      return null
+    }
+
+    let minX = Infinity
+    let minY = Infinity
+    let minZ = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    let maxZ = -Infinity
+
+    const interleavedStart =
+      start instanceof THREE.InterleavedBufferAttribute ? start : null
+    const interleavedEnd =
+      end instanceof THREE.InterleavedBufferAttribute ? end : null
+    const packed =
+      interleavedStart !== null &&
+      interleavedEnd !== null &&
+      interleavedEnd.data === interleavedStart.data &&
+      interleavedStart.itemSize === 3 &&
+      interleavedEnd.itemSize === 3 &&
+      interleavedStart.offset === 0 &&
+      interleavedEnd.offset === 3 &&
+      interleavedStart.data.stride === 6
+        ? (interleavedStart.data.array as Float32Array)
+        : null
+
+    for (let slot = 0; slot < this._geometryCount; slot++) {
+      const info = this._geometryInfo[slot]
+      if (!isBatchGeometryActive(info.flags)) continue
+      const vertexStart = info.vertexStart
+      const vertexEnd = vertexStart + info.vertexCount
+
+      if (packed !== null) {
+        for (let i = vertexStart; i < vertexEnd; i++) {
+          const offset = i * 6
+          const sx = packed[offset]
+          const sy = packed[offset + 1]
+          const sz = packed[offset + 2]
+          const ex = packed[offset + 3]
+          const ey = packed[offset + 4]
+          const ez = packed[offset + 5]
+          if (sx < minX) minX = sx
+          if (sy < minY) minY = sy
+          if (sz < minZ) minZ = sz
+          if (sx > maxX) maxX = sx
+          if (sy > maxY) maxY = sy
+          if (sz > maxZ) maxZ = sz
+          if (ex < minX) minX = ex
+          if (ey < minY) minY = ey
+          if (ez < minZ) minZ = ez
+          if (ex > maxX) maxX = ex
+          if (ey > maxY) maxY = ey
+          if (ez > maxZ) maxZ = ez
+        }
+      } else {
+        for (let i = vertexStart; i < vertexEnd; i++) {
+          _vector.fromBufferAttribute(start, i)
+          _vector2.fromBufferAttribute(end, i)
+          if (_vector.x < minX) minX = _vector.x
+          if (_vector.y < minY) minY = _vector.y
+          if (_vector.z < minZ) minZ = _vector.z
+          if (_vector.x > maxX) maxX = _vector.x
+          if (_vector.y > maxY) maxY = _vector.y
+          if (_vector.z > maxZ) maxZ = _vector.z
+          if (_vector2.x < minX) minX = _vector2.x
+          if (_vector2.y < minY) minY = _vector2.y
+          if (_vector2.z < minZ) minZ = _vector2.z
+          if (_vector2.x > maxX) maxX = _vector2.x
+          if (_vector2.y > maxY) maxY = _vector2.y
+          if (_vector2.z > maxZ) maxZ = _vector2.z
+        }
+      }
+    }
+
+    if (minX > maxX) {
+      target.makeEmpty()
+      return target
+    }
+
+    _box.min.set(minX, minY, minZ)
+    _box.max.set(maxX, maxY, maxZ)
+    return _box.getBoundingSphere(target)
+  }
+
   getGeometryAt(geometryId: number) {
     this.validateGeometryId(geometryId)
     return this._geometryInfo[geometryId]
@@ -440,6 +737,16 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
   setGeometrySize(maxSegmentCount: number) {
     const oldGeometry = this.geometry as LineSegmentsGeometry
     const oldPacked = this._getPackedSegmentArray()
+    const oldSlotId = oldGeometry.getAttribute('slotId') as
+      | THREE.BufferAttribute
+      | THREE.InstancedBufferAttribute
+      | undefined
+    const oldSlotIdArray = oldSlotId
+      ? (oldSlotId.array as Float32Array).slice(
+          0,
+          Math.min(oldSlotId.count, this._maxSegmentCount)
+        )
+      : undefined
 
     this._maxSegmentCount = maxSegmentCount
     this.geometry = new LineSegmentsGeometry()
@@ -450,6 +757,33 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
     const newPacked = this._getPackedSegmentArray()
     copyArrayContents(oldPacked, newPacked)
     this._copyStaticAttributes(oldGeometry)
+    if (this._isDashedMaterial()) {
+      // Dash distance storage is not cloned with static attributes; rebuild
+      // it at the new capacity and copy the existing chain over.
+      const oldDistanceStart = oldGeometry.getAttribute(
+        'instanceDistanceStart'
+      ) as THREE.InterleavedBufferAttribute | undefined
+      this._ensureDistanceAttributes()
+      if (oldDistanceStart && oldDistanceStart.data?.array) {
+        const newDistanceStart = this.geometry.getAttribute(
+          'instanceDistanceStart'
+        ) as THREE.InterleavedBufferAttribute
+        const dst = newDistanceStart.data.array as Float32Array
+        const src = oldDistanceStart.data.array as Float32Array
+        dst.set(src.subarray(0, Math.min(src.length, dst.length)))
+        newDistanceStart.data.needsUpdate = true
+      }
+    }
+    const slotIdAttr = ensureSlotIdAttribute(this.geometry, maxSegmentCount)
+    if (oldSlotIdArray) {
+      ;(slotIdAttr.array as Float32Array).set(
+        oldSlotIdArray.subarray(
+          0,
+          Math.min(oldSlotIdArray.length, slotIdAttr.count)
+        )
+      )
+      slotIdAttr.needsUpdate = true
+    }
     this._geometryInitialized = true
     this._syncDrawRange()
     oldGeometry.dispose()
@@ -466,17 +800,20 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
       true
     )
     const object = new LineSegments2(geometry, this.material as LineMaterial)
+    // Sub-geometry is one entity. Recompute its own phase; the batch buffer's
+    // distance attributes are capacity-sized and are not sliced here.
+    if (this._isDashedMaterial()) {
+      object.computeLineDistances()
+    }
     object.position.copy(this.position)
     object.updateMatrix()
     object.updateMatrixWorld(true)
-    this.getBoundingBoxAt(
-      batchId,
-      object.geometry.boundingBox ?? new THREE.Box3()
-    )
-    this.getBoundingSphereAt(
-      batchId,
-      object.geometry.boundingSphere ?? new THREE.Sphere()
-    )
+    const localBox = object.geometry.boundingBox ?? new THREE.Box3()
+    this.computeBoundingBoxAt(batchId, localBox)
+    object.geometry.boundingBox = localBox
+    const localSphere = object.geometry.boundingSphere ?? new THREE.Sphere()
+    localBox.getBoundingSphere(localSphere)
+    object.geometry.boundingSphere = localSphere
     return object
   }
 
@@ -544,7 +881,7 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
     }
 
     if (geometryInfo.bboxIntersectionCheck) {
-      this.getBoundingBoxAt(geometryId, _box)
+      this.computeBoundingBoxAt(geometryId, _box)
       _box.applyMatrix4(this.matrixWorld)
       if (raycaster.ray.intersectBox(_box, _vector)) {
         const distance = raycaster.ray.origin.distanceTo(_vector)
@@ -657,9 +994,7 @@ export class AcTrBatchedLine2 extends AcTrBatchedLine2Base {
       _segmentStart
         .fromBufferAttribute(instanceStart, i)
         .applyMatrix4(matrixWorld)
-      _segmentEnd
-        .fromBufferAttribute(instanceEnd, i)
-        .applyMatrix4(matrixWorld)
+      _segmentEnd.fromBufferAttribute(instanceEnd, i).applyMatrix4(matrixWorld)
 
       const distSq = raycaster.ray.distanceSqToSegment(
         _segmentStart,

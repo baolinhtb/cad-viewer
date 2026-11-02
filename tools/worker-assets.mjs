@@ -9,22 +9,28 @@
 /** LibreDWG (GPL) DWG parser worker from `@mlightcad/libredwg-converter`. */
 export const LIBREDWG_PARSER_WORKER_FILE = 'libredwg-parser-worker.js'
 
+/**
+ * LibreDWG wasm sibling of {@link LIBREDWG_PARSER_WORKER_FILE}.
+ * Must be deployed next to the worker (wasm is not inlined).
+ */
+export const LIBREDWG_PARSER_WASM_FILE = 'libredwg-web.wasm'
+
 /** MTEXT layout/shaping worker from `@mlightcad/mtext-renderer`. */
 export const MTEXT_RENDERER_WORKER_FILE = 'mtext-renderer-worker.js'
 
 /**
- * Proprietary DWG parser worker from private package `@mlight-cad/dwg-converter`.
+ * Proprietary DWG parser worker from private package `@mlightcad/dwg-converter`.
  * Optional — copied only when that package is resolvable (e.g. via local
  * pnpm-workspace override).
  */
 export const DWG_PARSER_WORKER_FILE = 'dwg-parser-worker.js'
 
 /**
- * Proprietary DWG parser main-thread module from `@mlight-cad/dwg-converter`.
+ * Proprietary DWG parser main-thread module from `@mlightcad/dwg-converter`.
  * Used when parsing DWG on the main thread instead of a Web Worker.
  */
 export const DWG_PARSER_MAIN_FILE = 'dwg-parser-main.js'
 
 export const LIBREDWG_CONVERTER_PACKAGE = '@mlightcad/libredwg-converter'
 export const MTEXT_RENDERER_PACKAGE = '@mlightcad/mtext-renderer'
-export const DWG_CONVERTER_PACKAGE = '@mlight-cad/dwg-converter'
+export const DWG_CONVERTER_PACKAGE = '@mlightcad/dwg-converter'

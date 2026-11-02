@@ -1,13 +1,13 @@
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
-import { runTemplate } from './runTemplate'
 import { assemblyCatalogue, findAssembly, runAssembly } from './assembly'
 import { editTemplateRun } from './editRun'
 import { currentPlacementFrame } from './placement'
+import { runTemplate } from './runTemplate'
+import type { AcApToolOutcome, AcApToolSchema } from './semanticTools'
 import { findTemplate, listTemplates } from './templateRegistry'
 import { defaultValues } from './templateValues'
-import type { AcApToolOutcome, AcApToolSchema } from './semanticTools'
 
 /**
  * The tool that lets the assistant draw a part by naming it instead of by

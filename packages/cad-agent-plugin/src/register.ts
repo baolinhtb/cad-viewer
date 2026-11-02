@@ -1,7 +1,9 @@
 import type { AcApPluginManager } from '@mlightcad/cad-simple-viewer'
 
-import { AGENT_PLUGIN_NAME } from './AcApAgentPlugin'
 import { registerAgentI18n } from './i18n'
+
+/** Registered name of the CAD Agent plugin in the plugin manager. */
+export const AGENT_PLUGIN_NAME = 'AgentPlugin'
 
 /** Trigger commands handled by {@link AGENT_PLUGIN_NAME}. */
 export const AGENT_PLUGIN_TRIGGERS = ['agent'] as const
@@ -27,9 +29,8 @@ export function registerLazyAgentPlugin(
   })
 }
 
-export { AGENT_PLUGIN_NAME }
 export { setDrawingIdProvider } from './agent/drawingIdentity'
-export { mergeAgentI18nIntoVueI18n, registerAgentI18n } from './i18n'
+export { agentT, mergeAgentI18nIntoVueI18n, registerAgentI18n } from './i18n'
 export {
   openAgentPalette,
   setAgentPaletteOpener

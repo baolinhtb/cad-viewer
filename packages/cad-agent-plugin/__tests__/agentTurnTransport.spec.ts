@@ -70,14 +70,15 @@ jest.mock('ai', () => {
     }
     stream() {
       return {
-        toUIMessageStream: () => stubStream(),
+        toUIMessageStream: (options: any) => stubStream(options),
         finishReason: Promise.resolve(finishReason)
       }
     }
   }
-  async function* stubStream() {
+  async function* stubStream(options: any) {
     roundStarts += 1
     yield { type: 'text-delta', delta: 'đang vẽ' }
+    if (previewOutcome === 'scene-not-ready') options.onFinish?.({ messages: [{ id: 'drawn', role: 'assistant', parts: [{ type: 'tool-tao_ho_so_mo', state: 'output-available', output: { ok: true } }] }] })
     if (turnOutcome === 'abort') {
       const abort = new Error('The operation was aborted.')
       abort.name = 'AbortError'
@@ -92,6 +93,7 @@ jest.mock('ai', () => {
     // `formatChatError` reaches for this inside the transport's catch; without
     // it the catch throws and the error chunk never gets enqueued.
     APICallError: { isInstance: () => false },
+    createDownload: () => async () => [],
     Experimental_Agent: StubAgent,
     convertToModelMessages: async (messages: unknown) => messages,
     validateUIMessages: async ({ messages }: { messages: unknown }) => messages,

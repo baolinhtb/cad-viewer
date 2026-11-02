@@ -30,11 +30,18 @@ export default {
       description:
         'AUNITS ile birlikte kullanılan, açılar için görüntüleme hassasiyetini ayarlar'
     },
+    bmpout: {
+      description: 'BMP olarak dışa aktarır'
+    },
     cdxf: {
       description: 'Geçerli çizimi DXF olarak dışa aktarır'
     },
     cpdf: {
       description: 'Geçerli çizimi PDF olarak dışa aktarır'
+    },
+    '-cpdf': {
+      description:
+        'Geçerli çizimi komut satırı seçenekleriyle PDF olarak dışa aktarır'
     },
     cecolor: {
       description:
@@ -96,11 +103,38 @@ export default {
     dimlinear: {
       description: 'Doğrusal ölçülendirmeler oluşturur'
     },
+    dimaligned: {
+      description: 'Hizalı doğrusal ölçülendirme oluşturur'
+    },
+    dimradius: {
+      description: 'Daire ve yaylar için yarıçap ölçülendirmesi oluşturur'
+    },
+    dimdiameter: {
+      description: 'Daire ve yaylar için çap ölçülendirmesi oluşturur'
+    },
+    dimangular: {
+      description: 'Açısal ölçülendirmeler oluşturur'
+    },
+    dimarc: {
+      description: 'Yay uzunluğu ölçüsü oluşturur'
+    },
+    dimordinate: {
+      description: 'Ordinat ölçüsü oluşturur'
+    },
+    dimcontinue: {
+      description: 'Sürekli ölçü oluşturur'
+    },
+    dimbaseline: {
+      description: 'Taban çizgisi ölçüsü oluşturur'
+    },
     dimstyle: {
       description: 'Geçerli ölçülendirme stilinin adını ayarlar'
     },
     dwgname: {
       description: 'Geçerli çizim dosyasının adını saklar (salt okunur)'
+    },
+    loginname: {
+      description: 'Kullanıcının oturum açma adını görüntüler (salt okunur)'
     },
     dynmode: {
       description: 'İmleçteki Dinamik Girdi ayarlarını denetler'
@@ -217,6 +251,9 @@ export default {
       description:
         'Eklenen blokların, görüntülerin veya dış referansların otomatik ölçeklendirilmesi için çizim birimlerini belirtir'
     },
+    jpgout: {
+      description: 'JPEG olarak dışa aktarır'
+    },
     laycur: {
       description:
         'Seçili nesnelerin katman özelliğini geçerli katman olarak değiştirir',
@@ -283,7 +320,19 @@ export default {
         'Çizgi kalınlıklarının çizimde görüntülenip görüntülenmeyeceğini denetler'
     },
     clearmeasurements: {
-      description: 'Görünümdeki tüm etkin ölçümleri kaldırır'
+      description: 'Geçerli yerleşimdeki tüm ölçümleri kaldırır'
+    },
+    measurementvis: {
+      description: 'Geçerli yerleşimdeki ölçümleri gösterir veya gizler'
+    },
+    measurementpanel: {
+      description: 'Ölçüm paletini açar'
+    },
+    measurementexport: {
+      description: 'Ölçümleri sidecar JSON dosyasına dışa aktarır'
+    },
+    measurementimport: {
+      description: 'Ölçümleri sidecar JSON dosyasından içe aktarır'
     },
     measurearea: {
       description:
@@ -297,6 +346,10 @@ export default {
     },
     measuredistance: {
       description: 'İki nokta arasındaki mesafeyi ve delta değerlerini ölçer'
+    },
+    measurecontinuous: {
+      description:
+        'Enter veya İptal edilene kadar ardışık noktalar seçerek zincirleme mesafeleri ölçer'
     },
     measurepoint: {
       description: 'Seçilen noktanın X/Y koordinatlarını ölçer'
@@ -387,6 +440,9 @@ export default {
     qnew: {
       description: 'Yeni bir çizim başlatır'
     },
+    close: {
+      description: 'Geçerli çizimi kapatır'
+    },
     ray: {
       description: 'Bir noktadan başlayıp sonsuza uzanan bir ışın oluşturur'
     },
@@ -397,8 +453,50 @@ export default {
       description: 'Geçerli çizimi yeniden çizer'
     },
     revcloud: {
+      description: 'Revizyon bulutu oluşturur veya değiştirir'
+    },
+    markuptext: {
+      description: 'Metin işareti yerleştirir'
+    },
+    markupline: {
+      description: 'Çizgi işareti oluşturur'
+    },
+    markuparrow: {
+      description: 'Ok işareti oluşturur'
+    },
+    markupcloud: {
+      description: 'Revizyon bulutu işareti oluşturur'
+    },
+    markuprect: {
+      description: 'Dikdörtgen işareti oluşturur'
+    },
+    markupcircle: {
+      description: 'Daire işareti oluşturur'
+    },
+    markuphighlight: {
+      description: 'Vurgu dikdörtgeni işareti oluşturur'
+    },
+    markupcallout: {
       description:
-        'Dikdörtgen şeklinde bir revizyon bulutu (bulut çizgisi) oluşturur'
+        'Çağrı notu oluşturur: önce lider ucunu, sonra metin kutusunu belirtin, ardından metni girin'
+    },
+    markupstamp: {
+      description: 'Damga veya özel sembol yerleştirir'
+    },
+    markupvis: {
+      description: 'İşaretleri gösterir veya gizler'
+    },
+    clearmarkups: {
+      description: 'Geçerli yerleşimdeki tüm işaretleri temizler'
+    },
+    markupexport: {
+      description: 'İşaretleri sidecar JSON dosyasına dışa aktarır'
+    },
+    markupimport: {
+      description: 'İşaretleri sidecar JSON dosyasından içe aktarır'
+    },
+    markuppanel: {
+      description: 'İşaret paletini açar'
     },
     rotate: {
       description: 'Seçili varlıkları bir taban noktası etrafında döndürür',
@@ -412,8 +510,7 @@ export default {
         'Çizim alanındaki kısayol menülerinin kullanılabilirliğini denetler'
     },
     sketch: {
-      description:
-        'Fare hareketini izleyen çoklu çizgi kullanarak bir taslak çizgi oluşturur'
+      description: 'Bir dizi serbest el çizgi parçası oluşturur'
     },
     spline: {
       description:

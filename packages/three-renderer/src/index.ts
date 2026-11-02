@@ -1,4 +1,7 @@
+import './types/three-material'
+
 export * from './batch/AcTrBatchedGroup'
+export { AcTrMeshGlyphWorldBatch } from './batch/AcTrMeshGlyphWorldBatch'
 export {
   isBatchGeometryActive,
   isBatchGeometryVisible
@@ -8,12 +11,20 @@ export { AcTrBatchedLine } from './batch/AcTrBatchedLine'
 export { AcTrBatchedLine2 } from './batch/AcTrBatchedLine2'
 export { AcTrBatchedMesh } from './batch/AcTrBatchedMesh'
 export { AcTrBatchedPoint } from './batch/AcTrBatchedPoint'
+export * from './linetype'
 export * from './object/AcTrObject'
 export * from './object/AcTrEntity'
+export {
+  setHeadlessRasterDecoder,
+  type AcTrHeadlessRasterDecoder,
+  type AcTrHeadlessRasterImage
+} from './object/AcTrImage'
 export * from './object/AcTrGlyphEntity'
+export * from './object/AcTrMText'
+export * from './object/AcTrShape'
 export * from './object/AcTrLineGeometryBuilder'
 export * from './object/AcTrGroup'
-export * from './object/AcTrHtmlTransientManager'
+export * from './html'
 export * from './object/AcTrTransientManager'
 export * from './object/AcTrPreviewOverlayManager'
 export * from './renderer'
@@ -33,6 +44,7 @@ export {
   createHatchPatternShaderMaterial,
   type AcTrPatternLine
 } from './style/AcTrHatchPatternShaders'
+export { wrapPatternBaseToLocalFrame } from './style/AcTrFillMaterialManager'
 export * from './util/AcTrMTextColorUtil'
 export { AcTrMatrixUtil } from './util/AcTrMatrixUtil'
 export {

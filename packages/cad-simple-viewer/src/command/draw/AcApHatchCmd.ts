@@ -483,7 +483,7 @@ export class AcApHatchCmd extends AcEdCommand {
   private buildLoopInfos(loops: ReadonlyArray<AcGeLoop2d>): LoopInfo[] {
     const infos: LoopInfo[] = []
     loops.forEach(loop => {
-      const points = loop.getPoints(128).map(p => ({ x: p.x, y: p.y }))
+      const points = loop.tessellate().map(p => ({ x: p.x, y: p.y }))
       if (points.length < 3) return
       infos.push({
         loop,
@@ -743,6 +743,7 @@ export class AcApHatchCmd extends AcEdCommand {
     const options = new AcEdPromptSelectionOptions(
       AcApI18n.t('jig.hatch.select')
     )
+    options.allowObjectOnLockedLayer = true
     const result = await AcApDocManager.instance.editor.getSelection(options)
     if (result.status !== AcEdPromptStatus.OK || !result.value) return false
 

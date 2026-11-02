@@ -1,4 +1,242 @@
+import { AcGeBox2d, AcGePoint2d, AcGePoint3d, AcGiViewport } from '@mlightcad/data-model'
+import * as THREE from 'three'
+
+import { AcTrRenderer } from '../src/renderer'
+import { AcTrBaseView } from '../src/viewport/AcTrBaseView'
 import { AcTrViewportView } from '../src/viewport/AcTrViewportView'
+
+function createMockRenderer(
+  onRender?: (scene: THREE.Object3D) => void
+): AcTrRenderer {
+  return {
+    domElement: {} as HTMLCanvasElement,
+    setViewport: jest.fn(),
+    setScissor: jest.fn(),
+    setScissorTest: jest.fn(),
+    render: jest.fn((scene: THREE.Object3D) => {
+      onRender?.(scene)
+    })
+  } as unknown as AcTrRenderer
+}
+
+function createViewport(twist: number): AcGiViewport {
+  const gi = new AcGiViewport()
+  gi.centerPoint = new AcGePoint3d(5, 5, 0)
+  gi.width = 10
+  gi.height = 10
+  gi.viewCenter = new AcGePoint3d(0, 0, 0)
+  gi.viewTarget = new AcGePoint3d(150, 300, 0)
+  gi.viewHeight = 200
+  gi.viewTwistAngle = twist
+  return gi
+}
+
+describe('AcTrViewportView twist', () => {
+  it('maps paper points through viewTwistAngle and orients the camera', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(Math.PI / 2),
+      createMockRenderer()
+    )
+
+    const center = view.paperPointToModel({ x: 5, y: 5 })
+    expect(center.x).toBeCloseTo(150)
+    expect(center.y).toBeCloseTo(300)
+
+    const right = view.paperPointToModel({ x: 10, y: 5 })
+    expect(right.x).toBeCloseTo(150)
+    expect(right.y).toBeCloseTo(400)
+
+    expect(view.internalCamera.rotation.z).toBeCloseTo(Math.PI / 2)
+  })
+
+  it('keeps axis-aligned mapping when twist is zero', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(0),
+      createMockRenderer()
+    )
+    const corner = view.paperPointToModel({ x: 0, y: 0 })
+    expect(corner.x).toBeCloseTo(50)
+    expect(corner.y).toBeCloseTo(200)
+    expect(view.internalCamera.rotation.z).toBeCloseTo(0)
+  })
+
+  it('round-trips paper ↔ model when twist is zero', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(0),
+      createMockRenderer()
+    )
+    const paper = { x: 2, y: 8 }
+    const model = view.paperPointToModel(paper)
+    const back = view.modelPointToPaper(model)
+    expect(back.x).toBeCloseTo(paper.x)
+    expect(back.y).toBeCloseTo(paper.y)
+  })
+
+  it('round-trips paper ↔ model through viewTwistAngle', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(Math.PI / 2),
+      createMockRenderer()
+    )
+    const paper = { x: 10, y: 5 }
+    const model = view.paperPointToModel(paper)
+    expect(model.x).toBeCloseTo(150)
+    expect(model.y).toBeCloseTo(400)
+    const back = view.modelPointToPaper(model)
+    expect(back.x).toBeCloseTo(paper.x)
+    expect(back.y).toBeCloseTo(paper.y)
+  })
+})
+
+describe('AcTrViewportView.computeOnscreenPass', () => {
+  it('clips an oversized paper-viewport window to the parent canvas', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    parent.internalCamera.position.set(5, 5, 500)
+    parent.internalCamera.zoom = 10000
+    parent.internalCamera.updateProjectionMatrix()
+    parent.internalCamera.updateMatrixWorld()
+
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(0),
+      createMockRenderer()
+    )
+    const pass = view.computeOnscreenPass()
+    expect(pass).not.toBeNull()
+    expect(pass!.hit.x).toBeGreaterThanOrEqual(-1e-6)
+    expect(pass!.hit.y).toBeGreaterThanOrEqual(-1e-6)
+    expect(pass!.hit.x + pass!.hit.width).toBeLessThanOrEqual(800 + 1e-6)
+    expect(pass!.hit.y + pass!.hit.height).toBeLessThanOrEqual(600 + 1e-6)
+
+    const full = view.viewport.viewBox
+    const visibleW = pass!.modelBox.max.x - pass!.modelBox.min.x
+    const fullW = full.max.x - full.min.x
+    expect(visibleW).toBeLessThan(fullW * 0.5)
+  })
+
+  it('keeps the full DCS view box when the paper viewport is on-screen', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(Math.PI / 4),
+      createMockRenderer()
+    )
+    const pass = view.computeOnscreenPass()
+    expect(pass).not.toBeNull()
+    const full = view.viewport.viewBox
+    expect(pass!.modelBox.min.x).toBeCloseTo(full.min.x)
+    expect(pass!.modelBox.min.y).toBeCloseTo(full.min.y)
+    expect(pass!.modelBox.max.x).toBeCloseTo(full.max.x)
+    expect(pass!.modelBox.max.y).toBeCloseTo(full.max.y)
+  })
+
+  it('returns null when the paper viewport is fully off-screen', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    parent.internalCamera.position.set(1e6, 1e6, 500)
+    parent.internalCamera.updateProjectionMatrix()
+    parent.internalCamera.updateMatrixWorld()
+
+    const view = new AcTrViewportView(
+      parent,
+      createViewport(0),
+      createMockRenderer()
+    )
+    expect(view.computeOnscreenPass()).toBeNull()
+  })
+})
+
+describe('AcTrViewportView.render frozen layers', () => {
+  it('hides named layer groups listed in frozenLayers for the render pass only', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    let duringRender: {
+      frozenA: boolean
+      frozenB: boolean
+      kept: boolean
+    } | null = null
+
+    const scene = new THREE.Group()
+    const frozenA = new THREE.Group()
+    frozenA.name = 'FrozenA'
+    const frozenB = new THREE.Group()
+    frozenB.name = 'FrozenB'
+    frozenB.visible = false
+    const kept = new THREE.Group()
+    kept.name = 'Keep'
+    scene.add(frozenA, frozenB, kept)
+
+    const renderer = createMockRenderer(() => {
+      duringRender = {
+        frozenA: frozenA.visible,
+        frozenB: frozenB.visible,
+        kept: kept.visible
+      }
+    })
+    const source = createViewport(0)
+    source.frozenLayers = ['FrozenA', 'FrozenB']
+    const view = new AcTrViewportView(parent, source, renderer)
+    expect(view.viewport).not.toBe(source)
+    expect(view.viewport.frozenLayers).toEqual(['FrozenA', 'FrozenB'])
+
+    view.render(scene)
+
+    expect(renderer.render).toHaveBeenCalledTimes(1)
+    expect(duringRender).toEqual({
+      frozenA: false,
+      frozenB: false,
+      kept: true
+    })
+    expect(frozenA.visible).toBe(true)
+    expect(frozenB.visible).toBe(false)
+    expect(kept.visible).toBe(true)
+  })
+
+  it('does not change layer visibility when frozenLayers is empty', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const scene = new THREE.Group()
+    const layer = new THREE.Group()
+    layer.name = '0'
+    scene.add(layer)
+
+    let duringRenderVisible = false
+    const renderer = createMockRenderer(() => {
+      duringRenderVisible = layer.visible
+    })
+    const view = new AcTrViewportView(parent, createViewport(0), renderer)
+
+    view.render(scene)
+
+    expect(duringRenderVisible).toBe(true)
+    expect(layer.visible).toBe(true)
+    expect(renderer.render).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores layer visibility when the draw callback throws', () => {
+    const parent = new AcTrBaseView(createMockRenderer(), 800, 600)
+    const scene = new THREE.Group()
+    const frozen = new THREE.Group()
+    frozen.name = 'FrozenA'
+    scene.add(frozen)
+
+    const source = createViewport(0)
+    source.frozenLayers = ['FrozenA']
+    const view = new AcTrViewportView(parent, source, createMockRenderer())
+
+    expect(() =>
+      view.withFrozenLayersHidden(scene, () => {
+        expect(frozen.visible).toBe(false)
+        throw new Error('render failed')
+      })
+    ).toThrow('render failed')
+    expect(frozen.visible).toBe(true)
+  })
+})
 
 describe('AcTrViewportView.isDefaultPaperSpaceViewport', () => {
   it('detects the classic looks-at-itself default', () => {
@@ -62,5 +300,81 @@ describe('AcTrViewportView.isDefaultPaperSpaceViewport', () => {
         viewTarget: { x: 1111867.66380098, y: 300645.9460363481 }
       })
     ).toBe(false)
+  })
+
+  it('detects a panned/zoomed paper default (WJL-540 A3)', () => {
+    // Layout A3 default VP: user panned/zoomed paper space so centerPoint
+    // ≠ viewCenter and viewHeight ≠ height. Must still be filtered —
+    // otherwise model entities near paper WCS (e.g. MTEXT "TP阀水咀")
+    // render oversized on the sheet.
+    expect(
+      AcTrViewportView.isDefaultPaperSpaceViewport({
+        number: 1,
+        centerPoint: { x: 212.94625000000005, y: 150.46771666666663 },
+        viewCenter: { x: 196.9315564634066, y: 173.4165135464331 },
+        width: 831.7100360642607,
+        height: 413.0260723312315,
+        viewHeight: 268.5587661106557,
+        viewTarget: { x: 0, y: 0 }
+      })
+    ).toBe(true)
+  })
+
+  it('does not flag the real A3 content viewport next to a panned default', () => {
+    expect(
+      AcTrViewportView.isDefaultPaperSpaceViewport({
+        number: 2,
+        centerPoint: { x: 217.86285003986046, y: 150.35178346297505 },
+        viewCenter: { x: 1976.105445626634, y: 1438.3653768818137 },
+        width: 389.99999998199996,
+        height: 276.9999999713,
+        viewHeight: 2769.999999713,
+        viewTarget: { x: 0, y: 0 }
+      })
+    ).toBe(false)
+  })
+
+  it('does not flag a near-paper 1:1 model viewport with a non-zero viewTarget', () => {
+    // Sheet-sized model geometry can place viewCenter near the paper
+    // rectangle at ~1:1 scale; a non-zero viewTarget marks a real model
+    // camera and must not be swept into the panned-default fingerprint.
+    expect(
+      AcTrViewportView.isDefaultPaperSpaceViewport({
+        number: 3,
+        centerPoint: { x: 210, y: 148.5 },
+        viewCenter: { x: 200, y: 140 },
+        width: 100,
+        height: 80,
+        viewHeight: 80,
+        viewTarget: { x: 50, y: 40 }
+      })
+    ).toBe(false)
+  })
+})
+
+describe('AcTrBaseView center', () => {
+  it('keeps the orbit target under the camera so a later update stays top-down', () => {
+    const view = new AcTrBaseView(createMockRenderer(), 800, 600)
+    view.zoomTo(
+      new AcGeBox2d(new AcGePoint2d(0, 0), new AcGePoint2d(100, 50)),
+      1
+    )
+    const before = view.internalCamera.quaternion.clone()
+    view.center = new AcGePoint2d(view.center.x + 40, view.center.y - 15)
+    const controls = (
+      view as unknown as {
+        _cameraControls: {
+          update: () => void
+          target: { x: number; y: number }
+        }
+      }
+    )._cameraControls
+    controls.update()
+    expect(controls.target.x).toBeCloseTo(view.internalCamera.position.x)
+    expect(controls.target.y).toBeCloseTo(view.internalCamera.position.y)
+    expect(view.internalCamera.quaternion.x).toBeCloseTo(before.x)
+    expect(view.internalCamera.quaternion.y).toBeCloseTo(before.y)
+    expect(view.internalCamera.quaternion.z).toBeCloseTo(before.z)
+    expect(view.internalCamera.quaternion.w).toBeCloseTo(before.w)
   })
 })

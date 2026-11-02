@@ -1,12 +1,12 @@
 import { AcCmEventManager } from '@mlightcad/data-model'
 
-import { AcEdCommandStack } from '../editor'
+import { AcEdCommandStack } from '../editor/command/AcEdCommandStack'
 
 /**
  * Language/locale id used in the application.
  * Matches the naming style used by vue-i18n ("Locale").
  */
-export type AcApLocale = 'en' | 'zh' | 'tr' | 'cs' | 'vi'
+export type AcApLocale = 'en' | 'zh' | 'tr' | 'cs' | 'vi' | 'ar'
 
 /**
  * A single locale message tree.
@@ -56,7 +56,8 @@ export class AcApI18n {
     zh: {},
     tr: {},
     cs: {},
-    vi: {}
+    vi: {},
+    ar: {}
   }
 
   /**
@@ -121,7 +122,8 @@ export class AcApI18n {
    * @remarks
    * This method updates the internal locale state used by all
    * future calls to `t(key, options)`. After calling this method,
-   * the entire application will use the new locale automatically.
+   * {@link AcApI18n.events.localeChanged} fires so hosts (e.g. vue-i18n)
+   * can sync. Calling with the already-active locale is a no-op.
    *
    * @example
    * ```ts
@@ -130,6 +132,7 @@ export class AcApI18n {
    * ```
    */
   public static setCurrentLocale(locale: AcApLocale): void {
+    if (this._currentLocale === locale) return
     const old = this._currentLocale
     this._currentLocale = locale
     this.events.localeChanged.dispatch({ old, new: this._currentLocale })

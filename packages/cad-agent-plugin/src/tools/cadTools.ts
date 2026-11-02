@@ -19,6 +19,10 @@ import { tool } from 'ai'
 import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import {
+  createCadScriptTools,
+  type CreateCadScriptToolsOptions
+} from './scriptTools'
 import { readGuide } from './skillLookup'
 import { lookupTcvn } from './tcvnLookup'
 
@@ -136,8 +140,9 @@ function withJsonSafeResults<T extends Record<string, unknown>>(tools: T): T {
   return tools
 }
 
-export function createCadTools() {
+export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
   return withJsonSafeResults({
+    ...createCadScriptTools(options),
     tao_ho_so_mo: tool({
       description: DOSSIER_TOOLS.find(t => t.name === 'tao_ho_so_mo')!
         .description,

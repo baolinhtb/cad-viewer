@@ -4,13 +4,25 @@ import {
   AcApDocManager,
   AcApI18n,
   type AcApLocale,
+  type AcApOpenDatabaseOptions,
+  AcApOpenFileProfiler,
+  AcApOpenViewMode,
   AcEdOpenMode,
   AcTrView2d,
   LIBREDWG_PARSER_WORKER_FILE,
   MTEXT_RENDERER_WORKER_FILE
 } from '@mlightcad/cad-simple-viewer'
 import { registerLazySvgPlugin } from '@mlightcad/cad-svg-plugin/register'
-import { accmYieldForPaint } from '@mlightcad/data-model'
+import {
+  accmYieldForPaint,
+  AcDbDatabaseConverterManager,
+  AcDbFileType,
+  AcDbSystemVariables,
+  AcDbSysVarManager
+} from '@mlightcad/data-model'
+import { AcDbLibreDwgConverter } from '@mlightcad/libredwg-converter'
+import { TextRenderProfiler } from '@mlightcad/mtext-renderer'
+import { AcTrMTextRenderer } from '@mlightcad/three-renderer'
 
 /** Max time to wait for convert + deferred font/text geometry after open. */
 const SCENE_IDLE_TIMEOUT_MS = 120_000
@@ -35,9 +47,10 @@ async function waitForSceneIdle(timeoutMs = SCENE_IDLE_TIMEOUT_MS) {
 
 export type CadViewerCliOpenMode = 'read' | 'write'
 
+export type CadViewerCliOpenViewMode = 'extents' | 'saved'
+
 export interface CadViewerCliCapturedFile {
   fileName: string
-  base64: string
 }
 
 export interface CadViewerCliRunResult {
@@ -45,21 +58,49 @@ export interface CadViewerCliRunResult {
   files: CadViewerCliCapturedFile[]
 }
 
+export interface CadViewerCliRunOptions {
+  locale?: string
+  mode?: CadViewerCliOpenMode
+  /**
+   * When true (and no drawing bytes), create a blank ISO template document
+   * before running the script. Useful for create-from-scratch examples.
+   */
+  startBlank?: boolean
+  openViewMode?: CadViewerCliOpenViewMode
+  drawNoPlotLayers?: boolean
+  circleSides?: number
+  /**
+   * Resource base URL for fonts and drawing templates.
+   * Fonts load from `${baseUrl}fonts/`. When omitted, the default CDN is used.
+   */
+  baseUrl?: string
+  /**
+   * Base URL for POSTing export downloads as raw bodies
+   * (`${saveBaseUrl}${fileName}`). Avoids base64 over CDP.
+   */
+  saveBaseUrl?: string
+  /**
+   * When false, MTEXT uses the worker pool. Default true (main thread) for
+   * headless OPENPROF so transfer cost is not mixed into glyph build.
+   */
+  useMainThreadDraw?: boolean
+  /**
+   * Override TrueType glyph path for OPENPROF A/B (`mesh` fill vs `line` stroke).
+   */
+  meshFontRenderMode?: 'mesh' | 'line'
+  /**
+   * Scene-level InstancedMesh for TrueType mesh glyphs (skip per-entity merge).
+   */
+  meshGlyphInstancing?: boolean
+}
+
 declare global {
   interface Window {
     runCadScript: (
       fileName: string | null,
-      bytes: Uint8Array | null,
+      drawingUrl: string | null,
       script: string,
-      options?: {
-        locale?: string
-        mode?: CadViewerCliOpenMode
-        /**
-         * When true (and no drawing bytes), create a blank ISO template document
-         * before running the script. Useful for create-from-scratch examples.
-         */
-        startBlank?: boolean
-      }
+      options?: CadViewerCliRunOptions
     ) => Promise<CadViewerCliRunResult>
   }
 }
@@ -67,31 +108,24 @@ declare global {
 let ready = false
 const capturedFiles: CadViewerCliCapturedFile[] = []
 const pendingCaptures: Promise<void>[] = []
+let saveBaseUrl: string | undefined
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
-  }
-  return btoa(binary)
-}
-
-function captureDataUrl(fileName: string, href: string) {
-  const comma = href.indexOf(',')
-  if (comma < 0) {
-    throw new Error('Invalid data URL')
-  }
-  const meta = href.slice(5, comma)
-  const data = href.slice(comma + 1)
-  const isBase64 = /;base64/i.test(meta)
-  const base64 = isBase64
-    ? data
-    : btoa(unescape(encodeURIComponent(decodeURIComponent(data))))
-  capturedFiles.push({ fileName, base64 })
-}
+/**
+ * Blobs registered by `URL.createObjectURL`, so downloads can be read back
+ * directly. Fetching huge blob URLs (hundreds of MB) returns an empty body
+ * in headless Chromium, which silently produced empty export files.
+ */
+const blobByUrl = new Map<string, Blob>()
 
 function installDownloadCapture() {
+  const origCreateObjectURL = URL.createObjectURL.bind(URL)
+  URL.createObjectURL = (obj: Blob | MediaSource) => {
+    const url = origCreateObjectURL(obj as Blob)
+    if (obj instanceof Blob) {
+      blobByUrl.set(url, obj)
+    }
+    return url
+  }
   document.addEventListener(
     'click',
     event => {
@@ -116,28 +150,42 @@ function installDownloadCapture() {
       event.preventDefault()
       event.stopImmediatePropagation()
 
-      if (href.startsWith('data:')) {
-        try {
-          captureDataUrl(fileName, href)
-        } catch (error) {
-          console.error(
-            '[cad-simple-viewer-cli] Failed to capture data URL download',
-            error
+      const task = (async () => {
+        let blob: Blob | undefined = blobByUrl.get(href)
+        if (!blob && href.startsWith('data:')) {
+          const response = await fetch(href)
+          blob = await response.blob()
+        }
+        if (!blob) {
+          const response = await fetch(href)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch download "${fileName}"`)
+          }
+          blob = await response.blob()
+        }
+
+        if (!saveBaseUrl) {
+          throw new Error('CLI save endpoint not configured')
+        }
+        const t0 = performance.now()
+        const response = await fetch(
+          `${saveBaseUrl}${encodeURIComponent(fileName)}`,
+          {
+            method: 'POST',
+            body: blob
+          }
+        )
+        if (!response.ok) {
+          throw new Error(
+            `Failed to save download "${fileName}" (${response.status})`
           )
         }
-        return
-      }
-
-      const task = (async () => {
-        const response = await fetch(href)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch download "${fileName}"`)
-        }
-        const buffer = await response.arrayBuffer()
-        capturedFiles.push({
-          fileName,
-          base64: bytesToBase64(new Uint8Array(buffer))
-        })
+        console.log(
+          `[cad-simple-viewer-cli] saved ${fileName}: ${(
+            performance.now() - t0
+          ).toFixed(0)} ms (${blob.size} bytes)`
+        )
+        capturedFiles.push({ fileName })
       })().catch(error => {
         console.error(
           '[cad-simple-viewer-cli] Failed to capture download',
@@ -153,6 +201,51 @@ function installDownloadCapture() {
 
 function resolveOpenMode(mode?: CadViewerCliOpenMode): AcEdOpenMode {
   return mode === 'write' ? AcEdOpenMode.Write : AcEdOpenMode.Read
+}
+
+function resolveOpenViewMode(
+  mode?: CadViewerCliOpenViewMode
+): AcApOpenViewMode | undefined {
+  if (mode === 'extents') {
+    return AcApOpenViewMode.Extents
+  }
+  if (mode === 'saved') {
+    return AcApOpenViewMode.Saved
+  }
+  return undefined
+}
+
+/**
+ * Builds open-database options for the CLI runner.
+ *
+ * Progressive rendering is always forced off so drawings open as quickly as
+ * possible — headless scripts do not need mid-open paints.
+ *
+ * Export-oriented flags convert off layers / all layouts once, skip the pick
+ * spatial index, and disable cooperative convert yields.
+ */
+function buildOpenOptions(
+  options: CadViewerCliRunOptions
+): AcApOpenDatabaseOptions {
+  const openOptions: AcApOpenDatabaseOptions = {
+    mode: resolveOpenMode(options.mode),
+    progressiveRendering: false,
+    convertInvisibleLayers: true,
+    convertAllLayouts: true,
+    skipSpatialIndex: true,
+    cooperativeYield: false
+  }
+  const openViewMode = resolveOpenViewMode(options.openViewMode)
+  if (openViewMode != null) {
+    openOptions.openViewMode = openViewMode
+  }
+  if (options.drawNoPlotLayers != null) {
+    openOptions.drawNoPlotLayers = options.drawNoPlotLayers
+  }
+  if (options.circleSides != null) {
+    openOptions.circleSides = options.circleSides
+  }
+  return openOptions
 }
 
 function resolveLocale(locale?: string): AcApLocale | undefined {
@@ -171,25 +264,116 @@ function resolveLocale(locale?: string): AcApLocale | undefined {
   return undefined
 }
 
-async function ensureViewer(): Promise<void> {
+function logOpenProfile() {
+  const snapshot = AcApOpenFileProfiler.getLastSnapshot()
+  if (!snapshot) {
+    return
+  }
+  const lines = [
+    `[cad-simple-viewer-cli] OPENPROF total=${snapshot.totalMs.toFixed(0)}ms` +
+      ` read=${snapshot.readMs.toFixed(0)}ms` +
+      ` convert=${snapshot.convertMs.toFixed(0)}ms` +
+      ` parse=${snapshot.parseMs.toFixed(0)}ms` +
+      ` entity=${snapshot.entityMs.toFixed(0)}ms`,
+    `[cad-simple-viewer-cli] OPENPROF cache hits=${snapshot.cache.topLevel.hits}` +
+      ` misses=${snapshot.cache.topLevel.misses}` +
+      ` clone=${snapshot.cache.topLevel.cloneMs.toFixed(0)}ms` +
+      ` build=${snapshot.cache.topLevel.missBuildMs.toFixed(0)}ms` +
+      ` compact=${snapshot.cache.topLevel.missCompactMs.toFixed(0)}ms`
+  ]
+  if (snapshot.convertPhase) {
+    const p = snapshot.convertPhase
+    lines.push(
+      '[cad-simple-viewer-cli] OPENPROF convertPhase' +
+        ` finishGeometry=${p.finishGeometryMs.toFixed(0)}ms` +
+        ` asyncDraw=${p.finishGeometryAsyncDrawMs.toFixed(0)}ms` +
+        ` queueWait=${p.finishGeometryQueueWaitMs.toFixed(0)}ms` +
+        ` handleGroup=${p.handleGroupMs.toFixed(0)}ms` +
+        ` addEntity=${p.addEntityMs.toFixed(0)}ms` +
+        ` awaitFonts=${p.awaitFontsMs.toFixed(0)}ms` +
+        ` glyphs=${p.glyphEntityCount}` +
+        ` mtext=${p.mtextCount}` +
+        ` shape=${p.shapeCount}` +
+        ` sharedGlyph=${p.sharedGlyphDrawCount}`
+    )
+  }
+  try {
+    const liveProfile =
+      snapshot.mtextProfile ??
+      AcTrMTextRenderer.getInstance().getTextRenderProfile() ??
+      TextRenderProfiler.snapshot()
+    // Prefix required: HeadlessCadSession only forwards console lines that
+    // start with `[cad-simple-viewer-cli]`.
+    const prefix = '[cad-simple-viewer-cli]'
+    lines.push(
+      `${prefix} mtextProfile.enabled=${String(liveProfile?.enabled)}` +
+        ` drawCount=${liveProfile?.drawCount ?? 0}` +
+        ` placedChars=${liveProfile?.placedChars ?? 0}` +
+        ` triangulateMs=${(liveProfile?.triangulateMs ?? 0).toFixed(1)}` +
+        ` mergeMeshMs=${(liveProfile?.mergeMeshMs ?? 0).toFixed(1)}` +
+        ` parseLayoutMs=${(liveProfile?.parseLayoutMs ?? 0).toFixed(1)}`
+    )
+    if (liveProfile) {
+      for (const row of TextRenderProfiler.formatReport(liveProfile)) {
+        lines.push(`${prefix} ${row.trimStart()}`)
+      }
+    }
+  } catch (error) {
+    lines.push(
+      `[cad-simple-viewer-cli] mtextProfile error: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    )
+  }
+  for (const line of lines) {
+    console.log(line)
+  }
+}
+
+async function ensureViewer(options: CadViewerCliRunOptions = {}): Promise<void> {
   if (ready) {
     return
   }
   installDownloadCapture()
 
   const container = document.getElementById('cad-root') as HTMLDivElement
+  const dwgParserUrl = `./workers/${LIBREDWG_PARSER_WORKER_FILE}`
+  AcDbDatabaseConverterManager.instance.register(
+    AcDbFileType.DWG,
+    new AcDbLibreDwgConverter({
+      convertByEntityType: false,
+      useWorker: true,
+      parserWorkerUrl: dwgParserUrl
+    })
+  )
+  const useMainThreadDraw = options.useMainThreadDraw !== false
   AcApDocManager.createInstance({
     container,
     width: 1280,
     height: 720,
     autoResize: false,
-    baseUrl: 'https://cdn.jsdelivr.net/gh/mlightcad/cad-data@main/',
-    useMainThreadDraw: true,
+    ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+    useMainThreadDraw,
     webworkerFileUrls: {
-      dwgParser: `./workers/${LIBREDWG_PARSER_WORKER_FILE}`,
+      dwgParser: dwgParserUrl,
       mtextRender: `./workers/${MTEXT_RENDERER_WORKER_FILE}`
     }
   })
+  if (options.meshFontRenderMode) {
+    AcTrMTextRenderer.getInstance().setMeshFontRenderMode(
+      options.meshFontRenderMode
+    )
+  }
+  // Default on in AcTrMTextRenderer; only force-off when explicitly disabled.
+  if (options.meshGlyphInstancing === false) {
+    AcTrMTextRenderer.getInstance().setMeshGlyphInstancing(false)
+  }
+  // Headless OPENPROF always wants fine-grained mtext buckets.
+  // Set globalThis first so every bundled copy of TextRenderProfiler sees it.
+  ;(globalThis as { __MTEXTPROF__?: boolean }).__MTEXTPROF__ = true
+  TextRenderProfiler.setEnabled(true)
+  TextRenderProfiler.reset()
+  void AcTrMTextRenderer.getInstance().setTextRenderProfilerEnabled(true)
 
   const pluginManager = AcApDocManager.instance.pluginManager
   registerLazyHtmlPlugin(pluginManager, {
@@ -201,10 +385,11 @@ async function ensureViewer(): Promise<void> {
   ready = true
 }
 
-window.runCadScript = async (fileName, bytes, script, options = {}) => {
-  await ensureViewer()
+window.runCadScript = async (fileName, drawingUrl, script, options = {}) => {
+  await ensureViewer(options)
   capturedFiles.length = 0
   pendingCaptures.length = 0
+  saveBaseUrl = options.saveBaseUrl
 
   const locale = resolveLocale(options.locale)
   if (locale) {
@@ -212,22 +397,44 @@ window.runCadScript = async (fileName, bytes, script, options = {}) => {
   }
 
   const docManager = AcApDocManager.instance
-  const hasDrawing = !!(bytes && bytes.byteLength > 0 && fileName)
+  const hasDrawing = !!(drawingUrl && fileName)
+  const openOptions = buildOpenOptions(options)
 
-  if (hasDrawing) {
-    const buffer = bytes!.buffer.slice(
-      bytes!.byteOffset,
-      bytes!.byteOffset + bytes!.byteLength
+  // Enable OPENPROF console + mtext fine buckets for every CLI open.
+  try {
+    AcDbSysVarManager.instance().setVar(
+      AcDbSystemVariables.OPENPROF,
+      true,
+      docManager.curDocument.database
     )
-    const opened = await docManager.openDocument(fileName!, buffer, {
-      mode: resolveOpenMode(options.mode)
-    })
+  } catch {
+    // Session var may not exist on older data-model builds; profiler still runs.
+  }
+
+  const openT0 = performance.now()
+  const openWallClock = Date.now()
+  if (hasDrawing) {
+    const fetchT0 = performance.now()
+    const response = await fetch(drawingUrl!)
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch drawing "${fileName}" (${response.status}).`
+      )
+    }
+    const buffer = await response.arrayBuffer()
+    console.log(
+      `[cad-simple-viewer-cli] fetch drawing: ${(
+        performance.now() - fetchT0
+      ).toFixed(0)} ms (${buffer.byteLength} bytes)`
+    )
+    const opened = await docManager.openDocument(fileName!, buffer, openOptions)
     if (!opened) {
       throw new Error(`Failed to open "${fileName}".`)
     }
   } else if (options.startBlank !== false) {
     // No -i: start from ISO template in write mode (scripts may still call qnew).
     const created = await docManager.newDocument({
+      ...openOptions,
       mode: AcEdOpenMode.Write
     })
     if (!created) {
@@ -236,9 +443,30 @@ window.runCadScript = async (fileName, bytes, script, options = {}) => {
   }
 
   await waitForSceneIdle()
+  console.log(
+    `[cad-simple-viewer-cli] open+idle: ${(performance.now() - openT0).toFixed(
+      0
+    )} ms`
+  )
+  // OPENPROF publishes on the same idle edge; wait briefly for the snapshot.
+  for (let i = 0; i < 60; i++) {
+    const snap = AcApOpenFileProfiler.getLastSnapshot()
+    if (snap && snap.collectedAt >= openWallClock) {
+      break
+    }
+    await new Promise<void>(resolve => setTimeout(resolve, 16))
+  }
+  logOpenProfile()
+
+  const scriptT0 = performance.now()
   await docManager.runScript(script)
   await Promise.all(pendingCaptures)
   await accmYieldForPaint()
+  console.log(
+    `[cad-simple-viewer-cli] script: ${(performance.now() - scriptT0).toFixed(
+      0
+    )} ms`
+  )
 
   return {
     ok: true,

@@ -1,6 +1,33 @@
+import type { AcExLayoutSnapshot, AcExSnapshot } from '@mlightcad/cad-html-core'
 import * as THREE from 'three'
 
-import type { AcExLayoutSnapshot, AcExSnapshot } from './AcExSnapshotTypes'
+/**
+ * True when a layout still holds tessellated CPU batches.
+ */
+export function layoutHasBatchGeometry(layout: AcExLayoutSnapshot): boolean {
+  return layout.lineBatches.length > 0 || layout.meshBatches.length > 0
+}
+
+/**
+ * Copies geometry + OSNAP catalog from a freshly decoded layout onto a
+ * skeleton / previously released layout (same `btrId`).
+ */
+export function assignLayoutGeometryFrom(
+  target: AcExLayoutSnapshot,
+  source: AcExLayoutSnapshot
+): void {
+  target.lineBatches = source.lineBatches
+  target.meshBatches = source.meshBatches
+  target.osnap = source.osnap
+}
+
+/**
+ * Clears tessellated batch typed arrays on one layout so inactive package
+ * layouts can be unloaded and re-fetched later.
+ */
+export function releaseLayoutBatchBuffers(layout: AcExLayoutSnapshot): void {
+  clearLayoutBatchBuffers(layout)
+}
 
 /**
  * Clears tessellated batch typed arrays on every snapshot layout.
@@ -11,6 +38,22 @@ import type { AcExLayoutSnapshot, AcExSnapshot } from './AcExSnapshotTypes'
 export function releaseSnapshotBatchBuffers(snapshot: AcExSnapshot): void {
   for (const layout of snapshot.layouts) {
     clearLayoutBatchBuffers(layout)
+  }
+}
+
+/**
+ * Clears CPU batches for every layout except the ones that must stay resident
+ * until GPU upload / hybrid OSNAP finish (typically the active layout and
+ * model space when paper viewports need it).
+ */
+export function releaseInactiveLayoutBatchBuffers(
+  snapshot: AcExSnapshot,
+  keepBtrIds: ReadonlySet<string>
+): void {
+  for (const layout of snapshot.layouts) {
+    if (keepBtrIds.has(layout.btrId)) continue
+    clearLayoutBatchBuffers(layout)
+    layout.osnap = undefined
   }
 }
 
@@ -51,13 +94,24 @@ export function releaseLayerGroupsGeometryCpuArrays(
 ): void {
   for (const group of layerGroups.values()) {
     group.traverse(object => {
+      // Use Three.js type flags instead of instanceof: objects created by a
+      // second copy of Three.js (or by the Jest LineSegments2 mock) may not
+      // share constructors with the copy imported in this module.
+      const drawable = object as THREE.Object3D & {
+        isMesh?: boolean
+        isLineSegments?: boolean
+        isLine?: boolean
+        isPoints?: boolean
+        geometry?: THREE.BufferGeometry
+      }
       if (
-        object instanceof THREE.Mesh ||
-        object instanceof THREE.LineSegments ||
-        object instanceof THREE.Line ||
-        object instanceof THREE.Points
+        (drawable.isMesh ||
+          drawable.isLineSegments ||
+          drawable.isLine ||
+          drawable.isPoints) &&
+        drawable.geometry?.isBufferGeometry === true
       ) {
-        releaseBufferGeometryCpuArrays(object.geometry)
+        releaseBufferGeometryCpuArrays(drawable.geometry)
       }
     })
   }
@@ -75,6 +129,8 @@ function clearLayoutBatchBuffers(layout: AcExLayoutSnapshot): void {
     batch.positions = new Float32Array(0)
     if (batch.indices) batch.indices = new Uint32Array(0)
     if (batch.gradientPositions) batch.gradientPositions = new Float32Array(0)
+    if (batch.uvs) batch.uvs = new Float32Array(0)
+    if (batch.texture) batch.texture = { mimeType: '', bytes: new Uint8Array(0) }
   }
   layout.meshBatches.length = 0
 }

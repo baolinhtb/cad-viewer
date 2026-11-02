@@ -3,6 +3,7 @@ import {
   AcApDocManager,
   AcApI18n,
   AcEdCommand,
+  AcEdPromptIntegerOptions,
   AcEdPromptKeywordOptions,
   AcEdPromptStatus
 } from '@mlightcad/cad-simple-viewer'
@@ -10,6 +11,11 @@ import {
 import { AcApHtmlConvertor } from './AcApHtmlConvertor'
 import {
   type AcApHtmlExportOptions,
+  ACEX_MAX_CHUNK_SIZE_MIB,
+  ACEX_MIN_CHUNK_SIZE_MIB,
+  acexChunkSizeBytesToMiB,
+  acexChunkSizeMiBToBytes,
+  clampAcApHtmlChunkSizeMiB,
   resolveAcApHtmlExportOptions
 } from './AcApHtmlExportOptions'
 import type { AcApHtmlPluginOptions } from './AcApHtmlPluginOptions'
@@ -52,8 +58,31 @@ export class AcApExportHtmlCmd extends AcEdCommand {
   }
 
   private async promptOptions(): Promise<AcApHtmlExportOptions | undefined> {
-    const exportInvisibleLayers = await this.promptExportInvisibleLayers()
+    const defaults = resolveAcApHtmlExportOptions()
+
+    const exportFormat = await this.promptExportFormat()
+    if (exportFormat === undefined) {
+      return undefined
+    }
+
+    const exportInvisibleLayers = await this.promptYesNo(
+      'jig.chtml.exportInvisibleLayers',
+      defaults.exportInvisibleLayers
+    )
     if (exportInvisibleLayers === undefined) {
+      return undefined
+    }
+
+    const exportLayouts = await this.promptYesNo(
+      'jig.chtml.exportLayouts',
+      defaults.exportLayouts
+    )
+    if (exportLayouts === undefined) {
+      return undefined
+    }
+
+    const background = await this.promptBackground()
+    if (background === undefined) {
       return undefined
     }
 
@@ -67,18 +96,78 @@ export class AcApExportHtmlCmd extends AcEdCommand {
       return undefined
     }
 
+    let maxChunkBytes: number | undefined
+    let compressChunks: boolean | undefined
+    if (exportFormat === 'multi') {
+      maxChunkBytes = await this.promptChunkSizeMiB()
+      if (maxChunkBytes === undefined) {
+        return undefined
+      }
+
+      compressChunks = await this.promptYesNo(
+        'jig.chtml.compressChunks',
+        defaults.compressChunks
+      )
+      if (compressChunks === undefined) {
+        return undefined
+      }
+    }
+
     return resolveAcApHtmlExportOptions({
+      exportFormat,
       exportInvisibleLayers,
+      exportLayouts,
+      background,
       initialView,
-      viewerMode
+      viewerMode,
+      ...(exportFormat === 'multi' ? { maxChunkBytes, compressChunks } : {})
     })
   }
 
-  private async promptExportInvisibleLayers(): Promise<boolean | undefined> {
+  private async promptExportFormat(): Promise<
+    AcApHtmlExportOptions['exportFormat'] | undefined
+  > {
     const defaults = resolveAcApHtmlExportOptions()
     const prompt = new AcEdPromptKeywordOptions(
-      AcApI18n.t('jig.chtml.exportInvisibleLayers')
+      AcApI18n.t('jig.chtml.exportFormat')
     )
+    prompt.allowNone = true
+    const single = prompt.keywords.add(
+      AcApI18n.t('jig.chtml.keywords.single.display'),
+      AcApI18n.t('jig.chtml.keywords.single.global'),
+      AcApI18n.t('jig.chtml.keywords.single.local')
+    )
+    const multi = prompt.keywords.add(
+      AcApI18n.t('jig.chtml.keywords.multi.display'),
+      AcApI18n.t('jig.chtml.keywords.multi.global'),
+      AcApI18n.t('jig.chtml.keywords.multi.local')
+    )
+    prompt.keywords.default = defaults.exportFormat === 'multi' ? multi : single
+
+    const result = await AcApDocManager.instance.editor.getKeywords(prompt)
+    if (result.status === AcEdPromptStatus.Cancel) {
+      return undefined
+    }
+    if (result.status === AcEdPromptStatus.None) {
+      return defaults.exportFormat
+    }
+    if (
+      result.status === AcEdPromptStatus.OK ||
+      result.status === AcEdPromptStatus.Keyword
+    ) {
+      if (!result.stringResult) {
+        return defaults.exportFormat
+      }
+      return result.stringResult === 'Multi' ? 'multi' : 'single'
+    }
+    return undefined
+  }
+
+  private async promptYesNo(
+    messageKey: string,
+    defaultYes: boolean
+  ): Promise<boolean | undefined> {
+    const prompt = new AcEdPromptKeywordOptions(AcApI18n.t(messageKey))
     prompt.allowNone = true
     const yes = prompt.keywords.add(
       AcApI18n.t('jig.chtml.keywords.yes.display'),
@@ -90,23 +179,102 @@ export class AcApExportHtmlCmd extends AcEdCommand {
       AcApI18n.t('jig.chtml.keywords.no.global'),
       AcApI18n.t('jig.chtml.keywords.no.local')
     )
-    prompt.keywords.default = defaults.exportInvisibleLayers ? yes : no
+    prompt.keywords.default = defaultYes ? yes : no
 
     const result = await AcApDocManager.instance.editor.getKeywords(prompt)
     if (result.status === AcEdPromptStatus.Cancel) {
       return undefined
     }
     if (result.status === AcEdPromptStatus.None) {
-      return defaults.exportInvisibleLayers
+      return defaultYes
     }
     if (
       result.status === AcEdPromptStatus.OK ||
       result.status === AcEdPromptStatus.Keyword
     ) {
       if (!result.stringResult) {
-        return defaults.exportInvisibleLayers
+        return defaultYes
       }
       return result.stringResult === 'Yes'
+    }
+    return undefined
+  }
+
+  private async promptChunkSizeMiB(): Promise<number | undefined> {
+    const defaults = resolveAcApHtmlExportOptions({ exportFormat: 'multi' })
+    const defaultMiB = acexChunkSizeBytesToMiB(defaults.maxChunkBytes)
+    const prompt = new AcEdPromptIntegerOptions(
+      AcApI18n.t('jig.chtml.chunkSizeMiB'),
+      ACEX_MIN_CHUNK_SIZE_MIB,
+      ACEX_MAX_CHUNK_SIZE_MIB
+    )
+    prompt.allowNone = true
+    prompt.allowZero = false
+    prompt.allowNegative = false
+    prompt.useDefaultValue = true
+    prompt.defaultValue = defaultMiB
+
+    const result = await AcApDocManager.instance.editor.getInteger(prompt)
+    if (result.status === AcEdPromptStatus.Cancel) {
+      return undefined
+    }
+    if (result.status === AcEdPromptStatus.None) {
+      return acexChunkSizeMiBToBytes(defaultMiB)
+    }
+    if (result.status === AcEdPromptStatus.OK) {
+      const miB = clampAcApHtmlChunkSizeMiB(result.value ?? defaultMiB)
+      return acexChunkSizeMiBToBytes(miB)
+    }
+    return undefined
+  }
+
+  private async promptBackground(): Promise<
+    AcApHtmlExportOptions['background'] | undefined
+  > {
+    const defaults = resolveAcApHtmlExportOptions()
+    const prompt = new AcEdPromptKeywordOptions(
+      AcApI18n.t('jig.chtml.background')
+    )
+    prompt.allowNone = true
+    const black = prompt.keywords.add(
+      AcApI18n.t('jig.chtml.keywords.black.display'),
+      AcApI18n.t('jig.chtml.keywords.black.global'),
+      AcApI18n.t('jig.chtml.keywords.black.local')
+    )
+    const white = prompt.keywords.add(
+      AcApI18n.t('jig.chtml.keywords.white.display'),
+      AcApI18n.t('jig.chtml.keywords.white.global'),
+      AcApI18n.t('jig.chtml.keywords.white.local')
+    )
+    const space = prompt.keywords.add(
+      AcApI18n.t('jig.chtml.keywords.space.display'),
+      AcApI18n.t('jig.chtml.keywords.space.global'),
+      AcApI18n.t('jig.chtml.keywords.space.local')
+    )
+    prompt.keywords.default =
+      defaults.background === 'white'
+        ? white
+        : defaults.background === 'space'
+          ? space
+          : black
+
+    const result = await AcApDocManager.instance.editor.getKeywords(prompt)
+    if (result.status === AcEdPromptStatus.Cancel) {
+      return undefined
+    }
+    if (result.status === AcEdPromptStatus.None) {
+      return defaults.background
+    }
+    if (
+      result.status === AcEdPromptStatus.OK ||
+      result.status === AcEdPromptStatus.Keyword
+    ) {
+      if (!result.stringResult) {
+        return defaults.background
+      }
+      if (result.stringResult === 'White') return 'white'
+      if (result.stringResult === 'Space') return 'space'
+      return 'black'
     }
     return undefined
   }

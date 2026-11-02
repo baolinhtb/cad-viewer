@@ -1,28 +1,27 @@
 import { AcDbDatabase, AcGePoint3dLike } from '@mlightcad/data-model'
 
 import { AcApContext } from '../../app'
-import {
-  AcEdCommand,
-  AcEdCorsorType,
-  AcEdOpenMode,
-  AcEdPromptPointOptions,
-  AcEdPromptStatus,
-  AcEdViewMode
-} from '../../editor'
+import { AcEdPromptPointOptions, AcEdPromptStatus } from '../../editor'
 import { AcApI18n } from '../../i18n'
-import { makeBadge, makeDot, measurementColor } from '../../util'
+import {
+  acapGetCurrentMeasurementStyle,
+  type AcApMeasurementStyle
+} from '../../util'
 import { AcTrView2d } from '../../view'
-import { registerMeasurementCleanup } from './AcApClearMeasurementsCmd'
+import { AcApMeasureDrawCmd } from './AcApMeasureDrawCmd'
+import { AcApMeasurePointEntity } from './entity'
 
-/** Formats an X/Y coordinate label using the drawing length formatter. */
-function formatCoordinateLabel(
+/**
+ * Commit a coordinate measurement overlay (also used when importing a sidecar).
+ */
+export function placePointMeasurement(
+  view: AcTrView2d,
   db: AcDbDatabase,
-  point: AcGePoint3dLike
-): string {
-  const opts = { showUnits: true, showApproximate: true }
-  const x = db.formatter.formatLength(point.x, opts)
-  const y = db.formatter.formatLength(point.y, opts)
-  return `X ${x}  Y ${y}`
+  point: AcGePoint3dLike,
+  style: AcApMeasurementStyle,
+  options?: { id?: string; layoutId?: string }
+): void {
+  AcApMeasurePointEntity.create(point, style, options).commit(view, db)
 }
 
 /**
@@ -30,48 +29,26 @@ function formatCoordinateLabel(
  *
  * Prompts the user to pick one world point, then places a persistent dot and
  * coordinate badge via {@link AcTrHtmlTransientManager}. The overlays are
- * cleared by {@link registerMeasurementCleanup}.
+ * cleared by {@link commitMeasurementGroup}.
  */
-export class AcApMeasurePointCmd extends AcEdCommand {
-  constructor() {
-    super()
-    this.mode = AcEdOpenMode.Read
-  }
-
+export class AcApMeasurePointCmd extends AcApMeasureDrawCmd {
   async execute(context: AcApContext) {
     const editor = context.view.editor
     const db = context.doc.database
-    const color = measurementColor(db)
 
-    await context.view.withMode(AcEdViewMode.SELECTION, () =>
-      editor.withCursor(AcEdCorsorType.Crosshair, async () => {
-        const pointPrompt = new AcEdPromptPointOptions(
-          AcApI18n.t('jig.measurePoint.point')
-        )
-        const pointResult = await editor.getPoint(pointPrompt)
-        if (pointResult.status !== AcEdPromptStatus.OK) return
-        const point = pointResult.value!
-
-        const htManager = (context.view as AcTrView2d).htmlTransientManager
-        const id = `point-${Date.now()}`
-        const label = formatCoordinateLabel(db, point)
-
-        const badge = makeBadge(color, label)
-        // Offset the badge above the marker so it does not cover the dot.
-        badge.style.transform = 'translate(-50%, calc(-50% - 16px))'
-
-        htManager.add(`${id}-dot`, makeDot(color), point, 'measurement')
-        htManager.add(`${id}-badge`, badge, point, 'measurement')
-        // CSS2D overlays only appear after a render pass; without a CAD
-        // transient entity nothing else dirties the view, so force one.
-        ;(context.view as AcTrView2d).isDirty = true
-
-        registerMeasurementCleanup(() => {
-          htManager.remove(`${id}-dot`)
-          htManager.remove(`${id}-badge`)
-          ;(context.view as AcTrView2d).isDirty = true
-        })
-      })
-    )
+    await this.withMeasureInput(context, async () => {
+      const pointPrompt = new AcEdPromptPointOptions(
+        AcApI18n.t('jig.measurePoint.point')
+      )
+      const pointResult = await editor.getPoint(pointPrompt)
+      if (pointResult.status !== AcEdPromptStatus.OK) return
+      const point = pointResult.value!
+      placePointMeasurement(
+        context.view as AcTrView2d,
+        db,
+        point,
+        acapGetCurrentMeasurementStyle(db)
+      )
+    })
   }
 }

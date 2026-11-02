@@ -84,7 +84,7 @@ export class AcApUcsCmd extends AcEdCommand {
           acedAlert(
             co.length
               ? `Không có mốc "${name}". Đang có: ${co.join(', ')}.`
-              : `Bản vẽ chưa lưu mốc nào.`
+              : 'Bản vẽ chưa lưu mốc nào.'
           )
           return
         }

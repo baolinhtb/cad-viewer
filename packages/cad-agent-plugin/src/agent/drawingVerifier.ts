@@ -6,6 +6,7 @@ import { z } from 'zod/v4'
 
 import type { LlmSettings } from '../storage/LlmSettingsStore'
 import { createModelFromSettings } from './createModel'
+import { skipDataUrlDownload } from './skipDataUrlDownload'
 
 /** Maximum number of screenshot verification rounds per user message. */
 export const MAX_VERIFICATION_ATTEMPTS = 5
@@ -82,6 +83,7 @@ export async function verifyDrawing(
     system: VERIFICATION_SYSTEM_PROMPT,
     schema: verificationSchema,
     abortSignal,
+    experimental_download: skipDataUrlDownload,
     messages: [
       {
         role: 'user',

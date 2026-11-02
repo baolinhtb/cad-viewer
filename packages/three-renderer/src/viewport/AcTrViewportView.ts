@@ -7,7 +7,14 @@ import {
 import * as THREE from 'three'
 
 import { AcTrRenderer } from '../renderer/AcTrRenderer'
+import { applyAnnotationScalePass } from './AcTrAnnotationScale'
 import { AcTrBaseView } from './AcTrBaseView'
+import {
+  type AcTrCssRect,
+  acTrCssRectToWcsBox,
+  acTrCssTopLeftRectToGl,
+  acTrIntersectCssRects
+} from './AcTrCssRect'
 
 /**
  * This class represents view to show viewport.
@@ -60,7 +67,14 @@ export class AcTrViewportView extends AcTrBaseView {
    *    `centerPoint` (paper WCS) coincides with its `viewCenter` (model DCS).
    *    The genuine template default is the `(0,0)-(12,9)` viewport with
    *    `centerPoint == viewCenter == (6,4.5)`.
-   * 2. Some LibreDWG parses leave the default's paper `centerPoint` at the
+   * 2. The user panned/zoomed paper space, so `centerPoint` and `viewCenter`
+   *    diverge and `viewHeight` may differ from paper `height`, but the view
+   *    still looks at paper coordinates (centers remain close relative to the
+   *    paper rectangle) at a paper-like scale with a zero `viewTarget`.
+   *    Without this check, the default is treated as a model viewport and
+   *    model-space annotations whose WCS happens to overlap the sheet render
+   *    huge on top of the layout (e.g. WJL-540-300-035.1.1 layout A3).
+   * 3. Some LibreDWG parses leave the default's paper `centerPoint` at the
    *    origin `(0,0)` while still storing a sheet-local `viewCenter` and a
    *    1:1 `viewHeight == height` with a zero `viewTarget`. That broken
    *    default must also be filtered: otherwise it draws a large empty
@@ -69,7 +83,7 @@ export class AcTrViewportView extends AcTrBaseView {
    *
    * Real user viewports pan/zoom the model (`viewCenter`/`viewTarget` away
    * from the paper rectangle, `viewHeight` unrelated to paper `height`), so
-   * they do not match either fingerprint.
+   * they do not match these fingerprints.
    *
    * @param viewport the viewport read from `AcDbViewport.toGiViewport()`
    *                 (or the database entity, which exposes the same
@@ -79,6 +93,7 @@ export class AcTrViewportView extends AcTrBaseView {
     number: number
     centerPoint: { x: number; y: number }
     viewCenter: { x: number; y: number }
+    width?: number
     height?: number
     viewHeight?: number
     viewTarget?: { x: number; y: number }
@@ -92,6 +107,11 @@ export class AcTrViewportView extends AcTrBaseView {
       Math.abs(viewport.centerPoint.x - viewport.viewCenter.x) < eps &&
       Math.abs(viewport.centerPoint.y - viewport.viewCenter.y) < eps
     if (looksAtItself) return true
+
+    // Panned/zoomed paper default (see fingerprint #2 above).
+    if (AcTrViewportView.isPannedPaperSpaceDefault(viewport, eps)) {
+      return true
+    }
 
     // Broken LibreDWG default: paper center collapsed to origin, but the
     // viewport still "looks at paper" (1:1 height, zero view target).
@@ -121,6 +141,65 @@ export class AcTrViewportView extends AcTrBaseView {
   }
 
   /**
+   * Detects a paper-space default viewport whose view was panned or zoomed
+   * so `centerPoint` no longer equals `viewCenter` (and `viewHeight` may
+   * differ from paper `height`), while the view still looks at paper.
+   */
+  private static isPannedPaperSpaceDefault(
+    viewport: {
+      centerPoint: { x: number; y: number }
+      viewCenter: { x: number; y: number }
+      width?: number
+      height?: number
+      viewHeight?: number
+      viewTarget?: { x: number; y: number }
+    },
+    eps: number
+  ): boolean {
+    const width = viewport.width
+    const height = viewport.height
+    const viewHeight = viewport.viewHeight
+    if (
+      width == null ||
+      height == null ||
+      viewHeight == null ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      !Number.isFinite(viewHeight) ||
+      width <= eps ||
+      height <= eps ||
+      viewHeight <= eps
+    ) {
+      return false
+    }
+
+    // Paper defaults keep a zero (or omitted) viewTarget. A real model
+    // viewport that happens to pan near paper WCS usually aims via a
+    // non-zero target; requiring target≈0 avoids sweeping those in.
+    const target = viewport.viewTarget
+    if (
+      target &&
+      (Math.abs(target.x) >= eps || Math.abs(target.y) >= eps)
+    ) {
+      return false
+    }
+
+    const dx = Math.abs(viewport.centerPoint.x - viewport.viewCenter.x)
+    const dy = Math.abs(viewport.centerPoint.y - viewport.viewCenter.y)
+    // Centers still near the paper rectangle. Tighter than "anywhere inside
+    // the box" so a model viewport whose viewCenter merely lands on the
+    // sheet is not swept in; looser than 1e-6 so a mildly panned paper view
+    // still matches.
+    const rel = 0.25
+    if (dx >= width * rel || dy >= height * rel) return false
+
+    // Paper zoom stays near 1:1. Model viewports that fit large models into
+    // small paper boxes have viewHeight/height ≫ 1 (often 10–100+).
+    const scale = viewHeight / height
+    return scale >= 0.1 && scale <= 5
+  }
+
+  /**
    * Construct one instance of this class.
    * @param parentView Input parent view of this viewport view. The parent view contains this viewport view.
    * @param viewport Input the viewport associated with this viewport view.
@@ -141,6 +220,7 @@ export class AcTrViewportView extends AcTrBaseView {
     this._viewport = viewport.clone()
     this._frustum *= viewport.height / parentView.height
     this.zoomTo(this._viewport.viewBox)
+    this.applyViewTwist()
     this.enabled = false
   }
 
@@ -156,6 +236,7 @@ export class AcTrViewportView extends AcTrBaseView {
    */
   update() {
     this.zoomTo(this._viewport.viewBox, 1.0)
+    this.applyViewTwist()
   }
 
   /**
@@ -194,38 +275,87 @@ export class AcTrViewportView extends AcTrBaseView {
   }
 
   /**
-   * Transforms a point from paper-space WCS into the model-space DCS that
-   * is visible through this viewport. The mapping is the affine transform
-   * defined by:
-   *   - `viewport.box`     — the rectangle the viewport occupies in paper
-   *   - `viewport.viewBox` — the rectangle of model the viewport shows
+   * Transforms a point from paper-space WCS into the model-space WCS that
+   * is visible through this viewport.
    *
-   * Note this intentionally ignores the viewport's twist angle (rotation
-   * within the viewport): AutoCAD viewports may be rotated, but the
-   * current renderer does not support that yet, and adding it here would
-   * silently disagree with what the user sees on screen. When twist
-   * support lands (`AcDbViewport.twistAngle`), update this transform and
-   * the corresponding renderer in lockstep.
+   * Maps the paper rectangle onto the DCS view (`viewBox` size around its
+   * center), then rotates by {@link AcGiViewport.viewTwistAngle} so a
+   * non-zero DVIEW twist matches `AcGiViewport.dcsCenterToWcs` and the
+   * camera applied after zoom-to-fit.
    */
   paperPointToModel(paperPt: AcGePoint2dLike): AcGePoint2d {
     const paperBox = this._viewport.box
     const modelBox = this._viewport.viewBox
     const paperW = paperBox.max.x - paperBox.min.x
     const paperH = paperBox.max.y - paperBox.min.y
-    // Degenerate viewport (collapsed to a line/point) — return the model
-    // view center as a safe fallback so callers don't divide by zero.
+    const centerX = (modelBox.min.x + modelBox.max.x) / 2
+    const centerY = (modelBox.min.y + modelBox.max.y) / 2
     if (paperW <= 0 || paperH <= 0) {
-      return new AcGePoint2d(
-        (modelBox.min.x + modelBox.max.x) / 2,
-        (modelBox.min.y + modelBox.max.y) / 2
-      )
+      return new AcGePoint2d(centerX, centerY)
     }
-    const u = (paperPt.x - paperBox.min.x) / paperW
-    const v = (paperPt.y - paperBox.min.y) / paperH
+    const localX =
+      ((paperPt.x - paperBox.min.x) / paperW - 0.5) *
+      (modelBox.max.x - modelBox.min.x)
+    const localY =
+      ((paperPt.y - paperBox.min.y) / paperH - 0.5) *
+      (modelBox.max.y - modelBox.min.y)
+    const twist = this._viewport.viewTwistAngle
+    if (!Number.isFinite(twist) || twist === 0) {
+      return new AcGePoint2d(centerX + localX, centerY + localY)
+    }
+    const cos = Math.cos(twist)
+    const sin = Math.sin(twist)
     return new AcGePoint2d(
-      modelBox.min.x + u * (modelBox.max.x - modelBox.min.x),
-      modelBox.min.y + v * (modelBox.max.y - modelBox.min.y)
+      centerX + localX * cos - localY * sin,
+      centerY + localX * sin + localY * cos
     )
+  }
+
+  /**
+   * Transforms a point from the model-space WCS visible through this
+   * viewport back into paper-space WCS. Inverse of {@link paperPointToModel}.
+   */
+  modelPointToPaper(modelPt: AcGePoint2dLike): AcGePoint2d {
+    const paperBox = this._viewport.box
+    const modelBox = this._viewport.viewBox
+    const paperW = paperBox.max.x - paperBox.min.x
+    const paperH = paperBox.max.y - paperBox.min.y
+    const modelW = modelBox.max.x - modelBox.min.x
+    const modelH = modelBox.max.y - modelBox.min.y
+    const paperCenterX = (paperBox.min.x + paperBox.max.x) / 2
+    const paperCenterY = (paperBox.min.y + paperBox.max.y) / 2
+    if (modelW <= 0 || modelH <= 0) {
+      return new AcGePoint2d(paperCenterX, paperCenterY)
+    }
+    const centerX = (modelBox.min.x + modelBox.max.x) / 2
+    const centerY = (modelBox.min.y + modelBox.max.y) / 2
+    let localX = modelPt.x - centerX
+    let localY = modelPt.y - centerY
+    const twist = this._viewport.viewTwistAngle
+    if (Number.isFinite(twist) && twist !== 0) {
+      const cos = Math.cos(-twist)
+      const sin = Math.sin(-twist)
+      const rotatedX = localX * cos - localY * sin
+      const rotatedY = localX * sin + localY * cos
+      localX = rotatedX
+      localY = rotatedY
+    }
+    return new AcGePoint2d(
+      paperCenterX + (localX / modelW) * paperW,
+      paperCenterY + (localY / modelH) * paperH
+    )
+  }
+
+  /**
+   * Rotates this viewport's camera by {@link AcGiViewport.viewTwistAngle}
+   * after {@link zoomTo}, which otherwise resets rotation to identity.
+   */
+  private applyViewTwist() {
+    const twist = this._viewport.viewTwistAngle
+    const angle = Number.isFinite(twist) ? twist : 0
+    this._camera.internalCamera.up.set(-Math.sin(angle), Math.cos(angle), 0)
+    this._camera.setRotationFromEuler(new THREE.Euler(0, 0, angle))
+    this._camera.updateProjectionMatrix()
   }
 
   /**
@@ -244,36 +374,143 @@ export class AcTrViewportView extends AcTrBaseView {
   }
 
   /**
-   * Render the specified scene in this viewport view
-   * @param scene Input the scene to render
+   * Clips this paper viewport to the parent canvas and returns the CSS
+   * rectangle plus the model-space box that should fill it.
+   *
+   * A zoomed paper viewport can map to more CSS pixels than WebGL
+   * `MAX_VIEWPORT_DIMS`. Clamping that rect shifts NDC (right-side content
+   * appears in view) and further zoom draws nothing. The on-screen
+   * intersection stays within GPU limits.
+   *
+   * @returns On-canvas CSS rect and matching model box, or `null` when the
+   *   viewport is fully off-screen or has an empty mapping.
    */
-  render(scene: THREE.Object3D) {
+  computeOnscreenPass(): { hit: AcTrCssRect; modelBox: AcGeBox2d } | null {
     const viewportWindowBox = AcTrViewportView.calculateViewportWindowBox(
       this._parentView,
       this._viewport
     )
-    if (!viewportWindowBox.isEmpty()) {
-      const vpW = viewportWindowBox.size.width
-      const vpH = viewportWindowBox.size.height
-
-      if (vpW !== this._width || vpH !== this._height) {
-        this._width = vpW
-        this._height = vpH
-        this._frustum = vpH / 2
-        this.zoomTo(this._viewport.viewBox, 1.0)
-      }
-
-      const y = this._parentView.height - viewportWindowBox.min.y - vpH
-      this._renderer.setViewport(viewportWindowBox.min.x, y, vpW, vpH)
-      this._renderer.internalRenderer.setScissor(
-        viewportWindowBox.min.x,
-        y,
-        vpW,
-        vpH
-      )
-      this._renderer.internalRenderer.setScissorTest(true)
-      this._renderer.render(scene, this._camera)
-      this._renderer.internalRenderer.setScissorTest(false)
+    if (viewportWindowBox.isEmpty()) return null
+    const size = viewportWindowBox.size
+    const cssVp: AcTrCssRect = {
+      x: viewportWindowBox.min.x,
+      y: viewportWindowBox.min.y,
+      width: size.width,
+      height: size.height
     }
+    const hit = acTrIntersectCssRects(cssVp, {
+      x: 0,
+      y: 0,
+      width: this._parentView.width,
+      height: this._parentView.height
+    })
+    if (!hit) return null
+    // Map the CSS clip onto the DCS view box. Do not send corners through
+    // `paperPointToModel`: that applies `viewTwistAngle`, and `render()`
+    // already calls `applyViewTwist()` after `zoomTo`. Using the twisted
+    // AABB would zoom out fully on-screen twisted viewports.
+    const mapped = acTrCssRectToWcsBox(hit, this._viewport.viewBox, cssVp)
+    const modelBox = new AcGeBox2d()
+    modelBox.expandByPoint({ x: mapped.minX, y: mapped.minY })
+    modelBox.expandByPoint({ x: mapped.maxX, y: mapped.maxY })
+    if (modelBox.isEmpty()) return null
+    return { hit, modelBox }
+  }
+
+  /**
+   * Render the specified scene in this viewport view
+   * @param scene Input the scene to render
+   */
+  render(scene: THREE.Object3D) {
+    const pass = this.computeOnscreenPass()
+    if (!pass) return
+
+    this._width = pass.hit.width
+    this._height = pass.hit.height
+    this._frustum = pass.hit.height / 2
+    this.zoomTo(pass.modelBox, 1.0)
+    this.applyViewTwist()
+
+    const gl = acTrCssTopLeftRectToGl(pass.hit, this._parentView.height)
+    this._renderer.setViewport(gl.x, gl.y, gl.width, gl.height)
+    this._renderer.setScissor(gl.x, gl.y, gl.width, gl.height)
+    this._renderer.setScissorTest(true)
+
+    try {
+      this.withFrozenLayersHidden(scene, () => {
+        this.withAnnotationScaleApplied(scene, () => {
+          this._renderer.render(scene, this._camera)
+        })
+      })
+    } finally {
+      this._renderer.setScissorTest(false)
+    }
+  }
+
+  /**
+   * Runs `draw` while annotative model-space drawables are rescaled (or hidden)
+   * for this viewport's annotation scale, then restores prior transforms.
+   */
+  withAnnotationScaleApplied(scene: THREE.Object3D, draw: () => void): void {
+    const factor = this._viewport.annotationScaleFactor
+    if (!(factor > 0)) {
+      draw()
+      return
+    }
+    const restore = applyAnnotationScalePass(scene, {
+      annotationScaleFactor: factor,
+      // AutoCAD ANNOALLVISIBLE initial value is 1 (show unsupported).
+      annoAllVisible:
+        this._renderer.context?.database?.annoallvisible !== false
+    })
+    try {
+      draw()
+    } finally {
+      restore()
+    }
+  }
+
+  /**
+   * Runs `draw` while model-space layers frozen in this viewport (VPLAYER /
+   * DXF group 331) stay hidden, then restores their previous visibility.
+   *
+   * The snap loupe uses this around its nested model pass so frozen layers
+   * stay hidden there as well. Restoration runs even when `draw` throws.
+   *
+   * @param scene - Model-space scene whose direct children are layer groups.
+   * @param draw - Render callback that must observe the frozen-layer state.
+   */
+  withFrozenLayersHidden(scene: THREE.Object3D, draw: () => void): void {
+    const restored = this.hideFrozenLayers(scene)
+    try {
+      draw()
+    } finally {
+      for (const [object, visible] of restored) {
+        object.visible = visible
+      }
+    }
+  }
+
+  /**
+   * Temporarily hides model-space layer groups listed in
+   * {@link AcGiViewport.frozenLayers}. Layer groups are expected to use the
+   * AutoCAD layer name as {@link THREE.Object3D.name}.
+   *
+   * @returns Entries whose `visible` flag was changed, for restoration.
+   */
+  private hideFrozenLayers(
+    scene: THREE.Object3D
+  ): Array<[THREE.Object3D, boolean]> {
+    const frozen = this._viewport.frozenLayers
+    if (!frozen || frozen.length === 0) return []
+
+    const frozenNames = new Set(frozen)
+    const restored: Array<[THREE.Object3D, boolean]> = []
+    for (const child of scene.children) {
+      if (!frozenNames.has(child.name) || !child.visible) continue
+      restored.push([child, child.visible])
+      child.visible = false
+    }
+    return restored
   }
 }

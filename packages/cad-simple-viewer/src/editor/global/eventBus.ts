@@ -36,6 +36,10 @@ export type AcEdBusyIndicatorEventArgs = {
 }
 
 export type AcEdEvents = {
+  'ucs-changed': {
+    ucs: { name: string; origin: { x: number; y: number }; rotation: number }
+  }
+
   /** Emitted to request opening a file dialog (handled by {@link acapInstallOpenFileDialog}) */
   'open-file': {}
   /** Emitted when a local file is about to be opened through the built-in OPEN dialog */
@@ -93,16 +97,13 @@ export type AcEdEvents = {
   'missed-data-changed': {}
   /** Emitted after the active document undo/redo stack changes */
   'undo-stack-changed': {}
+  /**
+   * Emitted when an outermost database undo mark is committed so session
+   * undo can interleave DB edits with Design Review markup history.
+   */
+  'session-db-edit-committed': {}
   /** Emitted when the application busy indicator is shown or hidden */
   'busy-indicator': AcEdBusyIndicatorEventArgs
-  /**
-   * Emitted when the drawing's working coordinate system changes.
-   *
-   * The status bar reads coordinates through it: a drawing whose structure sits
-   * at x = 311088 is read against a site datum, and a readout that ignores the
-   * datum is a readout nobody can check against the paper drawing.
-   */
-  'ucs-changed': { ucs: { name: string; origin: { x: number; y: number }; rotation: number } }
 }
 
 /**

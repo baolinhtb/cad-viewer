@@ -1,32 +1,138 @@
-import type { AcTrView2d } from '@mlightcad/cad-simple-viewer'
-
+import type { AcApHtmlExpiryDays } from '@mlightcad/cad-html-core'
 import type {
+  AcExHtmlBackground,
   AcExInitialViewMode,
   AcExViewerMode,
   AcExViewState
-} from './AcExSnapshotTypes'
+} from '@mlightcad/cad-html-core'
+import {
+  ACEX_DEFAULT_CHUNK_MAX_BYTES,
+  resolveAcExHtmlBackground
+} from '@mlightcad/cad-html-core'
+import type { AcTrView2d } from '@mlightcad/cad-simple-viewer'
+
+export type { AcApHtmlExpiryDays } from '@mlightcad/cad-html-core'
 
 /** Matches the offline HTML viewer orthographic half-height in world units. */
 const HTML_VIEWER_CAMERA_FRUSTUM = 400
+
+/** Default max geometry chunk size for multi-file packages (10 MiB). */
+export const ACEX_DEFAULT_CHUNK_SIZE_MIB = 10
+
+/** Minimum allowed geometry chunk size in mebibytes for multi-file export. */
+export const ACEX_MIN_CHUNK_SIZE_MIB = 1
+
+/** Maximum allowed geometry chunk size in mebibytes for multi-file export. */
+export const ACEX_MAX_CHUNK_SIZE_MIB = 64
+
+/**
+ * HTML export packaging mode.
+ *
+ * - `single` — one self-contained `.html` (default). Small drawings embed a
+ *   monolithic ACEX snapshot; large drawings embed progressive ACEC chunks.
+ * - `multi` — multi-file ACEX package zipped as one `.zip` download; unzip before hosting.
+ */
+export type AcApHtmlExportFormat = 'single' | 'multi'
 
 /**
  * User-configurable options for HTML export (`-chtml`, dialog, and CLI).
  */
 export interface AcApHtmlExportOptions {
   /**
+   * Packaging mode. Defaults to `'single'`.
+   * Password and expiry apply only to `'single'`.
+   * Chunk size and compression apply only to `'multi'`.
+   */
+  exportFormat?: AcApHtmlExportFormat
+  /**
    * When `true`, off/frozen layers are converted and written into the snapshot.
    * Defaults to `true` for backward compatibility with pre-option HTML export.
    */
   exportInvisibleLayers?: boolean
   /**
+   * When `true`, paper-space layouts are converted and written into the snapshot.
+   * When `false`, only model space is exported, the offline toolbar omits the
+   * layout switcher, and the viewer can release CPU geometry after the first
+   * draw. Defaults to `true`.
+   */
+  exportLayouts?: boolean
+  /**
+   * Canvas background written into the exported HTML.
+   * `'black'` (default), `'white'`, or `'space'`.
+   *
+   * `'black'` and `'white'` apply to every layout. A paper-space sheet still
+   * exports on black unless `'white'` or `'space'` is selected. `'space'`
+   * uses a black canvas in model space and a white canvas in paper space.
+   * Near-black and near-white ink (ACI 7, wipeouts) is remapped so it stays
+   * visible on each canvas.
+   */
+  background?: AcExHtmlBackground
+  /**
    * Initial framing when the exported HTML is opened. Defaults to `'fit'`.
    */
   initialView?: AcExInitialViewMode
   /**
-   * Offline viewer capability profile. `'view'` omits OSNAP data and measurement
-   * UI for a smaller, faster HTML file. Defaults to `'measure'`.
+   * Offline viewer capability profile. `'view'` omits OSNAP data, measurement,
+   * and markup UI for a smaller, faster HTML file. Defaults to `'measure'`.
    */
   viewerMode?: AcExViewerMode
+  /**
+   * How long the exported HTML remains valid. Defaults to `'never'`.
+   * Use `'custom'` with {@link AcApHtmlExportOptions.expiresAt} for an absolute time.
+   * Ignored when {@link AcApHtmlExportOptions.exportFormat} is `'multi'`.
+   */
+  expiryDays?: AcApHtmlExpiryDays
+  /**
+   * Absolute expiry timestamp (Unix ms). Used when {@link AcApHtmlExportOptions.expiryDays}
+   * is `'custom'`. Ignored for relative periods and `'never'`.
+   * Ignored when {@link AcApHtmlExportOptions.exportFormat} is `'multi'`.
+   */
+  expiresAt?: number | null
+  /**
+   * Optional password required to open the exported HTML. When set, the snapshot
+   * or each embedded progressive chunk is AES-GCM encrypted.
+   * Ignored when {@link AcApHtmlExportOptions.exportFormat} is `'multi'`.
+   */
+  password?: string
+  /**
+   * Max uncompressed bytes per geometry (ACEC) or OSNAP (ACEO) chunk for
+   * multi-file packages. Defaults to {@link ACEX_DEFAULT_CHUNK_SIZE_MIB} (10 MiB).
+   * Ignored when {@link AcApHtmlExportOptions.exportFormat} is `'single'`.
+   */
+  maxChunkBytes?: number
+  /**
+   * When `true` (default), multi-file package chunks are gzip-compressed
+   * (`.acex.gz` / `.osnap.gz`). When `false`, raw ACEC/ACEO bytes are written.
+   * Ignored when {@link AcApHtmlExportOptions.exportFormat} is `'single'`.
+   */
+  compressChunks?: boolean
+}
+
+/**
+ * Converts a mebibyte chunk-size setting to uncompressed byte budget.
+ */
+export function acexChunkSizeMiBToBytes(miB: number): number {
+  return Math.floor(miB) * 1024 * 1024
+}
+
+/**
+ * Converts an uncompressed byte budget to a mebibyte setting for prompts/UI.
+ */
+export function acexChunkSizeBytesToMiB(bytes: number): number {
+  return Math.max(ACEX_MIN_CHUNK_SIZE_MIB, Math.round(bytes / (1024 * 1024)))
+}
+
+/**
+ * Clamps a multi-file geometry chunk size to the supported mebibyte range.
+ */
+export function clampAcApHtmlChunkSizeMiB(miB: number): number {
+  if (!Number.isFinite(miB)) {
+    return ACEX_DEFAULT_CHUNK_SIZE_MIB
+  }
+  return Math.min(
+    ACEX_MAX_CHUNK_SIZE_MIB,
+    Math.max(ACEX_MIN_CHUNK_SIZE_MIB, Math.floor(miB))
+  )
 }
 
 /**
@@ -34,13 +140,68 @@ export interface AcApHtmlExportOptions {
  */
 export function resolveAcApHtmlExportOptions(
   options: AcApHtmlExportOptions = {}
-): Required<AcApHtmlExportOptions> {
+): Required<
+  Omit<AcApHtmlExportOptions, 'password' | 'expiryDays' | 'expiresAt'>
+> & {
+  expiryDays: AcApHtmlExpiryDays
+  expiresAt: number | null
+  password: string
+} {
+  const exportFormat: AcApHtmlExportFormat =
+    options.exportFormat === 'multi' ? 'multi' : 'single'
+  const maxChunkBytes =
+    exportFormat === 'multi'
+      ? acexChunkSizeMiBToBytes(
+          clampAcApHtmlChunkSizeMiB(
+            options.maxChunkBytes != null
+              ? acexChunkSizeBytesToMiB(options.maxChunkBytes)
+              : ACEX_DEFAULT_CHUNK_SIZE_MIB
+          )
+        )
+      : ACEX_DEFAULT_CHUNK_MAX_BYTES
   return {
+    exportFormat,
     exportInvisibleLayers: options.exportInvisibleLayers !== false,
+    exportLayouts: options.exportLayouts !== false,
+    background: resolveAcExHtmlBackground(options.background),
     initialView: options.initialView ?? 'fit',
-    viewerMode: options.viewerMode ?? 'measure'
+    viewerMode: options.viewerMode ?? 'measure',
+    expiryDays:
+      exportFormat === 'multi' ? 'never' : (options.expiryDays ?? 'never'),
+    expiresAt: exportFormat === 'multi' ? null : (options.expiresAt ?? null),
+    password: exportFormat === 'multi' ? '' : (options.password?.trim() ?? ''),
+    maxChunkBytes,
+    compressChunks:
+      exportFormat === 'multi' ? options.compressChunks !== false : true
   }
 }
+
+/**
+ * Package-builder knobs derived from resolved multi-file export options.
+ */
+export function resolveAcApHtmlPackageBuildOptions(
+  options: Pick<AcApHtmlExportOptions, 'maxChunkBytes' | 'compressChunks'>
+): {
+  maxChunkBytes: number
+  maxBatchBytes: number
+  maxOsnapChunkBytes: number
+  compressChunks: boolean
+} {
+  const maxChunkBytes =
+    options.maxChunkBytes ??
+    acexChunkSizeMiBToBytes(ACEX_DEFAULT_CHUNK_SIZE_MIB)
+  const compressChunks = options.compressChunks !== false
+  return {
+    maxChunkBytes,
+    // Keep batch pieces and OSNAP catalogs in sync with the chunk budget so
+    // oversized layers / measure catalogs split at the same threshold users
+    // configure for package chunks.
+    maxBatchBytes: maxChunkBytes,
+    maxOsnapChunkBytes: maxChunkBytes,
+    compressChunks
+  }
+}
+
 /**
  * Captures the active 2D view as camera state understood by the offline viewer.
  */

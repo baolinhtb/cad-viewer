@@ -5,12 +5,12 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   transform: {
-    // Transpile-only for the agent package — see tsconfig.jest.agent.json for
-    // why. Listed first because jest takes the first pattern that matches.
-    'packages/cad-agent-plugin/.*\\.(ts|tsx)$': [
+    // Transpile-only: type-checking the `ai` / `@ai-sdk/*` graph that
+    // cad-agent-plugin pulls in exhausts the heap (see its copy-typings.mjs).
+    '^.+[\\\\/]packages[\\\\/]cad-agent-plugin[\\\\/].+\\.ts$': [
       'ts-jest',
       {
-        tsconfig: '<rootDir>/tsconfig.jest.agent.json'
+        tsconfig: '<rootDir>/packages/cad-agent-plugin/tsconfig.jest.json'
       }
     ],
     '^.+\\.(ts|tsx)$': [
@@ -29,17 +29,40 @@ const config: Config = {
     ]
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!.*(mtext-parser|rbush|quickselect))'
+    // three@0.186's CJS entry re-exports ESM (`three.module.js` / `three.core.js`).
+    '/node_modules/(?!.*(mtext-parser|rbush|quickselect|three/build/three))'
   ],
   testPathIgnorePatterns: [
+    '<rootDir>/tools/codex-cad/',
+    '<rootDir>/server/',
     '/e2e/',
-    '/__tests__/helpers/',
-    // The service tests run on node:test (`pnpm test:server`); jest cannot
-    // parse them and does not need to.
-    '<rootDir>/server/'
+    '/__tests__/helpers/'
   ],
   moduleNameMapper: {
+    '^@mlightcad/cad-template-plugin$':
+      '<rootDir>/packages/cad-template-plugin/src/index.ts',
+    '^@mlightcad/cad-template-sdk$':
+      '<rootDir>/packages/cad-template-sdk/src/index.ts',
+    '^@mlightcad/cad-template-cau-ban-btct$':
+      '<rootDir>/packages/cad-template-cau-ban-btct/src/index.ts',
+    '^@mlightcad/cad-storage-plugin$':
+      '<rootDir>/packages/cad-storage-plugin/src/index.ts',
+
     '^lodash-es$': 'lodash',
+    '^@mlightcad/cad-html-core$':
+      '<rootDir>/packages/cad-html-core/src/index.ts',
+    '^@mlightcad/cad-agent-core$':
+      '<rootDir>/packages/cad-agent-core/src/index.ts',
+    '^@mlightcad/cad-script-core$':
+      '<rootDir>/packages/cad-script-core/src/index.ts',
+    '^@mlightcad/cad-script-core/script-api$':
+      '<rootDir>/packages/cad-script-core/src/script-api.ts',
+    '^@mlightcad/cad-simple-viewer$':
+      '<rootDir>/packages/cad-simple-viewer/src/index.ts',
+    '^@mlightcad/cad-simple-viewer/icons$':
+      '<rootDir>/packages/cad-simple-viewer/src/ui/icons.ts',
+    '^@mlightcad/cad-simple-viewer/find$':
+      '<rootDir>/packages/cad-simple-viewer/src/find/index.ts',
     '^three/examples/jsm/lines/LineMaterial\\.js$':
       '<rootDir>/test/mocks/three/LineMaterial.js',
     '^three/examples/jsm/lines/LineSegments2\\.js$':

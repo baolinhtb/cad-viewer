@@ -8,8 +8,12 @@ import {
   formatPartId,
   writeSemanticTag
 } from '@mlightcad/cad-template-sdk'
+import { buildDimensionBlock } from '@mlightcad/cad-template-sdk'
 import {
   AcDbArc,
+  AcDbAttribute,
+  AcDbAttributeDefinition,
+  AcDbBlockReference,
   AcDbCircle,
   AcDbDatabase,
   AcDbEllipse,
@@ -18,14 +22,11 @@ import {
   AcDbHatchPatternType,
   AcDbHatchStyle,
   AcDbLine,
-  AcDbAttribute,
-  AcDbAttributeDefinition,
-  AcDbBlockReference,
   AcDbMText,
-  AcDbRotatedDimension,
   AcDbPoint,
   AcDbPolyline,
   AcDbRay,
+  AcDbRotatedDimension,
   AcDbSpline,
   AcDbXline,
   AcGeLine2d,
@@ -35,7 +36,6 @@ import {
   AcGeTol,
   HATCH_PATTERN_SOLID
 } from '@mlightcad/data-model'
-import { buildDimensionBlock } from '@mlightcad/cad-template-sdk'
 
 import { requireDocument, requireView } from './documentAccess'
 import type { DrawingContextSnapshot } from './DrawingContextProvider'

@@ -131,9 +131,130 @@ export default {
     }
   },
   dimlinear: {
-    xLine1Point: 'Specify the first extension line origin',
-    xLine2Point: 'Specify the second extension line origin',
-    dimLinePoint: 'Specify dimension line location'
+    xLine1Point: 'Specify first extension line origin or <select object>',
+    xLine2Point: 'Specify second extension line origin',
+    dimLinePoint: 'Specify dimension line location',
+    selectObject: 'Select object to dimension',
+    rejectObject: 'Object cannot be dimensioned with DIMLINEAR.',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    rotationAngle: 'Specify angle of dimension line',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' },
+      horizontal: {
+        display: 'Horizontal(H)',
+        local: 'Horizontal',
+        global: 'Horizontal'
+      },
+      vertical: {
+        display: 'Vertical(V)',
+        local: 'Vertical',
+        global: 'Vertical'
+      },
+      rotated: {
+        display: 'Rotated(R)',
+        local: 'Rotated',
+        global: 'Rotated'
+      }
+    }
+  },
+  dimaligned: {
+    xLine1Point: 'Specify first extension line origin or <select object>',
+    xLine2Point: 'Specify second extension line origin',
+    dimLinePoint: 'Specify dimension line location',
+    selectObject: 'Select object to dimension',
+    rejectObject: 'Object cannot be dimensioned with DIMALIGNED.',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' }
+    }
+  },
+  dimradius: {
+    selectObject: 'Select arc or circle',
+    rejectObject: 'Must select an arc or circle.',
+    dimLinePoint: 'Specify dimension line location',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' }
+    }
+  },
+  dimdiameter: {
+    selectObject: 'Select arc or circle',
+    rejectObject: 'Must select an arc or circle.',
+    dimLinePoint: 'Specify dimension line location',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' }
+    }
+  },
+  dimangular: {
+    vertexOrSelect: 'Specify angle vertex or <select line>',
+    xLine1Point: 'Specify first angle endpoint',
+    xLine2Point: 'Specify second angle endpoint',
+    arcPoint: 'Specify dimension arc line location',
+    selectFirstLine: 'Select first line',
+    selectSecondLine: 'Select second line',
+    rejectObject: 'Must select a line.',
+    linesParallel: 'Lines are parallel — no angle intersection.',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' }
+    }
+  },
+  dimarc: {
+    selectArc: 'Select arc',
+    rejectObject: 'Must select an arc.',
+    arcPoint: 'Specify arc length dimension location',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' }
+    }
+  },
+  dimordinate: {
+    featurePoint: 'Specify feature location',
+    leaderEndpoint: 'Specify leader endpoint',
+    dimensionText: 'Enter dimension text',
+    textAngle: 'Specify angle of dimension text',
+    keywords: {
+      mtext: { display: 'Mtext(M)', local: 'Mtext', global: 'Mtext' },
+      text: { display: 'Text(T)', local: 'Text', global: 'Text' },
+      angle: { display: 'Angle(A)', local: 'Angle', global: 'Angle' },
+      xdatum: { display: 'Xdatum(X)', local: 'Xdatum', global: 'Xdatum' },
+      ydatum: { display: 'Ydatum(Y)', local: 'Ydatum', global: 'Ydatum' }
+    }
+  },
+  dimcontinue: {
+    nextPoint: 'Specify a second extension line origin or',
+    selectDimension: 'Select continued dimension',
+    rejectObject: 'Must select a linear or angular dimension.',
+    keywords: {
+      select: { display: 'Select(S)', local: 'Select', global: 'Select' }
+    }
+  },
+  dimbaseline: {
+    nextPoint: 'Specify a second extension line origin or',
+    selectDimension: 'Select base dimension',
+    rejectObject: 'Must select a linear or angular dimension.',
+    keywords: {
+      select: { display: 'Select(S)', local: 'Select', global: 'Select' }
+    }
   },
   ellipse: {
     axisEndpointOrOptions: 'Specify axis endpoint of ellipse or',
@@ -662,7 +783,10 @@ export default {
   measureArc: {
     startPoint: 'Specify arc start point',
     throughPoint: 'Specify a point on the arc',
-    endPoint: 'Specify arc end point'
+    endPoint: 'Specify arc end point',
+    lockedEndPoint:
+      'Specify arc end point (Ctrl to switch major/minor arc)',
+    invalidPoints: 'The three points are collinear and do not define an arc.'
   },
   measureArea: {
     firstPoint: 'Specify first point',
@@ -672,8 +796,79 @@ export default {
     firstPoint: 'Specify first point',
     secondPoint: 'Specify second point'
   },
+  measureContinuous: {
+    firstPoint: 'Specify first point',
+    nextPoint: 'Specify next point (or press Enter to finish)'
+  },
   measurePoint: {
     point: 'Specify point'
+  },
+  measurement: {
+    import: {
+      chooseFile: 'Choose a measurement sidecar JSON file'
+    }
+  },
+  markup: {
+    author: 'Specify review author (saved for later)',
+    text: {
+      point: 'Specify text markup point',
+      content: 'Enter markup text'
+    },
+    line: {
+      firstPoint: 'Specify first point of line markup',
+      secondPoint: 'Specify second point of line markup'
+    },
+    arrow: {
+      firstPoint: 'Specify arrow start point',
+      secondPoint: 'Specify arrow tip'
+    },
+    cloud: {
+      firstCorner: 'Specify first corner of cloud',
+      secondCorner: 'Specify opposite corner of cloud'
+    },
+    rect: {
+      firstCorner: 'Specify first corner of rectangle',
+      secondCorner: 'Specify opposite corner of rectangle'
+    },
+    circle: {
+      center: 'Specify center of circle',
+      radius: 'Specify radius of circle'
+    },
+    shape: {
+      calloutOn: '[Callout on]',
+      calloutOff: '[Callout off]',
+      calloutAnchor: 'Specify callout text location',
+      keywords: {
+        callout: {
+          display: 'Callout(C)',
+          local: 'Callout',
+          global: 'Callout'
+        },
+        noCallout: {
+          display: 'NoCallout(N)',
+          local: 'NoCallout',
+          global: 'NoCallout'
+        }
+      }
+    },
+    highlight: {
+      firstCorner: 'Specify first corner of highlight',
+      secondCorner: 'Specify opposite corner of highlight'
+    },
+    callout: {
+      tip: 'Specify leader tip, or a cloud / rectangle / circle outline without a callout',
+      anchor: 'Specify callout text location',
+      content: 'Enter callout text'
+    },
+    stamp: {
+      kind: 'Enter stamp id [approved/rejected/revised/for-review/custom]',
+      imageUrl: 'Enter custom stamp image URL (optional)',
+      caption: 'Enter stamp caption (optional)',
+      point: 'Specify stamp insertion point'
+    },
+    import: {
+      chooseFile: 'Choose a markup sidecar JSON file'
+    }
   },
   move: {
     basePointOrDisplacement: 'Specify base point or',
@@ -697,6 +892,16 @@ export default {
   },
   mtext: {
     point: 'Specify mtext insertion point'
+  },
+  bmpout: {
+    boundsFirstCorner: 'Specify first corner of bounds',
+    boundsSecondCorner: 'Specify opposite corner',
+    longSidePrompt: 'Enter long side size in pixels'
+  },
+  jpgout: {
+    boundsFirstCorner: 'Specify first corner of bounds',
+    boundsSecondCorner: 'Specify opposite corner',
+    longSidePrompt: 'Enter long side size in pixels'
   },
   pngout: {
     boundsFirstCorner: 'Specify first corner of bounds',
@@ -917,9 +1122,119 @@ export default {
       referencePoints: 'Invalid reference points: points must be different.'
     }
   },
+  revcloud: {
+    firstCornerOrOptions: 'Specify first corner point or',
+    firstCorner: 'Specify first corner point',
+    oppositeCorner: 'Specify opposite corner',
+    startPoint: 'Specify start point',
+    nextPoint: 'Specify next point',
+    nextPointOrUndo: 'Specify next point or',
+    firstPoint: 'Specify first point',
+    guideCursor: 'Guide cursor along cloud path (press Enter to finish)',
+    arcLength: 'Specify arc length',
+    selectObject: 'Select object',
+    style: 'Enter revision cloud arc style',
+    reverseDirection: 'Reverse direction',
+    invalidArcLength: 'Arc length must be greater than 0.',
+    invalidObject: 'Selected object cannot be converted to a revision cloud.',
+    keywords: {
+      arcLength: {
+        display: 'Arc length(A)',
+        local: 'Arc length',
+        global: 'ArcLength'
+      },
+      object: {
+        display: 'Object(O)',
+        local: 'Object',
+        global: 'Object'
+      },
+      rectangular: {
+        display: 'Rectangular(R)',
+        local: 'Rectangular',
+        global: 'Rectangular'
+      },
+      polygonal: {
+        display: 'Polygonal(P)',
+        local: 'Polygonal',
+        global: 'Polygonal'
+      },
+      freehand: {
+        display: 'Freehand(F)',
+        local: 'Freehand',
+        global: 'Freehand'
+      },
+      style: {
+        display: 'Style(S)',
+        local: 'Style',
+        global: 'Style'
+      },
+      normal: {
+        display: 'Normal(N)',
+        local: 'Normal',
+        global: 'Normal'
+      },
+      calligraphy: {
+        display: 'Calligraphy(C)',
+        local: 'Calligraphy',
+        global: 'Calligraphy'
+      },
+      undo: {
+        display: 'Undo(U)',
+        local: 'Undo',
+        global: 'Undo'
+      },
+      yes: {
+        display: 'Yes(Y)',
+        local: 'Yes',
+        global: 'Yes'
+      },
+      no: {
+        display: 'No(N)',
+        local: 'No',
+        global: 'No'
+      }
+    }
+  },
   sketch: {
+    specifySketch: 'Specify sketch or',
+    sketching: 'Move the pointer to sketch (click or press Enter to stop)',
+    type: 'Enter sketch type',
+    increment: 'Specify sketch increment',
+    tolerance: 'Specify spline tolerance',
     firstPoint: 'Specify the first point',
-    nextPoint: 'Specify the end point'
+    nextPoint: 'Specify the end point',
+    keywords: {
+      type: {
+        display: 'Type(T)',
+        local: 'Type',
+        global: 'Type'
+      },
+      increment: {
+        display: 'Increment(I)',
+        local: 'Increment',
+        global: 'Increment'
+      },
+      tolerance: {
+        display: 'toLerance(L)',
+        local: 'toLerance',
+        global: 'Tolerance'
+      },
+      line: {
+        display: 'Lines(L)',
+        local: 'Lines',
+        global: 'Lines'
+      },
+      polyline: {
+        display: 'Polyline(P)',
+        local: 'Polyline',
+        global: 'Polyline'
+      },
+      spline: {
+        display: 'Spline(S)',
+        local: 'Spline',
+        global: 'Spline'
+      }
+    }
   },
   spline: {
     firstPoint: 'Specify the first point',
@@ -983,6 +1298,29 @@ export default {
       }
     }
   },
+  objectscale: {
+    action: 'Enter an option',
+    scaleName: 'Enter annotation scale name',
+    done: 'Updated objects',
+    none: '(none)',
+    keywords: {
+      add: {
+        display: 'Add(A)',
+        local: 'Add',
+        global: 'Add'
+      },
+      delete: {
+        display: 'Delete(D)',
+        local: 'Delete',
+        global: 'Delete'
+      },
+      list: {
+        display: 'List(L)',
+        local: 'List',
+        global: 'List'
+      }
+    }
+  },
   sysvar: {
     prompt: 'Please input new value'
   },
@@ -1014,6 +1352,21 @@ export default {
         local: 'Previous',
         global: 'Previous'
       },
+      original: {
+        display: 'Original(O)',
+        local: 'Original',
+        global: 'Original'
+      },
+      saved: {
+        display: 'Saved(V)',
+        local: 'Saved',
+        global: 'Saved'
+      },
+      smart: {
+        display: 'Smart(I)',
+        local: 'Smart',
+        global: 'Smart'
+      },
       scale: {
         display: 'Scale(S)',
         local: 'Scale',
@@ -1027,10 +1380,25 @@ export default {
     }
   },
   chtml: {
+    exportFormat: 'Export format',
     exportInvisibleLayers: 'Export invisible layers',
+    exportLayouts: 'Export layouts',
+    background: 'Background color',
     initialView: 'Initial view when opening HTML',
     viewerMode: 'Offline viewer mode',
+    chunkSizeMiB: 'Chunk size in MiB (multi-file package)',
+    compressChunks: 'Compress chunks (multi-file package)',
     keywords: {
+      single: {
+        display: 'Single(S)',
+        local: 'Single',
+        global: 'Single'
+      },
+      multi: {
+        display: 'Multi-file package(M)',
+        local: 'Multi-file package',
+        global: 'Multi'
+      },
       yes: {
         display: 'Yes(Y)',
         local: 'Yes',
@@ -1057,9 +1425,61 @@ export default {
         global: 'View'
       },
       measure: {
-        display: 'Measure(M)',
-        local: 'Measure',
+        display: 'Measure & Review(M)',
+        local: 'Measure & Review',
         global: 'Measure'
+      },
+      black: {
+        display: 'Black(B)',
+        local: 'Black',
+        global: 'Black'
+      },
+      white: {
+        display: 'White(W)',
+        local: 'White',
+        global: 'White'
+      },
+      space: {
+        display: 'Space(S)',
+        local: 'Space',
+        global: 'Space'
+      }
+    }
+  },
+  cpdf: {
+    modelSpaceFit: 'Model space frame',
+    exportLayouts: 'Export layouts',
+    textMode: 'Text rendering',
+    keywords: {
+      extents: {
+        display: 'Extents(E)',
+        local: 'Extents',
+        global: 'Extents'
+      },
+      display: {
+        display: 'Display(D)',
+        local: 'Display',
+        global: 'Display'
+      },
+      text: {
+        display: 'Text(T)',
+        local: 'Text',
+        global: 'Text'
+      },
+      vector: {
+        display: 'Vector(V)',
+        local: 'Vector',
+        global: 'Vector'
+      },
+      yes: {
+        display: 'Yes(Y)',
+        local: 'Yes',
+        global: 'Yes'
+      },
+      no: {
+        display: 'No(N)',
+        local: 'No',
+        global: 'No'
       }
     }
   }
