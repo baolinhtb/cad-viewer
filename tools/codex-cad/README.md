@@ -30,3 +30,5 @@ Kiểm thử adapter: `node --test --test-isolation=none tools/codex-cad/bridge.
 Triển khai đã chuẩn bị cho host hiện tại: `node tools/codex-cad/deploy-codeco33.mjs` (quyền quản trị máy chủ). Script yêu cầu các địa chỉ mạng khớp cấu hình, dùng bản frontend đã build, giữ image cũ và ghi tag quay lui ở `/tmp/cad-codex-rollback.json`, cài service rồi tái tạo hai container. Khi vận hành bằng Compose, dùng cả `docker-compose.yml` và `docker-compose.codex.yml` để giữ kết nối Codex. Không chạy lại khi chưa build các package thay đổi.
 
 Kiểm thử website thật: `node tools/codex-cad/test-codeco33.mjs`. Script cần quyền Docker và Chromium; tạo một thành viên tạm, đăng nhập qua API thật, gửi ba prompt qua panel thật, kiểm tra dữ liệu CAD/PDF rồi xóa tài khoản, phiên và dữ liệu của riêng bài thử. Không đọc mật khẩu hay phiên đăng nhập của người dùng hiện hữu.
+
+Sau khi nâng cấp upstream, dùng `pnpm build` và `pnpm lint` từ thư mục gốc. Có thể triển khai riêng hai ứng dụng web đã build bằng `node tools/codex-cad/deploy-codeco33.mjs --frontend-only`; chế độ này giữ backend và bridge đang chạy.
