@@ -470,3 +470,53 @@ describe('SUB-070 (thép 1/3) dựng bằng đối tượng thật', () => {
     expect(own(none)).toHaveLength(0)
   })
 })
+
+describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối tượng thật', () => {
+  const own = (s: typeof scene, id: string) =>
+    s.sheets.find(x => x.id === id)!.primitives.filter(p => p.sourceHandle)
+
+  test.each(['SUB-080', 'SUB-090'])(
+    '%s mặc định: 214 đối tượng nguồn như bản gốc, có POINT thật',
+    id => {
+      const kinds: Record<string, number> = {}
+      for (const p of own(scene, id))
+        kinds[p.sourceType!] = (kinds[p.sourceType!] ?? 0) + 1
+      expect(kinds).toEqual({
+        LWPOLYLINE: 54,
+        TEXT: 47,
+        LEADER: 45,
+        LINE: 30,
+        DIMENSION: 21,
+        INSERT: 11,
+        POINT: 3,
+        HATCH: 2,
+        CIRCLE: 1
+      })
+    }
+  )
+
+  test('chọn W16 = D16 thì nhãn W16/W16′ đổi theo', () => {
+    const texts = (s: typeof scene, id: string) =>
+      own(s, id).flatMap(p => (p.kind === 'text' ? [p.text] : []))
+    const d16 = buildDossierScene(buildDossierModel({ thepW16: 'D16' }), V)
+    for (const id of ['SUB-080', 'SUB-090']) {
+      if (!texts(scene, id).some(t => /W16'?-D14/.test(t))) continue
+      expect(texts(d16, id).some(t => /W16'?-D14/.test(t))).toBe(false)
+      expect(texts(d16, id).some(t => /W16'?-D16/.test(t))).toBe(true)
+    }
+  })
+
+  test('kích thước khác bản gốc: không kéo giãn thép tường cánh', () => {
+    const longer = buildDossierScene(buildDossierModel({ lCanh: 7000 }), V)
+    for (const id of ['SUB-080', 'SUB-090']) {
+      expect(own(longer, id)).toHaveLength(0)
+      expect(
+        longer.sheets
+          .find(x => x.id === id)!
+          .primitives.some(
+            p => p.kind === 'text' && /CHƯA CÓ PHƯƠNG ÁN THÉP/.test(p.text)
+          )
+      ).toBe(true)
+    }
+  })
+})

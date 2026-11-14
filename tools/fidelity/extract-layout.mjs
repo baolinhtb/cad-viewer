@@ -235,13 +235,38 @@ function hatchLoops(rec) {
       i += 2 // 72, 73
       const n = Number(ps[i].value) // 93
       i++
+      const verts = []
       for (let v = 0; v < n; v++) {
         const x = Number(ps[i].value),
           y = Number(ps[i + 1].value)
         i += 2
-        if (hasBulge && ps[i].code === 42) i++
-        loop.push([x, y])
+        let bulge = 0
+        if (hasBulge && ps[i].code === 42) bulge = Number(ps[i++].value)
+        verts.push([x, y, bulge])
       }
+      // Bulged segments become arcs of points (10° steps).
+      verts.forEach(([x, y, bulge], k) => {
+        loop.push([x, y])
+        if (!bulge) return
+        const [qx, qy] = verts[(k + 1) % verts.length]
+        const theta = 4 * Math.atan(bulge)
+        const chord = Math.hypot(qx - x, qy - y)
+        const r = chord / (2 * Math.sin(theta / 2))
+        const mx = (x + qx) / 2,
+          my = (y + qy) / 2
+        const h = r * Math.cos(theta / 2)
+        const cx = mx - (h * (qy - y)) / chord,
+          cy = my + (h * (qx - x)) / chord
+        const a0 = Math.atan2(y - cy, x - cx)
+        const steps = Math.max(2, Math.ceil(Math.abs(theta) / (Math.PI / 18)))
+        for (let s = 1; s < steps; s++) {
+          const t = a0 + (theta * s) / steps
+          loop.push([
+            cx + Math.abs(r) * Math.cos(t),
+            cy + Math.abs(r) * Math.sin(t)
+          ])
+        }
+      })
     } else {
       const n = Number(ps[i].value) // 93
       i++
@@ -557,6 +582,9 @@ function emit(rec, tf, parentLook, out, attribsOf) {
       for (const a of attribs) emit(a, tf, l, out, () => [])
       return
     }
+    case 'POINT':
+      out.push({ kind: 'point', ...base, at: T(points(rec, 10, 20)[0]) })
+      return
     case 'LEADER':
       out.push({
         kind: 'leader',
@@ -838,7 +866,13 @@ function sourceBlock(name) {
 
 // ---------------------------------------------------------------- model content
 /** Sheets whose viewport drawing is rebuilt from real entities (GĐ4). */
-const MODEL_SHEETS = new Set(['SUB-010', 'SUB-020', 'SUB-070'])
+const MODEL_SHEETS = new Set([
+  'SUB-010',
+  'SUB-020',
+  'SUB-070',
+  'SUB-080',
+  'SUB-090'
+])
 const modelHandle = items.find(
   i => i.table === 'BLOCK_RECORD' && get(i.rec, 2)?.trim() === '*Model_Space'
 )

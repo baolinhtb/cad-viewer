@@ -99,6 +99,11 @@ export type DossierPrimitive = Base &
         overrides?: AcTpDimStyleVars
       }
     | {
+        /** A POINT entity (0.3.0). */
+        kind: 'point'
+        at: XY
+      }
+    | {
         /** A LEADER entity (0.3.0). */
         kind: 'leader'
         points: XY[]
@@ -1047,6 +1052,8 @@ export function drawDossierScene(
           startAngle: (op.startAngle * Math.PI) / 180,
           endAngle: (op.endAngle * Math.PI) / 180
         })
+      else if (op.kind === 'point')
+        ctx.point({ ...tag, position: point(s, op.at) })
       else if (op.kind === 'angular')
         ctx.angularDimension({
           ...tag,

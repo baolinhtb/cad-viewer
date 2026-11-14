@@ -8,6 +8,7 @@ import {
   AcDbFileType,
   AcDbHatch,
   AcDbLeader,
+  AcDbPoint,
   AcDbPolyline,
   AcDbText
 } from '@mlightcad/data-model'
@@ -637,5 +638,21 @@ describe('kích thước góc', () => {
     }
     expect(p.centerPoint.x).toBeCloseTo(0)
     expect(p.xLine1Point.x).toBeCloseTo(7700)
+  })
+})
+
+describe('POINT', () => {
+  it('đặt điểm, giữ qua DXF', async () => {
+    const { db, ctx } = setup()
+    ctx.point({
+      role: 'net',
+      partId: 'p',
+      position: { x: 12, y: 34, z: 0 },
+      color: 5
+    })
+    const [p] = ofType<AcDbPoint>(await roundTrip(db), 'POINT')
+    expect(p.position.x).toBeCloseTo(12)
+    expect(p.position.y).toBeCloseTo(34)
+    expect(p.color.colorIndex).toBe(5)
   })
 })

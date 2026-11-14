@@ -726,6 +726,9 @@ export function buildScene030(
           })
           return
         }
+        case 'point':
+          push({ ...look, kind: 'point', at: place(p.at!) })
+          return
         case 'leader':
           push({
             ...look,

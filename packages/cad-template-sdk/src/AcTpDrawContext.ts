@@ -21,6 +21,7 @@ import {
   AcDbLine,
   AcDbLinetypeTableRecord,
   AcDbMText,
+  AcDbPoint,
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
@@ -298,6 +299,11 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
  * at the first point. The arrow is a solid triangle the size of the dimension
  * style's arrowhead, since that is what AutoCAD draws for a leader too.
  */
+/** A POINT entity (drawn per the drawing's PDMODE). */
+export interface AcTpPointArgs extends AcTpDrawBase {
+  position: AcGePoint3dLike
+}
+
 /**
  * An angular dimension between two lines meeting at `center` — how the
  * data model reads AutoCAD's 2-line and 3-point angular dimensions alike.
@@ -500,6 +506,8 @@ export interface AcTpDrawContext {
   arc(args: AcTpArcArgs): AcDbEntity
   text(args: AcTpTextArgs): AcDbEntity
   dimension(args: AcTpDimensionArgs): AcDbEntity
+  /** A POINT entity. */
+  point(args: AcTpPointArgs): AcDbEntity
   /** An angular dimension (the angle between two legs). */
   angularDimension(args: AcTpAngularDimensionArgs): AcDbEntity
   hatch(args: AcTpHatchArgs): AcDbEntity
@@ -1148,6 +1156,17 @@ export function createDrawContext(
       moveDimText(entity, args.textPosition)
       const { textPosition: _tp, ...dimArgs } = args
       return place(entity, dimArgs)
+    },
+
+    point: args => {
+      const entity = new AcDbPoint()
+      entity.position = new AcGePoint3d(
+        args.position.x,
+        args.position.y,
+        args.position.z ?? 0
+      )
+      const { position: _p, ...identity } = args
+      return place(entity, identity)
     },
 
     angularDimension: args => {
