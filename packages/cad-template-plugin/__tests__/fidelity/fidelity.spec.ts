@@ -205,3 +205,20 @@ describe(`ho_so_mo_m1 ${VERSION} against mo_2`, () => {
       )
   })
 })
+
+describe('chữ lấy từ hình OLE', () => {
+  test('"?" là ký tự bị mất: khớp đúng một ký tự bất kỳ, chỉ với chữ OLE', () => {
+    const o = {
+      ...ORIGINAL.sheets[1],
+      texts: [{ t: 'TÊN M?', x: 10, y: 10, h: 2, f: 'arial', ole: true }]
+    }
+    const g = (t: string) => ({
+      ...o,
+      texts: [{ t, x: 10, y: 10, h: 2, f: 'arial' }]
+    })
+    expect(scoreTexts(o, g('TÊN MỐ')).matched).toBe(1)
+    expect(scoreTexts(o, g('TÊN MỐX')).matched).toBe(0)
+    const notOle = { ...o, texts: [{ ...o.texts[0], ole: false }] }
+    expect(scoreTexts(notOle, g('TÊN MỐ')).matched).toBe(0)
+  })
+})

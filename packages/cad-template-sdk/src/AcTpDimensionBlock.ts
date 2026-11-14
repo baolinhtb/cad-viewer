@@ -9,6 +9,7 @@ import {
   AcDbDataGenerator,
   AcDbDimStyleTableRecord,
   acdbGetWorkingDatabase,
+  AcDbLine,
   AcDbMText
 } from '@mlightcad/data-model'
 
@@ -49,17 +50,29 @@ export function buildDimensionBlock(
     const style = dim.dimensionStyleName
       ? db.tables.dimStyleTable.getAt(dim.dimensionStyleName)
       : undefined
+    const block = dim.createDimBlock(name)
     // AutoCAD extends the dimension line past the extension lines (DIMDLE)
     // only for oblique strokes (DIMTSZ > 0); the data model always does.
-    // With arrowheads, build with DIMDLE 0 and keep the style's value.
+    // With arrowheads, pull the dimension line back by DIMDLE at both ends.
+    // (Done on the generated block, not by touching the style record, which
+    // is read-only inside an edit transaction.)
     const dle = style?.dimdle ?? 0
-    const arrows = !style || !(style.dimtsz > 0)
-    if (style && arrows && dle) style.dimdle = 0
-    let block
-    try {
-      block = dim.createDimBlock(name)
-    } finally {
-      if (style && arrows && dle) style.dimdle = dle
+    if (style && !(style.dimtsz > 0) && dle > 0) {
+      const r = dim instanceof AcDbAlignedDimension ? dim.rotation : 0
+      const u = [Math.cos(r), Math.sin(r)]
+      for (const e of block.newIterator()) {
+        if (!(e instanceof AcDbLine)) continue
+        const a = e.startPoint,
+          b = e.endPoint
+        const d = [b.x - a.x, b.y - a.y]
+        const len = Math.hypot(d[0], d[1])
+        // The dimension line runs along the measured direction.
+        if (!len || Math.abs(d[0] * u[1] - d[1] * u[0]) > 1e-6 * len) continue
+        if (len <= 2 * dle) continue
+        const k = dle / len
+        e.startPoint = { x: a.x + d[0] * k, y: a.y + d[1] * k, z: a.z }
+        e.endPoint = { x: b.x - d[0] * k, y: b.y - d[1] * k, z: b.z }
+      }
     }
     if (style) applyDimStyleToBlock(block, style)
     db.tables.blockTable.add(block)

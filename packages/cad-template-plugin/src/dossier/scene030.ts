@@ -485,7 +485,9 @@ export function buildScene030(
       // for other dimensions is a design decision, not a stretch (GĐ6).
       const stretch: ReturnType<typeof sheetStretch> = !steel
         ? sheetStretch(ls.id, v)
-        : !model.referenceSteelApplicable || !sourceGeometry
+        : // The model already says when the source steel no longer applies
+          // (any geometric change; not the elevation datum or pile length).
+          !model.referenceSteelApplicable
           ? {
               error:
                 'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
@@ -646,7 +648,7 @@ export function buildScene030(
     const scaled = (p: XY): XY => [p[0] * K, p[1] * K]
     // The statistics and quantity tables hold the source abutment's numbers:
     // shown only while the parameters are that abutment's, like its steel.
-    const tablesApply = sourceGeometry && model.referenceSteelApplicable
+    const tablesApply = model.referenceSteelApplicable
     // SUB-020: elevation and dimension tables, recomputed (GĐ5).
     const tables =
       s.id === 'SUB-020' ? sub020Tables(ls.paper, v, tenMo) : undefined

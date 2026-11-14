@@ -34,6 +34,12 @@ export interface InvText {
   r?: number
   a?: number
   f: string
+  /**
+   * Read from an OLE table picture (ole.mjs). Excel wrote Vietnamese there
+   * in an ANSI font and every lost character became `?`: for these texts
+   * only, `?` matches any one character.
+   */
+  ole?: boolean
 }
 export interface InvDim {
   a: [number, number]
@@ -277,10 +283,24 @@ export function scoreTexts(
   let matched = 0
   for (const o of orig.texts) {
     const key = textKey(o.t)
+    const lost = o.ole && key.includes('?')
+    const pattern = lost
+      ? new RegExp(
+          '^' +
+            key
+              .split('?')
+              .map(part => part.replace(/[.*+^${}()|[\]\\]/g, '\\$&'))
+              .join('.') +
+            '$',
+          'u'
+        )
+      : undefined
+    const same = (t: string) =>
+      pattern ? pattern.test(textKey(t)) : textKey(t) === key
     let best = -1
     let bestDist = Infinity
     gen.texts.forEach((g, i) => {
-      if (used.has(i) || textKey(g.t) !== key) return
+      if (used.has(i) || !same(g.t)) return
       const dist = Math.hypot(g.x - o.x, g.y - o.y)
       if (dist > 1) return
       if (o.h > 0 && Math.abs(g.h - o.h) / o.h > 0.05) return

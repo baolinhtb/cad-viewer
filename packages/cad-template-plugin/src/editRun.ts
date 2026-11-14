@@ -10,7 +10,8 @@ import {
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { acapEditDossierRun } from './dossier/edit'
-import { DOSSIER_ID } from './dossier/model'
+import { DOSSIER_ID, DOSSIER_NEXT_VERSION } from './dossier/model'
+import { abutmentDossierNextTemplate } from './dossier/template'
 import { toDrawingPlacement } from './placement'
 import { entitiesOfRun, listRuns } from './runIdentity'
 import {
@@ -86,7 +87,11 @@ export async function editTemplateRun(
     }
   }
 
-  const template = findTemplateVersion(run.templateId, run.version)
+  const template =
+    findTemplateVersion(run.templateId, run.version) ??
+    (run.templateId === DOSSIER_ID && run.version === DOSSIER_NEXT_VERSION
+      ? abutmentDossierNextTemplate
+      : undefined)
   if (!template) {
     return {
       runId,

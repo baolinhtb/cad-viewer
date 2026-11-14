@@ -600,7 +600,9 @@ for (const s of sheets) {
         h: round(t.height),
         r: round(t.rotation ?? 0),
         a: t.align,
-        f: 'arial'
+        f: 'arial',
+        // From the OLE picture, where `?` stands for a lost character.
+        ole: true
       })
     }
   }

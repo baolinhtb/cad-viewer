@@ -60,6 +60,14 @@ chữ, kích thước so với kiểm kê gốc đã commit và **không cho t�
    viewport. Sinh: vùng A3 tính từ góc dưới trái tờ sinh, ở tỉ lệ của tờ.
 4. **`score.py`** — điểm pixel và ĐIỂM cuối.
 
+## Biến thể tham số (GĐ6)
+
+`node tools/fidelity/params.mjs` chạy `dossierParams030.spec.ts` với
+`PARAM_OUT`: mỗi biến thể dựng hồ sơ 0.3.0 rồi đổi thông số **qua công cụ
+agent `sua_ho_so_mo`**, kiểm dim (HB, LC, B Mố, D Cọc), bảng cao độ, tờ thép
+và cảnh báo; render các tờ bị đổi thành `param-<biến thể>-<tờ>.png` cùng
+`param-macdinh-<tờ>.png`, và ghi `params.json`.
+
 ## Công thức (mỗi tờ)
 
 Mực = điểm ảnh có kênh màu > 40 trên nền đen. Vùng chấm pixel = vùng hình
@@ -92,8 +100,10 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   Bảng SUB-020 (cao độ, thông số) tính theo tham số (GĐ5, `sub020Tables`
   trong `scene030.ts`). Hình OLE gốc mất dấu tiếng Việt (Excel ghi bằng font
   ANSI: "TÊN M?", "CAO Ð?", "M? M1"… — AutoCAD cũng hiện `?`); bản sinh viết
-  đúng ("TÊN MỐ"…), nên 11 chữ của SUB-020 khác bản gốc **có chủ ý** và
-  S_chu của tờ này ≈ 0,855.
+  đúng ("TÊN MỐ"…). **Quy tắc chấm:** với chữ lấy từ hình OLE (trường `ole`
+  của kiểm kê), `?` là một ký tự bị mất và khớp đúng một ký tự bất kỳ; chữ
+  khác không có ngoại lệ này. Còn 5 chữ khác vì Excel _thay_ ký tự chứ không
+  ghi `?` ("Đ" → "Ð", "Ư" → "U": "CAO Ð?", "GÐ1", "THU?C") — chưa nới.
 - **Khung tên `FR A3`** là xref thiếu trong DWG: vùng khung/dải tên nằm ngoài
   vùng chấm pixel; chữ tiêu đề, số tờ vẫn chấm qua S_chu.
 - Đường DWG → DXF của libredwg có thể sót vài đối tượng (đã biết: block

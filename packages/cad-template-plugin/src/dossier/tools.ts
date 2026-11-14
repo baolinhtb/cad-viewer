@@ -13,6 +13,7 @@ import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
   buildDossierModel,
   DOSSIER_ID,
+  DOSSIER_NEXT_VERSION,
   DOSSIER_PARAMS,
   DOSSIER_VERSIONS
 } from './model'
@@ -169,7 +170,10 @@ export async function runDossierTool(
       throw new Error(
         `Không có hồ sơ mố mang mã "${runId}". Dùng mo_ta_ban_ve để lấy mã.`
       )
-    if (!DOSSIER_VERSIONS.includes(run.version))
+    if (
+      !DOSSIER_VERSIONS.includes(run.version) &&
+      run.version !== DOSSIER_NEXT_VERSION
+    )
       throw new Error(
         `Hồ sơ dùng phiên bản ${run.version}; cần bộ sinh đúng phiên bản để tái tạo.`
       )
@@ -192,7 +196,8 @@ export async function runDossierTool(
       if (!database) await refreshDossierView()
       return summary(result.values, runId, {
         soDoiTuong: result.entityCount,
-        soDoiTuongXoa: result.removed
+        soDoiTuongXoa: result.removed,
+        ...(result.warnings?.length ? { canhBao: result.warnings } : {})
       })
     }
     if (name === 'kiem_tra_ho_so') return summary({ ...run.values }, runId)
