@@ -74,7 +74,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
   ],
   "perSheet": [
     {
-      "hash": "7a7ace415f49c78e",
+      "hash": "33f88dd00524f45d",
       "id": "SUB-010",
       "origin": [
         0,
@@ -97,7 +97,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 329,
     },
     {
-      "hash": "cd22b95b030a2f8b",
+      "hash": "dd0433f740e41df4",
       "id": "SUB-020",
       "origin": [
         47000,
@@ -117,7 +117,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 80,
     },
     {
-      "hash": "7aad9f6226c1577f",
+      "hash": "9a7aee603fd422b2",
       "id": "SUB-070",
       "origin": [
         94000,
@@ -139,7 +139,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 299,
     },
     {
-      "hash": "9011c3be0bad1c04",
+      "hash": "48d8f0a6101d6980",
       "id": "SUB-080",
       "origin": [
         0,
@@ -159,7 +159,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 238,
     },
     {
-      "hash": "8479fa5072850dbd",
+      "hash": "d073265ed072a887",
       "id": "SUB-090",
       "origin": [
         47000,
@@ -179,7 +179,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 238,
     },
     {
-      "hash": "3b43dac824be6024",
+      "hash": "40940e1c10f5485e",
       "id": "SUB-100",
       "origin": [
         94000,

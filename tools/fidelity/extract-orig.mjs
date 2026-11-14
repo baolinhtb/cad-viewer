@@ -100,7 +100,8 @@ const DIMVAR_CODES = {
   177: 'DIMCLRE',
   178: 'DIMCLRT',
   144: 'DIMLFAC',
-  271: 'DIMDEC'
+  271: 'DIMDEC',
+  45: 'DIMRND'
 }
 const layers = new Map()
 const styles = new Map() // name(lower) → { name, font, handle }
@@ -428,7 +429,9 @@ const fontFamily = font => {
 
 function formatMeasure(value, vars) {
   const dec = vars.DIMDEC ?? 2
-  return String(Number((value * (vars.DIMLFAC ?? 1)).toFixed(dec)))
+  let v = value * (vars.DIMLFAC ?? 1)
+  if (vars.DIMRND > 0) v = Math.round(v / vars.DIMRND) * vars.DIMRND
+  return String(Number(v.toFixed(dec)))
 }
 
 const SKIP = new Set([
@@ -555,11 +558,15 @@ for (const s of sheets) {
       const style = dimstyles.get((get(rec, 3) ?? '').trim().toLowerCase())
       const vars = { ...(style?.vars ?? {}), ...dimOverrides(rec) }
       const measured = formatMeasure(num(rec, 42, 0), vars)
-      const override = (get(rec, 1) ?? '').trim()
+      const rawText = get(rec, 1) ?? ''
+      const override = rawText.trim()
+      // A blank override (" ") hides the text: nothing is shown.
       const shown =
-        override === '' || override === '<>'
-          ? measured
-          : acTpMTextPlain(override.replace('<>', measured)).trim()
+        rawText !== '' && override === ''
+          ? ''
+          : override === '' || override === '<>'
+            ? measured
+            : acTpMTextPlain(override.replace('<>', measured)).trim()
       const [a] = points(rec, 13, 23)
       const [b] = points(rec, 14, 24)
       const [tp] = points(rec, 11, 21)

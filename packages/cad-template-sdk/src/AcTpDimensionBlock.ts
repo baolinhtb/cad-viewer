@@ -46,10 +46,21 @@ export function buildDimensionBlock(
     // block. Generating it is idempotent.
     new AcDbDataGenerator(db).createArrowBlock()
     const name = nextDimBlockName(db)
-    const block = dim.createDimBlock(name)
     const style = dim.dimensionStyleName
       ? db.tables.dimStyleTable.getAt(dim.dimensionStyleName)
       : undefined
+    // AutoCAD extends the dimension line past the extension lines (DIMDLE)
+    // only for oblique strokes (DIMTSZ > 0); the data model always does.
+    // With arrowheads, build with DIMDLE 0 and keep the style's value.
+    const dle = style?.dimdle ?? 0
+    const arrows = !style || !(style.dimtsz > 0)
+    if (style && arrows && dle) style.dimdle = 0
+    let block
+    try {
+      block = dim.createDimBlock(name)
+    } finally {
+      if (style && arrows && dle) style.dimdle = dle
+    }
     if (style) applyDimStyleToBlock(block, style)
     db.tables.blockTable.add(block)
     dim.dimBlockId = name
@@ -81,12 +92,18 @@ export function applyDimStyleToBlock(
         entity.color = new AcCmColor(AcCmColorMethod.ByACI, style.dimclrt)
       }
       // data-model 1.15 handles DIMTAD/DIMGAP placement; do not offset twice.
-    } else if (
-      entity instanceof AcDbBlockReference &&
-      entity.blockName === ARROW_BLOCK
-    ) {
-      const size = style.dimasz
-      entity.scaleFactors = { x: size, y: size, z: size }
+    } else if (entity instanceof AcDbBlockReference) {
+      if (entity.blockName === ARROW_BLOCK) {
+        const size = style.dimasz
+        entity.scaleFactors = { x: size, y: size, z: size }
+      }
+      // Arrowheads take the dimension-line colour, as AutoCAD draws them.
+      if (
+        Number.isInteger(style.dimclrd) &&
+        style.dimclrd >= 1 &&
+        style.dimclrd <= 255
+      )
+        entity.color = new AcCmColor(AcCmColorMethod.ByACI, style.dimclrd)
     }
   }
 }

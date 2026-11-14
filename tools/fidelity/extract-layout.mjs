@@ -75,7 +75,8 @@ const DIMVAR_CODES = {
   177: 'dimclre',
   178: 'dimclrt',
   144: 'dimlfac',
-  271: 'dimdec'
+  271: 'dimdec',
+  45: 'dimrnd'
 }
 const dimVar = (name, value) => {
   const v = Number(value)
@@ -477,9 +478,12 @@ function emit(rec, tf, parentLook, out, attribsOf) {
       }
       // Font switches `{\\fArial|…;ặt}` only existed to leave the TCVN3 font;
       // the text is Unicode now, so the plain characters remain.
-      const override = (get(rec, 1) ?? '')
-        .replace(/\{\\f[^;{}]*;([^{}]*)\}/g, '$1')
-        .trim()
+      const rawText = get(rec, 1) ?? ''
+      // A blank override (" ") hides the text in AutoCAD: keep it blank.
+      const override =
+        rawText !== '' && rawText.trim() === ''
+          ? ' '
+          : rawText.replace(/\{\\f[^;{}]*;([^{}]*)\}/g, '$1').trim()
       if (type === 2 || type === 5) {
         // Angular: the data model reads both as three points and a vertex.
         // 2-line: legs 13→14 and 15→10, vertex where they meet.

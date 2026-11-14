@@ -135,6 +135,7 @@ const DIM_KEYS: (keyof AcTpDimStyleVars)[] = [
   'dimgap',
   'dimtad',
   'dimdec',
+  'dimrnd',
   'dimlfac',
   'dimclrd',
   'dimclre',
@@ -721,6 +722,7 @@ export function buildScene030(
             offset,
             direction,
             dimStyle,
+            ...(rotation !== undefined ? { rotation } : {}),
             ...(p.textAt ? { textAt: place(p.textAt) } : {}),
             ...(p.text !== undefined ? { text: p.text } : {}),
             ...(overrides ? { overrides } : {})

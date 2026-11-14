@@ -85,6 +85,8 @@ export type DossierPrimitive = Base &
         overrides?: AcTpDimStyleVars
         /** Middle of the text as the source placed it. */
         textAt?: XY
+        /** Rotation as the source stored it, degrees (0.3.0). */
+        rotation?: number
       }
     | {
         /** An angular dimension: vertex `at`, legs to `start`/`end` (0.3.0). */
@@ -1119,7 +1121,8 @@ export function drawDossierScene(
           ...(op.dimStyle ? { dimStyle: op.dimStyle } : {}),
           ...(op.text !== undefined ? { text: op.text } : {}),
           ...(op.overrides ? { overrides: op.overrides } : {}),
-          ...(op.textAt ? { textPosition: point(s, op.textAt) } : {})
+          ...(op.textAt ? { textPosition: point(s, op.textAt) } : {}),
+          ...(op.rotation !== undefined ? { rotationDeg: op.rotation } : {})
         })
     }
 }

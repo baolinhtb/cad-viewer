@@ -10,6 +10,7 @@ import {
   AcDbLeader,
   AcDbPoint,
   AcDbPolyline,
+  AcDbRotatedDimension,
   AcDbText
 } from '@mlightcad/data-model'
 
@@ -654,5 +655,85 @@ describe('POINT', () => {
     expect(p.position.x).toBeCloseTo(12)
     expect(p.position.y).toBeCloseTo(34)
     expect(p.color.colorIndex).toBe(5)
+  })
+})
+
+describe('mũi tên và làm tròn kích thước như bản gốc', () => {
+  const blockOf = (db: AcDbDatabase, dim: AcDbDimension) => [
+    ...db.tables.blockTable.getAt(dim.dimBlockId!)!.newIterator()
+  ]
+
+  it('_33_D100 làm tròn theo DIMRND 1: 1139.98 hiện 1140', () => {
+    const { ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 0, y: 1139.98, z: 0 },
+      offset: 300,
+      huong: 'dung',
+      dimStyle: '_33_D100'
+    }) as AcDbDimension
+    expect(dim.dimensionText).toBe('1140')
+  })
+
+  it('chữ ghi đè chỉ có dấu cách thì không hiện số đo', () => {
+    const { ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 3688.355, y: 0, z: 0 },
+      offset: 300,
+      dimStyle: '_33_Dim100',
+      text: ' '
+    }) as AcDbDimension
+    expect(dim.dimensionText?.trim()).toBe('')
+  })
+
+  it('mũi tên mang màu DIMCLRD; đường dim không thò qua đường gióng khi dùng mũi tên', () => {
+    const { db, ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 1000, y: 0, z: 0 },
+      offset: 500,
+      dimStyle: '_33_D100'
+    }) as AcDbDimension
+    const parts = blockOf(db, dim)
+    const arrows = parts.filter(
+      (e): e is AcDbBlockReference => e instanceof AcDbBlockReference
+    )
+    expect(arrows).toHaveLength(2)
+    for (const a of arrows) expect(a.color.colorIndex).toBe(8)
+    const xs = parts
+      .filter(e => e.dxfTypeName === 'LINE')
+      .flatMap(e => {
+        const l = e as unknown as {
+          startPoint: { x: number }
+          endPoint: { x: number }
+        }
+        return [l.startPoint.x, l.endPoint.x]
+      })
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(-1e-6)
+    expect(Math.max(...xs)).toBeLessThanOrEqual(1000 + 1e-6)
+    // Kiểu vẫn giữ DIMDLE của bản gốc.
+    expect(db.tables.dimStyleTable.getAt('_33_D100')!.dimdle).toBe(100)
+  })
+
+  it('rotationDeg 180 của bản gốc được giữ', () => {
+    const { ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 1000, y: 0, z: 0 },
+      end: { x: 0, y: 0, z: 0 },
+      offset: 500,
+      dimStyle: '_33_D100',
+      rotationDeg: 180
+    }) as AcDbRotatedDimension
+    expect(dim.rotation).toBeCloseTo(Math.PI)
+    expect(dim.dimensionText).toBe('1000')
   })
 })

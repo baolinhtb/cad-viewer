@@ -98,7 +98,8 @@ export const ACTP_DIM_STYLES_33: Readonly<Record<string, AcTpDimStyleDef>> = {
     dimtih: 0,
     dimtoh: 0,
     dimdec: 2,
-    dimrnd: 0,
+    // DIMRND 1: the source prints 1139.98 as 1140.
+    dimrnd: 1,
     dimzin: 8,
     dimlfac: 1,
     dimclrd: 8,

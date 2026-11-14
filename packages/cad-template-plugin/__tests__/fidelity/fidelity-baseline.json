@@ -62,7 +62,7 @@
    "gen": "SUB-070",
    "S_kiem": 0.9678030303030303,
    "S_chu": 1,
-   "S_dim": 0.98125,
+   "S_dim": 1,
    "detail": {
     "entities": {
      "orig": 264,

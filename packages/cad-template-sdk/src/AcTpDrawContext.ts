@@ -282,6 +282,12 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
    */
   overrides?: AcTpDimStyleVars
   /**
+   * Rotation of the dimension, degrees, as the source stored it (DXF 50).
+   * A horizontal dimension measured right-to-left is at 180°; arrows and
+   * text follow from it. Defaults to 0 (`ngang`) or 90 (`dung`).
+   */
+  rotationDeg?: number
+  /**
    * Middle of the dimension text, where AutoCAD stored it (DXF 11/21). The
    * data model always centres the text on the dimension line; a drawing
    * copied from a source places it where the engineer's was.
@@ -1149,12 +1155,14 @@ export function createDrawContext(
       // entity behaves as a plain aligned one, which is what `'nghieng'` means.
       if (huong === 'ngang') entity.rotation = 0
       else if (huong === 'dung') entity.rotation = Math.PI / 2
+      if (args.rotationDeg !== undefined && huong !== 'nghieng')
+        entity.rotation = (args.rotationDeg * Math.PI) / 180
 
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
       buildDimensionBlock(db, entity)
       moveDimText(entity, args.textPosition)
-      const { textPosition: _tp, ...dimArgs } = args
+      const { textPosition: _tp, rotationDeg: _rd, ...dimArgs } = args
       return place(entity, dimArgs)
     },
 

@@ -224,12 +224,16 @@ export function generatedInventory(
       const measured = String(
         Number((d.measurement ?? 0).toFixed(vars.DIMDEC ?? 2))
       )
-      const text = String(d.dimensionText ?? '').trim()
+      const rawText = String(d.dimensionText ?? '')
+      const text = rawText.trim()
+      // A blank override hides the text, as in the source.
+      const hidden = rawText !== '' && text === ''
       sheet.dims.push({
         a: toPaper(p, [d.xLine1Point.x, d.xLine1Point.y]),
         b: toPaper(p, [d.xLine2Point.x, d.xLine2Point.y]),
-        t:
-          text === '' || text === '<>'
+        t: hidden
+          ? ''
+          : text === '' || text === '<>'
             ? measured
             : acTpMTextPlain(text.replace('<>', measured)),
         style: String(d.dimensionStyleName ?? ''),
