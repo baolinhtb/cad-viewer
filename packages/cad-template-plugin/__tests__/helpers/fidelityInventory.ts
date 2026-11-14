@@ -269,9 +269,13 @@ export function scoreTexts(
   return { score: n === 0 ? 1 : matched / n, matched }
 }
 
-/** The style variables S_dim compares (those set in the original). */
+/**
+ * The style variables S_dim compares (those set in the original). Sizes are
+ * compared as drawn — the variable times DIMSCALE — because the `_33_` styles
+ * store the product with `dimscale 1` (the data model's dimension builder
+ * ignores DIMSCALE); DIMSCALE itself is therefore not compared.
+ */
 export const DIM_VARS = [
-  'DIMSCALE',
   'DIMTXT',
   'DIMASZ',
   'DIMEXO',
@@ -282,6 +286,28 @@ export const DIM_VARS = [
   'DIMCLRE',
   'DIMCLRT'
 ]
+
+/** Size variables that DIMSCALE multiplies. */
+const DIM_SIZE_VARS = new Set([
+  'DIMTXT',
+  'DIMASZ',
+  'DIMEXO',
+  'DIMEXE',
+  'DIMGAP'
+])
+
+/** `vars` with sizes multiplied by DIMSCALE (0 or unset counts as 1). */
+export function effectiveDimVars(
+  vars: Record<string, number>
+): Record<string, number> {
+  const scale = vars.DIMSCALE ? vars.DIMSCALE : 1
+  return Object.fromEntries(
+    Object.entries(vars).map(([k, v]) => [
+      k,
+      DIM_SIZE_VARS.has(k) ? v * scale : v
+    ])
+  )
+}
 
 export function scoreDims(
   orig: InvSheet,
@@ -302,10 +328,13 @@ export function scoreDims(
     if (i < 0) continue
     used.add(i)
     matched += 1
+    const ov = effectiveDimVars(o.vars)
+    const gv = effectiveDimVars(gen.dims[i].vars)
     const g = gen.dims[i]
-    const vars = DIM_VARS.filter(v => o.vars[v] !== undefined)
+    const vars = DIM_VARS.filter(v => ov[v] !== undefined)
     const same = vars.filter(
-      v => Math.abs((g.vars[v] ?? NaN) - o.vars[v]) < 1e-6
+      v =>
+        Math.abs((gv[v] ?? NaN) - ov[v]) <= 1e-6 * Math.max(1, Math.abs(ov[v]))
     ).length
     total +=
       0.4 +

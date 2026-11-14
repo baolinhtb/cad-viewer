@@ -2,6 +2,10 @@ import {
   AcCmColor,
   AcCmColorMethod,
   AcDbArc,
+  AcDbAttribute,
+  AcDbAttributeDefinition,
+  AcDbBlockReference,
+  AcDbBlockTableRecord,
   AcDbCircle,
   AcDbDatabase,
   AcDbDimStyleTableRecord,
@@ -11,6 +15,7 @@ import {
   AcDbHatchPatternType,
   AcDbHatchStyle,
   AcDbLayerTableRecord,
+  AcDbLeader,
   AcDbLine,
   AcDbLinetypeTableRecord,
   AcDbPolyline,
@@ -37,6 +42,12 @@ import {
   ensureSemanticTagRegApp,
   writeSemanticTag
 } from './AcTpSemanticTag'
+import type {
+  AcTpDimStyleDef,
+  AcTpDimStyleVars,
+  AcTpTextStyleDef
+} from './AcTpStyles33'
+import { ACTP_DIM_STYLES_33, ACTP_TEXT_STYLES_33 } from './AcTpStyles33'
 
 /** Identity every drawn entity must carry. */
 interface AcTpDrawBase {
@@ -75,7 +86,19 @@ interface AcTpDrawBase {
    * file (`LTSCALE 300`) or in a fresh one (`LTSCALE 1`).
    */
   lineType?: string
+  /**
+   * Lineweight of this one entity, in hundredths of a millimetre, as AutoCAD
+   * stores it (`5` = 0.05 mm, `13` = 0.13 mm); `-1` ByLayer, `-2` ByBlock,
+   * `-3` default. Leave unset for ByLayer. Only AutoCAD's own values are
+   * accepted — a plot style cannot hold any other.
+   */
+  lineWeight?: number
+  /** Linetype scale of this one entity (DXF 48). Leave unset for 1. */
+  linetypeScale?: number
 }
+
+/** A polyline vertex; `bulge` = tan(¼ of the arc's included angle), 0 = straight. */
+export type AcTpVertex = AcGePoint3dLike & { bulge?: number }
 
 export interface AcTpLineArgs extends AcTpDrawBase {
   start: AcGePoint3dLike
@@ -83,7 +106,8 @@ export interface AcTpLineArgs extends AcTpDrawBase {
 }
 
 export interface AcTpPolylineArgs extends AcTpDrawBase {
-  points: readonly AcGePoint3dLike[]
+  /** Vertices; a `bulge` on a vertex makes the segment that starts there an arc. */
+  points: readonly AcTpVertex[]
   closed?: boolean
 }
 
@@ -195,6 +219,11 @@ export const TEMPLATE_LINETYPES: Readonly<
   HIDDEN: {
     description: 'Hidden __ __ __ __ __ __ __ __ __ __ __ __ __ _',
     pattern: [0.25, -0.125]
+  },
+  // As the engineer's drawing defines it (millimetre CENTER2).
+  CENTER2: {
+    description: 'Center (.5x) ___ _ ___ _ ___ _ ___ _ ___ _ ___',
+    pattern: [19.05, -3.175, 3.175, -3.175]
   }
 }
 
@@ -235,8 +264,19 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
    * engineer's `D100`: rounded to 1, no trailing zeros), and a hand-written
    * number is a number that stops matching the geometry the first time a
    * parameter changes.
+   *
+   * `<>` inside the text stands for the measured value, as in AutoCAD:
+   * `'H1A = <>'` keeps the number live. Text without `<>` replaces it — the
+   * engineer's sheets label dimensions by parameter name (`H1A`, `B bệ-2D`).
    */
   text?: string
+  /**
+   * Per-dimension overrides of the style's variables (AutoCAD's DIMSTYLE
+   * overrides). Stored as a derived style `<style>$<hash>` carrying the
+   * overridden values, since a dimension in the data model can only name a
+   * style; dimensions with the same overrides share it.
+   */
+  overrides?: AcTpDimStyleVars
   /**
    * Dimension style by name. Defaults to {@link TEMPLATE_DIM_STYLE}; must
    * exist in the drawing or be one of {@link TEMPLATE_DIM_STYLES}.
@@ -254,6 +294,98 @@ export interface AcTpLeaderArgs extends AcTpDrawBase {
   points: readonly AcGePoint3dLike[]
   /** Arrow length in drawing units. Defaults to the default dimension style's `dimasz`. */
   arrowSize?: number
+  /**
+   * Draw an AutoCAD LEADER entity (styled by `dimStyle`) instead of a
+   * polyline plus a filled arrow. The engineer's drawings carry real
+   * leaders; the default stays the polyline so existing templates draw
+   * exactly what they drew.
+   */
+  native?: boolean
+  /** Dimension style of a native leader. Defaults to {@link TEMPLATE_DIM_STYLE}. */
+  dimStyle?: string
+}
+
+/** Appearance of an entity inside a block definition. */
+export interface AcTpBlockLook {
+  /** Layer inside the block; `0` (the default) takes the insert's layer. */
+  layer?: string
+  /** ACI 1–255, `0` ByBlock (default), `256` ByLayer. */
+  color?: number
+  /** Linetype name, `ByBlock` (default) or `ByLayer`. */
+  lineType?: string
+  /** Lineweight, as in {@link AcTpDrawBase.lineWeight}; default ByBlock. */
+  lineWeight?: number
+  linetypeScale?: number
+}
+
+/**
+ * One entity of a block definition, as plain data — so a library template
+ * can carry a symbol (an elevation tag, a pile mark) as JSON taken from the
+ * source drawing.
+ */
+export type AcTpBlockEntity = AcTpBlockLook &
+  (
+    | { kind: 'line'; start: AcGePoint3dLike; end: AcGePoint3dLike }
+    | { kind: 'polyline'; points: readonly AcTpVertex[]; closed?: boolean }
+    | { kind: 'circle'; center: AcGePoint3dLike; radius: number }
+    | {
+        kind: 'arc'
+        center: AcGePoint3dLike
+        radius: number
+        startAngle: number
+        endAngle: number
+      }
+    | {
+        kind: 'text'
+        position: AcGePoint3dLike
+        text: string
+        height: number
+        rotationDeg?: number
+        align?: 0 | 1 | 2
+        widthFactor?: number
+        style?: string
+      }
+    | {
+        kind: 'hatch'
+        boundary: readonly AcGePoint3dLike[]
+        patternName?: string
+        patternScale?: number
+        patternAngleDeg?: number
+      }
+    | {
+        /** An attribute definition (ATTDEF): a field filled per insert. */
+        kind: 'attribute'
+        tag: string
+        prompt?: string
+        /** Value used when an insert does not supply one. */
+        defaultValue?: string
+        position: AcGePoint3dLike
+        height: number
+        rotationDeg?: number
+        align?: 0 | 1 | 2
+        widthFactor?: number
+        style?: string
+        invisible?: boolean
+      }
+  )
+
+/** A block definition (symbol) to create once per drawing. */
+export interface AcTpBlockDef {
+  name: string
+  /** Base point; inserts place this point. Defaults to the origin. */
+  basePoint?: AcGePoint3dLike
+  entities: readonly AcTpBlockEntity[]
+}
+
+/** An insert of a block defined with {@link AcTpDrawContext.defineBlock}. */
+export interface AcTpInsertArgs extends AcTpDrawBase {
+  block: string
+  position: AcGePoint3dLike
+  /** Uniform scale, or per axis (negative mirrors, as in the source). */
+  scale?: number | { x: number; y: number }
+  rotationDeg?: number
+  /** Attribute values by tag; missing tags take the definition's default. */
+  attributes?: Readonly<Record<string, string>>
 }
 
 /**
@@ -303,8 +435,19 @@ export interface AcTpDrawContext {
   text(args: AcTpTextArgs): AcDbEntity
   dimension(args: AcTpDimensionArgs): AcDbEntity
   hatch(args: AcTpHatchArgs): AcDbEntity
-  /** Draws the leader line and its arrowhead; returns the line. */
+  /** Draws the leader line and its arrowhead; returns the line (or the LEADER). */
   leader(args: AcTpLeaderArgs): AcDbEntity
+  /** Inserts a block, with its attribute values. */
+  insert(args: AcTpInsertArgs): AcDbEntity
+  /**
+   * Defines a block once; later calls with the same name keep the first
+   * definition (a drawing's own block wins, as with layers). Returns the name.
+   */
+  defineBlock(def: AcTpBlockDef): string
+  /** Creates a text style once (the drawing's own wins). Returns the name. */
+  defineTextStyle(def: AcTpTextStyleDef): string
+  /** Creates a dimension style once (the drawing's own wins). Returns the name. */
+  defineDimStyle(def: AcTpDimStyleDef): string
   /** Everything drawn so far in this run, in drawing order. */
   readonly drawn: readonly AcDbEntity[]
   /**
@@ -352,6 +495,36 @@ export interface AcTpLayerStyle {
 
 /** Layer name → presentation, keyed exactly as the catalogue names the layer. */
 export type AcTpLayerStyleMap = Readonly<Record<string, AcTpLayerStyle>>
+
+/** Lineweights AutoCAD accepts (hundredths of a mm), plus ByLayer/ByBlock/default. */
+const LINE_WEIGHTS: readonly number[] = [
+  -3, -2, -1, 0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90,
+  100, 106, 120, 140, 158, 200, 211
+]
+
+/** Dimension-style properties copied into a derived (overridden) style. */
+const DIM_VAR_KEYS: Readonly<Record<string, true>> = {
+  dimscale: true,
+  dimtxt: true,
+  dimasz: true,
+  dimexo: true,
+  dimexe: true,
+  dimdli: true,
+  dimdle: true,
+  dimgap: true,
+  dimtad: true,
+  dimtih: true,
+  dimtoh: true,
+  dimdec: true,
+  dimrnd: true,
+  dimzin: true,
+  dimlfac: true,
+  dimtfac: true,
+  dimclrd: true,
+  dimclre: true,
+  dimclrt: true,
+  dimtxsty: true
+}
 
 /**
  * Builds the draw context handed to a template's `generate`.
@@ -498,13 +671,20 @@ export function createDrawContext(
    * than silently falling back to `Standard`, which is the failure this
    * exists to end.
    */
+  // Styles a template defined during this run, on top of the catalogues.
+  const definedTextStyles = new Map<string, AcTpTextStyleDef>()
+  const definedDimStyles = new Map<string, AcTpDimStyleDef>()
+
   const ensureTextStyle = (name: string): void => {
     const table = db.tables.textStyleTable
     if (table.has(name)) return
-    const known = TEMPLATE_TEXT_STYLES[name]
+    const known: { font: string; widthFactor?: number } | undefined =
+      TEMPLATE_TEXT_STYLES[name] ??
+      ACTP_TEXT_STYLES_33[name] ??
+      definedTextStyles.get(name)
     if (!known) {
       throw new Error(
-        `Kiểu chữ '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_TEXT_STYLES).join(', ')} hoặc một kiểu chữ bản vẽ đã khai.`
+        `Kiểu chữ '${name}' chưa có trong bản vẽ. Dùng ${[...Object.keys(TEMPLATE_TEXT_STYLES), ...Object.keys(ACTP_TEXT_STYLES_33)].join(', ')} hoặc một kiểu chữ bản vẽ đã khai.`
       )
     }
     table.add(
@@ -512,7 +692,7 @@ export function createDrawContext(
         name,
         standardFlag: 0,
         fixedTextHeight: 0,
-        widthFactor: 1,
+        widthFactor: known.widthFactor ?? 1,
         obliqueAngle: 0,
         textGenerationFlag: 0,
         lastHeight: 2.5,
@@ -528,10 +708,13 @@ export function createDrawContext(
     const table = db.tables.dimStyleTable
     const existing = table.getAt(name)
     if (existing) return existing
-    const known = TEMPLATE_DIM_STYLES[name]
+    const known: AcTpDimStyleAttrs | undefined =
+      TEMPLATE_DIM_STYLES[name] ??
+      (ACTP_DIM_STYLES_33[name] as AcTpDimStyleAttrs | undefined) ??
+      (definedDimStyles.get(name) as AcTpDimStyleAttrs | undefined)
     if (!known) {
       throw new Error(
-        `Kiểu kích thước '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_DIM_STYLES).join(', ')} hoặc một kiểu bản vẽ đã khai.`
+        `Kiểu kích thước '${name}' chưa có trong bản vẽ. Dùng ${[...Object.keys(TEMPLATE_DIM_STYLES), ...Object.keys(ACTP_DIM_STYLES_33)].join(', ')} hoặc một kiểu bản vẽ đã khai.`
       )
     }
     if (known.dimtxsty) ensureTextStyle(known.dimtxsty)
@@ -544,6 +727,65 @@ export function createDrawContext(
    * Creates a linetype the drawing lacks, from {@link TEMPLATE_LINETYPES},
    * scaled for the drawing's `LTSCALE` — see {@link LINETYPE_PLOT_SCALE}.
    */
+  /**
+   * A style carrying `overrides` on top of `base`, named `<base>$<hash>` so
+   * dimensions with identical overrides share one record.
+   */
+  const derivedDimStyle = (
+    base: string,
+    overrides: AcTpDimStyleVars
+  ): string => {
+    const keys = Object.keys(overrides).sort() as (keyof AcTpDimStyleVars)[]
+    if (!keys.length) return base
+    const source = ensureDimStyle(base)
+    const signature = keys.map(k => `${k}=${String(overrides[k])}`).join(';')
+    let hash = 5381
+    for (const ch of signature) hash = ((hash * 33) ^ ch.charCodeAt(0)) >>> 0
+    const name = `${base}$${hash.toString(16).toUpperCase()}`
+    if (db.tables.dimStyleTable.has(name)) return name
+    if (overrides.dimtxsty) ensureTextStyle(overrides.dimtxsty)
+    const attrs: Record<string, unknown> = { name }
+    for (const key of Object.keys(DIM_VAR_KEYS)) {
+      const value = (source as unknown as Record<string, unknown>)[key]
+      if (value !== undefined) attrs[key] = value
+    }
+    Object.assign(attrs, overrides, { name })
+    db.tables.dimStyleTable.add(
+      new AcDbDimStyleTableRecord(attrs as AcTpDimStyleAttrs)
+    )
+    return name
+  }
+
+  const lineWeightOf = (value: number, what: string): number => {
+    if (!LINE_WEIGHTS.includes(value)) {
+      throw new Error(
+        `${what}: lineweight ${value} không phải giá trị AutoCAD (${LINE_WEIGHTS.join(', ')}).`
+      )
+    }
+    return value
+  }
+
+  /** Appearance for an entity inside a block: ByBlock unless said otherwise. */
+  const applyBlockLook = (entity: AcDbEntity, look: AcTpBlockLook) => {
+    entity.layer = look.layer ?? '0'
+    if (look.layer && !db.tables.layerTable.has(look.layer))
+      ensureLayer(look.layer)
+    const color = look.color ?? 0
+    entity.color =
+      color === 0
+        ? new AcCmColor(AcCmColorMethod.ByBlock)
+        : color === 256
+          ? new AcCmColor(AcCmColorMethod.ByLayer)
+          : new AcCmColor(AcCmColorMethod.ByACI, aci(color, 'Màu trong block')!)
+    const lineType = look.lineType ?? 'ByBlock'
+    if (!['BYBLOCK', 'BYLAYER'].includes(lineType.toUpperCase()))
+      ensureLinetype(lineType)
+    entity.lineType = lineType
+    entity.lineWeight = lineWeightOf(look.lineWeight ?? -2, 'Block') as never
+    if (look.linetypeScale !== undefined)
+      entity.linetypeScale = look.linetypeScale
+  }
+
   const ensureLinetype = (name: string): void => {
     const table = db.tables.linetypeTable
     if (table.has(name)) return
@@ -610,6 +852,18 @@ export function createDrawContext(
       ensureLinetype(lineType)
       entity.lineType = lineType
     }
+    if (args.lineWeight !== undefined)
+      entity.lineWeight = lineWeightOf(
+        args.lineWeight,
+        `Lineweight của '${args.partId}'`
+      ) as never
+    if (args.linetypeScale !== undefined) {
+      if (!(args.linetypeScale > 0))
+        throw new Error(
+          `Tỉ lệ kiểu nét của '${args.partId}' phải dương, nhận ${args.linetypeScale}.`
+        )
+      entity.linetypeScale = args.linetypeScale
+    }
 
     const tag: AcTpSemanticTag = {
       role: args.role,
@@ -625,13 +879,98 @@ export function createDrawContext(
     return entity
   }
 
-  const drawPolyline = (args: AcTpPolylineArgs): AcDbEntity => {
+  const buildPolyline = (
+    points: readonly AcTpVertex[],
+    closed: boolean | undefined
+  ): AcDbPolyline => {
     const polyline = new AcDbPolyline()
-    args.points.forEach((point, index) =>
-      polyline.addVertexAt(index, new AcGePoint2d(point.x, point.y))
+    points.forEach((point, index) =>
+      point.bulge
+        ? polyline.addVertexAt(
+            index,
+            new AcGePoint2d(point.x, point.y),
+            point.bulge
+          )
+        : polyline.addVertexAt(index, new AcGePoint2d(point.x, point.y))
     )
-    polyline.closed = args.closed ?? false
-    return place(polyline, args)
+    polyline.closed = closed ?? false
+    return polyline
+  }
+
+  const drawPolyline = (args: AcTpPolylineArgs): AcDbEntity =>
+    place(buildPolyline(args.points, args.closed), args)
+
+  const buildText = (
+    args: {
+      position: AcGePoint3dLike
+      text: string
+      height?: number
+      rotationDeg?: number
+      align?: 0 | 1 | 2
+      widthFactor?: number
+      style?: string
+    },
+    entity: AcDbText = new AcDbText()
+  ): AcDbText => {
+    entity.position = new AcGePoint3d(
+      args.position.x,
+      args.position.y,
+      args.position.z ?? 0
+    )
+    entity.textString = args.text
+    entity.height = args.height ?? 2.5
+    entity.rotation = ((args.rotationDeg ?? 0) * Math.PI) / 180
+    entity.widthFactor = args.widthFactor ?? 1
+    if (args.align) {
+      entity.horizontalMode = args.align
+      entity.alignmentPoint = entity.position.clone()
+    }
+    const style = args.style ?? TEMPLATE_TEXT_STYLE
+    ensureTextStyle(style)
+    entity.styleName = style
+    return entity
+  }
+
+  const buildHatch = (args: {
+    partId?: string
+    boundary: readonly AcGePoint3dLike[]
+    additionalLoops?: readonly (readonly AcGePoint3dLike[])[]
+    patternName?: string
+    patternScale?: number
+    patternAngleDeg?: number
+  }): AcDbHatch => {
+    if (args.boundary.length < 3) {
+      throw new Error(
+        `Vùng tô '${args.partId ?? ''}' cần ít nhất 3 điểm biên, đã nhận ${args.boundary.length}.`
+      )
+    }
+    const entity = new AcDbHatch()
+    entity.database = db
+    const patternName = args.patternName?.trim() || HATCH_PATTERN_SOLID
+    entity.patternName = patternName
+    entity.patternType = AcDbHatchPatternType.Predefined
+    entity.patternScale = args.patternScale ?? 1
+    entity.patternAngle = ((args.patternAngleDeg ?? 0) * Math.PI) / 180
+    entity.hatchStyle = AcDbHatchStyle.Normal
+    entity.isSolidFill = patternName === HATCH_PATTERN_SOLID
+    for (const boundary of [args.boundary, ...(args.additionalLoops ?? [])]) {
+      if (boundary.length < 3)
+        throw new Error('A hatch loop requires at least three points')
+      const loop = new AcGeLoop2d()
+      for (let i = 0; i < boundary.length; i++) {
+        const from = boundary[i]
+        const to = boundary[(i + 1) % boundary.length]
+        if (from.x !== to.x || from.y !== to.y)
+          loop.add(
+            new AcGeLine2d(
+              new AcGePoint2d(from.x, from.y),
+              new AcGePoint2d(to.x, to.y)
+            )
+          )
+      }
+      entity.add(loop)
+    }
+    return entity
   }
 
   return {
@@ -647,26 +986,7 @@ export function createDrawContext(
         args
       ),
 
-    text: args => {
-      const entity = new AcDbText()
-      entity.position = new AcGePoint3d(
-        args.position.x,
-        args.position.y,
-        args.position.z ?? 0
-      )
-      entity.textString = args.text
-      entity.height = args.height ?? 2.5
-      entity.rotation = ((args.rotationDeg ?? 0) * Math.PI) / 180
-      entity.widthFactor = args.widthFactor ?? 1
-      if (args.align) {
-        entity.horizontalMode = args.align
-        entity.alignmentPoint = entity.position.clone()
-      }
-      const style = args.style ?? TEMPLATE_TEXT_STYLE
-      ensureTextStyle(style)
-      entity.styleName = style
-      return place(entity, args)
-    },
+    text: args => place(buildText(args), args),
 
     dimension: args => {
       const huong = args.huong ?? 'ngang'
@@ -712,7 +1032,11 @@ export function createDrawContext(
       // vertical chain whose ends sit at different x must still read the
       // height. Formatted by the style so the number matches the sheet's
       // convention (D100: whole millimetres).
-      const styleName = args.dimStyle ?? TEMPLATE_DIM_STYLE
+      const baseStyle = args.dimStyle ?? TEMPLATE_DIM_STYLE
+      ensureDimStyle(baseStyle)
+      const styleName = args.overrides
+        ? derivedDimStyle(baseStyle, args.overrides)
+        : baseStyle
       const style = ensureDimStyle(styleName)
       const measured =
         huong === 'ngang'
@@ -720,11 +1044,12 @@ export function createDrawContext(
           : huong === 'dung'
             ? Math.abs(end.y - start.y)
             : Math.hypot(end.x - start.x, end.y - start.y)
+      const value = formatDimensionText(measured, style)
       const entity = new AcDbRotatedDimension(
         { x: start.x, y: start.y, z: start.z ?? 0 },
         { x: end.x, y: end.y, z: end.z ?? 0 },
         dimLine,
-        args.text ?? formatDimensionText(measured, style),
+        args.text === undefined ? value : args.text.replace(/<>/g, value),
         styleName
       )
       // Rotation is what makes a rotated dimension measure an axis rather than
@@ -739,55 +1064,30 @@ export function createDrawContext(
       return place(entity, args)
     },
 
-    hatch: args => {
-      // A fill needs an area. Two points describe a line, which encloses
-      // nothing; the entity would reach the drawing and render as nothing at
-      // all, which is the failure mode that is hardest to notice.
-      if (args.boundary.length < 3) {
-        throw new Error(
-          `Vùng tô '${args.partId}' cần ít nhất 3 điểm biên, đã nhận ${args.boundary.length}.`
-        )
-      }
-
-      const entity = new AcDbHatch()
-      // Set before the pattern: the hatch resolves its pattern definition
-      // against the database it belongs to, and `appendEntity` only happens
-      // later in `place`.
-      entity.database = db
-      const patternName = args.patternName?.trim() || HATCH_PATTERN_SOLID
-      entity.patternName = patternName
-      entity.patternType = AcDbHatchPatternType.Predefined
-      entity.patternScale = args.patternScale ?? 1
-      entity.patternAngle = ((args.patternAngleDeg ?? 0) * Math.PI) / 180
-      entity.hatchStyle = AcDbHatchStyle.Normal
-      entity.isSolidFill = patternName === HATCH_PATTERN_SOLID
-
-      for (const boundary of [args.boundary, ...(args.additionalLoops ?? [])]) {
-        if (boundary.length < 3)
-          throw new Error('A hatch loop requires at least three points')
-        const loop = new AcGeLoop2d()
-        for (let i = 0; i < boundary.length; i++) {
-          const from = boundary[i]
-          const to = boundary[(i + 1) % boundary.length]
-          if (from.x !== to.x || from.y !== to.y)
-            loop.add(
-              new AcGeLine2d(
-                new AcGePoint2d(from.x, from.y),
-                new AcGePoint2d(to.x, to.y)
-              )
-            )
-        }
-        entity.add(loop)
-      }
-
-      return place(entity, args)
-    },
+    hatch: args => place(buildHatch(args), args),
 
     leader: args => {
       if (args.points.length < 2) {
         throw new Error(
           `Đường dẫn '${args.partId}' cần ít nhất 2 điểm, đã nhận ${args.points.length}.`
         )
+      }
+      if (args.native) {
+        const styleName = args.dimStyle ?? TEMPLATE_DIM_STYLE
+        ensureDimStyle(styleName)
+        const leader = new AcDbLeader()
+        for (const p of args.points)
+          leader.appendVertex(new AcGePoint3d(p.x, p.y, p.z ?? 0))
+        leader.hasArrowHead = true
+        leader.dimensionStyle = styleName
+        const {
+          points: _p,
+          arrowSize: _a,
+          native: _n,
+          dimStyle: _d,
+          ...identity
+        } = args
+        return place(leader, identity)
       }
       const size = args.arrowSize ?? ensureDimStyle(TEMPLATE_DIM_STYLE).dimasz
       const [tip, next] = args.points
@@ -809,7 +1109,13 @@ export function createDrawContext(
         { x: base.x - uy * half, y: base.y + ux * half, z: 0 },
         { x: base.x + uy * half, y: base.y - ux * half, z: 0 }
       ]
-      const { points: _points, arrowSize: _arrow, ...base_ } = args
+      const {
+        points: _points,
+        arrowSize: _arrow,
+        native: _native,
+        dimStyle: _dimStyle,
+        ...base_
+      } = args
       const line = drawPolyline({
         ...base_,
         points: args.points,
@@ -832,6 +1138,135 @@ export function createDrawContext(
       arrow.add(loop)
       place(arrow, base_)
       return line
+    },
+
+    defineTextStyle: def => {
+      if (!definedTextStyles.has(def.name)) definedTextStyles.set(def.name, def)
+      ensureTextStyle(def.name)
+      return def.name
+    },
+
+    defineDimStyle: def => {
+      if (!definedDimStyles.has(def.name)) definedDimStyles.set(def.name, def)
+      ensureDimStyle(def.name)
+      return def.name
+    },
+
+    defineBlock: def => {
+      const table = db.tables.blockTable
+      if (table.has(def.name)) return def.name
+      const base = def.basePoint ?? { x: 0, y: 0, z: 0 }
+      const record = new AcDbBlockTableRecord({ name: def.name })
+      record.origin = new AcGePoint3d(base.x, base.y, base.z ?? 0)
+      table.add(record)
+      for (const spec of def.entities) {
+        let entity: AcDbEntity
+        switch (spec.kind) {
+          case 'line':
+            entity = new AcDbLine(spec.start, spec.end)
+            break
+          case 'polyline':
+            entity = buildPolyline(spec.points, spec.closed)
+            break
+          case 'circle':
+            entity = new AcDbCircle(spec.center, spec.radius)
+            break
+          case 'arc':
+            entity = new AcDbArc(
+              spec.center,
+              spec.radius,
+              spec.startAngle,
+              spec.endAngle
+            )
+            break
+          case 'text':
+            entity = buildText(spec)
+            break
+          case 'hatch':
+            entity = buildHatch(spec)
+            break
+          case 'attribute': {
+            const attdef = buildText(
+              { ...spec, text: spec.defaultValue ?? '' },
+              new AcDbAttributeDefinition()
+            ) as AcDbAttributeDefinition
+            attdef.tag = spec.tag
+            attdef.prompt = spec.prompt ?? spec.tag
+            attdef.isInvisible = spec.invisible ?? false
+            entity = attdef
+            break
+          }
+        }
+        applyBlockLook(entity, spec)
+        record.appendEntity(entity)
+      }
+      return def.name
+    },
+
+    insert: args => {
+      const record = db.tables.blockTable.getAt(args.block)
+      if (!record) {
+        throw new Error(
+          `Block '${args.block}' chưa được định nghĩa; gọi defineBlock trước khi chèn '${args.partId}'.`
+        )
+      }
+      const sx =
+        typeof args.scale === 'number' ? args.scale : (args.scale?.x ?? 1)
+      const sy =
+        typeof args.scale === 'number' ? args.scale : (args.scale?.y ?? 1)
+      const angle = ((args.rotationDeg ?? 0) * Math.PI) / 180
+      const reference = new AcDbBlockReference(args.block)
+      reference.position = new AcGePoint3d(
+        args.position.x,
+        args.position.y,
+        args.position.z ?? 0
+      )
+      reference.scaleFactors = { x: sx, y: sy, z: 1 }
+      reference.rotation = angle
+      // Attributes are stored in world coordinates, as AutoCAD writes ATTRIB:
+      // the definition's point taken through the insert's scale, rotation and
+      // position, measured from the block's base point.
+      const origin = record.origin
+      const toWorld = (p: { x: number; y: number }) => {
+        const lx = (p.x - origin.x) * sx
+        const ly = (p.y - origin.y) * sy
+        return new AcGePoint3d(
+          args.position.x + lx * Math.cos(angle) - ly * Math.sin(angle),
+          args.position.y + lx * Math.sin(angle) + ly * Math.cos(angle),
+          args.position.z ?? 0
+        )
+      }
+      for (const entity of record.newIterator()) {
+        const def = entity as AcDbAttributeDefinition
+        if (typeof def.tag !== 'string' || !('prompt' in def)) continue
+        const attribute = new AcDbAttribute()
+        attribute.tag = def.tag
+        attribute.textString = args.attributes?.[def.tag] ?? def.textString
+        attribute.styleName = def.styleName
+        attribute.height = def.height * Math.abs(sy)
+        attribute.widthFactor = def.widthFactor
+        attribute.rotation = def.rotation + angle
+        attribute.position = toWorld(def.position)
+        if (def.horizontalMode) {
+          attribute.horizontalMode = def.horizontalMode
+          attribute.alignmentPoint = toWorld(def.alignmentPoint)
+        }
+        attribute.isInvisible = def.isInvisible
+        reference.appendAttributes(attribute)
+      }
+      const {
+        block: _b,
+        position: _p,
+        scale: _s,
+        rotationDeg: _r,
+        attributes: _a,
+        ...identity
+      } = args
+      const placed = place(reference, identity)
+      for (const attribute of reference.attributeIterator()) {
+        attribute.layer = placed.layer
+      }
+      return placed
     },
 
     get warnings() {

@@ -67,7 +67,8 @@ S_kiem = 1 − ½·Σ_k |n_O(k) − n_G(k)| / Σ_k n_O(k),  k = (loại, màu, l
 S_chu  = số chữ ghép 1–1 (cùng chuỗi so không phân biệt hoa thường, lệch ≤ 1 mm, cao ±5 %, cùng họ font) / max(n_O, n_G)
 S_dim  = Σ điểm cặp / max(n_O, n_G); cặp = hai điểm đo lệch ≤ 0,5 mm;
          điểm cặp = 0,4 + 0,3·[cùng chữ hiển thị] + 0,3·(tỉ lệ biến kiểu trùng:
-         DIMSCALE, DIMTXT, DIMASZ, DIMEXO, DIMEXE, DIMGAP, DIMTAD, DIMCLRD/E/T)
+         DIMTXT, DIMASZ, DIMEXO, DIMEXE, DIMGAP — so kích thước hiệu dụng
+         = biến × DIMSCALE —, DIMTAD, DIMCLRD/E/T)
 
 ĐIỂM = 0,35·S_hinh + 0,15·S_mau + 0,15·S_kiem + 0,20·S_chu + 0,15·S_dim
 ```
@@ -83,5 +84,9 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   vùng chấm pixel; chữ tiêu đề, số tờ vẫn chấm qua S_chu.
 - Đường DWG → DXF của libredwg có thể sót vài đối tượng (đã biết: block
   `*U540` lồng trong `*E549`); `extract-orig` in số đối tượng từng tờ để đối chiếu.
+- DIMSCALE không so riêng: kiểu `_33_` lưu kích thước đã nhân (`dimscale 1`,
+  `dimtxt 150` thay cho `100 × 1,5`) vì bộ dựng dim của data-model bỏ qua
+  DIMSCALE; hình và bản in như nhau. DIMFXL/DIMFXLON (đường gióng cố định,
+  bật trong D100) data-model không có — khác biệt không tránh được.
 - Biến kiểu kích thước lấy từ DIMSTYLE + ghi đè DSTYLE trong XDATA của từng dim;
   biến không có ở đó thì không so.
