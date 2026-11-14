@@ -15,7 +15,10 @@ vẽ mố bằng nét.
 
 Khi người dùng muốn **hồ sơ mố**, **bản vẽ mố đầy đủ**, mặt bằng + mặt cắt +
 thống kê, dùng `tao_ho_so_mo`, không dùng cách ghép cũ ở bảng dưới.
-Mẫu `ho_so_mo_m1` 0.1.0 lấy từ `02. BTC- mo_2.dwg`; tạo 6 tờ **bản nháp**.
+Mẫu `ho_so_mo_m1` 0.2.0 lấy từ `02. BTC- mo_2.dwg`; tạo 6 tờ **bản nháp**, mỗi tờ
+có khung tên A1 (điền `duAn`, `donVi`, `nguoiChuTri`, `nguoiThietKe`,
+`nguoiKiemTra`, `nguoiDuyet`, `ngay` — để trống được). Hồ sơ dựng bằng 0.1.0
+giữ khung cũ khi sửa và xuất; không ghi được các trường khung tên cho chúng.
 Chiều dài tính mm, cao độ `caoDoDayBe` tính m, dốc tính %. `Lc` trong bản
 mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lCoc`).
 
@@ -93,12 +96,13 @@ nói rõ với người dùng thay vì xấp xỉ bằng dốc một mái.
 
 | Kiểm | Ngưỡng | Rule |
 |---|---|---|
-| đường kính cọc khoan `D` | ≥ 750 mm | TCVN 11823-10 đ.8.1.3 |
-| cự ly tim cọc `B − 2·D` | ≥ 4·D; nếu < 6·D phải nêu trình tự khoan | 11823-10 đ.8.1.2 |
+| đường kính cọc khoan `D` | ≥ 750 mm **nếu hố khoan được kiểm tra bằng thủ công** — hỏi người dùng | TCVN 11823-10 đ.8.1.3 |
+| cự ly tim cọc `B − 2·D` | không có ngưỡng cấm: < 4·D (khoan **không ống vách**) phải đánh giá ảnh hưởng tương tác giữa các cọc; < 6·D phải nêu trình tự khoan trong hồ sơ | 11823-10 đ.8.1.2 |
 | mặt bên cọc → mép bệ | ≥ 300 mm; với bố trí này luôn = `D/2` ⇒ `D` ≥ 600 | 11823-10 đ.8.1.2 |
 | bề rộng `B` | ≤ 9000 mm mới khỏi cần khe phòng nứt | 11823-11 đ.6.1.6 |
-| `doDocNgang` mặt BTN | 1,5 – 2,0 % (TCVN 4054 B.9) · 1,5 – 2,5 % (TCVN 13592 B.12) | |
-| `doDocNgang` là siêu cao | ≥ 2 %, ≤ 8 % đường ô tô, ≤ 6 % đô thị | TCVN 4054 đ.5.6 |
+| `doDocNgang` mặt BTN | 1,5 – 2,0 % (TCVN 4054 Bảng 9) · 1,5 – 2,5 % (TCVN 13592 Bảng 12) | |
+| `doDocNgang` là siêu cao | ≥ 2 %, ≤ 8 % đường ô tô | TCVN 4054 đ.5.5.1 |
+| … đường đô thị | theo tốc độ và bán kính (i_sc 0,02 – 0,08) | TCVN 13592 Bảng 20 |
 
 Dốc trên 2,5 % chỉ hợp lệ khi mố nằm trong đường cong có siêu cao. **Hỏi
 người dùng xác nhận trước khi dựng**, nêu hai ngưỡng trên, đừng lặng lẽ vẽ.
