@@ -24,6 +24,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { get, num, owner, points, readPairs, records, walk } from './dxf.mjs'
+import { oleFrameToCad } from './ole.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const argWork = process.argv.indexOf('--work')
@@ -969,6 +970,8 @@ const VIEW = {
   'SUB-090': { view: 'right', offset: [311000, -71000] },
   'SUB-100': null
 }
+/** Sheets whose OLE tables are redrawn (see extract-orig.mjs). */
+const OLE_SHEETS = new Set(['SUB-100'])
 const TITLE = /^(SUB-\d+|CẦU KM|BỐ TRÍ (CHUNG|CỐT THÉP) MỐ|TỔNG HỢP KHỐI LƯỢNG)/
 
 const sheets = inventory.sheets.map(inv => {
@@ -990,13 +993,65 @@ const sheets = inventory.sheets.map(inv => {
   }
   const paper = []
   const title = []
+  // The normalized copy already holds the OLE tables as LINE/TEXT (added by
+  // extract-orig.mjs for the renderer); they are taken from the OLE frames
+  // below instead, marked as table content, so skip those copies here.
+  const oleCopies = new Set()
+  if (OLE_SHEETS.has(inv.id))
+    for (const i of items) {
+      if (i.rec.type !== 'OLE2FRAME') continue
+      const table = oleFrameToCad(i.rec)
+      for (const l of table?.lines ?? []) oleCopies.add(`LINE ${l.a} ${l.b}`)
+      for (const t of table?.texts ?? [])
+        oleCopies.add(`TEXT ${t.at} ${t.text}`)
+    }
+  const copyKey = rec =>
+    rec.type === 'LINE'
+      ? `LINE ${points(rec, 10, 20)[0]} ${points(rec, 11, 21)[0]}`
+      : `TEXT ${points(rec, 10, 20)[0]} ${(get(rec, 1) ?? '').trim()}`
   for (const rec of body) {
     if (rec.type === 'ATTRIB' || rec.type === 'SEQEND') continue
+    if (oleCopies.size && oleCopies.has(copyKey(rec))) continue
     const list = []
     emit(rec, tf, undefined, list, attribsOf)
     for (const p of list)
       (p.kind === 'text' && TITLE.test(p.text) ? title : paper).push(p)
   }
+  // OLE tables (Excel pictures) drawn as lines and texts, as in the
+  // reference inventory (ole.mjs).
+  const seen = new Set()
+  if (OLE_SHEETS.has(inv.id))
+    for (const i of items) {
+      if (i.rec.type !== 'OLE2FRAME') continue
+      if (seen.has(get(i.rec, 5))) continue
+      seen.add(get(i.rec, 5))
+      const [c] = points(i.rec, 10, 20)
+      const [px, py] = tf.apply(c)
+      if (px < 0 || px > 420 || py < 0 || py > 297) continue
+      const table = oleFrameToCad(i.rec)
+      if (!table) continue
+      const ole = get(i.rec, 5)?.trim()
+      for (const l of table.lines)
+        paper.push({
+          kind: 'path',
+          line: true,
+          color: l.color,
+          points: [P(tf.apply(l.a)), P(tf.apply(l.b))],
+          ole
+        })
+      for (const t of table.texts)
+        paper.push({
+          kind: 'text',
+          color: t.color,
+          at: P(tf.apply(t.at)),
+          text: t.text,
+          height: t.height,
+          ...(t.rotation ? { rotation: t.rotation } : {}),
+          ...(t.align ? { align: t.align } : {}),
+          style: '_33_Arial',
+          ole
+        })
+    }
   return {
     id: inv.id,
     viewport: inv.viewport,

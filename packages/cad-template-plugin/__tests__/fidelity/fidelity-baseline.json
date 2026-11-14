@@ -144,19 +144,19 @@
   {
    "id": "SUB-100",
    "gen": "SUB-100",
-   "S_kiem": 0.8647058823529412,
-   "S_chu": 0.7419354838709677,
-   "S_dim": 0.8333333333333331,
+   "S_kiem": 0.9844444444444445,
+   "S_chu": 0.9928952042628775,
+   "S_dim": 1,
    "detail": {
     "entities": {
-     "orig": 170,
-     "gen": 190
+     "orig": 1575,
+     "gen": 1592
     },
     "texts": {
-     "orig": 23,
-     "gen": 31,
-     "matched": 23,
-     "sameString": 23,
+     "orig": 1118,
+     "gen": 1126,
+     "matched": 1118,
+     "sameString": 1118,
      "medianOffset": [
       0,
       0

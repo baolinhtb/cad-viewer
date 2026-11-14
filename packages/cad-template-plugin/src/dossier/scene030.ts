@@ -103,6 +103,8 @@ type LayoutPrimitive = {
   >
   arrowHead?: boolean
   linetypeScale?: number
+  /** Handle of the OLE table this line or text was read from. */
+  ole?: string
   /** Model content: source layer, handle and entity type. */
   src?: string
   handle?: string
@@ -533,7 +535,7 @@ export function buildScene030(
 
     // ------------------------------------------------ paper-space content
     const roleOf = (p: LayoutPrimitive) =>
-      p.kind === 'text'
+      p.ole || p.kind === 'text'
         ? 'ghi_chu'
         : p.kind === 'dimension'
           ? 'kich_thuoc'
@@ -543,7 +545,23 @@ export function buildScene030(
               ? 'cot_thep'
               : 'mo_cau'
     const scaled = (p: XY): XY => [p[0] * K, p[1] * K]
-    for (const p of ls.paper) addPaper(p, roleOf(p))
+    // The statistics and quantity tables hold the source abutment's numbers:
+    // shown only while the parameters are that abutment's, like its steel.
+    const tablesApply = sourceGeometry && model.referenceSteelApplicable
+    for (const p of ls.paper) if (!p.ole || tablesApply) addPaper(p, roleOf(p))
+    if (!tablesApply && ls.paper.some(p => p.ole))
+      [
+        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG',
+        'Số liệu bảng là của mố M1 gốc; chưa tính lại cho thông số này.'
+      ].forEach((t, i) =>
+        push({
+          ...id('ghi_chu'),
+          kind: 'text',
+          at: [6000, 26000 - i * 600],
+          text: t,
+          height: i ? 300 : 450
+        })
+      )
     for (const p of ls.title)
       addPaper({ ...p, text: relabelTitle(p.text ?? '') }, 'tieu_de_ban_ve')
 

@@ -175,7 +175,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 237,
     },
     {
-      "hash": "9448ca9d605d1963",
+      "hash": "3b43dac824be6024",
       "id": "SUB-100",
       "origin": [
         94000,
@@ -183,13 +183,13 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       ],
       "roles": {
         "cot_thep": 119,
-        "ghi_chu": 20,
+        "ghi_chu": 1425,
         "khung_ban_ve": 2,
         "khung_ten": 18,
         "kich_thuoc": 28,
         "tieu_de_ban_ve": 3,
       },
-      "soPrimitive": 190,
+      "soPrimitive": 1595,
     },
   ],
   "version": "0.3.0",

@@ -84,14 +84,18 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
 
 ## Chưa chấm được (ghi rõ, không giấu)
 
-- **Bảng OLE** (thống kê thép, khối lượng, bảng cao độ, bảng thông số) là ảnh
-  Excel nhúng; renderer không vẽ OLE nên ảnh gốc không có chúng, và kiểm kê
-  không có chữ của chúng. Sẽ chấm từ GĐ5 bằng ảnh WMF đối chiếu.
+- **Bảng OLE** (Excel liên kết): DWG chỉ giữ hình trình bày (WMF trong luồng
+  `\x02OlePres000`). `ole.mjs` đọc hình đó thành nét lưới + chữ (giải mã
+  TCVN3 bằng SDK, chữ xoay theo escapement) đặt trong khung OLE2FRAME.
+  SUB-100: kiểm kê gốc và bản sao chuẩn hoá có bảng dưới dạng LINE/TEXT
+  (renderer không vẽ OLE), bản sinh vẽ lại đúng các nét và chữ đó. SUB-020
+  (bảng cao độ, bảng thông số) chưa đưa vào — số liệu phải tính theo tham
+  số (GĐ5).
 - **Khung tên `FR A3`** là xref thiếu trong DWG: vùng khung/dải tên nằm ngoài
   vùng chấm pixel; chữ tiêu đề, số tờ vẫn chấm qua S_chu.
 - Đường DWG → DXF của libredwg có thể sót vài đối tượng (đã biết: block
   `*U540` lồng trong `*E549`); `extract-orig` in số đối tượng từng tờ để đối chiếu.
-- DIMSCALE không so riêng: kiểu `_33_` lưu kích thước đã nhân (`dimscale 1`,
+- Kích thước của biến dim so theo mm giấy (dim trong viewport chia 100, dim paper giữ nguyên; trường `k` của kiểm kê). DIMSCALE không so riêng: kiểu `_33_` lưu kích thước đã nhân (`dimscale 1`,
   `dimtxt 150` thay cho `100 × 1,5`) vì bộ dựng dim của data-model bỏ qua
   DIMSCALE; hình và bản in như nhau. DIMFXL/DIMFXLON (đường gióng cố định,
   bật trong D100) data-model không có — khác biệt không tránh được.

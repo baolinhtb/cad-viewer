@@ -520,3 +520,59 @@ describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối t
     }
   })
 })
+
+describe('SUB-100: bảng thống kê và khối lượng vẽ bằng nét và chữ CAD', () => {
+  const sub100 = (s: typeof scene) => s.sheets.find(x => x.id === 'SUB-100')!
+  const texts = (s: typeof scene) =>
+    sub100(s).primitives.flatMap(p => (p.kind === 'text' ? [p.text] : []))
+
+  test('hai bảng: lưới và chữ từ hình trình bày OLE, không còn OLE', () => {
+    const table = layout.sheets
+      .find(x => x.id === 'SUB-100')!
+      .paper.filter(p => (p as { ole?: string }).ole)
+    expect(table.filter(p => p.kind === 'path')).toHaveLength(310)
+    expect(table.filter(p => p.kind === 'text')).toHaveLength(1095)
+    const all = texts(scene)
+    for (const t of [
+      'TỔNG KHỐI LƯỢNG THÉP (KG)',
+      '14058.319',
+      'TỔNG KHỐI LƯỢNG BÊ TÔNG MỐ (M3)',
+      '186.253',
+      'BÊ TÔNG ĐỆM C10(M3)',
+      'W16',
+      'TƯỜNG CÁNH PHẢI'
+    ])
+      expect(all).toContain(t)
+    // Nhãn ô gộp dựng đứng như Excel.
+    expect(
+      sub100(scene).primitives.some(
+        p =>
+          p.kind === 'text' && p.text === 'TƯỜNG CÁNH PHẢI' && p.rotation === 90
+      )
+    ).toBe(true)
+  })
+
+  test('đường lưới và chữ là đối tượng thật trong bản vẽ', () => {
+    const db = defaultDb()
+    const own = onSheet(db, 'SUB-100')
+    expect(own.filter(e => e.dxfTypeName === 'LINE').length).toBeGreaterThan(
+      300
+    )
+    expect(own.filter(e => e.dxfTypeName === 'TEXT').length).toBeGreaterThan(
+      1100
+    )
+    expect(own.some(e => e.dxfTypeName === 'OLE2FRAME')).toBe(false)
+  })
+
+  test('kích thước khác bản gốc: không đưa số liệu M1 lên, ghi rõ', () => {
+    const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
+    expect(texts(tall)).not.toContain('14058.319')
+    expect(texts(tall)).toContain(
+      'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG'
+    )
+    // Bảng hình dạng thanh (chú giải) vẫn giữ.
+    expect(
+      sub100(tall).primitives.filter(p => p.kind === 'dimension')
+    ).toHaveLength(28)
+  })
+})

@@ -43,6 +43,12 @@ export interface InvDim {
   r?: number
   style: string
   vars: Record<string, number>
+  /**
+   * Drawing units per paper millimetre where the dimension is drawn (100 in
+   * a 1:100 viewport or generated sheet, 1 on paper). Sizes are compared on
+   * paper; absent means 100.
+   */
+  k?: number
 }
 export interface InvSheet {
   id: string
@@ -227,7 +233,8 @@ export function generatedInventory(
             ? measured
             : acTpMTextPlain(text.replace('<>', measured)),
         style: String(d.dimensionStyleName ?? ''),
-        vars
+        vars,
+        k: p.scale
       })
     }
   }
@@ -315,11 +322,15 @@ const DIM_SIZE_VARS = new Set([
   'DIMGAP'
 ])
 
-/** `vars` with sizes multiplied by DIMSCALE (0 or unset counts as 1). */
+/**
+ * `vars` with sizes as drawn on paper: × DIMSCALE (0 or unset counts as 1),
+ * ÷ drawing units per paper millimetre (`k`).
+ */
 export function effectiveDimVars(
-  vars: Record<string, number>
+  vars: Record<string, number>,
+  k = 1
 ): Record<string, number> {
-  const scale = vars.DIMSCALE ? vars.DIMSCALE : 1
+  const scale = (vars.DIMSCALE ? vars.DIMSCALE : 1) / k
   return Object.fromEntries(
     Object.entries(vars).map(([k, v]) => [
       k,
@@ -347,8 +358,8 @@ export function scoreDims(
     if (i < 0) continue
     used.add(i)
     matched += 1
-    const ov = effectiveDimVars(o.vars)
-    const gv = effectiveDimVars(gen.dims[i].vars)
+    const ov = effectiveDimVars(o.vars, o.k ?? 100)
+    const gv = effectiveDimVars(gen.dims[i].vars, gen.dims[i].k ?? 100)
     const g = gen.dims[i]
     const vars = DIM_VARS.filter(v => ov[v] !== undefined)
     const same = vars.filter(

@@ -35,6 +35,7 @@ import {
   walk,
   writePairs
 } from './dxf.mjs'
+import { oleFrameToCad } from './ole.mjs'
 import {
   acTpDecodeVnText,
   acTpLegacyVnFont,
@@ -445,6 +446,33 @@ const out = {
   sheets: []
 }
 
+// ---------------------------------------------------------------- OLE tables
+/**
+ * Sheets whose OLE tables (Excel pictures) are part of the reference: the
+ * app's renderer does not draw OLE, so their lines and texts are taken from
+ * the presentation metafile (ole.mjs) and added as LINE/TEXT. The generator
+ * draws the same tables with real entities.
+ */
+const OLE_SHEETS = new Set(['SUB-100'])
+/** Text style of the normalized copy drawn with Arial (any .Vn style is). */
+const OLE_STYLE = (() => {
+  const s = items.find(i => i.table === 'STYLE' && legacyStyle(get(i.rec, 2)))
+  return get(s?.rec ?? { pairs: [] }, 2)?.trim() ?? 'Standard'
+})()
+function oleTables(s) {
+  if (!OLE_SHEETS.has(s.id)) return []
+  return entities
+    .filter(i => inSpace(i, PAPERS[s.layout]) && i.rec.type === 'OLE2FRAME')
+    .filter(i => {
+      const [c] = points(i.rec, 10, 20)
+      const px = c[0] - s.origin[0],
+        py = c[1] - s.origin[1]
+      return px >= 0 && px <= A3.w && py >= 0 && py <= A3.h
+    })
+    .map(i => oleFrameToCad(i.rec))
+    .filter(Boolean)
+}
+
 for (const s of sheets) {
   const sheet = {
     id: s.id,
@@ -539,7 +567,30 @@ for (const s of sheets) {
         t: shown,
         r: round(num(rec, 50, 0)),
         style: (get(rec, 3) ?? '').trim(),
-        vars
+        vars,
+        // Drawing units per paper millimetre: model dims are seen at 1:100.
+        k: isModel ? s.vp.scale : 1
+      })
+    }
+  }
+  for (const table of oleTables(s)) {
+    for (const l of table.lines) {
+      const key = `LINE|${l.color}|CONTINUOUS|-3`
+      sheet.hist[key] = (sheet.hist[key] ?? 0) + 1
+      sheet.counts.paper += 1
+    }
+    for (const t of table.texts) {
+      const key = `TEXT|${t.color}|CONTINUOUS|-3`
+      sheet.hist[key] = (sheet.hist[key] ?? 0) + 1
+      sheet.counts.paper += 1
+      sheet.texts.push({
+        t: t.text,
+        x: round(t.at[0] - s.origin[0]),
+        y: round(t.at[1] - s.origin[1]),
+        h: round(t.height),
+        r: round(t.rotation ?? 0),
+        a: t.align,
+        f: 'arial'
       })
     }
   }
@@ -621,6 +672,46 @@ sheets.forEach((s, index) => {
         if (next.type === 'SEQEND') break
       }
     }
+  }
+  for (const table of oleTables(s)) {
+    for (const l of table.lines)
+      body.push(
+        { code: 0, value: 'LINE' },
+        { code: 5, value: newHandle() },
+        { code: 330, value: brHandle },
+        { code: 100, value: 'AcDbEntity' },
+        { code: 8, value: '0' },
+        { code: 62, value: String(l.color) },
+        { code: 100, value: 'AcDbLine' },
+        { code: 10, value: String(l.a[0]) },
+        { code: 20, value: String(l.a[1]) },
+        { code: 30, value: '0.0' },
+        { code: 11, value: String(l.b[0]) },
+        { code: 21, value: String(l.b[1]) },
+        { code: 31, value: '0.0' }
+      )
+    for (const t of table.texts)
+      body.push(
+        { code: 0, value: 'TEXT' },
+        { code: 5, value: newHandle() },
+        { code: 330, value: brHandle },
+        { code: 100, value: 'AcDbEntity' },
+        { code: 8, value: '0' },
+        { code: 62, value: String(t.color) },
+        { code: 100, value: 'AcDbText' },
+        { code: 10, value: String(t.at[0]) },
+        { code: 20, value: String(t.at[1]) },
+        { code: 30, value: '0.0' },
+        { code: 40, value: String(t.height) },
+        { code: 1, value: t.text },
+        { code: 50, value: String(t.rotation ?? 0) },
+        { code: 7, value: OLE_STYLE },
+        { code: 72, value: String(t.align) },
+        { code: 11, value: String(t.at[0]) },
+        { code: 21, value: String(t.at[1]) },
+        { code: 31, value: '0.0' },
+        { code: 100, value: 'AcDbText' }
+      )
   }
   const endHandle = newHandle()
   flatRecords.push(
