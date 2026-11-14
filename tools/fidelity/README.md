@@ -104,6 +104,12 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   `*E549` của bản gốc, nên ảnh gốc thiếu sơ đồ này và bản sinh bị tính
   "thừa" ở S_hinh/S_mau; phần khung `*U540` bên trong cũng bị libredwg làm
   mất nên bản sinh không có nó. Ký hiệu và chữ vẫn chấm qua kiểm kê.
+  **Giới hạn, chưa gỡ được:** sơ đồ chiếm ~9 800 px "chỉ bản sinh có" ở vùng
+  x 330–390, y 27–147 mm, giữ SUB-070 ở S_hinh ≈ 0,946, ĐIỂM ≈ 0,956. Đã thử
+  bỏ hai tham chiếu `*U540` (block bị mất) trong bản sao chuẩn hoá: renderer
+  vẫn không vẽ `*E549`, nên chưa xác định được nguyên nhân; thử nghiệm đã hoàn
+  tác. Quy tắc: **không bỏ nội dung gốc khỏi phía chấm** — `*U540` có trong
+  DWG thật và AutoCAD vẽ nó; chỉ được loại thứ AutoCAD cũng không vẽ.
 - **Khung tên — chấm theo đúng vùng của bản gốc (đã chọn cách này).** Khung
   `FR A3` của bản gốc là xref bị thiếu, nên tờ gốc không có khung. Hồ sơ sinh
   vẫn vẽ khung A3 của SDK (bỏ các ô nằm dưới 3 chữ tiêu đề gốc), nhưng bản
