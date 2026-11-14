@@ -87,6 +87,18 @@ export type DossierPrimitive = Base &
         textAt?: XY
       }
     | {
+        /** An angular dimension: vertex `at`, legs to `start`/`end` (0.3.0). */
+        kind: 'angular'
+        at: XY
+        start: XY
+        end: XY
+        arcPoint: XY
+        dimStyle: string
+        text?: string
+        textAt?: XY
+        overrides?: AcTpDimStyleVars
+      }
+    | {
         /** A LEADER entity (0.3.0). */
         kind: 'leader'
         points: XY[]
@@ -1034,6 +1046,18 @@ export function drawDossierScene(
           radius: op.radius,
           startAngle: (op.startAngle * Math.PI) / 180,
           endAngle: (op.endAngle * Math.PI) / 180
+        })
+      else if (op.kind === 'angular')
+        ctx.angularDimension({
+          ...tag,
+          center: point(s, op.at),
+          start: point(s, op.start),
+          end: point(s, op.end),
+          arcPoint: point(s, op.arcPoint),
+          dimStyle: op.dimStyle,
+          ...(op.text !== undefined ? { text: op.text } : {}),
+          ...(op.overrides ? { overrides: op.overrides } : {}),
+          ...(op.textAt ? { textPosition: point(s, op.textAt) } : {})
         })
       else if (op.kind === 'leader')
         ctx.leader({

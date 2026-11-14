@@ -1,6 +1,7 @@
 import {
   AcCmColor,
   AcCmColorMethod,
+  AcDb3PointAngularDimension,
   AcDbAlignedDimension,
   acdbAssignWorkingDatabase,
   AcDbBlockReference,
@@ -38,7 +39,7 @@ const ARROW_BLOCK = '_CAXARROW'
  */
 export function buildDimensionBlock(
   db: AcDbDatabase,
-  dim: AcDbAlignedDimension
+  dim: AcDbAlignedDimension | AcDb3PointAngularDimension
 ) {
   withWorkingDatabase(db, () => {
     // The arrowheads are a block of their own, referenced by the dimension
@@ -49,7 +50,7 @@ export function buildDimensionBlock(
     const style = dim.dimensionStyleName
       ? db.tables.dimStyleTable.getAt(dim.dimensionStyleName)
       : undefined
-    if (style) applyDimStyleToBlock(block, dim, style)
+    if (style) applyDimStyleToBlock(block, style)
     db.tables.blockTable.add(block)
     dim.dimBlockId = name
   })
@@ -67,7 +68,6 @@ export function buildDimensionBlock(
  */
 export function applyDimStyleToBlock(
   block: { newIterator(): Iterable<unknown> },
-  _dim: AcDbAlignedDimension,
   style: AcDbDimStyleTableRecord
 ) {
   for (const entity of block.newIterator()) {

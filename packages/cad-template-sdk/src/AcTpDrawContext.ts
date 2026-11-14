@@ -1,6 +1,7 @@
 import {
   AcCmColor,
   AcCmColorMethod,
+  AcDb3PointAngularDimension,
   AcDbArc,
   AcDbAttribute,
   AcDbAttributeDefinition,
@@ -8,6 +9,7 @@ import {
   AcDbBlockTableRecord,
   AcDbCircle,
   AcDbDatabase,
+  AcDbDimension,
   AcDbDimStyleTableRecord,
   AcDbDimTextVertical,
   AcDbEntity,
@@ -296,6 +298,27 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
  * at the first point. The arrow is a solid triangle the size of the dimension
  * style's arrowhead, since that is what AutoCAD draws for a leader too.
  */
+/**
+ * An angular dimension between two lines meeting at `center` — how the
+ * data model reads AutoCAD's 2-line and 3-point angular dimensions alike.
+ */
+export interface AcTpAngularDimensionArgs extends AcTpDrawBase {
+  /** Vertex of the angle. */
+  center: AcGePoint3dLike
+  /** A point on the first leg. */
+  start: AcGePoint3dLike
+  /** A point on the second leg. */
+  end: AcGePoint3dLike
+  /** A point the dimension arc passes through. */
+  arcPoint: AcGePoint3dLike
+  /** Dimension text; `<>` stands for the measured angle. */
+  text?: string
+  dimStyle?: string
+  overrides?: AcTpDimStyleVars
+  /** Middle of the text, as the source stored it. */
+  textPosition?: AcGePoint3dLike
+}
+
 export interface AcTpLeaderArgs extends AcTpDrawBase {
   /** Vertices in order; the arrow sits at the first one. At least two. */
   points: readonly AcGePoint3dLike[]
@@ -477,6 +500,8 @@ export interface AcTpDrawContext {
   arc(args: AcTpArcArgs): AcDbEntity
   text(args: AcTpTextArgs): AcDbEntity
   dimension(args: AcTpDimensionArgs): AcDbEntity
+  /** An angular dimension (the angle between two legs). */
+  angularDimension(args: AcTpAngularDimensionArgs): AcDbEntity
   hatch(args: AcTpHatchArgs): AcDbEntity
   /** Draws the leader line and its arrowhead; returns the line (or the LEADER). */
   leader(args: AcTpLeaderArgs): AcDbEntity
@@ -802,6 +827,19 @@ export function createDrawContext(
     return name
   }
 
+  /** Puts a dimension's text where the source had it (DXF 11/21). */
+  const moveDimText = (
+    entity: AcDbDimension,
+    position: AcGePoint3dLike | undefined
+  ) => {
+    if (!position) return
+    const at = new AcGePoint3d(position.x, position.y, position.z ?? 0)
+    entity.textPosition = at
+    const block = db.tables.blockTable.getAt(entity.dimBlockId ?? '')
+    for (const e of block?.newIterator() ?? [])
+      if (e instanceof AcDbMText) e.location = at.clone()
+  }
+
   const lineWeightOf = (value: number, what: string): number => {
     if (!LINE_WEIGHTS.includes(value)) {
       throw new Error(
@@ -1107,19 +1145,41 @@ export function createDrawContext(
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
       buildDimensionBlock(db, entity)
-      if (args.textPosition) {
-        const at = new AcGePoint3d(
-          args.textPosition.x,
-          args.textPosition.y,
-          args.textPosition.z ?? 0
-        )
-        entity.textPosition = at
-        const block = db.tables.blockTable.getAt(entity.dimBlockId ?? '')
-        for (const e of block?.newIterator() ?? [])
-          if (e instanceof AcDbMText) e.location = at.clone()
-      }
+      moveDimText(entity, args.textPosition)
       const { textPosition: _tp, ...dimArgs } = args
       return place(entity, dimArgs)
+    },
+
+    angularDimension: args => {
+      const baseStyle = args.dimStyle ?? TEMPLATE_DIM_STYLE
+      ensureDimStyle(baseStyle)
+      const styleName = args.overrides
+        ? derivedDimStyle(baseStyle, args.overrides)
+        : baseStyle
+      ensureDimStyle(styleName)
+      const p = (q: AcGePoint3dLike) => ({ x: q.x, y: q.y, z: q.z ?? 0 })
+      const entity = new AcDb3PointAngularDimension(
+        p(args.center),
+        p(args.start),
+        p(args.end),
+        p(args.arcPoint),
+        args.text ?? null,
+        styleName
+      )
+      buildDimensionBlock(db, entity)
+      moveDimText(entity, args.textPosition)
+      const {
+        center: _c,
+        start: _s,
+        end: _e,
+        arcPoint: _a,
+        text: _t,
+        dimStyle: _d,
+        overrides: _o,
+        textPosition: _tp,
+        ...identity
+      } = args
+      return place(entity, identity)
     },
 
     hatch: args => place(buildHatch(args), args),

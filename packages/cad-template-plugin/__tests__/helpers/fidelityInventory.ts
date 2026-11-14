@@ -18,9 +18,9 @@
  */
 import { acTpMTextPlain, acTpTextStyleFont } from '@mlightcad/cad-template-sdk'
 import {
+  AcDbAlignedDimension,
   AcDbBlockReference,
   AcDbDatabase,
-  AcDbDimension,
   AcDbEntity,
   AcDbMText,
   AcDbText
@@ -206,8 +206,10 @@ export function generatedInventory(
         h: round(e.height / p.scale),
         f: fontFamily(db, e.styleName)
       })
-    } else if (e instanceof AcDbDimension) {
-      const d = e as AcDbDimension & {
+    } else if (e instanceof AcDbAlignedDimension) {
+      // Linear dimensions only (rotated derives from aligned), as the
+      // original inventory lists DIMENSION types 0 and 1.
+      const d = e as AcDbAlignedDimension & {
         xLine1Point?: { x: number; y: number }
         xLine2Point?: { x: number; y: number }
       }

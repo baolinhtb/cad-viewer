@@ -60,18 +60,18 @@
   {
    "id": "SUB-070",
    "gen": "SUB-070",
-   "S_kiem": 0,
-   "S_chu": 0.6288659793814433,
-   "S_dim": 0,
+   "S_kiem": 0.9296577946768061,
+   "S_chu": 0.9139784946236559,
+   "S_dim": 0.98125,
    "detail": {
     "entities": {
      "orig": 263,
-     "gen": 1327
+     "gen": 298
     },
     "texts": {
      "orig": 85,
-     "gen": 97,
-     "matched": 61,
+     "gen": 93,
+     "matched": 85,
      "sameString": 85,
      "medianOffset": [
       0,
@@ -80,8 +80,8 @@
     },
     "dims": {
      "orig": 16,
-     "gen": 0,
-     "matched": 0
+     "gen": 16,
+     "matched": 16
     }
    }
   },

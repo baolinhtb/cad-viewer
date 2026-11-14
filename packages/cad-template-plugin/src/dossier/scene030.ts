@@ -182,6 +182,7 @@ function centreOf(p: LayoutPrimitive): XY {
 function contentRole(p: LayoutPrimitive): string {
   switch (p.kind) {
     case 'dimension':
+    case 'angular':
       return 'kich_thuoc'
     case 'leader':
       return 'ghi_chu'
@@ -196,18 +197,33 @@ function contentRole(p: LayoutPrimitive): string {
             'D1200-1': 'coc_khoan_nhoi',
             GA: 'ky_hieu_mat_cat',
             center1: 'duong_tim',
-            A$C6EA20CD3: 'goi_cau'
+            A$C6EA20CD3: 'goi_cau',
+            center: 'duong_tim',
+            mcnthep: 'cot_thep'
           } as Record<string, string>
-        )[p.block ?? ''] ?? 'mo_cau'
+        )[p.block ?? ''] ??
+        (STEEL_LAYERS.has(p.src ?? '') ? 'cot_thep' : 'mo_cau')
       )
     default:
       return p.src === 'Section'
         ? 'ky_hieu_mat_cat'
         : p.src === 'Center' || p.src === 'Prf-fgpl'
           ? 'duong_tim'
-          : 'mo_cau'
+          : STEEL_LAYERS.has(p.src ?? '')
+            ? 'cot_thep'
+            : 'mo_cau'
   }
 }
+
+/** Source layers of reinforcement (plan §4.2). */
+const STEEL_LAYERS = new Set([
+  'Main1',
+  'Main_03',
+  'KOZO0',
+  '0T_net đứt',
+  'Reinforce 1',
+  'T_MT_04'
+])
 
 /** Liang–Barsky: the part of segment a→b inside the box, if any. */
 function clipSegment(
@@ -363,20 +379,35 @@ export function buildScene030(
       // Real entities of the source, through the sheet's stretch grid.
       const x0 = ls.viewport.x * K,
         y0 = ls.viewport.y * K
-      const stretch = sheetStretch(ls.id, v)
+      const steel = ls.view !== undefined && ls.view !== 'general'
+      // Reinforcement is drawn only for the source abutment: re-laying bars
+      // for other dimensions is a design decision, not a stretch (GĐ6).
+      const stretch: ReturnType<typeof sheetStretch> = !steel
+        ? sheetStretch(ls.id, v)
+        : !model.referenceSteelApplicable || !sourceGeometry
+          ? {
+              error:
+                'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
+            }
+          : sheetStretch(ls.id, v)
       if ('error' in stretch)
-        ['CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY', stretch.error].forEach(
-          (t, i) =>
-            push({
-              ...id('ghi_chu'),
-              kind: 'text',
-              at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
-              text: t,
-              height: i ? 300 : 450
-            })
+        [
+          steel
+            ? 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY'
+            : 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY',
+          stretch.error
+        ].forEach((t, i) =>
+          push({
+            ...id('ghi_chu'),
+            kind: 'text',
+            at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
+            text: t,
+            height: i ? 300 : 450
+          })
         )
       else
-        for (const c of ls.content) {
+        for (const raw of ls.content) {
+          const c = steel ? relabelSteel(raw) : raw
           const at = centreOf(c)
           addPaper(
             c,
@@ -516,6 +547,31 @@ export function buildScene030(
     for (const p of ls.title)
       addPaper({ ...p, text: relabelTitle(p.text ?? '') }, 'tieu_de_ban_ve')
 
+    /** Bar marks and the abutment name follow the parameters (as 0.2.0). */
+    function relabelSteel(p: LayoutPrimitive): LayoutPrimitive {
+      const fix = (t: string) => {
+        let out = t.replace(/\bM1\b/g, tenMo)
+        if (v.thepF3 === 'D22') out = out.replace(/F3-D25/g, 'F3-D22')
+        if (v.thepW16 === 'D16') out = out.replace(/W16(')?-D14/g, 'W16$1-D16')
+        return out
+      }
+      if (p.text === undefined && !p.attributes) return p
+      return {
+        ...p,
+        ...(p.text !== undefined ? { text: fix(p.text) } : {}),
+        ...(p.attributes
+          ? {
+              attributes: Object.fromEntries(
+                Object.entries(p.attributes).map(([k, a]) => [
+                  k,
+                  typeof a === 'string' ? fix(a) : { ...a, value: fix(a.value) }
+                ])
+              )
+            }
+          : {})
+      }
+    }
+
     function relabelTitle(text: string) {
       return text === SOURCE_PROJECT ? project : relabel(text)
     }
@@ -646,6 +702,23 @@ export function buildScene030(
             end,
             offset,
             direction,
+            dimStyle,
+            ...(p.textAt ? { textAt: place(p.textAt) } : {}),
+            ...(p.text !== undefined ? { text: p.text } : {}),
+            ...(overrides ? { overrides } : {})
+          })
+          return
+        }
+        case 'angular': {
+          const dimStyle = p.dimStyle ?? '_33_D100'
+          const overrides = dimOverrides(dimStyle, p.vars)
+          push({
+            ...look,
+            kind: 'angular',
+            at: place(p.at!),
+            start: place(p.start!),
+            end: place(p.end!),
+            arcPoint: place(p.dimLine!),
             dimStyle,
             ...(p.textAt ? { textAt: place(p.textAt) } : {}),
             ...(p.text !== undefined ? { text: p.text } : {}),

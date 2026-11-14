@@ -614,3 +614,28 @@ describe('vị trí chữ kích thước theo bản gốc', () => {
     expect(again.textPosition.y).toBeCloseTo(1000)
   })
 })
+
+describe('kích thước góc', () => {
+  it('góc 90° giữa hai cạnh, giữ qua DXF', async () => {
+    const { db, ctx } = setup()
+    ctx.angularDimension({
+      role: 'net',
+      partId: 'goc',
+      center: { x: 0, y: 0, z: 0 },
+      start: { x: 7700, y: 0, z: 0 },
+      end: { x: 0, y: 6000, z: 0 },
+      arcPoint: { x: 480, y: 280, z: 0 },
+      dimStyle: '_33_D100',
+      textPosition: { x: 490, y: 500, z: 0 }
+    })
+    const [dim] = ofType<AcDbDimension>(await roundTrip(db), 'DIMENSION')
+    expect(dim.dimensionStyleName).toBe('_33_D100')
+    expect(dim.textPosition.x).toBeCloseTo(490)
+    const p = dim as unknown as {
+      centerPoint: { x: number }
+      xLine1Point: { x: number }
+    }
+    expect(p.centerPoint.x).toBeCloseTo(0)
+    expect(p.xLine1Point.x).toBeCloseTo(7700)
+  })
+})

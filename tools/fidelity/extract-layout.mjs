@@ -191,6 +191,33 @@ const lookOut = l => ({
 
 const TEXT_ALIGN = h => (h === 1 || h === 4 ? 1 : h === 2 ? 2 : 0)
 
+/**
+ * ATTRIB values with the placement AutoCAD stored for each (its own point,
+ * height, style — none written means STANDARD), by tag.
+ */
+function attributesOf(attribs, T) {
+  return Object.fromEntries(
+    attribs.map(a => {
+      const h = num(a, 72, 0)
+      const aligned = h !== 0 || num(a, 74, 0) !== 0
+      return [
+        get(a, 2)?.trim(),
+        {
+          value: (get(a, 1) ?? '').trim(),
+          position: T(aligned ? points(a, 11, 21)[0] : points(a, 10, 20)[0]),
+          height: r3(num(a, 40)),
+          ...(r3(num(a, 50, 0)) ? { rotationDeg: r3(num(a, 50, 0)) } : {}),
+          ...(TEXT_ALIGN(h) ? { align: TEXT_ALIGN(h) } : {}),
+          ...(r3(num(a, 41, 1)) !== 1
+            ? { widthFactor: r3(num(a, 41, 1)) }
+            : {}),
+          style: TEXT_STYLE(get(a, 7)?.trim() ?? 'STANDARD')
+        }
+      ]
+    })
+  )
+}
+
 /** HATCH boundary loops as point lists (arc edges tessellated). */
 function hatchLoops(rec) {
   const ps = rec.pairs
@@ -384,7 +411,8 @@ function emit(rec, tf, parentLook, out, attribsOf) {
     }
     case 'DIMENSION': {
       const type = num(rec, 70, 0) & 7
-      if (type > 1) throw new Error(`DIMENSION loại ${type} chưa hỗ trợ`)
+      if (![0, 1, 2, 5].includes(type))
+        throw new Error(`DIMENSION loại ${type} chưa hỗ trợ`)
       const styleName = (get(rec, 3) ?? 'Standard').trim()
       const vars = { ...(dimstyles.get(styleName.toLowerCase()) ?? {}) }
       // DSTYLE overrides from ACAD xdata.
@@ -416,6 +444,50 @@ function emit(rec, tf, parentLook, out, attribsOf) {
       const override = (get(rec, 1) ?? '')
         .replace(/\{\\f[^;{}]*;([^{}]*)\}/g, '$1')
         .trim()
+      if (type === 2 || type === 5) {
+        // Angular: the data model reads both as three points and a vertex.
+        // 2-line: legs 13→14 and 15→10, vertex where they meet.
+        let center, start, end
+        if (type === 5) {
+          center = points(rec, 15, 25)[0]
+          start = points(rec, 13, 23)[0]
+          end = points(rec, 14, 24)[0]
+        } else {
+          const [a1, a2, b1, b2] = [
+            points(rec, 13, 23)[0],
+            points(rec, 14, 24)[0],
+            points(rec, 15, 25)[0],
+            points(rec, 10, 20)[0]
+          ]
+          const d1 = [a2[0] - a1[0], a2[1] - a1[1]]
+          const d2 = [b2[0] - b1[0], b2[1] - b1[1]]
+          const den = d1[0] * d2[1] - d1[1] * d2[0]
+          const t = ((b1[0] - a1[0]) * d2[1] - (b1[1] - a1[1]) * d2[0]) / den
+          center = [a1[0] + t * d1[0], a1[1] + t * d1[1]]
+          const far = (p, q) =>
+            Math.hypot(p[0] - center[0], p[1] - center[1]) >
+            Math.hypot(q[0] - center[0], q[1] - center[1])
+              ? p
+              : q
+          start = far(a1, a2)
+          end = far(b1, b2)
+        }
+        out.push({
+          kind: 'angular',
+          ...base,
+          at: T(center),
+          start: T(start),
+          end: T(end),
+          dimLine: T(points(rec, 16, 26)[0] ?? points(rec, 10, 20)[0]),
+          ...(points(rec, 11, 21)[0]
+            ? { textAt: T(points(rec, 11, 21)[0]) }
+            : {}),
+          dimStyle: DIM_STYLE[styleName.toLowerCase()] ?? '_33_D100',
+          vars: eff,
+          ...(override && override !== '<>' ? { text: override } : {})
+        })
+        return
+      }
       out.push({
         kind: 'dimension',
         ...base,
@@ -455,9 +527,7 @@ function emit(rec, tf, parentLook, out, attribsOf) {
             r3(num(rec, 42, 1) * tf.scale)
           ],
           ...(num(rec, 50, 0) ? { rotation: r3(num(rec, 50, 0)) } : {}),
-          attributes: Object.fromEntries(
-            attribs.map(a => [get(a, 2)?.trim(), (get(a, 1) ?? '').trim()])
-          )
+          attributes: attributesOf(attribs, T)
         })
         return
       }
@@ -474,30 +544,7 @@ function emit(rec, tf, parentLook, out, attribsOf) {
             : {}),
           // Each ATTRIB as stored: AutoCAD keeps its own point and style
           // (none written = STANDARD), independent of the ATTDEF.
-          attributes: Object.fromEntries(
-            attribs.map(a => {
-              const h = num(a, 72, 0)
-              const aligned = h !== 0 || num(a, 74, 0) !== 0
-              return [
-                get(a, 2)?.trim(),
-                {
-                  value: (get(a, 1) ?? '').trim(),
-                  position: T(
-                    aligned ? points(a, 11, 21)[0] : points(a, 10, 20)[0]
-                  ),
-                  height: r3(num(a, 40)),
-                  ...(r3(num(a, 50, 0))
-                    ? { rotationDeg: r3(num(a, 50, 0)) }
-                    : {}),
-                  ...(TEXT_ALIGN(h) ? { align: TEXT_ALIGN(h) } : {}),
-                  ...(r3(num(a, 41, 1)) !== 1
-                    ? { widthFactor: r3(num(a, 41, 1)) }
-                    : {}),
-                  style: TEXT_STYLE(get(a, 7)?.trim() ?? 'STANDARD')
-                }
-              ]
-            })
-          )
+          attributes: attributesOf(attribs, T)
         })
         return
       }
@@ -791,7 +838,7 @@ function sourceBlock(name) {
 
 // ---------------------------------------------------------------- model content
 /** Sheets whose viewport drawing is rebuilt from real entities (GĐ4). */
-const MODEL_SHEETS = new Set(['SUB-010', 'SUB-020'])
+const MODEL_SHEETS = new Set(['SUB-010', 'SUB-020', 'SUB-070'])
 const modelHandle = items.find(
   i => i.table === 'BLOCK_RECORD' && get(i.rec, 2)?.trim() === '*Model_Space'
 )

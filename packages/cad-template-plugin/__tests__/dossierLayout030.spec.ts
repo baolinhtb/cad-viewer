@@ -264,7 +264,9 @@ describe('nội dung paper của bản gốc', () => {
   test('sơ đồ vị trí mặt cắt SUB-070: 24 ký hiệu là block có attribute CS', async () => {
     const db = defaultDb()
     const inserts = onSheet(db, 'SUB-070').filter(
-      (e): e is AcDbBlockReference => e instanceof AcDbBlockReference
+      (e): e is AcDbBlockReference =>
+        e instanceof AcDbBlockReference &&
+        !!e.blockTableRecord?.name.startsWith('_33_KH_MAT_CAT')
     )
     expect(inserts).toHaveLength(24)
     const values = inserts
@@ -414,5 +416,57 @@ describe('SUB-020 (MC C–C) dựng bằng đối tượng thật, theo lưới 
     before.forEach((d, i) =>
       expect(Math.abs(len(after[i]) - len(d) - 500)).toBeLessThan(2)
     )
+  })
+})
+
+describe('SUB-070 (thép 1/3) dựng bằng đối tượng thật', () => {
+  const own = (s: typeof scene) =>
+    s.sheets
+      .find(x => x.id === 'SUB-070')!
+      .primitives.filter(p => p.sourceHandle)
+
+  test('mặc định: 234 đối tượng nguồn, có 3 dim góc thật', () => {
+    const kinds: Record<string, number> = {}
+    for (const p of own(scene))
+      kinds[p.sourceType!] = (kinds[p.sourceType!] ?? 0) + 1
+    expect(kinds).toEqual({
+      LEADER: 60,
+      TEXT: 57,
+      LWPOLYLINE: 36,
+      LINE: 34,
+      INSERT: 26,
+      DIMENSION: 19,
+      HATCH: 1,
+      CIRCLE: 1
+    })
+    expect(own(scene).filter(p => p.kind === 'angular')).toHaveLength(3)
+    expect(
+      own(scene).filter(p => p.role === 'cot_thep').length
+    ).toBeGreaterThan(40)
+  })
+
+  test('chọn F3 = D22 thì nhãn thép đổi theo, như 0.2.0', () => {
+    const texts = (s: typeof scene) =>
+      own(s).flatMap(p => (p.kind === 'text' ? [p.text] : []))
+    const d22 = buildDossierScene(buildDossierModel({ thepF3: 'D22' }), V)
+    if (texts(scene).some(t => /F3-D25/.test(t))) {
+      expect(texts(d22).some(t => /F3-D25/.test(t))).toBe(false)
+      expect(texts(d22).some(t => /F3-D22/.test(t))).toBe(true)
+    }
+  })
+
+  test('kích thước khác bản gốc: không kéo giãn thép, ghi rõ trên tờ', () => {
+    const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
+    expect(own(tall)).toHaveLength(0)
+    expect(
+      tall.sheets[2].primitives.some(
+        p => p.kind === 'text' && /CHƯA CÓ PHƯƠNG ÁN THÉP/.test(p.text)
+      )
+    ).toBe(true)
+  })
+
+  test('chỉ bố trí chung (thep = khong): không vẽ thép', () => {
+    const none = buildDossierScene(buildDossierModel({ thep: 'khong' }), V)
+    expect(own(none)).toHaveLength(0)
   })
 })

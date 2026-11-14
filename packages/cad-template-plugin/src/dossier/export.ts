@@ -89,6 +89,8 @@ export function dossierSheetSvg(
       lines.push(
         `<path d="M${point(p0)} A${op.radius} ${op.radius} 0 ${sweep > 180 ? 1 : 0} 0 ${point(p1)}" fill="none" stroke="currentColor" stroke-width="16"/>`
       )
+    } else if (op.kind === 'angular') {
+      lines.push(path([op.start, op.at, op.end]))
     } else if (op.kind === 'leader') {
       lines.push(path(op.points))
     } else if (op.kind === 'insert') {
