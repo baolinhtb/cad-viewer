@@ -405,7 +405,9 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
     get_drawing_context: tool({
       description:
         'Đọc bản vẽ hiện tại: đơn vị, layer, số đối tượng trên từng layer, phạm vi, ' +
-        'và danh sách bộ phận đã mang nhãn ngữ nghĩa (kèm thông số đã ghi). ' +
+        'danh sách bộ phận đã mang nhãn ngữ nghĩa (kèm thông số đã ghi), và ' +
+        'tiêu đề/ghi chú (texts) đã chuyển từ mã chữ cũ TCVN3/VNI sang Unicode — ' +
+        'trích chữ từ texts[].text, không đọc rawText. ' +
         'Gọi ở đầu mỗi lượt: đây là thứ cho biết bản vẽ đang có gì, thay vì phải nhớ lại từ hội thoại.',
       inputSchema: z.object({}),
       execute: async () => cadActionExecutor.getDrawingContext()

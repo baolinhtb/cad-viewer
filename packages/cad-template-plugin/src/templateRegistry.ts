@@ -204,6 +204,29 @@ export function legacyLayers(): AcTpLegacyLayerMap {
   return legacyLayerOverride ?? SEED_LEGACY_LAYERS
 }
 
+/** Roles whose text says what a drawing is: titles, notes, callouts. */
+const TEXT_ROLES = [
+  'tieu_de_ban_ve',
+  'khung_ten',
+  'khung_ban_ve',
+  'ghi_chu',
+  'ghi_chu_cao_do'
+]
+
+/**
+ * Layers that carry a drawing's titles and notes, under their current and
+ * their old names — the text worth reading (and decoding from TCVN3) when
+ * describing a drawing, old or new.
+ */
+export function drawingTextLayers(): string[] {
+  const current = roleLayers()
+  const names = TEXT_ROLES.map(role => current[role]).filter(Boolean)
+  for (const [name, role] of Object.entries(legacyLayers())) {
+    if (TEXT_ROLES.includes(role)) names.push(name)
+  }
+  return [...new Set(names)]
+}
+
 /**
  * The `_33_` layer to use instead of an old layer name, or `undefined` when
  * `name` is not an old name (or its role still draws on it in this

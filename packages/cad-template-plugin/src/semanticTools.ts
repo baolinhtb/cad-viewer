@@ -5,6 +5,7 @@ import type {
   AcTpTerm
 } from '@mlightcad/cad-template-sdk'
 import {
+  acTpCollectDrawingTexts,
   canEditSemantically,
   describePart,
   locateParts,
@@ -13,7 +14,7 @@ import {
 
 import { listRuns } from './runIdentity'
 import { tagDrawingFromLayers } from './tagFromLayers'
-import { legacyLayers, roleLayers } from './templateRegistry'
+import { drawingTextLayers, legacyLayers, roleLayers } from './templateRegistry'
 
 /**
  * The tools an assistant is given, and the one place they are executed.
@@ -64,7 +65,8 @@ export const SEMANTIC_TOOLS: AcApToolSchema[] = [
       'Liệt kê các bộ phận có trong bản vẽ hiện tại kèm thông số đã ghi. ' +
       'Gọi trước khi định vị hay sửa bất cứ thứ gì, để biết bản vẽ có gì. ' +
       'Trả về trạng thái "untagged" nếu bản vẽ không mang nhãn ngữ nghĩa — ' +
-      'khi đó không được sửa bất cứ thứ gì.',
+      'khi đó không được sửa bất cứ thứ gì. Kèm tiêu đề/ghi chú của bản vẽ ' +
+      '(tieuDe), đã chuyển từ mã chữ cũ TCVN3/VNI sang Unicode.',
     input_schema: {
       type: 'object',
       properties: {},
@@ -211,22 +213,44 @@ function forModel(part: AcTpPartSummary) {
 }
 
 /** Lists what the drawing contains. */
+/**
+ * Titles and notes of the drawing, decoded from TCVN3/VNI when their font is
+ * a legacy one. Only the text is returned (plus a guess marker): the full
+ * entries are in `get_drawing_context`. Never fails the description.
+ */
+function readTitles(db: NonNullable<ReturnType<typeof currentDb>>) {
+  try {
+    return acTpCollectDrawingTexts(db, {
+      layers: drawingTextLayers(),
+      limit: 12
+    }).texts.map(t => (t.guessed ? `${t.text} (mã chữ suy đoán)` : t.text))
+  } catch {
+    return []
+  }
+}
+
 export function describeDrawing(): AcApToolOutcome {
   const db = currentDb()
   if (!db) {
     return { ok: false, status: 'refused', message: 'Chưa mở bản vẽ nào.' }
   }
 
+  const tieuDe = readTitles(db)
   const digest = readDrawingDigest(db)
   if (digest.status !== 'tagged') {
     const verdict = canEditSemantically(db, digest)
     return {
       ok: false,
       status: 'unsupported',
-      message: verdict.reason ?? 'Bản vẽ không mang nhãn ngữ nghĩa.',
+      message:
+        (verdict.reason ?? 'Bản vẽ không mang nhãn ngữ nghĩa.') +
+        (tieuDe.length
+          ? ` Tiêu đề/ghi chú đọc được: ${tieuDe.slice(0, 3).join(' · ')}.`
+          : ''),
       data: {
         status: digest.status,
-        untaggedEntityCount: digest.untaggedEntityCount
+        untaggedEntityCount: digest.untaggedEntityCount,
+        ...(tieuDe.length ? { tieuDe } : {})
       }
     }
   }
@@ -257,7 +281,8 @@ export function describeDrawing(): AcApToolOutcome {
       templateIds: digest.templateIds,
       parts: digest.parts.map(forModel),
       lanChay,
-      soDoiTuongKhongNhan: digest.untaggedEntityCount
+      soDoiTuongKhongNhan: digest.untaggedEntityCount,
+      ...(tieuDe.length ? { tieuDe } : {})
     }
   }
 }

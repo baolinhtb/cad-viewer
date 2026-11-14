@@ -10,6 +10,7 @@ import {
   dictionary,
   findTemplate,
   currentLayerForLegacy,
+  drawingTextLayers,
   layerStyles,
   legacyLayers,
   listRegisteredTemplates,
@@ -271,6 +272,20 @@ describe('the company layer mapping', () => {
     expect(legacyLayers()).toEqual({ 'KC-LANCAN': 'lan_can' })
     expect(currentLayerForLegacy('kc-lancan')).toBe('_33_CAU_MIS_Lancan')
     expect(currentLayerForLegacy('_33_CAU_MIS_Lancan')).toBeUndefined()
+  })
+
+  test('title and note layers are read under current and old names', () => {
+    setRoleLayers({
+      tieu_de_ban_ve: '_33_Tieudebanve',
+      ghi_chu: '_33_Ghichu',
+      lan_can: '_33_CAU_MIS_Lancan'
+    })
+    setLegacyLayers({ 'GC-TIEUDE': 'tieu_de_ban_ve', 'KC-BAN': 'ban_mat_cau' })
+    expect(drawingTextLayers()).toEqual([
+      '_33_Tieudebanve',
+      '_33_Ghichu',
+      'GC-TIEUDE'
+    ])
   })
 
   test('a server that predates old names keeps the seed list', async () => {

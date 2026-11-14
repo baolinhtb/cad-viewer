@@ -1,5 +1,10 @@
 import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
-import { readDrawingDigest } from '@mlightcad/cad-template-sdk'
+import { drawingTextLayers } from '@mlightcad/cad-template-plugin'
+import type { AcTpDrawingText } from '@mlightcad/cad-template-sdk'
+import {
+  acTpCollectDrawingTexts,
+  readDrawingDigest
+} from '@mlightcad/cad-template-sdk'
 
 /** One part of the drawing, as the assistant needs to see it. */
 export interface DrawingPartSummary {
@@ -66,7 +71,19 @@ export interface DrawingContextSnapshot {
    * not the same as their absence and must not be reported as such.
    */
   semanticStatus: 'untagged' | 'tagged' | 'schema-mismatch'
+  /**
+   * Titles, notes and elevation callouts (their `_33_` and old layers) plus
+   * all paper-space text, tallest first, decoded to Unicode. Old drawings
+   * write Vietnamese in TCVN3/VNI fonts; `rawText` keeps the stored string
+   * when it differs, and `guessed` marks an encoding inferred without a font.
+   */
+  texts: AcTpDrawingText[]
+  /** More text existed than the {@link TEXT_LIMIT} returned. */
+  textsTruncated: boolean
 }
+
+/** Text entries returned per call; the context is read every turn. */
+const TEXT_LIMIT = 40
 
 /**
  * Keeps a coordinate only if it is a real number.
@@ -138,6 +155,26 @@ export function getDrawingContext(): DrawingContextSnapshot {
       ...(part.params ? { params: part.params } : {})
     })),
     untaggedEntityCount: digest.untaggedEntityCount,
-    semanticStatus: digest.status
+    semanticStatus: digest.status,
+    ...readTexts(db)
+  }
+}
+
+/**
+ * Reads the drawing's titles and notes. Never fails the context: reading
+ * text is an addition to the snapshot, and a drawing with an odd text style
+ * must still report its layers and parts.
+ */
+function readTexts(
+  db: Parameters<typeof acTpCollectDrawingTexts>[0]
+): Pick<DrawingContextSnapshot, 'texts' | 'textsTruncated'> {
+  try {
+    const { texts, truncated } = acTpCollectDrawingTexts(db, {
+      layers: drawingTextLayers(),
+      limit: TEXT_LIMIT
+    })
+    return { texts, textsTruncated: truncated }
+  } catch {
+    return { texts: [], textsTruncated: false }
   }
 }

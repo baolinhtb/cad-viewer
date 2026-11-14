@@ -35,12 +35,21 @@ interface ServerSeed {
   aliases: string[]
 }
 
-function extract(name: string): Record<string, ServerSeed> {
-  const start = schema.indexOf(`export const ${name} = {`)
-  if (start < 0) return {}
-  const open = schema.indexOf('{', start)
-  const end = schema.indexOf('\n}\n', open)
-  return new Function(`return ${schema.slice(open, end + 2)}`)()
+function extract(name: string, depth = 0): Record<string, ServerSeed> {
+  const decl = new RegExp(`export const ${name} = ([^\\n]*)`).exec(schema)
+  if (!decl || depth > 3) return {}
+  // `SEED_STANDARDS = SEED_STANDARDS_V10`: follow the name to its literal.
+  const alias = /^([A-Z0-9_]+)\s*$/.exec(decl[1])
+  if (alias) return extract(alias[1], depth + 1)
+  // The literal may be wrapped (`deepFreeze({ … })`); cut out the braces.
+  const open = schema.indexOf('{', decl.index)
+  let level = 0
+  let end = open
+  for (; end < schema.length; end++) {
+    if (schema[end] === '{') level++
+    else if (schema[end] === '}' && --level === 0) break
+  }
+  return new Function(`return ${schema.slice(open, end + 1)}`)()
 }
 
 const serverSeed = extract('SEED_STANDARDS')

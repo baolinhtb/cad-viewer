@@ -7,6 +7,7 @@ import {
   runSemanticTool,
   SEMANTIC_TOOLS
 } from '../src/semanticTools'
+import { setLegacyLayers, setRoleLayers } from '../src/templateRegistry'
 
 /**
  * The drawing and view the tools act on.
@@ -73,9 +74,13 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   }
 }))
 
+/** Titles the text collector reports (decoding is tested in the SDK). */
+let titles: { text: string; guessed?: boolean }[] = []
+
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
   readDrawingDigest: () => digest,
+  acTpCollectDrawingTexts: () => ({ texts: titles, truncated: false }),
   canEditSemantically: (_db: unknown, d: { status: string }) => ({
     allowed: d.status === 'tagged',
     reason:
@@ -165,6 +170,17 @@ describe('the tool declarations', () => {
 })
 
 describe('describing the drawing', () => {
+  // The SDK is mocked here, so the seed maps are absent; give the registry
+  // the title layers the collector is asked about.
+  beforeAll(() => {
+    setRoleLayers({ tieu_de_ban_ve: '_33_Tieudebanve' })
+    setLegacyLayers({ 'GC-TIEUDE': 'tieu_de_ban_ve' })
+  })
+  afterAll(() => {
+    setRoleLayers(undefined as never)
+    setLegacyLayers(undefined)
+  })
+
   test('a tagged drawing lists its parts', () => {
     const outcome = describeDrawing()
     expect(outcome.ok).toBe(true)
@@ -183,6 +199,44 @@ describe('describing the drawing', () => {
     expect(outcome.status).toBe('unsupported')
     expect(outcome.message).toContain('không mang nhãn')
     digest = { ...(digest as object), status: 'tagged' }
+  })
+
+  test('an old untagged drawing still says what it is, from its titles', () => {
+    // The titles of `02. BTC- mo_2.dwg`, decoded from TCVN3 by the collector.
+    titles = [
+      { text: 'CẦU KM0+400 (TUYẾN SỐ 2)' },
+      { text: 'BỐ TRÍ CHUNG MỐ M1 (1/2)', guessed: true }
+    ]
+    digest = {
+      status: 'untagged',
+      parts: [],
+      templateIds: [],
+      untaggedEntityCount: 40
+    }
+    try {
+      const outcome = describeDrawing()
+      expect(outcome.ok).toBe(false)
+      expect(outcome.message).toContain('CẦU KM0+400 (TUYẾN SỐ 2)')
+      expect((outcome.data as { tieuDe: string[] }).tieuDe).toEqual([
+        'CẦU KM0+400 (TUYẾN SỐ 2)',
+        'BỐ TRÍ CHUNG MỐ M1 (1/2) (mã chữ suy đoán)'
+      ])
+    } finally {
+      titles = []
+      digest = { ...(digest as object), status: 'tagged' }
+    }
+  })
+
+  test('a tagged drawing carries its titles too; none means no field', () => {
+    titles = [{ text: 'MẶT CHÍNH MỐ M1' }]
+    try {
+      expect((describeDrawing().data as { tieuDe: string[] }).tieuDe).toEqual([
+        'MẶT CHÍNH MỐ M1'
+      ])
+    } finally {
+      titles = []
+    }
+    expect(describeDrawing().data).not.toHaveProperty('tieuDe')
   })
 
   test('no open drawing is a refusal, not a crash', () => {

@@ -36,9 +36,30 @@ let digest = {
   untaggedEntityCount: 0
 }
 
+/** What the text collector is made to return, and what it was asked for. */
+let collected: { texts: unknown[]; truncated: boolean } = {
+  texts: [],
+  truncated: false
+}
+let askedFor: { layers?: string[]; limit?: number } | undefined
+let collectorThrows = false
+
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
-  readDrawingDigest: () => digest
+  readDrawingDigest: () => digest,
+  acTpCollectDrawingTexts: (
+    _db: unknown,
+    options: { layers?: string[]; limit?: number }
+  ) => {
+    if (collectorThrows) throw new Error('kiểu chữ lạ')
+    askedFor = options
+    return collected
+  }
+}))
+
+jest.mock('@mlightcad/cad-template-plugin', () => ({
+  __esModule: true,
+  drawingTextLayers: () => ['_33_Tieudebanve', 'GC-TIEUDE']
 }))
 
 jest.mock('@mlightcad/cad-simple-viewer', () => ({
@@ -219,4 +240,45 @@ test('entities are counted per layer', () => {
     'KC-LANCAN': 1,
     '0': 1
   })
+})
+
+test('titles and notes come back decoded, from the title layers', () => {
+  // Decoding itself is tested in the SDK (AcTpVnText.spec.ts); this checks the
+  // wiring: which layers are asked for, the limit, and that it reaches the
+  // snapshot as JSON-safe data.
+  collected = {
+    texts: [
+      {
+        layer: 'Text_01',
+        space: 'paper',
+        kind: 'TEXT',
+        text: 'BỐ TRÍ CHUNG MỐ M1 (1/2)',
+        rawText: 'bè trÝ chung Mè M1 (1/2)',
+        encoding: 'tcvn3',
+        guessed: true,
+        height: 2.5
+      }
+    ],
+    truncated: true
+  }
+  const context = getDrawingContext()
+  expect(askedFor).toEqual({
+    layers: ['_33_Tieudebanve', 'GC-TIEUDE'],
+    limit: 40
+  })
+  expect(context.texts).toEqual(collected.texts)
+  expect(context.textsTruncated).toBe(true)
+  expect(isJsonValue(context)).toBe(true)
+})
+
+test('a failure reading text does not fail the context', () => {
+  collectorThrows = true
+  try {
+    const context = getDrawingContext()
+    expect(context.texts).toEqual([])
+    expect(context.textsTruncated).toBe(false)
+    expect(context.layers).toEqual(['0'])
+  } finally {
+    collectorThrows = false
+  }
 })

@@ -12,6 +12,8 @@ import sys
 data = json.load(open(sys.argv[1]))['database']
 blocks = {b['name']: b for b in data['tables']['BLOCK_RECORD']['entries']}
 # TCVN3 text from this drawing's VNArial styles; leave existing Unicode alone.
+# The same table, with font-aware rules, is in the TypeScript SDK:
+# packages/cad-template-sdk/src/AcTpVnText.ts (acTpDecodeVnText).
 legacy = 'µ¸¶·¹¨»¾¼½Æ©ÇÊÈÉË®ÌÐÎÏÑªÒÕÓÔÖ×ÝØÜÞßãáâä«åèæçé¬êíëìîïóñòô\xadõøö÷ùúûüþ§¡¢£¤¥¦'
 unicode = 'àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳỷỹỵĐĂÂÊÔƠƯ'
 translation = str.maketrans(dict(zip(legacy, unicode)))
