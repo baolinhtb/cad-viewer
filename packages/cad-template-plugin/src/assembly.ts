@@ -242,7 +242,127 @@ function mucLopPhu(c: Record<string, number>, dx: number): number {
   return dinhTuongDauTaiTim + c.hVaiKe + c.tLopPhu + (dx * c.doDocNgang) / 100
 }
 
-const ASSEMBLIES: readonly AcApAssembly[] = [MO_CAU]
+/**
+ * Values for one view of the pier: the shared values, placed at `x`.
+ *
+ * Shared values are numbers only, so the stem type travels as `soCot`:
+ * 0 is a solid wall stem, 1 or more is that many columns.
+ */
+function truValues(c: Record<string, number>, x: number): AcTpParamValues {
+  const { kcHinh: _kcHinh, soCot, ...rest } = c
+  return {
+    ...rest,
+    x,
+    ...(soCot > 0 ? { loaiThan: 'cot', soCot } : { loaiThan: 'tuong' }),
+    ghiKichThuoc: 'co'
+  }
+}
+
+/**
+ * The pier, both views, from one set of values.
+ *
+ * Unlike MO_CAU this is **not** measured from an office drawing — there is no
+ * pier drawing in the repository yet. It is a preliminary layout, and every
+ * description says so. All the rule does is keep the two views on one set of
+ * numbers and one elevation chain, so they cannot disagree with each other.
+ * Any template parameter not listed in `thamSo` (gối, đá kê, đầu hẫng…) may
+ * still be passed: numeric values reach both views unchanged.
+ */
+const TRU_CAU: AcApAssembly = {
+  id: 'tru_cau_hoan_chinh',
+  ten: 'Trụ cầu — mặt chính và mặt bên (bố cục sơ bộ)',
+  moTa:
+    'Bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng. Dựng mặt chính ' +
+    '(tru_mat_chinh) và mặt bên (tru_mat_ben) bằng cùng một bộ tham số: bệ ' +
+    'trên cọc khoan nhồi, thân tường đặc hoặc thân cột, xà mũ có đầu hẫng, đá ' +
+    'kê gối. Hai hình cùng cao độ đáy lót y; mặt bên đặt cách mặt chính kcHinh. ' +
+    'Kích thước do tính toán quyết định.',
+  thamSo: [
+    {
+      key: 'x',
+      label: 'Tim trụ trên mặt chính',
+      unit: 'mm',
+      default: 0,
+      hint: 'Hoành độ tim trụ của hình mặt chính.'
+    },
+    {
+      key: 'y',
+      label: 'Cao độ đáy bê tông lót',
+      unit: 'mm',
+      default: 0,
+      hint: 'Chung cho hai hình: cùng chuỗi cao độ.'
+    },
+    {
+      key: 'kcHinh',
+      label: 'Tim mặt chính đến tim mặt bên',
+      unit: 'mm',
+      default: 16000,
+      hint:
+        'Đủ để kích thước hai hình không chồng nhau: lấy không nhỏ hơn ' +
+        'max(bBe, bXaMu)/2 + max(lBe, lXaMu)/2 + 4000.'
+    },
+    {
+      key: 'soCot',
+      label: 'Số cột thân trụ',
+      unit: 'cột',
+      default: 0,
+      hint: '0 là thân tường đặc; 1–6 là thân cột (trụ nạng chống).'
+    },
+    {
+      key: 'hThan',
+      label: 'Chiều cao thân',
+      unit: 'mm',
+      default: 6000,
+      hint: 'Đỉnh bệ đến đáy xà mũ.'
+    },
+    {
+      key: 'bXaMu',
+      label: 'Chiều dài xà mũ',
+      unit: 'mm',
+      default: 12000,
+      hint: 'Ngang cầu.'
+    },
+    {
+      key: 'bBe',
+      label: 'Bệ — ngang cầu',
+      unit: 'mm',
+      default: 9500,
+      hint: 'Mặt bên cọc đến mép bệ ≥ 300 mm (TCVN 11823-10:2017 đ.8.1.2).'
+    },
+    {
+      key: 'lBe',
+      label: 'Bệ — dọc cầu',
+      unit: 'mm',
+      default: 6000,
+      hint: 'Mặt bên cọc đến mép bệ ≥ 300 mm (TCVN 11823-10:2017 đ.8.1.2).'
+    },
+    {
+      key: 'D',
+      label: 'Đường kính cọc',
+      unit: 'mm',
+      default: 1200,
+      hint: '≥ 750 nếu hố khoan kiểm tra thủ công (TCVN 11823-10:2017 đ.8.1.3).'
+    }
+  ],
+  buoc: [
+    {
+      templateId: 'tru_mat_chinh',
+      nhan: 'Mặt chính trụ',
+      quyTac: 'Tim trụ ở x, đáy lót ở y; nhìn dọc tuyến, phương ngang cầu.',
+      thongSo: c => truValues(c, c.x)
+    },
+    {
+      templateId: 'tru_mat_ben',
+      nhan: 'Mặt bên trụ',
+      quyTac:
+        'Cùng tham số và cùng y; tim ở x + kcHinh. Nhìn ngang tuyến, phương ' +
+        'dọc cầu — hai hình chỉ khác hướng nhìn, nên cao độ mọi mặt phải bằng nhau.',
+      thongSo: c => truValues(c, c.x + c.kcHinh)
+    }
+  ]
+}
+
+const ASSEMBLIES: readonly AcApAssembly[] = [MO_CAU, TRU_CAU]
 
 export function listAssemblies(): readonly AcApAssembly[] {
   return ASSEMBLIES
@@ -259,7 +379,10 @@ export function assemblyCatalogue(): string {
       .map(p => `    ${p.key} = ${p.default} ${p.unit} — ${p.label}. ${p.hint}`)
       .join('\n')
     const steps = assembly.buoc
-      .map((step, i) => `    ${i + 1}. ${step.nhan} (${step.templateId}): ${step.quyTac}`)
+      .map(
+        (step, i) =>
+          `    ${i + 1}. ${step.nhan} (${step.templateId}): ${step.quyTac}`
+      )
       .join('\n')
     return `- ${assembly.id}: ${assembly.ten}\n  ${assembly.moTa}\n  Thông số chung:\n${params}\n  Thứ tự ghép:\n${steps}`
   }).join('\n\n')

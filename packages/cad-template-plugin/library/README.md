@@ -42,3 +42,27 @@ không có template.
 Qua `POST /api/templates`, hoặc qua giao diện thư viện template. Một template
 mới ở trạng thái `draft` cho tới khi nó dựng ra hình lần đầu trong trình duyệt
 — cái đó chỉ chứng minh được ở đúng nơi nó chạy.
+
+## Trụ cầu — `tru_mat_chinh`, `tru_mat_ben` 1.0.0
+
+**Bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng** — khác các template mố, repo
+chưa có bản vẽ trụ để đo. Hai tệp dùng chung một khối tham số và kiểm tra
+(giữa hai dấu `// ---- DÙNG CHUNG` / `// ---- HẾT PHẦN DÙNG CHUNG ----`, chép
+nguyên văn vì hợp đồng không cho `import`; `truComponents.spec.ts` so hai bản
+từng ký tự). Cách ghép `tru_cau_hoan_chinh` (trong `src/assembly.ts`) dựng cả
+hai hình bằng một lệnh; hướng dẫn cho trợ lý là `assets/skills/tru-cau`.
+
+Đăng ký giống hệt template mố — không có bước riêng:
+
+1. Tác giả tải `tru_mat_chinh.js` và `tru_mat_ben.js` lên qua giao diện thư
+   viện (hoặc `POST /api/templates`); bản tải lên ở trạng thái `draft` cho tới
+   lần dựng đầu trong trình duyệt.
+2. Tải thư mục `assets/skills/tru-cau` qua thư viện hướng dẫn
+   (`POST /api/skills`) rồi công bố.
+3. Sau đó trợ lý chạy được `chay_template tru_mat_chinh` / `tru_mat_ben` và
+   `ghep_bo_phan tru_cau_hoan_chinh`.
+
+`server/auth/libraryUpload.test.mjs` chạy đúng con đường đó (tải lên, kiểm vai
+trò/layer với danh mục `_33_`, công bố, khối chuẩn hoá) cho mọi tệp trong thư
+mục này và mọi hướng dẫn trong `assets/skills`, trên CSDL trong bộ nhớ — không
+đụng máy chủ thật.
