@@ -1,5 +1,6 @@
 import { AcApDocManager } from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
+import { acTpDxfOut } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { editTemplateRun } from '../editRun'
@@ -214,19 +215,19 @@ export async function runDossierTool(
         scene.sheets.map(s => ({
           svg: dossierSheetSvg(s, roleLayers(), layerStyles()),
           title: s.title,
-          widthMm: 841,
-          heightMm: 594
+          widthMm: Math.round(s.width / s.scale),
+          heightMm: Math.round(s.height / s.scale)
         })),
         `${filename}-ban-nhap.pdf`
       )
       return {
         ok: true,
         status: 'ready',
-        message: `Đã xuất ${filename}-ban-nhap.pdf: 6 trang A1 bản nháp tái sinh từ thông số; không chứa sửa tay trên canvas.`,
+        message: `Đã xuất ${filename}-ban-nhap.pdf: ${scene.sheets.length} trang ${Math.round(scene.sheets[0].width / scene.sheets[0].scale) === 420 ? 'A3' : 'A1'} bản nháp tái sinh từ thông số; không chứa sửa tay trên canvas.`,
         data: {
           tep: `${filename}-ban-nhap.pdf`,
           trangThaiHoSo: 'draft',
-          soTo: 6
+          soTo: scene.sheets.length
         }
       }
     }
@@ -247,7 +248,9 @@ export async function runDossierTool(
       file = {
         name: `${filename}-ban-nhap.dxf`,
         mime: 'application/dxf;charset=utf-8',
-        content: db.dxfOut() as string
+        // acTpDxfOut keeps lineweights, full dimension styles and TrueType
+        // font names, which the data model's own writer drops.
+        content: acTpDxfOut(db) as string
       }
     else throw new Error('Định dạng hỗ trợ: pdf, html, dxf, json.')
     download(file)

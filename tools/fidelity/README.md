@@ -44,6 +44,13 @@ chữ, kích thước so với kiểm kê gốc đã commit và **không cho t�
      dụng), chữ (chuỗi đã giải mã, vị trí, cao, họ font), kích thước (hai điểm
      đo, chữ hiển thị, biến kiểu). Toạ độ: **mm giấy tính từ góc dưới trái tờ A3**
      (`FR A3`); đối tượng model đi qua viewport của tờ (1:100).
+   - **`extract-layout.mjs`** (chạy tay khi cần trích lại) đọc bản sao chuẩn hoá,
+     ghi `packages/cad-template-plugin/src/dossier/reference/layout-mo2.json`
+     (~30 KB, commit) cho bộ sinh 0.3.0: khung viewport và cửa sổ model của
+     từng tờ, 3 chữ tiêu đề, nội dung paper (sơ đồ vị trí mặt cắt SUB-070 —
+     ký hiệu `CS` thành block có attribute; bảng hình dạng thanh SUB-100 —
+     dim thật kiểu `_33_`). Đối tượng ẩn theo trạng thái hiển thị của dynamic
+     block (nhóm 60 = 1) bị bỏ.
 2. **Spec jest** dựng hồ sơ với tham số mặc định vào một `AcDbDatabase`, lập
    kiểm kê cùng định dạng (`__tests__/helpers/fidelityInventory.ts`), chấm 3
    thành phần không cần pixel, ghi `gen.dxf` + manifest cửa sổ.
@@ -88,5 +95,12 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   `dimtxt 150` thay cho `100 × 1,5`) vì bộ dựng dim của data-model bỏ qua
   DIMSCALE; hình và bản in như nhau. DIMFXL/DIMFXLON (đường gióng cố định,
   bật trong D100) data-model không có — khác biệt không tránh được.
+- **Sơ đồ vị trí mặt cắt (SUB-070)**: renderer của app không vẽ insert
+  `*E549` của bản gốc, nên ảnh gốc thiếu sơ đồ này và bản sinh bị tính
+  "thừa" ở S_hinh/S_mau; phần khung `*U540` bên trong cũng bị libredwg làm
+  mất nên bản sinh không có nó. Ký hiệu và chữ vẫn chấm qua kiểm kê.
+- Bản sinh không có khung `FR A3` gốc (xref thiếu): dùng khung A3 của SDK,
+  bỏ các ô nằm dưới 3 chữ tiêu đề gốc; nét và chữ khung tên tính vào S_kiem
+  như phần thừa.
 - Biến kiểu kích thước lấy từ DIMSTYLE + ghi đè DSTYLE trong XDATA của từng dim;
   biến không có ở đó thì không so.

@@ -17,6 +17,14 @@ export const DOSSIER_VERSION = '0.2.0'
 export const DOSSIER_VERSIONS: readonly string[] = ['0.1.0', DOSSIER_VERSION]
 
 /**
+ * The generator being built (A3 sheets laid out as the source, GĐ3–GĐ6 of
+ * the mo2 plan). It can be built and scored but is not registered as a
+ * template version yet: its output still changes, and a saved run must
+ * always regenerate exactly as it was made.
+ */
+export const DOSSIER_NEXT_VERSION = '0.3.0'
+
+/**
  * Title-block fields (0.2.0). Text only: changing them never changes geometry,
  * so they neither switch the dossier off its source drawing nor need a
  * rebuild — a label edit patches them in place. May be left blank.

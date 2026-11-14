@@ -1,25 +1,25 @@
 {
- "version": "0.2.0",
+ "version": "0.3.0",
  "sheets": [
   {
    "id": "SUB-010",
-   "gen": "BC01",
+   "gen": "SUB-010",
    "S_kiem": 0,
-   "S_chu": 0,
+   "S_chu": 0.2751677852348993,
    "S_dim": 0,
    "detail": {
     "entities": {
      "orig": 301,
-     "gen": 1637
+     "gen": 1382
     },
     "texts": {
      "orig": 52,
-     "gen": 192,
-     "matched": 0,
-     "sameString": 42,
+     "gen": 149,
+     "matched": 41,
+     "sameString": 52,
      "medianOffset": [
-      38.44,
-      137.09
+      0,
+      0
      ]
     },
     "dims": {
@@ -31,21 +31,24 @@
   },
   {
    "id": "SUB-020",
-   "gen": "BC02",
+   "gen": "SUB-020",
    "S_kiem": 0,
-   "S_chu": 0,
+   "S_chu": 0.29545454545454547,
    "S_dim": 0,
    "detail": {
     "entities": {
      "orig": 60,
-     "gen": 90
+     "gen": 262
     },
     "texts": {
      "orig": 15,
-     "gen": 72,
-     "matched": 0,
-     "sameString": 0,
-     "medianOffset": null
+     "gen": 44,
+     "matched": 13,
+     "sameString": 15,
+     "medianOffset": [
+      0,
+      0
+     ]
     },
     "dims": {
      "orig": 21,
@@ -56,23 +59,23 @@
   },
   {
    "id": "SUB-070",
-   "gen": "CT01",
+   "gen": "SUB-070",
    "S_kiem": 0,
-   "S_chu": 0,
+   "S_chu": 0.6288659793814433,
    "S_dim": 0,
    "detail": {
     "entities": {
      "orig": 250,
-     "gen": 1304
+     "gen": 1327
     },
     "texts": {
      "orig": 85,
-     "gen": 84,
-     "matched": 0,
-     "sameString": 57,
+     "gen": 97,
+     "matched": 61,
+     "sameString": 85,
      "medianOffset": [
-      202.57,
-      148.91
+      0,
+      0
      ]
     },
     "dims": {
@@ -84,23 +87,23 @@
   },
   {
    "id": "SUB-080",
-   "gen": "CT02",
+   "gen": "SUB-080",
    "S_kiem": 0,
-   "S_chu": 0,
+   "S_chu": 0.78125,
    "S_dim": 0,
    "detail": {
     "entities": {
      "orig": 212,
-     "gen": 900
+     "gen": 882
     },
     "texts": {
      "orig": 50,
-     "gen": 76,
-     "matched": 0,
-     "sameString": 47,
+     "gen": 64,
+     "matched": 50,
+     "sameString": 50,
      "medianOffset": [
-      187.58,
-      167.86
+      0,
+      0
      ]
     },
     "dims": {
@@ -112,23 +115,23 @@
   },
   {
    "id": "SUB-090",
-   "gen": "CT03",
+   "gen": "SUB-090",
    "S_kiem": 0,
-   "S_chu": 0,
+   "S_chu": 0.78125,
    "S_dim": 0,
    "detail": {
     "entities": {
      "orig": 212,
-     "gen": 898
+     "gen": 880
     },
     "texts": {
      "orig": 50,
-     "gen": 76,
-     "matched": 0,
-     "sameString": 47,
+     "gen": 64,
+     "matched": 50,
+     "sameString": 50,
      "medianOffset": [
-      231.53,
-      169.45
+      0,
+      -0.01
      ]
     },
     "dims": {
@@ -140,26 +143,29 @@
   },
   {
    "id": "SUB-100",
-   "gen": "KL01",
-   "S_kiem": 0.15294117647058825,
-   "S_chu": 0,
-   "S_dim": 0,
+   "gen": "SUB-100",
+   "S_kiem": 0.8647058823529412,
+   "S_chu": 0.7419354838709677,
+   "S_dim": 0.8333333333333331,
    "detail": {
     "entities": {
      "orig": 170,
-     "gen": 118
+     "gen": 190
     },
     "texts": {
      "orig": 23,
-     "gen": 100,
-     "matched": 0,
-     "sameString": 0,
-     "medianOffset": null
+     "gen": 31,
+     "matched": 23,
+     "sameString": 23,
+     "medianOffset": [
+      0,
+      0
+     ]
     },
     "dims": {
      "orig": 28,
-     "gen": 0,
-     "matched": 0
+     "gen": 28,
+     "matched": 28
     }
    }
   }

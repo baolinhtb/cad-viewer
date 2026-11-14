@@ -1,9 +1,11 @@
 import type {
+  AcTpBlockDef,
   AcTpLayerStyleMap,
   AcTpRoleLayerMap
 } from '@mlightcad/cad-template-sdk'
 import {
   acTpAnnotationPresentation,
+  acTpDxfOut,
   createDrawContext,
   LINETYPE_PLOT_SCALE,
   SEED_ROLE_LAYERS,
@@ -27,7 +29,8 @@ const escape = (value: string) =>
 export function dossierSheetSvg(
   sheet: DossierSheet,
   layers: AcTpRoleLayerMap = SEED_ROLE_LAYERS,
-  styles: AcTpLayerStyleMap = {}
+  styles: AcTpLayerStyleMap = {},
+  blocks: readonly AcTpBlockDef[] = []
 ): string {
   const lookup = new Map(
     Object.entries(styles).map(([name, value]) => [name.toLowerCase(), value])
@@ -75,11 +78,62 @@ export function dossierSheetSvg(
       lines.push(
         `<circle cx="${op.at[0]}" cy="${sheet.height - op.at[1]}" r="${op.radius}" fill="none" stroke="currentColor" stroke-width="16"/>`
       )
-    else if (op.kind === 'text') {
+    else if (op.kind === 'arc') {
+      const at = (deg: number): XY => [
+        op.at[0] + op.radius * Math.cos((deg * Math.PI) / 180),
+        op.at[1] + op.radius * Math.sin((deg * Math.PI) / 180)
+      ]
+      const sweep = (((op.endAngle - op.startAngle) % 360) + 360) % 360
+      const [p0, p1] = [at(op.startAngle), at(op.endAngle)]
+      // SVG y grows downwards: a counter-clockwise CAD arc is sweep-flag 0.
+      lines.push(
+        `<path d="M${point(p0)} A${op.radius} ${op.radius} 0 ${sweep > 180 ? 1 : 0} 0 ${point(p1)}" fill="none" stroke="currentColor" stroke-width="16"/>`
+      )
+    } else if (op.kind === 'insert') {
+      const def = blocks.find(b => b.name === op.block)
+      const k = `translate(${op.at[0]} ${sheet.height - op.at[1]}) rotate(${-(op.rotation ?? 0)}) scale(${op.scale[0]} ${-op.scale[1]})`
+      const parts: string[] = []
+      for (const e of def?.entities ?? []) {
+        if (e.kind === 'polyline') {
+          const pts = e.points.map(p => `${p.x},${p.y}`)
+          if (e.closed) pts.push(pts[0])
+          parts.push(
+            `<polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="${16 / Math.abs(op.scale[0])}"/>`
+          )
+        } else if (e.kind === 'attribute') {
+          const value = op.attributes[e.tag] ?? e.defaultValue ?? ''
+          // Text stays upright and unmirrored, as AutoCAD draws ATTRIB.
+          const sx = Math.sign(op.scale[0])
+          const anchor =
+            e.align === 1 ? 'middle' : e.align === 2 ? 'end' : 'start'
+          parts.push(
+            `<g transform="translate(${e.position.x} ${e.position.y}) scale(${sx} -1)" text-anchor="${anchor}"><text font-size="${e.height}" font-family="Arial,DejaVu Sans,sans-serif" fill="currentColor">${escape(value)}</text></g>`
+          )
+        }
+      }
+      lines.push(`<g transform="${k}">${parts.join('')}</g>`)
+    } else if (op.kind === 'text') {
       const anchor =
         op.align === 1 ? 'middle' : op.align === 2 ? 'end' : 'start'
       lines.push(
         `<g transform="translate(${op.at[0]} ${sheet.height - op.at[1]}) rotate(${-(op.rotation ?? 0)}) scale(${op.widthFactor ?? 1} 1)" text-anchor="${anchor}">${text([0, sheet.height], op.text, op.height)}</g>`
+      )
+    } else if (op.direction === 'nghieng') {
+      const dx = op.end[0] - op.start[0],
+        dy = op.end[1] - op.start[1]
+      const len = Math.hypot(dx, dy) || 1
+      const nx = (-dy / len) * op.offset,
+        ny = (dx / len) * op.offset
+      const a: XY = [op.start[0] + nx, op.start[1] + ny]
+      const b: XY = [op.end[0] + nx, op.end[1] + ny]
+      lines.push(path([op.start, a]), path([op.end, b]), path([a, b]))
+      const value = len.toFixed(0)
+      lines.push(
+        text(
+          [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 100],
+          op.text === undefined ? value : op.text.replace(/<>/g, value),
+          200
+        )
       )
     } else {
       const horizontal = op.direction === 'ngang'
@@ -101,27 +155,38 @@ export function dossierSheetSvg(
       lines.push(
         text(
           [(a[0] + b[0]) / 2 + 60, (a[1] + b[1]) / 2 + 100],
-          measured.toFixed(0),
+          op.text === undefined
+            ? measured.toFixed(0)
+            : op.text.replace(/<>/g, measured.toFixed(0)),
           200
         )
       )
     }
     lines.push('</g>')
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sheet.width} ${sheet.height}" width="841mm" height="594mm"><rect width="100%" height="100%" fill="white"/>${lines.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sheet.width} ${sheet.height}" width="${paperMm(sheet)[0]}mm" height="${paperMm(sheet)[1]}mm"><rect width="100%" height="100%" fill="white"/>${lines.join('')}</svg>`
 }
 
+/** Paper size of a sheet in millimetres (A1 841 × 594, A3 420 × 297). */
+const paperMm = (sheet: DossierSheet): [number, number] => [
+  Math.round(sheet.width / sheet.scale),
+  Math.round(sheet.height / sheet.scale)
+]
+
 /** Self-contained, printable packet. No CDN, external fonts, scripts, or
- * hidden approval state is needed to open it. Print to PDF creates six A1 pages. */
+ * hidden approval state is needed to open it. Print to PDF creates one page
+ * per sheet, at the sheets' paper size (A1 up to 0.2.0, A3 from 0.3.0). */
 export function dossierHtml(
   scene: DossierScene,
   layers: AcTpRoleLayerMap = SEED_ROLE_LAYERS,
   styles: AcTpLayerStyleMap = {}
 ): string {
+  const [pw, ph] = scene.sheets.length ? paperMm(scene.sheets[0]) : [841, 594]
+  const size = pw === 420 ? 'A3' : 'A1'
   return `<!doctype html><html lang="vi"><meta charset="utf-8"><title>Hồ sơ ${escape(String(scene.model.values.tenMo))} — bản nháp</title>
-<style>@page{size:841mm 594mm;margin:0}*{box-sizing:border-box}body{margin:0;background:#e5e7eb;font-family:Arial,sans-serif}header{padding:24px;max-width:1100px}h1{font-size:24px}article{background:white;margin:20px;width:841mm;height:594mm;overflow:hidden;break-after:page}article:last-child{break-after:auto}svg{display:block;width:100%;height:100%}@media print{header{display:none}body{background:white}article{margin:0}}</style>
-<header><h1>Hồ sơ ${escape(String(scene.model.values.tenMo))} — 6 tờ bản nháp</h1><p>In trang này hoặc lưu thành PDF; khổ A1 ngang, tỷ lệ 100%, tắt đầu/chân trang của trình duyệt. DXF và JSON được xuất từ cùng mô hình, không bao gồm sửa tay trên canvas.</p><ul>${scene.model.issues.map(i => `<li>${escape(i.message)}</li>`).join('')}</ul></header>
-${scene.sheets.map(s => `<article aria-label="${escape(s.title)}">${dossierSheetSvg(s, layers, styles)}</article>`).join('')}</html>`
+<style>@page{size:${pw}mm ${ph}mm;margin:0}*{box-sizing:border-box}body{margin:0;background:#e5e7eb;font-family:Arial,sans-serif}header{padding:24px;max-width:1100px}h1{font-size:24px}article{background:white;margin:20px;width:${pw}mm;height:${ph}mm;overflow:hidden;break-after:page}article:last-child{break-after:auto}svg{display:block;width:100%;height:100%}@media print{header{display:none}body{background:white}article{margin:0}}</style>
+<header><h1>Hồ sơ ${escape(String(scene.model.values.tenMo))} — 6 tờ bản nháp</h1><p>In trang này hoặc lưu thành PDF; khổ ${size} ngang, tỷ lệ 100%, tắt đầu/chân trang của trình duyệt. DXF và JSON được xuất từ cùng mô hình, không bao gồm sửa tay trên canvas.</p><ul>${scene.model.issues.map(i => `<li>${escape(i.message)}</li>`).join('')}</ul></header>
+${scene.sheets.map(s => `<article aria-label="${escape(s.title)}">${dossierSheetSvg(s, layers, styles, scene.blocks)}</article>`).join('')}</html>`
 }
 
 /** A separate database prevents exporting unrelated drawings or mutating the
@@ -145,7 +210,7 @@ export function dossierDxf(
     styles
   )
   drawDossierScene(ctx, scene)
-  return db.dxfOut(undefined, 6)
+  return acTpDxfOut(db, 6)
 }
 
 export interface DossierDownload {

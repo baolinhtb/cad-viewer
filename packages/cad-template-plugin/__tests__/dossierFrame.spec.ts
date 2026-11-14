@@ -91,9 +91,9 @@ describe('scene 0.2.0', () => {
                     [p.at[0] - p.radius, p.at[1] - p.radius],
                     [p.at[0] + p.radius, p.at[1] + p.radius]
                   ]
-                : p.kind === 'text'
-                  ? [p.at]
-                  : [p.start, p.end]
+                : p.kind === 'dimension'
+                  ? [p.start, p.end]
+                  : [p.at]
         for (const [x, y] of points) {
           expect({
             sheet: s.id,

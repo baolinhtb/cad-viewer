@@ -1,8 +1,13 @@
-import type { AcTpDrawContext } from '@mlightcad/cad-template-sdk'
+import type {
+  AcTpBlockDef,
+  AcTpDimStyleVars,
+  AcTpDrawContext
+} from '@mlightcad/cad-template-sdk'
 import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
 
 import type { DossierModel } from './model'
 import {
+  DOSSIER_NEXT_VERSION,
   DOSSIER_TITLE_KEYS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
@@ -11,6 +16,7 @@ import {
 } from './model'
 import bars from './reference/bars.json'
 import reference from './reference/reinforcement.json'
+import { buildScene030 } from './scene030'
 
 export type XY = [number, number]
 interface Base {
@@ -20,12 +26,40 @@ interface Base {
   sourceHandle?: string
   sourceLayer?: string
   sourceType?: string
+  /** Linetype written on the entity (0.3.0); otherwise ByLayer. */
+  lineType?: string
+  /** Lineweight written on the entity (0.3.0); otherwise ByLayer. */
+  lineWeight?: number
 }
 export type DossierPrimitive = Base &
   (
-    | { kind: 'path'; points: XY[]; closed?: boolean }
-    | { kind: 'fill'; loops: XY[][] }
+    | {
+        kind: 'path'
+        points: XY[]
+        closed?: boolean
+        /** Bulge of the segment starting at each point (0.3.0). */
+        bulges?: number[]
+        /** Draw as a LINE entity, as the source did (0.3.0, two points). */
+        line?: boolean
+      }
+    | {
+        kind: 'fill'
+        loops: XY[][]
+        /** Hatch pattern (0.3.0); solid when absent. */
+        pattern?: string
+        patternScale?: number
+        /** Degrees. */
+        patternAngle?: number
+      }
     | { kind: 'circle'; at: XY; radius: number }
+    | {
+        /** Counter-clockwise from `startAngle` to `endAngle`, degrees. */
+        kind: 'arc'
+        at: XY
+        radius: number
+        startAngle: number
+        endAngle: number
+      }
     | {
         kind: 'text'
         at: XY
@@ -34,13 +68,29 @@ export type DossierPrimitive = Base &
         rotation?: number
         align?: number
         widthFactor?: number
+        /** Text style (0.3.0); the template default when absent. */
+        style?: string
       }
     | {
         kind: 'dimension'
         start: XY
         end: XY
         offset: number
-        direction: 'ngang' | 'dung'
+        direction: 'ngang' | 'dung' | 'nghieng'
+        /** 0.3.0: dimension style, text override (`<>` = value), overrides. */
+        dimStyle?: string
+        text?: string
+        overrides?: AcTpDimStyleVars
+      }
+    | {
+        /** A block defined in {@link DossierScene.blocks} (0.3.0). */
+        kind: 'insert'
+        block: string
+        at: XY
+        scale: XY
+        /** Degrees. */
+        rotation?: number
+        attributes: Record<string, string>
       }
   )
 export interface DossierSheet {
@@ -59,6 +109,8 @@ export interface DossierScene {
   detailMode: 'source' | 'parametric'
   model: DossierModel
   sheets: DossierSheet[]
+  /** Block definitions the sheets insert (0.3.0). */
+  blocks?: AcTpBlockDef[]
 }
 
 const W = 84100,
@@ -86,12 +138,14 @@ export function buildDossierScene(
   model: DossierModel,
   version: string = DOSSIER_VERSION
 ): DossierScene {
-  if (!DOSSIER_VERSIONS.includes(version))
+  if (!DOSSIER_VERSIONS.includes(version) && version !== DOSSIER_NEXT_VERSION)
     throw new Error(
       `Bộ sinh hồ sơ phiên bản ${version} không có trong bản cài này (có: ${DOSSIER_VERSIONS.join(', ')}).`
     )
   const errors = model.issues.filter(i => i.level === 'error')
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'))
+  if (version === DOSSIER_NEXT_VERSION)
+    return buildScene030(model, version, isSourceGeometry(model.values))
   const v = model.values,
     n = (k: string) => Number(v[k])
   const sheets: DossierSheet[] = []
@@ -497,7 +551,7 @@ export function buildDossierScene(
           [op.at[0] - op.radius, op.at[1] - op.radius],
           [op.at[0] + op.radius, op.at[1] + op.radius]
         )
-      else {
+      else if (op.kind === 'dimension') {
         points.push(op.start, op.end)
         if (op.direction === 'ngang')
           points.push(
@@ -604,20 +658,7 @@ export function buildDossierScene(
     250
   )
   // Source geometry must not be presented as an updated design after dimensions change.
-  const sourceGeometry = Object.entries(dossierDefaults()).every(
-    ([key, value]) =>
-      [
-        'x',
-        'y',
-        'congTrinh',
-        'tenMo',
-        ...DOSSIER_TITLE_KEYS,
-        'thep',
-        'thepF3',
-        'thepW16',
-        'beTongLot'
-      ].includes(key) || v[key] === value
-  )
+  const sourceGeometry = isSourceGeometry(v)
   const appendReference = (
     s: DossierSheet,
     key: keyof typeof reference.views,
@@ -856,6 +897,24 @@ export function buildDossierScene(
   }
 }
 
+/** Whether the values still describe the source abutment's geometry. */
+function isSourceGeometry(v: DossierModel['values']): boolean {
+  return Object.entries(dossierDefaults()).every(
+    ([key, value]) =>
+      [
+        'x',
+        'y',
+        'congTrinh',
+        'tenMo',
+        ...DOSSIER_TITLE_KEYS,
+        'thep',
+        'thepF3',
+        'thepW16',
+        'beTongLot'
+      ].includes(key) || v[key] === value
+  )
+}
+
 export function drawDossierScene(
   ctx: AcTpDrawContext,
   scene: DossierScene
@@ -882,12 +941,15 @@ export function drawDossierScene(
     y: s.origin[1] + p[1],
     z: 0
   })
+  for (const block of scene.blocks ?? []) ctx.defineBlock(block)
   for (const s of scene.sheets)
     for (const op of s.primitives) {
       const tag = {
         role: op.role,
         partId: op.partId,
         color: op.color,
+        ...(op.lineType !== undefined ? { lineType: op.lineType } : {}),
+        ...(op.lineWeight !== undefined ? { lineWeight: op.lineWeight } : {}),
         params: {
           ...Object.fromEntries(
             (fields[op.role] ?? []).map(k => [k, scene.model.values[k]])
@@ -910,16 +972,50 @@ export function drawDossierScene(
           boundary: op.loops[0].map(p => point(s, p)),
           additionalLoops: op.loops
             .slice(1)
-            .map(loop => loop.map(p => point(s, p)))
+            .map(loop => loop.map(p => point(s, p))),
+          ...(op.pattern
+            ? {
+                patternName: op.pattern,
+                patternScale: op.patternScale,
+                patternAngleDeg: op.patternAngle
+              }
+            : {})
+        })
+      else if (op.kind === 'path' && op.line && op.points.length === 2)
+        ctx.line({
+          ...tag,
+          start: point(s, op.points[0]),
+          end: point(s, op.points[1])
         })
       else if (op.kind === 'path')
         ctx.polyline({
           ...tag,
-          points: op.points.map(p => point(s, p)),
+          points: op.points.map((p, i) =>
+            op.bulges?.[i]
+              ? { ...point(s, p), bulge: op.bulges[i] }
+              : point(s, p)
+          ),
           closed: op.closed
         })
       else if (op.kind === 'circle')
         ctx.circle({ ...tag, center: point(s, op.at), radius: op.radius })
+      else if (op.kind === 'arc')
+        ctx.arc({
+          ...tag,
+          center: point(s, op.at),
+          radius: op.radius,
+          startAngle: (op.startAngle * Math.PI) / 180,
+          endAngle: (op.endAngle * Math.PI) / 180
+        })
+      else if (op.kind === 'insert')
+        ctx.insert({
+          ...tag,
+          block: op.block,
+          position: point(s, op.at),
+          scale: { x: op.scale[0], y: op.scale[1] },
+          rotationDeg: op.rotation,
+          attributes: op.attributes
+        })
       else if (op.kind === 'text')
         ctx.text({
           ...tag,
@@ -928,7 +1024,8 @@ export function drawDossierScene(
           height: op.height,
           rotationDeg: op.rotation,
           align: (op.align ?? 0) as 0 | 1 | 2,
-          widthFactor: op.widthFactor
+          widthFactor: op.widthFactor,
+          ...(op.style ? { style: op.style } : {})
         })
       else
         ctx.dimension({
@@ -936,7 +1033,10 @@ export function drawDossierScene(
           start: point(s, op.start),
           end: point(s, op.end),
           offset: op.offset,
-          huong: op.direction
+          huong: op.direction,
+          ...(op.dimStyle ? { dimStyle: op.dimStyle } : {}),
+          ...(op.text !== undefined ? { text: op.text } : {}),
+          ...(op.overrides ? { overrides: op.overrides } : {})
         })
     }
 }

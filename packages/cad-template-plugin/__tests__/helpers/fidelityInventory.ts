@@ -18,6 +18,7 @@
  */
 import { acTpMTextPlain, acTpTextStyleFont } from '@mlightcad/cad-template-sdk'
 import {
+  AcDbBlockReference,
   AcDbDatabase,
   AcDbDimension,
   AcDbEntity,
@@ -176,7 +177,23 @@ export function generatedInventory(
     const key = `${type}|${look.color}|${look.lt}|${look.lw}`
     sheet.hist[key] = (sheet.hist[key] ?? 0) + 1
 
-    if (e instanceof AcDbText || e instanceof AcDbMText) {
+    if (e instanceof AcDbBlockReference) {
+      // ATTRIB texts belong to the insert; the original inventory lists them
+      // as texts (and, like here, not in the histogram).
+      for (const a of e.attributeIterator()) {
+        const t = String(a.textString ?? '').trim()
+        if (!t || a.isInvisible) continue
+        const at = a.horizontalMode ? a.alignmentPoint : a.position
+        const [x, y] = toPaper(p, [at.x, at.y])
+        sheet.texts.push({
+          t,
+          x,
+          y,
+          h: round(a.height / p.scale),
+          f: fontFamily(db, a.styleName)
+        })
+      }
+    } else if (e instanceof AcDbText || e instanceof AcDbMText) {
       const raw =
         e instanceof AcDbMText ? acTpMTextPlain(e.contents) : e.textString
       const t = String(raw ?? '').trim()

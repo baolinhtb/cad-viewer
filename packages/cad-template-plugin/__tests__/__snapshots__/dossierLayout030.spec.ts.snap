@@ -1,0 +1,122 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
+{
+  "blocks": [
+    "_33_KH_MAT_CAT",
+    "_33_KH_MAT_CAT_2",
+  ],
+  "perSheet": [
+    {
+      "hash": "b7ab88982501eb15",
+      "id": "SUB-010",
+      "origin": [
+        0,
+        0,
+      ],
+      "roles": {
+        "duong_tim": 31,
+        "ghi_chu": 49,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 558,
+        "mo_cau": 721,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 1382,
+    },
+    {
+      "hash": "8b3c50c862ab8c3d",
+      "id": "SUB-020",
+      "origin": [
+        47000,
+        0,
+      ],
+      "roles": {
+        "duong_tim": 1,
+        "ghi_chu": 12,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 130,
+        "mo_cau": 96,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 262,
+    },
+    {
+      "hash": "ed6ed8b1f0465906",
+      "id": "SUB-070",
+      "origin": [
+        94000,
+        0,
+      ],
+      "roles": {
+        "cot_thep": 1112,
+        "duong_tim": 1,
+        "ghi_chu": 58,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 93,
+        "ky_hieu_mat_cat": 24,
+        "mo_cau": 16,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 1327,
+    },
+    {
+      "hash": "b5af75aa501863c6",
+      "id": "SUB-080",
+      "origin": [
+        0,
+        -34700,
+      ],
+      "roles": {
+        "cot_thep": 699,
+        "duong_tim": 2,
+        "ghi_chu": 47,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 111,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 882,
+    },
+    {
+      "hash": "337f11925372d257",
+      "id": "SUB-090",
+      "origin": [
+        47000,
+        -34700,
+      ],
+      "roles": {
+        "cot_thep": 697,
+        "duong_tim": 2,
+        "ghi_chu": 47,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 111,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 880,
+    },
+    {
+      "hash": "c131502e0fc5d7cc",
+      "id": "SUB-100",
+      "origin": [
+        94000,
+        -34700,
+      ],
+      "roles": {
+        "cot_thep": 119,
+        "ghi_chu": 20,
+        "khung_ban_ve": 2,
+        "khung_ten": 18,
+        "kich_thuoc": 28,
+        "tieu_de_ban_ve": 3,
+      },
+      "soPrimitive": 190,
+    },
+  ],
+  "version": "0.3.0",
+}
+`;

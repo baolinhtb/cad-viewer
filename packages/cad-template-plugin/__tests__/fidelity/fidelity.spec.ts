@@ -19,6 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  acTpDxfOut,
   createDrawContext,
   SEED_ROLE_LAYERS
 } from '@mlightcad/cad-template-sdk'
@@ -27,6 +28,7 @@ import { AcDbDatabase } from '@mlightcad/data-model'
 import {
   buildDossierModel,
   DOSSIER_ID,
+  DOSSIER_NEXT_VERSION,
   dossierDefaults
 } from '../../src/dossier/model'
 import { buildDossierScene, drawDossierScene } from '../../src/dossier/scene'
@@ -44,11 +46,14 @@ const ORIGINAL: Inventory = JSON.parse(
   readFileSync(join(__dirname, 'mo2-inventory.json'), 'utf8')
 )
 const BASELINE_PATH = join(__dirname, 'fidelity-baseline.json')
-/** Generator version being scored. */
-const VERSION = '0.2.0'
+/** Generator version being scored: the one being built. */
+const VERSION = DOSSIER_NEXT_VERSION
 
-/** Generated sheet ↔ original sheet, in drawing order. */
-const SHEET_OF: Record<string, string> = {
+/**
+ * Original sheet of each generated one. From 0.3.0 the sheets carry the
+ * source numbers; before, they had their own (kept for scoring old runs).
+ */
+const LEGACY_SHEET_OF: Record<string, string> = {
   BC01: 'SUB-010',
   BC02: 'SUB-020',
   CT01: 'SUB-070',
@@ -56,6 +61,7 @@ const SHEET_OF: Record<string, string> = {
   CT03: 'SUB-090',
   KL01: 'SUB-100'
 }
+const SHEET_OF = (id: string) => LEGACY_SHEET_OF[id] ?? id
 
 function generate() {
   const values = dossierDefaults()
@@ -70,7 +76,7 @@ function generate() {
   drawDossierScene(ctx, scene)
   const placements = scene.sheets.map(s => ({
     id: s.id,
-    orig: SHEET_OF[s.id],
+    orig: SHEET_OF(s.id),
     origin: s.origin,
     scale: s.scale,
     width: s.width,
@@ -111,7 +117,9 @@ describe('the scorer', () => {
   })
 
   test('the reference inventory is the six sheets of mo_2 and stays small', () => {
-    expect(ORIGINAL.sheets.map(s => s.id)).toEqual(Object.values(SHEET_OF))
+    expect(ORIGINAL.sheets.map(s => s.id)).toEqual(
+      Object.values(LEGACY_SHEET_OF)
+    )
     expect(
       readFileSync(join(__dirname, 'mo2-inventory.json')).length
     ).toBeLessThan(1_000_000)
@@ -138,7 +146,7 @@ describe(`ho_so_mo_m1 ${VERSION} against mo_2`, () => {
     const out = process.env.FIDELITY_OUT
     if (!out) return
     mkdirSync(out, { recursive: true })
-    const dxf = run.db.dxfOut(undefined, 6)
+    const dxf = acTpDxfOut(run.db, 6)
     writeFileSync(
       join(out, 'gen.dxf'),
       typeof dxf === 'string' ? dxf : Buffer.from(dxf)

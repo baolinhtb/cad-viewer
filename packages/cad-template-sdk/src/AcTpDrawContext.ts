@@ -658,6 +658,9 @@ export function createDrawContext(
         isOff: false,
         color: new AcCmColor(AcCmColorMethod.ByACI, color),
         isPlottable: true,
+        // The data model's default (1) is not an AutoCAD lineweight and is
+        // written to DXF as is; -3 is "Default", what AutoCAD gives a layer.
+        lineWeight: -3,
         ...(style?.lineType ? { linetype: style.lineType } : {})
       })
     )
