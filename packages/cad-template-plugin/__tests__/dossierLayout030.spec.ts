@@ -102,7 +102,8 @@ describe('bố cục 0.3.0', () => {
       if (!ls.viewport) continue
       const vp = ls.viewport
       const ops = sheet(ls.id).primitives.filter(p => p.sourceHandle)
-      expect(ops.length).toBeGreaterThan(100)
+      // Real entities (SUB-010/020) or the 0.2.0 split strokes (others).
+      expect(ops.length).toBeGreaterThan(40)
       for (const p of ops) {
         const pts =
           p.kind === 'path'
@@ -184,11 +185,12 @@ describe('bố cục 0.3.0', () => {
   test('kích thước khác bản gốc: tờ chưa có lưới không mượn hình gốc, ghi rõ', () => {
     const changed = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     expect(changed.detailMode).toBe('parametric')
-    for (const s of changed.sheets.slice(1))
+    for (const s of changed.sheets.slice(2))
       expect(s.primitives.some(p => p.sourceHandle)).toBe(false)
     expect(
-      changed.sheets[1].primitives.some(
-        p => p.kind === 'text' && /CHƯA DỰNG HÌNH/.test(p.text)
+      changed.sheets[2].primitives.some(
+        p =>
+          p.kind === 'text' && /CHƯA (DỰNG HÌNH|CÓ PHƯƠNG ÁN THÉP)/.test(p.text)
       )
     ).toBe(true)
   })
@@ -362,5 +364,55 @@ describe('hồi quy 0.3.0', () => {
         }
       })
     }).toMatchSnapshot()
+  })
+})
+
+describe('SUB-020 (MC C–C) dựng bằng đối tượng thật, theo lưới co giãn', () => {
+  type Dim = Extract<DossierPrimitive, { kind: 'dimension' }>
+  const dims = (s: typeof scene, id: string, text: string) =>
+    s.sheets
+      .find(x => x.id === id)!
+      .primitives.filter(
+        (p): p is Dim =>
+          p.kind === 'dimension' && !!p.sourceHandle && p.text === text
+      )
+  const len = (d: Dim) =>
+    d.direction === 'ngang'
+      ? Math.abs(d.end[0] - d.start[0])
+      : Math.abs(d.end[1] - d.start[1])
+
+  test('mặc định: 55 đối tượng nguồn như bản gốc, không còn nét tách 0.2.0', () => {
+    const own = sheet('SUB-020').primitives.filter(p => p.sourceHandle)
+    const kinds: Record<string, number> = {}
+    for (const p of own) kinds[p.sourceType!] = (kinds[p.sourceType!] ?? 0) + 1
+    expect(kinds).toEqual({
+      DIMENSION: 21,
+      LWPOLYLINE: 14,
+      TEXT: 8,
+      INSERT: 5,
+      LEADER: 4,
+      LINE: 2,
+      HATCH: 1
+    })
+  })
+
+  test('đổi lCanh: dim LC đo đúng giá trị mới ở cả B–B (SUB-010) và C–C', () => {
+    const longer = buildDossierScene(buildDossierModel({ lCanh: 7000 }), V)
+    for (const id of ['SUB-010', 'SUB-020']) {
+      const [before] = dims(scene, id, 'LC')
+      const [after] = dims(longer, id, 'LC')
+      expect(Math.round(len(before))).toBe(6500)
+      expect(Math.round(len(after))).toBe(7000)
+    }
+  })
+
+  test('đổi hBe: mọi dim HB của C–C dài thêm 500', () => {
+    const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
+    const before = dims(scene, 'SUB-020', 'HB')
+    const after = dims(tall, 'SUB-020', 'HB')
+    expect(before.length).toBe(2)
+    before.forEach((d, i) =>
+      expect(Math.abs(len(after[i]) - len(d) - 500)).toBeLessThan(2)
+    )
   })
 })

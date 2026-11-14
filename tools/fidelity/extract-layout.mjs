@@ -791,7 +791,7 @@ function sourceBlock(name) {
 
 // ---------------------------------------------------------------- model content
 /** Sheets whose viewport drawing is rebuilt from real entities (GĐ4). */
-const MODEL_SHEETS = new Set(['SUB-010'])
+const MODEL_SHEETS = new Set(['SUB-010', 'SUB-020'])
 const modelHandle = items.find(
   i => i.table === 'BLOCK_RECORD' && get(i.rec, 2)?.trim() === '*Model_Space'
 )

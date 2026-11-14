@@ -170,7 +170,39 @@ const SUB_010: View[] = [
   }
 ]
 
-const GRIDS: Record<string, View[]> = { 'SUB-010': SUB_010 }
+/**
+ * SUB-020 — section C–C: B–B seen from the other side. The footing edge on
+ * the B2 side stays put; the wing (LC from the back of the head wall) runs
+ * to the left.
+ */
+const SUB_020: View[] = [
+  {
+    name: 'Mặt cắt C–C',
+    box: { x0: 0, y0: 0, x1: 14000, y1: 16000 },
+    x: [
+      [2222, d => -d.muiBe - d.lCanh],
+      [5722, d => -d.lBe],
+      [6922, d => -d.lBe + d.D],
+      [8222, d => -d.muiBe - d.tThan],
+      [8722, d => -d.muiBe],
+      [9722, d => -d.muiBe],
+      [10522, d => -d.D],
+      [11722, () => 0]
+    ],
+    y: [
+      [3339, d => -d.hLot],
+      [3439, () => 0],
+      [5439, d => d.hBe],
+      [10086, d => d.hBe + d.hThan],
+      [11904, d => d.hBe + d.hThan + d.hDau]
+    ]
+  }
+]
+
+const GRIDS: Record<string, View[]> = {
+  'SUB-010': SUB_010,
+  'SUB-020': SUB_020
+}
 
 /** A piecewise-linear map through the moved lines. */
 function axis(lines: Line[], d: Delta, view: string, label: string) {
