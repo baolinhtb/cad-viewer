@@ -21,7 +21,8 @@ import {
   migrate,
   planStandardsV10,
   SCHEMA_VERSION,
-  SEED_STANDARDS
+  SEED_STANDARDS,
+  SEED_STANDARDS_V10
 } from './schema.mjs'
 import {
   findContradictions,
@@ -329,4 +330,36 @@ test('the dry run reports the plan and does not write', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('the v10 catalogue is frozen: an edit means a new migration', () => {
+  // A database migrated last month and one migrated next year must end up the
+  // same. If this fails because the catalogue changed on purpose: revert the
+  // edit to SEED_STANDARDS_V10, give SEED_STANDARDS its own literal, and add
+  // migration v11 for the difference.
+  const hash = createHash('sha256')
+    .update(JSON.stringify(SEED_STANDARDS_V10))
+    .digest('hex')
+  assert.equal(
+    hash,
+    '6a9bfa2cf9f18a8d90232699962950eec7b19ef7041ad4d0dee67ab9e8948b0f'
+  )
+  assert.equal(Object.keys(SEED_STANDARDS_V10).length, 31)
+
+  // Frozen all the way down, so no code path can edit it at run time either.
+  assert.ok(Object.isFrozen(SEED_STANDARDS_V10))
+  assert.ok(Object.isFrozen(SEED_STANDARDS_V10.lop_phu))
+  assert.ok(Object.isFrozen(SEED_STANDARDS_V10.lop_phu.legacy))
+  assert.throws(() => {
+    SEED_STANDARDS_V10.lop_phu.layer = '_33_Khac'
+  }, TypeError)
+})
+
+test('v10 reads only its frozen catalogue, never the current one', () => {
+  // The current catalogue will move on; the migration must not move with it.
+  const source = planStandardsV10.toString()
+  assert.match(source, /SEED_STANDARDS_V10/)
+  assert.doesNotMatch(source, /SEED_STANDARDS(?!_V)/)
+  // Today the two are the same catalogue.
+  assert.equal(SEED_STANDARDS, SEED_STANDARDS_V10)
 })
