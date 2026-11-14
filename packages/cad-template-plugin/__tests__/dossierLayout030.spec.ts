@@ -23,8 +23,8 @@ import {
 import { dossierHtml, dossierSheetSvg } from '../src/dossier/export'
 import {
   buildDossierModel,
+  DOSSIER_A3_VERSION,
   DOSSIER_ID,
-  DOSSIER_NEXT_VERSION,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
   dossierDefaults
@@ -34,7 +34,7 @@ import type { DossierPrimitive } from '../src/dossier/scene'
 import { buildDossierScene, drawDossierScene } from '../src/dossier/scene'
 import { abutmentDossierLegacyTemplates } from '../src/dossier/template'
 
-const V = DOSSIER_NEXT_VERSION
+const V = DOSSIER_A3_VERSION
 const scene = buildDossierScene(buildDossierModel(dossierDefaults()), V)
 const sheet = (id: string) => scene.sheets.find(s => s.id === id)!
 
@@ -59,13 +59,14 @@ const model = (db: AcDbDatabase): AcDbEntity[] => [
 const onSheet = (db: AcDbDatabase, id: string) =>
   model(db).filter(e => readSemanticTag(e)?.params?.sheet === id)
 
-describe('0.3.0 chưa phát hành: không đụng 0.1.0/0.2.0', () => {
-  test('hồ sơ mới vẫn là 0.2.0; 0.3.0 không có trong danh sách tái tạo', () => {
+describe('0.3.0 là bộ sinh mặc định; 0.1.0/0.2.0 vẫn tái tạo', () => {
+  test('hồ sơ mới là 0.3.0; hai bộ sinh cũ chỉ để dựng lại run cũ', () => {
     expect(V).toBe('0.3.0')
-    expect(DOSSIER_VERSION).toBe('0.2.0')
-    expect(DOSSIER_VERSIONS).not.toContain(V)
+    expect(DOSSIER_VERSION).toBe('0.3.0')
+    expect(DOSSIER_VERSIONS).toEqual(['0.1.0', '0.2.0', '0.3.0'])
     expect(abutmentDossierLegacyTemplates.map(t => t.meta.version)).toEqual([
-      '0.1.0'
+      '0.1.0',
+      '0.2.0'
     ])
   })
 })

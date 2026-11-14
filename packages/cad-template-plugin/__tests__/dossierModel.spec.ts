@@ -25,7 +25,7 @@ describe('M1 dossier model', () => {
     expect(m.piles[0].x).toBe(-2650)
     expect(m.quantities.footing).toBe(102)
     expect(m.referenceSteelApplicable).toBe(false)
-    const scene = buildDossierScene(m)
+    const scene = buildDossierScene(m, '0.2.0')
     for (const s of scene.sheets.filter(s => s.id.startsWith('CT')))
       expect(
         s.primitives.some(
@@ -55,7 +55,7 @@ describe('M1 dossier model', () => {
   ])('rejects cross-field errors or unknown keys before drawing: %j', input => {
     const m = buildDossierModel(input as never)
     expect(m.issues.some(i => i.level === 'error')).toBe(true)
-    expect(() => buildDossierScene(m)).toThrow()
+    expect(() => buildDossierScene(m, '0.2.0')).toThrow()
   })
   test('elevation changes propagate equally without altering lengths or source steel', () => {
     const a = buildDossierModel(),
@@ -76,7 +76,7 @@ describe('M1 dossier model', () => {
   })
   test('an oversized wing is refused when its views would overlap', () => {
     expect(() =>
-      buildDossierScene(buildDossierModel({ lCanh: 12000 }))
+      buildDossierScene(buildDossierModel({ lCanh: 12000 }), '0.2.0')
     ).toThrow(/chồng vùng/)
   })
   test('source conflicts remain visible and never imply structural approval', () => {
@@ -90,7 +90,7 @@ describe('M1 dossier model', () => {
         'detail_coverage'
       ])
     )
-    expect(buildDossierScene(m).status).toBe('draft')
+    expect(buildDossierScene(m, '0.2.0').status).toBe('draft')
     expect(buildDossierModel({ thepF3: 'D25' }).referenceSteelApplicable).toBe(
       false
     )
@@ -112,7 +112,8 @@ describe('M1 dossier model', () => {
   })
   test('six bounded pages carry draft labels, and HTML cannot inject source text', () => {
     const scene = buildDossierScene(
-      buildDossierModel({ tenMo: '<img src=x onerror=alert(1)>' })
+      buildDossierModel({ tenMo: '<img src=x onerror=alert(1)>' }),
+      '0.2.0'
     )
     expect(scene.sheets.map(s => s.id)).toEqual([
       'BC01',
@@ -160,7 +161,7 @@ describe('M1 dossier model', () => {
 })
 
 test('sheet export retains colored notes and patterned centerlines', () => {
-  const scene = buildDossierScene(buildDossierModel())
+  const scene = buildDossierScene(buildDossierModel(), '0.2.0')
   const svg = scene.sheets.map(s => dossierSheetSvg(s)).join('')
   expect(svg).toContain('color="#166534"')
   expect(svg).toContain('color="#854d0e"')
@@ -173,7 +174,7 @@ test('sheet export retains colored notes and patterned centerlines', () => {
 })
 
 test('legacy gray annotation catalogue exports semantic accents', () => {
-  const scene = buildDossierScene(buildDossierModel())
+  const scene = buildDossierScene(buildDossierModel(), '0.2.0')
   const svg = dossierSheetSvg(scene.sheets[0], undefined, {
     'GC-GHICHU': { color: 8 }
   })

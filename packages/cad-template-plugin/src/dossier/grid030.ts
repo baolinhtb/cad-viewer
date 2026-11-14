@@ -199,6 +199,16 @@ const SUB_020: View[] = [
   }
 ]
 
+/**
+ * How a sheet's views sit: columns left to right, each listing its views top
+ * to bottom (indices into the sheet's views). When a view grows, the views
+ * below it and the columns to its right move to keep the source's gaps.
+ */
+const FLOWS: Record<string, number[][]> = {
+  'SUB-010': [[0, 1], [2, 3], [4]],
+  'SUB-020': [[0]]
+}
+
 const GRIDS: Record<string, View[]> = {
   'SUB-010': SUB_010,
   'SUB-020': SUB_020
@@ -230,6 +240,12 @@ export interface AcTpSheetStretch {
   identity: boolean
   /** Maps a local point; `at` picks the view (an entity's centre). */
   map(p: XY, at?: XY): XY
+  /** Index of the view a point belongs to. */
+  viewOf(at: XY): number
+  /** View names, by index. */
+  views: string[]
+  /** Columns of views, top to bottom (see {@link FLOWS}). */
+  flow: number[][]
 }
 
 /**
@@ -245,7 +261,14 @@ export function sheetStretch(
     k => values[k] !== undefined && values[k] !== defaults[k]
   )
   const geometric = changed.filter(k => !FREE.has(k))
-  if (!geometric.length) return { identity: true, map: p => [p[0], p[1]] as XY }
+  if (!geometric.length)
+    return {
+      identity: true,
+      map: p => [p[0], p[1]] as XY,
+      viewOf: () => 0,
+      views: [],
+      flow: []
+    }
   const views = GRIDS[id]
   if (!views) return { error: `Tờ ${id} chưa có lưới co giãn ở bộ sinh 0.3.0.` }
   const n = (k: string) => Number(values[k])
@@ -277,20 +300,26 @@ export function sheetStretch(
       fx: axis(v.x, d, v.name, 'ngang'),
       fy: axis(v.y, d, v.name, 'đứng')
     }))
-    const pick = (q: XY) =>
-      maps.find(
-        m =>
-          q[0] >= m.box.x0 &&
-          q[0] < m.box.x1 &&
-          q[1] >= m.box.y0 &&
-          q[1] < m.box.y1
-      ) ?? maps[0]
+    const index = (q: XY) =>
+      Math.max(
+        0,
+        maps.findIndex(
+          m =>
+            q[0] >= m.box.x0 &&
+            q[0] < m.box.x1 &&
+            q[1] >= m.box.y0 &&
+            q[1] < m.box.y1
+        )
+      )
     return {
       identity: false,
       map: (p, at = p) => {
-        const m = pick(at)
+        const m = maps[index(at)]
         return [m.fx(p[0]), m.fy(p[1])]
-      }
+      },
+      viewOf: index,
+      views: views.map(v => v.name),
+      flow: FLOWS[id] ?? [views.map((_, k) => k)]
     }
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) }

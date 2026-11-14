@@ -13,7 +13,6 @@ import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
   buildDossierModel,
   DOSSIER_ID,
-  DOSSIER_NEXT_VERSION,
   DOSSIER_PARAMS,
   DOSSIER_VERSIONS
 } from './model'
@@ -33,7 +32,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_ho_so_mo',
     description:
-      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Giữ mặc định M1 sẽ dựng chi tiết từ CAD gốc, gồm hatch, mũi tên và block kích thước. Thay kích thước chỉ có hình tham số, không được gọi là bản chi tiết hoàn chỉnh. Một mô hình sinh 6 tờ bản nháp: bố trí chung, bảng, 3 tờ thép tham chiếu, khối lượng. Cọc 2×2. Phân biệt trái/phải tuyến, Lc là chiều dài cánh. Không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Bộ sinh 0.3.0: 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Kích thước co giãn được: hBe, hLot, lBe, muiBe, tThan, hThan, hDau, lCanh, D và bBe (kèm bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D vì bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ); caoDoDayBe chỉ đổi cao độ. Đổi số/bố trí cọc, tCanh, dốc… bị từ chối. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì các tờ đó ghi chưa có phương án thép. Hồ sơ bản nháp; không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
       paramDescription,
     input_schema: {
       type: 'object',
@@ -44,7 +43,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Cập nhật tên mố, công trình hoặc vị trí x/y trên hồ sơ đang có, giữ nguyên đối tượng và các chi tiết đã sửa tay. Không xóa rồi dựng lại. Đổi hình học bị từ chối để bảo toàn bản CAD; dùng execute_cad_script, tx.setText/tx.moveGrips trên đúng đối tượng và kiểm tra các hình chiếu liên quan. Không dùng tao_ho_so_mo thay thế hồ sơ sau khi bị từ chối. Chỉ truyền thông số đổi.',
+      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Tờ thép và bảng thống kê chuyển thành ghi chú chưa có phương án khi đổi hình học (báo trong canhBao). Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối dùng execute_cad_script trên đúng đối tượng; không dùng tao_ho_so_mo thay thế hồ sơ.',
     input_schema: {
       type: 'object',
       properties: { ma_lan_chay: { type: 'string' }, thong_so: parameters },
@@ -170,10 +169,7 @@ export async function runDossierTool(
       throw new Error(
         `Không có hồ sơ mố mang mã "${runId}". Dùng mo_ta_ban_ve để lấy mã.`
       )
-    if (
-      !DOSSIER_VERSIONS.includes(run.version) &&
-      run.version !== DOSSIER_NEXT_VERSION
-    )
+    if (!DOSSIER_VERSIONS.includes(run.version))
       throw new Error(
         `Hồ sơ dùng phiên bản ${run.version}; cần bộ sinh đúng phiên bản để tái tạo.`
       )

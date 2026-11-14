@@ -27,8 +27,8 @@ import { AcDbDatabase } from '@mlightcad/data-model'
 
 import {
   buildDossierModel,
+  DOSSIER_A3_VERSION,
   DOSSIER_ID,
-  DOSSIER_NEXT_VERSION,
   dossierDefaults
 } from '../../src/dossier/model'
 import { buildDossierScene, drawDossierScene } from '../../src/dossier/scene'
@@ -47,7 +47,7 @@ const ORIGINAL: Inventory = JSON.parse(
 )
 const BASELINE_PATH = join(__dirname, 'fidelity-baseline.json')
 /** Generator version being scored: the one being built. */
-const VERSION = DOSSIER_NEXT_VERSION
+const VERSION = DOSSIER_A3_VERSION
 
 /**
  * Original sheet of each generated one. From 0.3.0 the sheets carry the

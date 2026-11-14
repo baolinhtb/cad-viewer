@@ -15,25 +15,40 @@ vẽ mố bằng nét.
 
 Khi người dùng muốn **hồ sơ mố**, **bản vẽ mố đầy đủ**, mặt bằng + mặt cắt +
 thống kê, dùng `tao_ho_so_mo`, không dùng cách ghép cũ ở bảng dưới.
-Mẫu `ho_so_mo_m1` 0.2.0 lấy từ `02. BTC- mo_2.dwg`; tạo 6 tờ **bản nháp**, mỗi tờ
-có khung tên A1 (điền `duAn`, `donVi`, `nguoiChuTri`, `nguoiThietKe`,
-`nguoiKiemTra`, `nguoiDuyet`, `ngay` — để trống được). Hồ sơ dựng bằng 0.1.0
-giữ khung cũ khi sửa và xuất; không ghi được các trường khung tên cho chúng.
+Mẫu `ho_so_mo_m1` **0.3.0** dựng lại `02. BTC- mo_2.dwg`: 6 tờ **A3 1:100**
+đánh số như bản gốc — SUB-010 (bố trí chung 1/2), SUB-020 (MC C–C, bảng cao
+độ, bảng thông số), SUB-070/080/090 (cốt thép), SUB-100 (bảng hình dạng thanh,
+thống kê thép, khối lượng). Hình là **đối tượng CAD thật**: dim đúng kiểu
+`_33_`, hatch, block có attribute (thẻ cao độ `cd11`, gối, cọc), leader. Khung
+tên A3 điền `duAn`, `donVi`, `nguoiChuTri`, `nguoiThietKe`, `nguoiKiemTra`,
+`nguoiDuyet`, `ngay` (để trống được). Mọi tờ vẫn là **bản nháp**.
 Chiều dài tính mm, cao độ `caoDoDayBe` tính m, dốc tính %. `Lc` trong bản
 mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lCoc`).
 
+**Đổi kích thước — cái gì theo được, cái gì bị từ chối**
+
+| Thông số                                                                                                                                                | Kết quả                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hBe`, `hLot`, `lBe`, `muiBe`, `tThan`, `hThan`, `hDau`, `lCanh`, `D`                                                                                   | Co giãn: hình, dim, thẻ cao độ, bảng cao độ/thông số SUB-020 đổi theo; các hình chiếu tự dời để giữ khoảng hở như bản gốc                                      |
+| `bBe`                                                                                                                                                   | Co giãn, nhưng phải đổi kèm `bThan = bBe`, `aCocNgang = bBe − 2·D`; đổi `D`/`lBe` thì kèm `aCocDoc = lBe − 2·D` (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ) |
+| `caoDoDayBe`, `lCoc`, tên, công trình, khung tên, `x`/`y`                                                                                               | Không đổi hình; cao độ trong bảng dời theo `caoDoDayBe`                                                                                                        |
+| Số/bố trí cọc (`soCotCoc`, `soHangCoc`, tim cọc khác quy tắc trên), `bThan ≠ bBe`, `phuLot`, `tCanh`, `docNgang`, `docDoc`, `bMatDuong`, `hLanCan`, gối | **Từ chối** — hồ sơ giữ nguyên, nêu lý do                                                                                                                      |
+| Hình chiếu tràn khung A3 sau khi dời                                                                                                                    | **Từ chối**, nêu hình chiếu và lượng tràn                                                                                                                      |
+| Bất kỳ thay đổi hình học nào                                                                                                                            | Tờ thép SUB-070/080/090 và bảng thống kê SUB-100 ghi **chưa có phương án thép** — tuyệt đối không kéo giãn thép hay giữ khối lượng thép cũ                     |
+
 - Sửa: `sua_ho_so_mo` + mã lần dựng từ `mo_ta_ban_ve`; chỉ truyền phần đổi.
+  Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**; có sửa tay thì công
+  cụ từ chối, khi đó sửa trực tiếp bằng `execute_cad_script`. Đọc `canhBao`
+  trong kết quả để báo các tờ không áp dụng (thép).
 - Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.
-- Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A1, ảnh 200 dpi giữ chữ Việt),
-  `html` (tự chứa, in được), `dxf`, hoặc `json`.
-  Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.
+- Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A3), `html` (tự chứa, in được),
+  `dxf`, hoặc `json`. Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.
 - Cọc mặc định **2 hàng × 2 cọc D1200**; tim ngang 5300, tim dọc 3600.
 - Dốc ngang dương: **trái tuyến cao**. Trên mặt chính trái tuyến nằm bên phải ảnh.
-- Bề rộng bệ `bBe`, bề rộng thân `bThan` độc lập; `lBe` theo phương dọc.
 - Chưa có chiều dài cọc thì để `lCoc=0`, không tự đoán.
-- Hình học khác mẫu: các tờ thép ghi chưa có phương án; tuyệt đối không kéo
-  giãn thép hoặc lấy khối lượng thép cũ gắn cho hình học mới.
 - Các mâu thuẫn nguồn C8/C10, F3 D22/D25, W16 D14/D16 chưa được tự chốt.
+- Hồ sơ dựng bằng 0.1.0 (khung cũ) và 0.2.0 (khung tên A1) vẫn dựng lại và
+  xuất đúng như lúc tạo; với chúng `sua_ho_so_mo` chỉ sửa nhãn/vị trí/khung tên.
 
 ### Một mặt chính hoặc từng cấu kiện — luồng cũ
 

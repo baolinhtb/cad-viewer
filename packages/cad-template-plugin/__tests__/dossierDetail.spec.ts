@@ -7,7 +7,7 @@ import { dossierDxf, dossierSheetSvg } from '../src/dossier/export'
 import reference from '../src/dossier/reference/reinforcement.json'
 
 test('source panels retain every extracted primitive and source identity', () => {
-  const scene = buildDossierScene(buildDossierModel())
+  const scene = buildDossierScene(buildDossierModel(), '0.2.0')
   expect(scene.detailMode).toBe('source')
   for (const [id, key] of [
     ['BC01', 'general'],
@@ -28,7 +28,7 @@ test('source panels retain every extracted primitive and source identity', () =>
 })
 
 test('changed dimensions never inherit unchanged source geometry', () => {
-  const scene = buildDossierScene(buildDossierModel({ bBe: 8500 }))
+  const scene = buildDossierScene(buildDossierModel({ bBe: 8500 }), '0.2.0')
   expect(scene.detailMode).toBe('parametric')
   expect(scene.sheets[0].primitives.some(p => p.sourceHandle)).toBe(false)
   expect(
@@ -39,7 +39,7 @@ test('changed dimensions never inherit unchanged source geometry', () => {
 })
 
 test('filled arrows and rotated annotation remain editable CAD entities after DXF reopen', async () => {
-  const scene = buildDossierScene(buildDossierModel())
+  const scene = buildDossierScene(buildDossierModel(), '0.2.0')
   const output = dossierDxf(scene)
   const bytes =
     typeof output === 'string' ? new TextEncoder().encode(output) : output

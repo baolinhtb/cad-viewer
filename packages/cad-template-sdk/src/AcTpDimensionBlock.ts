@@ -172,6 +172,42 @@ function withWorkingDatabase<T>(db: AcDbDatabase, fn: () => T): T {
 }
 
 /**
+ * Runs `fn` — which may be async — with `db` as the data model's working
+ * database, and puts back what was there afterwards.
+ *
+ * The data model gives new objects their ids through that global. Drawing
+ * into a database that is not the working one (a scratch copy, an export, a
+ * second open drawing) can therefore hand out ids from another drawing's
+ * counter; ids then collide and undo loses the colliding entities. Every
+ * generation into an explicit database runs inside this.
+ */
+export async function acTpWithWorkingDatabase<T>(
+  db: AcDbDatabase,
+  fn: () => T | Promise<T>
+): Promise<T> {
+  let previous: AcDbDatabase | undefined
+  try {
+    previous = acdbGetWorkingDatabase()
+  } catch {
+    previous = undefined
+  }
+  if (previous !== db) acdbAssignWorkingDatabase(db)
+  try {
+    return await fn()
+  } finally {
+    if (previous && previous !== db) acdbAssignWorkingDatabase(previous)
+  }
+}
+
+/** Synchronous {@link acTpWithWorkingDatabase}, for code that cannot await. */
+export function acTpWithWorkingDatabaseSync<T>(
+  db: AcDbDatabase,
+  fn: () => T
+): T {
+  return withWorkingDatabase(db, fn)
+}
+
+/**
  * The next free `*D<n>`, matching how the viewer's own DIMLINEAR names them.
  *
  * Reusing a name would silently repoint an existing dimension at different

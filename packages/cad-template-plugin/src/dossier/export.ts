@@ -6,6 +6,7 @@ import type {
 import {
   acTpAnnotationPresentation,
   acTpDxfOut,
+  acTpWithWorkingDatabaseSync,
   createDrawContext,
   LINETYPE_PLOT_SCALE,
   SEED_ROLE_LAYERS,
@@ -208,18 +209,18 @@ export function dossierDxf(
 ): string | Uint8Array {
   const db = new AcDbDatabase()
   db.createDefaultData()
-  const ctx = createDrawContext(
-    db,
-    DOSSIER_ID,
-    layers,
-    {
-      id: 'r1',
-      version: scene.version,
-      values: scene.model.values
-    },
-    styles
+  acTpWithWorkingDatabaseSync(db, () =>
+    drawDossierScene(
+      createDrawContext(
+        db,
+        DOSSIER_ID,
+        layers,
+        { id: 'r1', version: scene.version, values: scene.model.values },
+        styles
+      ),
+      scene
+    )
   )
-  drawDossierScene(ctx, scene)
   return acTpDxfOut(db, 6)
 }
 

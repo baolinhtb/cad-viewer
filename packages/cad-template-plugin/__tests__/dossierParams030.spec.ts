@@ -28,11 +28,12 @@ import {
 
 import {
   buildDossierModel,
-  DOSSIER_NEXT_VERSION,
+  DOSSIER_A3_VERSION,
   dossierDefaults
 } from '../src/dossier/model'
 import { buildDossierScene } from '../src/dossier/scene'
-import { abutmentDossierNextTemplate } from '../src/dossier/template'
+import { sheetViewBoxes } from '../src/dossier/scene030'
+import { abutmentDossierTemplate } from '../src/dossier/template'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
@@ -70,11 +71,7 @@ const sheetOf = (e: AcDbEntity) =>
 
 async function dossier() {
   const db = database()
-  const made = await runTemplate(
-    abutmentDossierNextTemplate,
-    dossierDefaults(),
-    db
-  )
+  const made = await runTemplate(abutmentDossierTemplate, dossierDefaults(), db)
   expect(made.errors).toEqual([])
   return { db, runId: made.runId! }
 }
@@ -152,6 +149,26 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       { ma_lan_chay: runId, thong_so: change },
       db
     )
+    if (name === 'coc-so') {
+      // A change of pile layout: the general arrangement cannot follow, so
+      // the tool refuses and leaves the drawing as it was.
+      expect(outcome.ok).toBe(false)
+      expect(String(outcome.message)).toMatch(/soCotCoc/)
+      expect(dimLengths(db, runId, 'SUB-010', 'HB').length).toBeGreaterThan(0)
+      results[name] = {
+        change,
+        warnings: [String(outcome.message)],
+        changedSheets: [],
+        sub010: 'từ chối (công cụ không sửa gì)',
+        HB: [],
+        LC: [],
+        BMo: [],
+        DCoc: [],
+        bangSUB020: [],
+        thep: 'giữ nguyên (không sửa)'
+      }
+      return
+    }
     expect(outcome.ok).toBe(true)
     const warnings = ((outcome.data as { canhBao?: string[] })?.canhBao ??
       []) as string[]
@@ -159,7 +176,7 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
     const num = (k: string) => Number(values[k])
     const after = buildDossierScene(
       buildDossierModel(values),
-      DOSSIER_NEXT_VERSION
+      DOSSIER_A3_VERSION
     )
 
     // Steel sheets: never stretched — refused on the sheet when the geometry
@@ -252,7 +269,7 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
     if (!OUT) return
     const scene = buildDossierScene(
       buildDossierModel(dossierDefaults()),
-      DOSSIER_NEXT_VERSION
+      DOSSIER_A3_VERSION
     )
     writeFileSync(
       join(OUT, 'params-manifest.json'),
@@ -273,5 +290,61 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
         1
       )
     )
+  })
+})
+
+describe('GĐ7a: hình chiếu dời để giữ khoảng hở, tràn khung thì từ chối', () => {
+  const gaps = (
+    boxes: Record<string, { x0: number; y0: number; x1: number; y1: number }>,
+    flow: string[][]
+  ) => {
+    const out: Record<string, number> = {}
+    for (const col of flow)
+      for (let i = 1; i < col.length; i++)
+        out[`${col[i - 1]} / ${col[i]}`] =
+          boxes[col[i - 1]].y0 - boxes[col[i]].y1
+    for (let j = 1; j < flow.length; j++) {
+      const right = Math.max(...flow[j - 1].map(n => boxes[n].x1))
+      const left = Math.min(...flow[j].map(n => boxes[n].x0))
+      out[`cột ${j} / cột ${j + 1}`] = left - right
+    }
+    return out
+  }
+
+  test.each(['hBe', 'bBe', 'coc-D', 'gop'])(
+    '%s: mọi cặp hình kề nhau giữ khoảng hở ≥ bản gốc, trong khung A3',
+    name => {
+      const values = buildDossierModel({
+        ...dossierDefaults(),
+        ...VARIANTS[name]
+      }).values
+      const r = sheetViewBoxes(values, 'SUB-010')
+      if (!r || 'error' in r) throw new Error(JSON.stringify(r))
+      const before = gaps(r.before, r.flow)
+      const after = gaps(r.after, r.flow)
+      for (const k of Object.keys(before))
+        expect({ k, ok: after[k] >= before[k] - 1 }).toEqual({ k, ok: true })
+      for (const b of Object.values(r.after)) {
+        expect(b.x0).toBeGreaterThanOrEqual(-1)
+        expect(b.x1).toBeLessThanOrEqual(38400 + 1)
+        expect(b.y1).toBeLessThanOrEqual(25300 + 1)
+      }
+    }
+  )
+
+  test('mặc định: không dời gì, hình y nguyên', () => {
+    expect(sheetViewBoxes(dossierDefaults(), 'SUB-010')).toBeUndefined()
+  })
+
+  test('tràn khung A3 thì từ chối, nói hình chiếu nào và tràn bao nhiêu', () => {
+    const scene = buildDossierScene(
+      buildDossierModel({ lCanh: 12000 }),
+      DOSSIER_A3_VERSION
+    )
+    const texts = scene.sheets[0].primitives.flatMap(p =>
+      p.kind === 'text' ? [p.text] : []
+    )
+    expect(texts.some(t => /vượt khung A3/.test(t))).toBe(true)
+    expect(scene.sheets[0].primitives.some(p => p.sourceHandle)).toBe(false)
   })
 })

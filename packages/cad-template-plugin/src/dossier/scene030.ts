@@ -169,18 +169,101 @@ function dimOverrides(
 
 /** Centre of an extracted primitive: picks its view in the stretch grid. */
 function centreOf(p: LayoutPrimitive): XY {
-  const pts: XY[] = [
-    ...(p.points ?? []),
-    ...(p.loops?.flat() ?? []),
-    ...(p.at ? [p.at] : []),
-    ...(p.start ? [p.start, p.end!, p.dimLine!] : [])
-  ]
+  const pts: XY[] =
+    p.kind === 'insert'
+      ? insertDrawnPoints(p)
+      : [
+          ...(p.points ?? []),
+          ...(p.loops?.flat() ?? []),
+          ...(p.at ? [p.at] : []),
+          ...(p.start ? [p.start, p.end!, p.dimLine!] : [])
+        ]
   const xs = pts.map(q => q[0]),
     ys = pts.map(q => q[1])
   return [
     (Math.min(...xs) + Math.max(...xs)) / 2,
     (Math.min(...ys) + Math.max(...ys)) / 2
   ]
+}
+
+/** Points a block draws, in its own coordinates (nested blocks included). */
+const blockPointCache = new Map<string, XY[]>()
+function blockPoints(name: string, depth = 0): XY[] {
+  const cached = blockPointCache.get(name)
+  if (cached) return cached
+  const def = LAYOUT.blocks.find(b => b.name === name)
+  const out: XY[] = []
+  for (const e of (def?.entities ?? []) as unknown as Record<
+    string,
+    unknown
+  >[]) {
+    const P = (q: unknown) => {
+      const v = q as { x: number; y: number }
+      return [v.x, v.y] as XY
+    }
+    if (e.start) out.push(P(e.start), P(e.end))
+    if (Array.isArray(e.points)) out.push(...(e.points as unknown[]).map(P))
+    if (Array.isArray(e.boundary)) out.push(...(e.boundary as unknown[]).map(P))
+    if (e.center && typeof e.radius === 'number') {
+      const [cx, cy] = P(e.center)
+      const r = e.radius
+      if (e.kind === 'arc') {
+        // An arc: its ends and the axis extremes its sweep passes through.
+        const a0 = e.startAngle as number
+        let a1 = e.endAngle as number
+        while (a1 < a0) a1 += 2 * Math.PI
+        const at = (t: number): XY => [
+          cx + r * Math.cos(t),
+          cy + r * Math.sin(t)
+        ]
+        out.push(at(a0), at(a1))
+        for (
+          let q = Math.ceil(a0 / (Math.PI / 2));
+          q * (Math.PI / 2) <= a1;
+          q++
+        )
+          out.push(at(q * (Math.PI / 2)))
+      } else out.push([cx - r, cy - r], [cx + r, cy + r])
+    }
+    if (e.position && e.kind !== 'insert') out.push(P(e.position))
+    if (e.kind === 'insert' && depth < 8) {
+      const at = P(e.position)
+      const sc = e.scale as { x: number; y: number } | number | undefined
+      const sx = typeof sc === 'number' ? sc : (sc?.x ?? 1),
+        sy = typeof sc === 'number' ? sc : (sc?.y ?? 1)
+      const a = (((e.rotationDeg as number) ?? 0) * Math.PI) / 180
+      for (const [x, y] of blockPoints(String(e.block), depth + 1)) {
+        const lx = x * sx,
+          ly = y * sy
+        out.push([
+          at[0] + lx * Math.cos(a) - ly * Math.sin(a),
+          at[1] + lx * Math.sin(a) + ly * Math.cos(a)
+        ])
+      }
+    }
+  }
+  blockPointCache.set(name, out)
+  return out
+}
+
+/**
+ * Where an insert draws, in sheet-local coordinates. Some source blocks are
+ * drawn in absolute coordinates and inserted from far away (bearings
+ * `Goi I24`): their insertion point says nothing about their place.
+ */
+function insertDrawnPoints(p: LayoutPrimitive): XY[] {
+  const own = blockPoints(p.block ?? '')
+  if (!own.length || !p.at) return p.at ? [p.at] : []
+  const [sx, sy] = p.scale ?? [1, 1]
+  const a = ((p.rotation ?? 0) * Math.PI) / 180
+  return own.map(([x, y]) => {
+    const lx = x * sx,
+      ly = y * sy
+    return [
+      p.at![0] + lx * Math.cos(a) - ly * Math.sin(a),
+      p.at![1] + lx * Math.sin(a) + ly * Math.cos(a)
+    ] as XY
+  })
 }
 
 /** `_33_` role of a source entity, by source layer and block (plan §4.2). */
@@ -323,6 +406,169 @@ function sub020Tables(
   return {
     paper: out,
     ...('error' in stretch ? { error: stretch.error } : {})
+  }
+}
+
+/** Every point an extracted primitive draws through (for extents). */
+function pointsOf(p: LayoutPrimitive): XY[] {
+  if (p.kind === 'insert') return insertDrawnPoints(p)
+  return [
+    ...(p.points ?? []),
+    ...(p.loops?.flat() ?? []),
+    ...(p.at ? [p.at] : []),
+    ...(p.start ? [p.start] : []),
+    ...(p.end ? [p.end] : []),
+    ...(p.dimLine ? [p.dimLine] : []),
+    ...(p.textAt ? [p.textAt] : [])
+  ]
+}
+
+type Box = { x0: number; y0: number; x1: number; y1: number }
+const grow = (b: Box | undefined, [x, y]: XY): Box =>
+  b
+    ? {
+        x0: Math.min(b.x0, x),
+        y0: Math.min(b.y0, y),
+        x1: Math.max(b.x1, x),
+        y1: Math.max(b.y1, y)
+      }
+    : { x0: x, y0: y, x1: x, y1: y }
+
+/**
+ * Keeps the views of a stretched sheet apart as the source has them. Each
+ * view's extents are measured before and after the stretch; where a view
+ * grew into the gap below it (same column) or to its right (next column),
+ * the views beyond move by just enough to restore the source gap. Moving
+ * never pulls views closer. If the result leaves the A3 viewport (or the
+ * source's own extents where those already reached past it), the sheet is
+ * refused with the view and the overflow named.
+ */
+function viewShifts(
+  ls: Pick<LayoutSheet, 'content' | 'viewport'>,
+  stretch: Exclude<ReturnType<typeof sheetStretch>, { error: string }>
+): { shifts: XY[]; boxes: Box[]; source: Box[] } | { error: string } {
+  if (stretch.identity) return { shifts: [], boxes: [], source: [] }
+  const before: (Box | undefined)[] = []
+  const after: (Box | undefined)[] = []
+  for (const c of ls.content ?? []) {
+    const at = centreOf(c)
+    const k = stretch.viewOf(at)
+    for (const p of pointsOf(c)) {
+      before[k] = grow(before[k], p)
+      after[k] = grow(after[k], stretch.map(p, at))
+    }
+  }
+  const shifts: XY[] = stretch.views.map(() => [0, 0] as XY)
+  // Down each column: a view keeps its source gap to the one above it.
+  for (const column of stretch.flow)
+    for (let i = 1; i < column.length; i++) {
+      const up = column[i - 1],
+        down = column[i]
+      const bu = before[up],
+        bd = before[down],
+        au = after[up],
+        ad = after[down]
+      if (!bu || !bd || !au || !ad) continue
+      const gap = bu.y0 - bd.y1
+      const now = au.y0 + shifts[up][1] - (ad.y1 + shifts[down][1])
+      if (now < gap) for (const k of column.slice(i)) shifts[k][1] -= gap - now
+    }
+  // Across: each column keeps its source gap to the column on its left.
+  const span = (boxes: (Box | undefined)[], column: number[], moved: boolean) =>
+    column.reduce<Box | undefined>((b, k) => {
+      const v = boxes[k]
+      if (!v) return b
+      const dx = moved ? shifts[k][0] : 0,
+        dy = moved ? shifts[k][1] : 0
+      return grow(grow(b, [v.x0 + dx, v.y0 + dy]), [v.x1 + dx, v.y1 + dy])
+    }, undefined)
+  for (let j = 1; j < stretch.flow.length; j++) {
+    const b0 = span(before, stretch.flow[j - 1], false),
+      b1 = span(before, stretch.flow[j], false)
+    const a0 = span(after, stretch.flow[j - 1], true),
+      a1 = span(after, stretch.flow[j], true)
+    if (!b0 || !b1 || !a0 || !a1) continue
+    const gap = b1.x0 - b0.x1
+    const now = a1.x0 - a0.x1
+    if (now < gap)
+      for (const col of stretch.flow.slice(j))
+        for (const k of col) shifts[k][0] += gap - now
+  }
+  // Stay on the sheet: inside the viewport, or the source's own extents.
+  const vp = ls.viewport!
+  let allowed: Box = { x0: 0, y0: 0, x1: vp.w * K, y1: vp.h * K }
+  for (const b of before)
+    if (b) allowed = grow(grow(allowed, [b.x0, b.y0]), [b.x1, b.y1])
+  // Then move all views together, by the same amount, back inside if they
+  // fit: views side by side stay aligned on their common levels.
+  let all: Box | undefined
+  stretch.views.forEach((_, k) => {
+    const b = after[k]
+    if (!b) return
+    const [dx, dy] = shifts[k]
+    all = grow(grow(all, [b.x0 + dx, b.y0 + dy]), [b.x1 + dx, b.y1 + dy])
+  })
+  if (all) {
+    const fit = (lo: number, hi: number, min: number, max: number) =>
+      hi - lo > max - min ? 0 : hi > max ? max - hi : lo < min ? min - lo : 0
+    const fx = fit(all.x0, all.x1, allowed.x0, allowed.x1)
+    const fy = fit(all.y0, all.y1, allowed.y0, allowed.y1)
+    for (const s of shifts) {
+      s[0] += fx
+      s[1] += fy
+    }
+  }
+  const boxes: Box[] = []
+  for (let k = 0; k < stretch.views.length; k++) {
+    const b = after[k]
+    if (!b) continue
+    const [dx, dy] = shifts[k]
+    boxes[k] = { x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }
+    const over = Math.max(
+      allowed.x0 - boxes[k].x0,
+      boxes[k].x1 - allowed.x1,
+      allowed.y0 - boxes[k].y0,
+      boxes[k].y1 - allowed.y1
+    )
+    if (over > 1)
+      return {
+        error: `${stretch.views[k]} vượt khung A3 ${Math.round(over)} mm (tỉ lệ 1:100) sau khi dời các hình chiếu để giữ khoảng hở; cần tờ lớn hơn hoặc bố trí lại.`
+      }
+  }
+  return { shifts, boxes, source: before.map(b => b!) }
+}
+
+/**
+ * Extents of each view of a sheet after stretching and moving, by name — for
+ * checking that views never overlap. Undefined when nothing moves; the
+ * error when the sheet is refused.
+ */
+export function sheetViewBoxes(
+  values: DossierModel['values'],
+  sheetId: string
+):
+  | {
+      before: Record<string, Box>
+      after: Record<string, Box>
+      flow: string[][]
+    }
+  | { error: string }
+  | undefined {
+  const ls = LAYOUT.sheets.find(x => x.id === sheetId)
+  if (!ls?.content) return undefined
+  const stretch = sheetStretch(sheetId, values)
+  if ('error' in stretch) return { error: stretch.error }
+  if (stretch.identity) return undefined
+  const layout = viewShifts(ls, stretch)
+  if ('error' in layout) return layout
+  const named = (boxes: Box[]) =>
+    Object.fromEntries(
+      stretch.views.flatMap((name, k) => (boxes[k] ? [[name, boxes[k]]] : []))
+    )
+  return {
+    before: named(layout.source),
+    after: named(layout.boxes),
+    flow: stretch.flow.map(col => col.map(k => stretch.views[k]))
   }
 }
 
@@ -508,25 +754,46 @@ export function buildScene030(
             height: i ? 300 : 450
           })
         )
-      else
-        for (const raw of ls.content) {
-          const c = steel ? relabelSteel(raw) : raw
-          const at = centreOf(c)
-          addPaper(
-            c,
-            contentRole(c),
-            q => {
-              const [x, y] = stretch.map(q, at)
-              return [x0 + x, y0 + y]
-            },
-            1,
-            {
-              sourceHandle: c.handle,
-              sourceLayer: c.src,
-              sourceType: c.type
-            }
+      else {
+        const layout = viewShifts(ls, stretch)
+        if ('error' in layout)
+          ['CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY', layout.error].forEach(
+            (t, i) =>
+              push({
+                ...id('ghi_chu'),
+                kind: 'text',
+                at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
+                text: t,
+                height: i ? 300 : 450
+              })
           )
-        }
+        else
+          for (const raw of ls.content) {
+            const c = steel ? relabelSteel(raw) : raw
+            const at = centreOf(c)
+            const [sx, sy] = layout.shifts[stretch.viewOf(at)] ?? [0, 0]
+            // A block moves as a whole, by how far its drawn centre moves;
+            // everything else is stretched point by point.
+            const [mx, my] = stretch.map(at, at)
+            const move: XY = [mx - at[0], my - at[1]]
+            addPaper(
+              c,
+              contentRole(c),
+              c.kind === 'insert'
+                ? q => [x0 + q[0] + move[0] + sx, y0 + q[1] + move[1] + sy]
+                : q => {
+                    const [x, y] = stretch.map(q, at)
+                    return [x0 + x + sx, y0 + y + sy]
+                  },
+              1,
+              {
+                sourceHandle: c.handle,
+                sourceLayer: c.src,
+                sourceType: c.type
+              }
+            )
+          }
+      }
     } else if (ls.viewport && ls.model && ls.view && ls.offset) {
       const vp = ls.viewport
       const box = {

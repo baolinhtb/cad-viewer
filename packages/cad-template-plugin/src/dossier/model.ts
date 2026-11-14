@@ -12,17 +12,20 @@ export const DOSSIER_ID = 'ho_so_mo_m1'
  * with *their* generator — {@link DOSSIER_VERSIONS} — so a saved 0.1.0
  * dossier keeps its original frame exactly.
  */
-export const DOSSIER_VERSION = '0.2.0'
+export const DOSSIER_VERSION = '0.3.0'
 /** Every generator version this build can still regenerate, oldest first. */
-export const DOSSIER_VERSIONS: readonly string[] = ['0.1.0', DOSSIER_VERSION]
+export const DOSSIER_VERSIONS: readonly string[] = [
+  '0.1.0',
+  '0.2.0',
+  DOSSIER_VERSION
+]
 
 /**
- * The generator being built (A3 sheets laid out as the source, GĐ3–GĐ6 of
- * the mo2 plan). It can be built and scored but is not registered as a
- * template version yet: its output still changes, and a saved run must
- * always regenerate exactly as it was made.
+ * The first A3 generator (sheets laid out as the source, real entities,
+ * stretch grids). Its runs are edited by regenerating them when the drawing
+ * has no hand edits (decision Q6); older runs keep label-only edits.
  */
-export const DOSSIER_NEXT_VERSION = '0.3.0'
+export const DOSSIER_A3_VERSION = '0.3.0'
 
 /**
  * Title-block fields (0.2.0). Text only: changing them never changes geometry,

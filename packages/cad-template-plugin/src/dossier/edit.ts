@@ -1,6 +1,7 @@
 import { acapRunGroupedEdit } from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import {
+  acTpWithWorkingDatabaseSync,
   createDrawContext,
   readSemanticTag,
   writeSemanticTag
@@ -17,8 +18,8 @@ import { entitiesOfRun, listRuns } from '../runIdentity'
 import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
 import {
   buildDossierModel,
+  DOSSIER_A3_VERSION,
   DOSSIER_ID,
-  DOSSIER_NEXT_VERSION,
   DOSSIER_TITLE_KEYS
 } from './model'
 import type { DossierPrimitive, DossierScene } from './scene'
@@ -71,7 +72,7 @@ export async function acapEditDossierRun(
     ])
   if (
     changed.some(k => !labelKeys.includes(k)) &&
-    run.version === DOSSIER_NEXT_VERSION
+    run.version === DOSSIER_A3_VERSION
   )
     return regenerateRun(db, run, values, entities, result)
   if (changed.some(k => !labelKeys.includes(k)))
@@ -274,6 +275,21 @@ async function regenerateRun(
   } catch (error) {
     return result([error instanceof Error ? error.message : String(error)])
   }
+  // The general-arrangement sheets must follow the values; if one cannot
+  // (a layout change, a view leaving the A3 sheet), nothing is changed —
+  // regenerating would replace the detailed drawing with a notice.
+  for (const sheet of after.sheets) {
+    const notice = sheet.primitives.findIndex(
+      p =>
+        p.kind === 'text' &&
+        p.text === 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
+    )
+    if (notice < 0) continue
+    const why = sheet.primitives[notice + 1]
+    return result([
+      `${sheet.id}: hình chiếu không theo được thông số mới — ${why?.kind === 'text' ? why.text : ''} Chưa sửa gì.`
+    ])
+  }
   const identity = (v: AcTpParamValues) => ({
     id: run.id,
     version: run.version,
@@ -281,16 +297,19 @@ async function regenerateRun(
   })
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
-  drawDossierScene(
-    createDrawContext(
-      scratch,
-      DOSSIER_ID,
-      roleLayers(),
-      identity({ ...run.values }),
-      layerStyles(),
-      { legacyLayers: legacyLayers() }
-    ),
-    buildDossierScene(buildDossierModel({ ...run.values }), run.version)
+  // The scratch copy draws with its own id counter, not the drawing's.
+  acTpWithWorkingDatabaseSync(scratch, () =>
+    drawDossierScene(
+      createDrawContext(
+        scratch,
+        DOSSIER_ID,
+        roleLayers(),
+        identity({ ...run.values }),
+        layerStyles(),
+        { legacyLayers: legacyLayers() }
+      ),
+      buildDossierScene(buildDossierModel({ ...run.values }), run.version)
+    )
   )
   const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
   const actual = entities.map(entityKey).sort()

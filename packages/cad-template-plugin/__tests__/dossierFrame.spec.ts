@@ -26,6 +26,7 @@ import {
   dossierDefaults
 } from '../src/dossier/model'
 import { buildDossierScene } from '../src/dossier/scene'
+import { abutmentDossierLegacyTemplates } from '../src/dossier/template'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
@@ -44,10 +45,10 @@ const textsOf = (db: AcDbDatabase, runId: string, frame: boolean) =>
     .map(e => (e as AcDbText).textString)
 
 describe('scene 0.2.0', () => {
-  const scene = buildDossierScene(buildDossierModel(dossierDefaults()))
+  const scene = buildDossierScene(buildDossierModel(dossierDefaults()), '0.2.0')
 
-  test('a new dossier is 0.2.0 and every sheet carries the title block', () => {
-    expect(DOSSIER_VERSION).toBe('0.2.0')
+  test('a 0.2.0 dossier (no longer the current one) carries the title block on every sheet', () => {
+    expect(DOSSIER_VERSION).toBe('0.3.0')
     expect(scene.version).toBe('0.2.0')
     for (const [i, s] of scene.sheets.entries()) {
       const texts = s.primitives.flatMap(p =>
@@ -127,7 +128,8 @@ describe('scene 0.2.0', () => {
         nguoiThietKe: 'Trần Thị Ngọc Ánh',
         duAn: 'Tuyến nối QL1A',
         ngay: '14/11/2026'
-      })
+      }),
+      '0.2.0'
     )
     expect(filled.detailMode).toBe(scene.detailMode)
     expect(filled.model.referenceSteelApplicable).toBe(
@@ -206,13 +208,17 @@ describe('a dossier saved with 0.1.0', () => {
 
 describe('editing the title block of a 0.2.0 dossier', () => {
   async function run() {
+    // A run made with 0.2.0 (as saved before 0.3.0 became current).
     const db = database()
-    const created = await runDossierTool(
-      'tao_ho_so_mo',
-      { thong_so: { thep: 'khong' } },
+    const template = abutmentDossierLegacyTemplates.find(
+      t => t.meta.version === '0.2.0'
+    )!
+    const created = await runTemplate(
+      template,
+      { ...dossierDefaults(), thep: 'khong' },
       db
     )
-    expect(created.ok).toBe(true)
+    expect(created.errors).toEqual([])
     return db
   }
 

@@ -20,6 +20,7 @@ import { buildDossierScene } from '../src/dossier/scene'
 import { buildDossierModel } from '../src/dossier/model'
 import { listRuns } from '../src/runIdentity'
 import { entitiesOfRun } from '../src/runIdentity'
+import layout from '../src/dossier/reference/layout-mo2.json'
 
 const database = () => {
   const db = new AcDbDatabase()
@@ -82,8 +83,24 @@ describe('dossier tools against a real database', () => {
     const source = entities(db)
       .map(e => readSemanticTag(e))
       .filter(t => t?.params?.sourceHandle)
-    expect(source.length).toBeGreaterThan(4000)
-    expect(source.some(t => t?.params?.sourceType === 'HATCH')).toBe(true)
+    // 0.3.0: every real entity of the source viewports, sheet by sheet and
+    // type by type, exactly as the extracted inventory (layout-mo2.json).
+    const bySheet = (list: typeof source) => {
+      const out: Record<string, Record<string, number>> = {}
+      for (const t of list) {
+        const sheet = String(t?.params?.sheet)
+        const type = String(t?.params?.sourceType)
+        ;(out[sheet] ??= {})[type] = (out[sheet][type] ?? 0) + 1
+      }
+      return out
+    }
+    const inventory: Record<string, Record<string, number>> = {}
+    for (const sheet of layout.sheets)
+      for (const p of sheet.content ?? [])
+        (inventory[sheet.id] ??= {})[p.type] =
+          (inventory[sheet.id][p.type] ?? 0) + 1
+    expect(bySheet(source)).toEqual(inventory)
+    expect(source).toHaveLength(306 + 55 + 234 + 215 + 215)
     expect(listRuns(db)[0].values).toMatchObject({
       bBe: 7700,
       lBe: 6000,
@@ -110,8 +127,10 @@ describe('dossier tools against a real database', () => {
       { ma_lan_chay: 'r1', thong_so: { bBe: 8500 } },
       db
     )
+    // 0.3.0: bBe alone cannot be followed (the source draws the stem as wide
+    // as the footing): refused, nothing replaced by a notice or a schematic.
     expect(result.ok).toBe(false)
-    expect(result.message).toContain('Giữ nguyên bản vẽ chi tiết')
+    expect(result.message).toContain('bThan = bBe')
     expect(listRuns(db)).toHaveLength(2)
     expect(listRuns(db)[0].values.bBe).toBe(7700)
     expect(listRuns(db)[0].values.bThan).toBe(7700)
@@ -163,6 +182,7 @@ describe('dossier tools against a real database', () => {
     expect(sourceNote.textString).toBe('ENGINEER_DETAIL_KEPT')
     expect(db.transactionManager.redo()).toBe(true)
     expect(source.geometricExtents.min.x).toBeCloseTo(x + 200)
+    const run0values = { ...listRuns(db)[0].values }
     const download = jest.fn()
     expect(
       (
@@ -176,7 +196,23 @@ describe('dossier tools against a real database', () => {
     ).toBe(true)
     const dxf = download.mock.calls[0][0].content as string
     expect(dxf).toContain('ENGINEER_DETAIL_KEPT')
-    expect((dxf.match(/\nHATCH\r?\n/g) ?? []).length).toBeGreaterThan(1000)
+    // Real entities kept through export: the ENTITIES section has exactly the
+    // dimensions and hatches the 0.3.0 scene draws.
+    const entitiesSection = dxf.slice(
+      dxf.indexOf('\nENTITIES'),
+      dxf.indexOf('\nENDSEC', dxf.indexOf('\nENTITIES'))
+    )
+    const scene = buildDossierScene(buildDossierModel({ ...run0values }))
+    const drawn = (kinds: string[]) =>
+      scene.sheets
+        .flatMap(sh => sh.primitives)
+        .filter(p => kinds.includes(p.kind)).length
+    expect(
+      (entitiesSection.match(/\n0\r?\nDIMENSION\r?\n/g) ?? []).length
+    ).toBe(drawn(['dimension', 'angular']))
+    expect((entitiesSection.match(/\n0\r?\nHATCH\r?\n/g) ?? []).length).toBe(
+      drawn(['fill'])
+    )
   })
   test('invalid relations and misspelled keys leave the old dossier untouched', async () => {
     const db = database()

@@ -4,6 +4,7 @@ import {
 } from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues, AcTpTemplate } from '@mlightcad/cad-template-sdk'
 import {
+  acTpWithWorkingDatabase,
   createDrawContext,
   validateParamValues
 } from '@mlightcad/cad-template-sdk'
@@ -82,26 +83,30 @@ export async function runTemplate(
   // Recorded before drawing so every entity carries it: the drawing then says
   // not just what each part is, but which call made it and with what arguments.
   const runId = nextRunId(db)
-  await acapRunGroupedEdit(db, template.meta.name, async () => {
-    const ctx = createDrawContext(
-      db,
-      template.meta.id,
-      roleLayers(),
-      {
-        id: runId,
-        version: template.meta.version,
-        // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
-        // này về sau là sửa lại chính những trị số ấy.
-        values: values as Record<string, number | string | boolean>
-      },
-      layerStyles(),
-      { legacyLayers: legacyLayers() }
-    )
-    await template.generate(ctx, placed)
-    entityCount = ctx.drawn.length
-    layers = [...new Set(ctx.drawn.map(e => e.layer))]
-    warnings = [...ctx.warnings]
-  })
+  // Ids come from the working database: draw with this one as working, or a
+  // second open drawing's counter can collide and undo then loses entities.
+  await acTpWithWorkingDatabase(db, () =>
+    acapRunGroupedEdit(db, template.meta.name, async () => {
+      const ctx = createDrawContext(
+        db,
+        template.meta.id,
+        roleLayers(),
+        {
+          id: runId,
+          version: template.meta.version,
+          // Ghi lại con số người ta gõ, không phải toạ độ thế giới: sửa lần chạy
+          // này về sau là sửa lại chính những trị số ấy.
+          values: values as Record<string, number | string | boolean>
+        },
+        layerStyles(),
+        { legacyLayers: legacyLayers() }
+      )
+      await template.generate(ctx, placed)
+      entityCount = ctx.drawn.length
+      layers = [...new Set(ctx.drawn.map(e => e.layer))]
+      warnings = [...ctx.warnings]
+    })
+  )
 
   // Only the open drawing needs repainting; a caller-supplied database has no
   // view attached to it.

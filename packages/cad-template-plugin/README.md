@@ -1,7 +1,8 @@
 # Hồ sơ mố từ prompt
 
-`ho_so_mo_m1` 0.2.0 is a **draft dossier generator**, derived from
-`assets/02. BTC- mo_2.dwg`. It is available in the `template` dialog without
+`ho_so_mo_m1` 0.3.0 is a **draft dossier generator** that rebuilds
+`assets/02. BTC- mo_2.dwg`: six A3 sheets at 1:100, numbered as the source
+(SUB-010 … SUB-100), drawn with real CAD entities. It is available in the `template` dialog without
 uploading a library module. Existing office templates remain available.
 
 The CAD agent exposes four tools:
@@ -9,7 +10,7 @@ The CAD agent exposes four tools:
 | Tool | Behavior |
 | --- | --- |
 | `tao_ho_so_mo` | Build six sheets from validated design parameters. Refuse a second dossier with the same abutment name. |
-| `sua_ho_so_mo` | Replace one saved run; preserve unmentioned parameters and other dossiers. |
+| `sua_ho_so_mo` | Labels/placement/title block are patched in place. For a 0.3.0 run, dimension changes regenerate the run through the stretch grid — only if the drawing has no hand edits and the general arrangement can follow; otherwise refused with nothing changed. |
 | `kiem_tra_ho_so` | Report elevations, pile/bearing counts, source conflicts and missing design information. |
 | `xuat_ho_so_mo` | Download draft PDF, self-contained HTML, DXF, or a JSON scene. |
 
@@ -27,6 +28,32 @@ raises the left chainage side, which appears on the right in the front view.
 `lCanh`/the reference's `Lc` is wing-wall length; `lCoc` is actual pile length.
 `lCoc=0` means unknown, not a zero-length designed pile.
 
+## 0.3.0: A3 sheets as the source, stretch grid
+
+- **Sheets.** SUB-010 (general arrangement 1/2), SUB-020 (section C–C,
+  elevation and dimension tables), SUB-070/080/090 (reinforcement),
+  SUB-100 (bar shapes, bar schedule, quantities). Each viewport drawing is
+  the source's own entities (`reference/layout-mo2.json`, extracted by
+  `tools/fidelity/extract-layout.mjs`): dimensions in `_33_` styles, hatches,
+  blocks with attributes, leaders. The OLE tables are redrawn as lines and
+  texts from their presentation picture (`tools/fidelity/ole.mjs`).
+- **Parameters** (`src/dossier/grid030.ts`). Grid lines tied to the design
+  (footing edges, stem faces, pile edges, footing top, wall top, wing end)
+  move with `hBe`, `hLot`, `lBe`, `muiBe`, `tThan`, `hThan`, `hDau`,
+  `lCanh`, `D` and `bBe` (with `bThan = bBe`, `aCocNgang = bBe − 2D`,
+  `aCocDoc = lBe − 2D`, as the source draws them). Points are interpolated
+  between lines; at the defaults nothing moves. Views that grow push their
+  neighbours to keep the source gaps; a sheet that would leave the A3 frame
+  is refused. The SUB-020 tables follow the dimensions and elevation tags
+  they name. Pile layout, `bThan ≠ bBe`, `phuLot`, `tCanh`, slopes, railing
+  and bearings are refused.
+- **Steel.** Reinforcement sheets and the bar schedule apply only to the
+  source abutment: any geometric change shows "chưa có phương án thép".
+  `caoDoDayBe` changes elevations only.
+- **Edits** (decision Q6). A dimension change redraws the run into a scratch
+  database from its recorded values and compares entity by entity; any
+  difference means hand edits and the change is refused.
+
 ## Title block (0.2.0) and older runs
 
 Every sheet carries the office title block (`khung tên` A1, from
@@ -39,8 +66,9 @@ source drawing. Editing them with `sua_ho_so_mo` patches the frame text in
 place, or redraws only the frame when its layout changes (a blank cell filled,
 a title wrapping); a frame edited by hand is never overwritten.
 
-A run records the generator version that made it. Runs made with 0.1.0 keep
-their original border on every path — regeneration, label edits, PDF/HTML/DXF
+A run records the generator version that made it. Runs made with 0.2.0 keep
+their A1 sheets and title block, and runs made with 0.1.0 keep
+their original border, on every path — regeneration, label edits, PDF/HTML/DXF
 export — because the 0.1.0 generator is still bundled (found by exact
 version, never offered for new dossiers). Title-block fields are refused for
 those runs: they have no title block.
@@ -59,7 +87,8 @@ The same layout is available on its own as the bundled template
 - `src/dossier/reference/`: 69 extracted bar rows and three reinforcement panels.
   The linework snapshot records the source DWG SHA-256 and source entity handles.
 - `@mlightcad/cad-pdf-plugin`: sequential 200 dpi SVG rasterization into a
-  six-page A1 PDF, preserving Vietnamese glyphs. DXF is the editable master.
+  six-page PDF at the sheets' paper size (A3 from 0.3.0, A1 before),
+  preserving Vietnamese glyphs. DXF is the editable master.
 
 All CAD objects carry semantic XData, sheet ID, run ID, generator version and
 the full input parameters. DXF round trips preserve the ability to regenerate.
@@ -69,7 +98,8 @@ turn rolls back its transaction, preserving the preceding dossier.
 
 Exports regenerate **only the selected dossier from its recorded parameters**.
 They do not include unrelated drawings or manual canvas edits. They do not
-modify the active database. HTML opens offline and prints as six A1 pages.
+modify the active database. HTML opens offline and prints as six pages at
+the sheets' paper size.
 
 ## Applicability and outstanding engineering work
 

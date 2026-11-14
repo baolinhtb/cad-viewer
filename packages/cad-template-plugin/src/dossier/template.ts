@@ -3,7 +3,6 @@ import type { AcTpTemplate } from '@mlightcad/cad-template-sdk'
 import {
   buildDossierModel,
   DOSSIER_ID,
-  DOSSIER_NEXT_VERSION,
   DOSSIER_PARAMS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS
@@ -53,16 +52,8 @@ export const abutmentDossierTemplate: AcTpTemplate =
   dossierTemplate(DOSSIER_VERSION)
 
 /**
- * The generator being built (0.3.0). Not registered: new dossiers do not get
- * it yet; it is used to make and regenerate 0.3.0 runs in development and
- * tests (GĐ6), and becomes the current generator in GĐ7.
- */
-export const abutmentDossierNextTemplate: AcTpTemplate =
-  dossierTemplate(DOSSIER_NEXT_VERSION)
-
-/**
  * Older generators, kept only so their runs regenerate unchanged (0.1.0: the
- * original border). Never offered for new dossiers.
+ * original border; 0.2.0: the A1 title block). Never offered for new dossiers.
  */
 export const abutmentDossierLegacyTemplates: readonly AcTpTemplate[] =
   DOSSIER_VERSIONS.filter(v => v !== DOSSIER_VERSION).map(dossierTemplate)

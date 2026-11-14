@@ -212,7 +212,10 @@ function fingerprint(scene: ReturnType<typeof buildDossierScene>) {
 
 describe('hồi quy hồ sơ mố ho_so_mo_m1 0.2.0 (khung tên)', () => {
   test('cảnh dựng từ tham số mặc định', () => {
-    const scene = buildDossierScene(buildDossierModel(dossierDefaults()))
+    const scene = buildDossierScene(
+      buildDossierModel(dossierDefaults()),
+      '0.2.0'
+    )
     expect(scene.version).toBe('0.2.0')
     expect({
       version: scene.version,

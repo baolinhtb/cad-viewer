@@ -7,7 +7,7 @@ import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
 
 import type { DossierModel } from './model'
 import {
-  DOSSIER_NEXT_VERSION,
+  DOSSIER_A3_VERSION,
   DOSSIER_TITLE_KEYS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
@@ -182,13 +182,13 @@ export function buildDossierScene(
   model: DossierModel,
   version: string = DOSSIER_VERSION
 ): DossierScene {
-  if (!DOSSIER_VERSIONS.includes(version) && version !== DOSSIER_NEXT_VERSION)
+  if (!DOSSIER_VERSIONS.includes(version))
     throw new Error(
       `Bộ sinh hồ sơ phiên bản ${version} không có trong bản cài này (có: ${DOSSIER_VERSIONS.join(', ')}).`
     )
   const errors = model.issues.filter(i => i.level === 'error')
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'))
-  if (version === DOSSIER_NEXT_VERSION)
+  if (version === DOSSIER_A3_VERSION)
     return buildScene030(model, version, isSourceGeometry(model.values))
   const v = model.values,
     n = (k: string) => Number(v[k])
