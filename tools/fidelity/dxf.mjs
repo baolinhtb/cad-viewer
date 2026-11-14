@@ -131,3 +131,57 @@ export function* walk(recs) {
     if (section) yield { section, rec }
   }
 }
+
+/**
+ * Where an INSERT draws: the points of its block's entities taken through
+ * the insert (scale, rotation, position), nested inserts by their point.
+ * Some source blocks are drawn in absolute coordinates and inserted from far
+ * away (bearings `Goi I24`): their insertion point says nothing about where
+ * they appear, so selection by window uses these points.
+ *
+ * @returns (rec) → [x, y][] (the insertion point when the block is empty)
+ */
+export function insertPoints(pairs, items) {
+  const base = new Map()
+  for (let i = 0; i < pairs.length; i++) {
+    if (pairs[i].code !== 0 || pairs[i].value.trim() !== 'BLOCK') continue
+    let name,
+      x = 0,
+      y = 0
+    for (let k = i + 1; k < pairs.length && pairs[k].code !== 0; k++) {
+      if (pairs[k].code === 2 && name === undefined)
+        name = pairs[k].value.trim()
+      if (pairs[k].code === 10) x = Number(pairs[k].value)
+      if (pairs[k].code === 20) y = Number(pairs[k].value)
+    }
+    if (name) base.set(name, [x, y])
+  }
+  const local = new Map()
+  for (const { block, rec } of items) {
+    // A HATCH's first 10/20 is its elevation point (0, 0), not geometry;
+    // its boundary is drawn by the block's own outlines anyway.
+    if (!block || num(rec, 60, 0) === 1 || rec.type === 'HATCH') continue
+    if (!local.has(block.name)) local.set(block.name, [])
+    const list = local.get(block.name)
+    for (const c of [10, 11, 12, 13])
+      for (const p of points(rec, c, c + 10)) list.push(p)
+  }
+  return rec => {
+    const name = get(rec, 2)?.trim()
+    const at = points(rec, 10, 20)[0]
+    const own = local.get(name)
+    if (!own?.length) return at ? [at] : []
+    const [bx, by] = base.get(name) ?? [0, 0]
+    const sx = num(rec, 41, 1),
+      sy = num(rec, 42, 1)
+    const a = (num(rec, 50, 0) * Math.PI) / 180
+    return own.map(([x, y]) => {
+      const lx = (x - bx) * sx,
+        ly = (y - by) * sy
+      return [
+        at[0] + lx * Math.cos(a) - ly * Math.sin(a),
+        at[1] + lx * Math.sin(a) + ly * Math.cos(a)
+      ]
+    })
+  }
+}

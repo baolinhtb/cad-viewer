@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url'
 import {
   all,
   get,
+  insertPoints,
   num,
   owner,
   points,
@@ -83,6 +84,7 @@ writeFileSync(rawPath, dxfText)
 const pairs = readPairs(rawPath)
 const recs = records(pairs)
 const items = [...walk(recs)]
+const insertGeometry = insertPoints(pairs, items)
 
 // ---------------------------------------------------------------- tables
 /** The dimension variables the score compares, from DIMSTYLE group codes. */
@@ -370,6 +372,7 @@ function geometryPoints(rec) {
     case 'MTEXT':
       return [textAnchor(rec)].filter(Boolean)
     case 'INSERT':
+      return insertGeometry(rec)
     case 'POINT':
     case 'LWPOLYLINE':
     case 'LEADER':

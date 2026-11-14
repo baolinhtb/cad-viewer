@@ -200,7 +200,7 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
   const content = (s: typeof scene) =>
     s.sheets[0].primitives.filter(p => p.sourceHandle)
 
-  test('mặc định: 300 đối tượng nguồn, đúng loại như bản gốc', () => {
+  test('mặc định: 306 đối tượng nguồn (kể cả gối chèn từ xa), đúng loại như bản gốc', () => {
     const kinds: Record<string, number> = {}
     for (const p of content(scene))
       kinds[p.sourceType!] = (kinds[p.sourceType!] ?? 0) + 1
@@ -209,7 +209,7 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
       LINE: 84,
       LWPOLYLINE: 45,
       TEXT: 38,
-      INSERT: 27,
+      INSERT: 33,
       LEADER: 15,
       HATCH: 2
     })
@@ -476,7 +476,7 @@ describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối t
     s.sheets.find(x => x.id === id)!.primitives.filter(p => p.sourceHandle)
 
   test.each(['SUB-080', 'SUB-090'])(
-    '%s mặc định: 214 đối tượng nguồn như bản gốc, có POINT thật',
+    '%s mặc định: 215 đối tượng nguồn như bản gốc, có POINT thật',
     id => {
       const kinds: Record<string, number> = {}
       for (const p of own(scene, id))
@@ -487,7 +487,7 @@ describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối t
         LEADER: 45,
         LINE: 30,
         DIMENSION: 21,
-        INSERT: 11,
+        INSERT: 12,
         POINT: 3,
         HATCH: 2,
         CIRCLE: 1
@@ -574,5 +574,15 @@ describe('SUB-100: bảng thống kê và khối lượng vẽ bằng nét và c
     expect(
       sub100(tall).primitives.filter(p => p.kind === 'dimension')
     ).toHaveLength(28)
+  })
+})
+
+describe('INSERT chèn từ xa nhưng vẽ trong viewport', () => {
+  test('gối Goi I24 và ụ UCX dam I24 có trên mặt bằng mố SUB-010', () => {
+    const blocks = sheet('SUB-010').primitives.flatMap(p =>
+      p.kind === 'insert' && p.sourceHandle ? [p.block] : []
+    )
+    expect(blocks.filter(b => b === 'Goi I24')).toHaveLength(4)
+    expect(blocks.filter(b => b === 'UCX dam I24')).toHaveLength(2)
   })
 })

@@ -9,8 +9,8 @@
    "S_dim": 1,
    "detail": {
     "entities": {
-     "orig": 303,
-     "gen": 303
+     "orig": 309,
+     "gen": 309
     },
     "texts": {
      "orig": 52,
@@ -60,13 +60,13 @@
   {
    "id": "SUB-070",
    "gen": "SUB-070",
-   "S_kiem": 0.967680608365019,
+   "S_kiem": 0.9678030303030303,
    "S_chu": 1,
    "S_dim": 0.98125,
    "detail": {
     "entities": {
-     "orig": 263,
-     "gen": 278
+     "orig": 264,
+     "gen": 279
     },
     "texts": {
      "orig": 85,
@@ -93,8 +93,8 @@
    "S_dim": 1,
    "detail": {
     "entities": {
-     "orig": 217,
-     "gen": 217
+     "orig": 218,
+     "gen": 218
     },
     "texts": {
      "orig": 50,
@@ -121,8 +121,8 @@
    "S_dim": 1,
    "detail": {
     "entities": {
-     "orig": 217,
-     "gen": 217
+     "orig": 218,
+     "gen": 218
     },
     "texts": {
      "orig": 50,

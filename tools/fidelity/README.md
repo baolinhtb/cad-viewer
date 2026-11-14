@@ -110,5 +110,10 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   đối tượng vai trò `khung_ban_ve`/`khung_ten`. Ba chữ tiêu đề gốc vẫn chấm.
   Cách kia (không vẽ khung ở chỗ bản gốc không có) bị loại vì khung tên văn
   phòng là yêu cầu của hồ sơ, chỉ thiếu ở bản gốc do xref.
+- **Chọn đối tượng theo cửa sổ viewport** bằng tâm hình học; với INSERT là
+  tâm của hình block _sau khi chèn_ (`insertPoints` trong `dxf.mjs`), không
+  phải điểm chèn: các gối `Goi I24`, ụ `UCX dam I24` vẽ bằng toạ độ tuyệt
+  đối và chèn từ rất xa — trước đây bị bỏ sót ở cả hai phía (ảnh thiếu, kiểm
+  kê vẫn "khớp").
 - Biến kiểu kích thước lấy từ DIMSTYLE + ghi đè DSTYLE trong XDATA của từng dim;
   biến không có ở đó thì không so.

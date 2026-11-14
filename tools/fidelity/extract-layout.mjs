@@ -23,7 +23,16 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { get, num, owner, points, readPairs, records, walk } from './dxf.mjs'
+import {
+  get,
+  insertPoints,
+  num,
+  owner,
+  points,
+  readPairs,
+  records,
+  walk
+} from './dxf.mjs'
 import { oleFrameToCad } from './ole.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -48,6 +57,7 @@ let spaceK = K
 
 const pairs = readPairs(join(WORK, 'mo2.normalized.dxf'))
 const items = [...walk(records(pairs))]
+const insertGeometry = insertPoints(pairs, items)
 const inventory = JSON.parse(readFileSync(INVENTORY, 'utf8'))
 
 // ---------------------------------------------------------------- tables
@@ -557,8 +567,10 @@ function emit(rec, tf, parentLook, out, attribsOf) {
         })
         return
       }
-      if (spaceK === 1) {
-        // Model content keeps its blocks as blocks.
+      // Model content keeps its blocks as blocks; paper content too, unless
+      // the block holds what a block definition cannot (dimensions,
+      // leaders — the key plan *E549), which is then exploded.
+      if (spaceK === 1 || blockSupported(name)) {
         out.push({
           kind: 'insert',
           ...base,
@@ -720,6 +732,30 @@ function blockLook(r) {
     ...(num(r, 48, 1) !== 1 ? { linetypeScale: r3(num(r, 48, 1)) } : {})
   }
 }
+const BLOCK_TYPES = new Set([
+  'LINE',
+  'LWPOLYLINE',
+  'CIRCLE',
+  'ARC',
+  'TEXT',
+  'HATCH',
+  'ATTDEF',
+  'POINT',
+  'SPLINE',
+  'SEQEND'
+])
+/** Whether a block (and the blocks inside it) can be a block definition. */
+function blockSupported(name, depth = 0) {
+  const body = blocks.get(name)
+  if (!body || depth > 8) return false
+  return body.every(
+    r =>
+      num(r, 60, 0) === 1 ||
+      BLOCK_TYPES.has(r.type) ||
+      (r.type === 'INSERT' && blockSupported(get(r, 2)?.trim(), depth + 1))
+  )
+}
+
 function sourceBlock(name) {
   if (sourceName.has(name)) return sourceName.get(name)
   const mapped = name.startsWith('*') ? `MO2_${name.slice(1)}` : name
@@ -919,6 +955,9 @@ function centreOf(rec) {
       ]
       break
     }
+    case 'INSERT':
+      pts = insertGeometry(rec)
+      break
     default:
       pts = points(rec, 10, 20)
   }

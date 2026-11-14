@@ -48,7 +48,7 @@
     "LWPOLYLINE|20|CONTINUOUS|5": 6,
     "LWPOLYLINE|9|CONTINUOUS|-3": 1,
     "LINE|6|CENTER|-3": 1,
-    "INSERT|8|CONTINUOUS|-3": 1
+    "INSERT|8|CONTINUOUS|-3": 7
    },
    "texts": [
     {
@@ -3371,7 +3371,7 @@
     }
    ],
    "counts": {
-    "model": 311,
+    "model": 317,
     "paper": 4
    }
   },
@@ -4246,6 +4246,7 @@
     "TEXT|3|CONTINUOUS|-3": 57,
     "INSERT|2|CONTINUOUS|-3": 29,
     "INSERT|7|CONTINUOUS|-3": 20,
+    "INSERT|8|CONTINUOUS|-3": 1,
     "LINE|4|CONTINUOUS|-3": 14,
     "LINE|3|CONTINUOUS|-3": 1,
     "LWPOLYLINE|4|CONTINUOUS|-3": 7,
@@ -5540,7 +5541,7 @@
    ],
    "counts": {
     "model": 234,
-    "paper": 55
+    "paper": 56
    }
   },
   {
@@ -5578,6 +5579,7 @@
     "LWPOLYLINE|9|CONTINUOUS|-3": 5,
     "DIMENSION|13|CONTINUOUS|-3": 6,
     "LEADER|2|CONTINUOUS|13": 36,
+    "INSERT|3|CONTINUOUS|-3": 1,
     "INSERT|13|CONTINUOUS|-3": 4,
     "LINE|3|CONTINUOUS|5": 5,
     "LINE|2|DASHED|-3": 6,
@@ -6697,7 +6699,7 @@
     }
    ],
    "counts": {
-    "model": 214,
+    "model": 215,
     "paper": 4
    }
   },
@@ -6736,6 +6738,7 @@
     "LWPOLYLINE|9|CONTINUOUS|-3": 5,
     "DIMENSION|13|CONTINUOUS|-3": 6,
     "LEADER|2|CONTINUOUS|13": 36,
+    "INSERT|3|CONTINUOUS|-3": 1,
     "INSERT|13|CONTINUOUS|-3": 4,
     "LINE|3|CONTINUOUS|5": 5,
     "LINE|2|DASHED|-3": 6,
@@ -7855,7 +7858,7 @@
     }
    ],
    "counts": {
-    "model": 214,
+    "model": 215,
     "paper": 4
    }
   },
