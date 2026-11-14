@@ -103,8 +103,12 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
   `*E549` của bản gốc, nên ảnh gốc thiếu sơ đồ này và bản sinh bị tính
   "thừa" ở S_hinh/S_mau; phần khung `*U540` bên trong cũng bị libredwg làm
   mất nên bản sinh không có nó. Ký hiệu và chữ vẫn chấm qua kiểm kê.
-- Bản sinh không có khung `FR A3` gốc (xref thiếu): dùng khung A3 của SDK,
-  bỏ các ô nằm dưới 3 chữ tiêu đề gốc; nét và chữ khung tên tính vào S_kiem
-  như phần thừa.
+- **Khung tên — chấm theo đúng vùng của bản gốc (đã chọn cách này).** Khung
+  `FR A3` của bản gốc là xref bị thiếu, nên tờ gốc không có khung. Hồ sơ sinh
+  vẫn vẽ khung A3 của SDK (bỏ các ô nằm dưới 3 chữ tiêu đề gốc), nhưng bản
+  để chấm (`fidelity.spec.ts`: kiểm kê, `gen.dxf` cho ảnh) **không gồm** các
+  đối tượng vai trò `khung_ban_ve`/`khung_ten`. Ba chữ tiêu đề gốc vẫn chấm.
+  Cách kia (không vẽ khung ở chỗ bản gốc không có) bị loại vì khung tên văn
+  phòng là yêu cầu của hồ sơ, chỉ thiếu ở bản gốc do xref.
 - Biến kiểu kích thước lấy từ DIMSTYLE + ghi đè DSTYLE trong XDATA của từng dim;
   biến không có ở đó thì không so.

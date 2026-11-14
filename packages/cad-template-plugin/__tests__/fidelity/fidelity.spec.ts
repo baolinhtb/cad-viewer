@@ -63,9 +63,25 @@ const LEGACY_SHEET_OF: Record<string, string> = {
 }
 const SHEET_OF = (id: string) => LEGACY_SHEET_OF[id] ?? id
 
+/**
+ * Roles of the SDK's A3 border and title block. The source's own frame is
+ * the external reference `FR A3`, missing from the file, so the reference
+ * sheets have no frame at all. Scoring is done on what both drawings have:
+ * the generated frame is left out of the scored drawing (inventory and
+ * pixels), not out of the dossier. The three source title texts are kept.
+ */
+const FRAME_ROLES = new Set(['khung_ban_ve', 'khung_ten'])
+
 function generate() {
   const values = dossierDefaults()
-  const scene = buildDossierScene(buildDossierModel(values), VERSION)
+  const built = buildDossierScene(buildDossierModel(values), VERSION)
+  const scene = {
+    ...built,
+    sheets: built.sheets.map(s => ({
+      ...s,
+      primitives: s.primitives.filter(p => !FRAME_ROLES.has(p.role))
+    }))
+  }
   const db = new AcDbDatabase()
   db.createDefaultData()
   const ctx = createDrawContext(db, DOSSIER_ID, SEED_ROLE_LAYERS, {
