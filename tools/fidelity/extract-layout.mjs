@@ -1023,7 +1023,7 @@ const VIEW = {
   'SUB-100': null
 }
 /** Sheets whose OLE tables are redrawn (see extract-orig.mjs). */
-const OLE_SHEETS = new Set(['SUB-100'])
+const OLE_SHEETS = new Set(['SUB-020', 'SUB-100'])
 const TITLE = /^(SUB-\d+|CẦU KM|BỐ TRÍ (CHUNG|CỐT THÉP) MỐ|TỔNG HỢP KHỐI LƯỢNG)/
 
 const sheets = inventory.sheets.map(inv => {

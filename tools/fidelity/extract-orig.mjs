@@ -459,7 +459,7 @@ const out = {
  * the presentation metafile (ole.mjs) and added as LINE/TEXT. The generator
  * draws the same tables with real entities.
  */
-const OLE_SHEETS = new Set(['SUB-100'])
+const OLE_SHEETS = new Set(['SUB-020', 'SUB-100'])
 /** Text style of the normalized copy drawn with Arial (any .Vn style is). */
 const OLE_STYLE = (() => {
   const s = items.find(i => i.table === 'STYLE' && legacyStyle(get(i.rec, 2)))

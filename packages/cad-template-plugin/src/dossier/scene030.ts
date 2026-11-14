@@ -31,7 +31,7 @@ import {
 
 import { sheetStretch } from './grid030'
 import type { DossierModel } from './model'
-import { REFERENCE_ID } from './model'
+import { dossierDefaults, REFERENCE_ID } from './model'
 import layout from './reference/layout-mo2.json'
 import reference from './reference/reinforcement.json'
 import type { DossierPrimitive, DossierScene, DossierSheet, XY } from './scene'
@@ -229,6 +229,102 @@ const STEEL_LAYERS = new Set([
   'Reinforce 1',
   'T_MT_04'
 ])
+
+/**
+ * Text of the source tables that the Excel picture lost: Vietnamese written
+ * in an ANSI font came out as `?` in the OLE presentation (AutoCAD shows the
+ * `?` too). The generated tables are a deliverable, so they say it right.
+ */
+const TABLE_TEXT: Record<string, string> = {
+  'TÊN M?': 'TÊN MỐ',
+  'CAO Ð?': 'CAO ĐỘ',
+  'THI?T K?': 'THIẾT KẾ',
+  'TIM C?U': 'TIM CẦU',
+  GÐ1: 'GĐ1',
+  'CÁC CAO Ð?': 'CÁC CAO ĐỘ',
+  'THÔNG S? KÍCH THU?C': 'THÔNG SỐ KÍCH THƯỚC'
+}
+
+/**
+ * The two tables of SUB-020 for the current values. Each value cell is the
+ * source value plus how much the drawn thing it names moved on SUB-010 under
+ * the stretch grid — the dimension with that label (H*, HB, A, LC) or the
+ * elevation tag (cd11 ELEV = FE, EL3…) — plus the change of `caoDoDayBe`
+ * for elevations. At the defaults this is the source table, its own
+ * inconsistencies included (Q7); with other values the table cannot disagree
+ * with the drawing. H4B (no dimension of its own) follows H4A, EL2.R (no tag)
+ * follows EL2.L.
+ */
+function sub020Tables(
+  paper: LayoutPrimitive[],
+  v: DossierModel['values'],
+  tenMo: string
+): { paper?: LayoutPrimitive[]; error?: string } {
+  const stretch = sheetStretch('SUB-010', v)
+  const content = LAYOUT.sheets.find(x => x.id === 'SUB-010')?.content ?? []
+  const deltas = new Map<string, number>()
+  if (!('error' in stretch)) {
+    for (const c of content) {
+      if (c.kind === 'dimension' && c.text && !deltas.has(c.text)) {
+        const at = centreOf(c)
+        const vertical =
+          Math.abs(Math.cos(((c.rotation ?? 0) * Math.PI) / 180)) < 0.5
+        const len = (a: XY, b: XY) =>
+          vertical ? Math.abs(b[1] - a[1]) : Math.abs(b[0] - a[0])
+        const before = len(c.start!, c.end!)
+        const after = len(stretch.map(c.start!, at), stretch.map(c.end!, at))
+        deltas.set(c.text, (after - before) / 1000)
+      }
+      if (c.kind === 'insert' && c.block === 'cd11') {
+        const a = c.attributes?.ELEV
+        const tag = typeof a === 'string' ? a : a?.value
+        if (!tag || deltas.has(tag)) continue
+        const moved = stretch.map(c.at!, c.at)[1] - c.at![1]
+        const datum =
+          Number(v.caoDoDayBe) - Number(dossierDefaults().caoDoDayBe)
+        deltas.set(tag, moved / 1000 + datum)
+      }
+    }
+    if (deltas.has('H4A')) deltas.set('H4B', deltas.get('H4A')!)
+    if (deltas.has('EL2.L')) deltas.set('EL2.R', deltas.get('EL2.L')!)
+    deltas.set('Lc', deltas.get('LC') ?? 0)
+  }
+  const tables = new Map<string, LayoutPrimitive[]>()
+  for (const p of paper)
+    if (p.ole) tables.set(p.ole, [...(tables.get(p.ole) ?? []), p])
+  const out: LayoutPrimitive[] = paper.filter(p => !p.ole)
+  for (const [, items] of tables) {
+    const headers = items.filter(
+      p => p.kind === 'text' && /\(m\)$/.test(p.text ?? '')
+    )
+    for (const p of items) {
+      if (p.kind !== 'text') {
+        out.push(p)
+        continue
+      }
+      let text = TABLE_TEXT[p.text ?? ''] ?? p.text ?? ''
+      if (/^M\? M1$/.test(p.text ?? ''))
+        text = `MỐ ${tenMo.toLocaleUpperCase('vi')}`
+      else if (/^-?\d+(\.\d+)?$/.test(text) && headers.length) {
+        const header = headers.reduce((best, h) =>
+          Math.abs(h.at![0] - p.at![0]) < Math.abs(best.at![0] - p.at![0])
+            ? h
+            : best
+        )
+        const key = (header.text ?? '').replace(/\s*\(m\)$/, '')
+        const decimals = text.split('.')[1]?.length ?? 0
+        if ('error' in stretch) text = '–'
+        else if (deltas.has(key))
+          text = (Number(text) + deltas.get(key)!).toFixed(decimals)
+      }
+      out.push({ ...p, text })
+    }
+  }
+  return {
+    paper: out,
+    ...('error' in stretch ? { error: stretch.error } : {})
+  }
+}
 
 /** Liang–Barsky: the part of segment a→b inside the box, if any. */
 function clipSegment(
@@ -551,8 +647,25 @@ export function buildScene030(
     // The statistics and quantity tables hold the source abutment's numbers:
     // shown only while the parameters are that abutment's, like its steel.
     const tablesApply = sourceGeometry && model.referenceSteelApplicable
-    for (const p of ls.paper) if (!p.ole || tablesApply) addPaper(p, roleOf(p))
-    if (!tablesApply && ls.paper.some(p => p.ole))
+    // SUB-020: elevation and dimension tables, recomputed (GĐ5).
+    const tables =
+      s.id === 'SUB-020' ? sub020Tables(ls.paper, v, tenMo) : undefined
+    if (tables?.error)
+      [
+        'BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY',
+        tables.error
+      ].forEach((t, i) =>
+        push({
+          ...id('ghi_chu'),
+          kind: 'text',
+          at: [6000, 26000 - i * 600],
+          text: t,
+          height: i ? 300 : 450
+        })
+      )
+    for (const p of tables?.paper ?? ls.paper)
+      if (!p.ole || tablesApply || tables) addPaper(p, roleOf(p))
+    if (!tables && !tablesApply && ls.paper.some(p => p.ole))
       [
         'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG',
         'Số liệu bảng là của mố M1 gốc; chưa tính lại cho thông số này.'

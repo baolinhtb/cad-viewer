@@ -32,19 +32,19 @@
   {
    "id": "SUB-020",
    "gen": "SUB-020",
-   "S_kiem": 1,
-   "S_chu": 1,
+   "S_kiem": 0.9853801169590644,
+   "S_chu": 0.8552631578947368,
    "S_dim": 1,
    "detail": {
     "entities": {
-     "orig": 60,
-     "gen": 60
+     "orig": 171,
+     "gen": 166
     },
     "texts": {
-     "orig": 15,
-     "gen": 15,
-     "matched": 15,
-     "sameString": 15,
+     "orig": 76,
+     "gen": 76,
+     "matched": 65,
+     "sameString": 65,
      "medianOffset": [
       0,
       0

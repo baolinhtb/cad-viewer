@@ -586,3 +586,79 @@ describe('INSERT chèn từ xa nhưng vẽ trong viewport', () => {
     expect(blocks.filter(b => b === 'UCX dam I24')).toHaveLength(2)
   })
 })
+
+describe('GĐ5: bảng cao độ và bảng thông số SUB-020 theo tham số', () => {
+  const tableTexts = (s: typeof scene) =>
+    s.sheets
+      .find(x => x.id === 'SUB-020')!
+      .primitives.flatMap(p =>
+        p.kind === 'text' && p.role === 'ghi_chu' ? [p.text] : []
+      )
+  const values = (s: typeof scene) =>
+    tableTexts(s).filter(t => /^-?\d+(\.\d+)?$/.test(t))
+
+  test('mặc định: đúng số của bảng gốc, chữ tiếng Việt đầy đủ', () => {
+    const v = values(scene)
+    for (const x of [
+      '237.491',
+      '237.441',
+      '228.837',
+      '230.837',
+      '235.554',
+      '6.5',
+      '6.604',
+      '4.717',
+      '1.887',
+      '2.000',
+      '3.500'
+    ])
+      expect(v).toContain(x)
+    const t = tableTexts(scene)
+    expect(t).toEqual(expect.arrayContaining(['TÊN MỐ', 'CAO ĐỘ', 'MỐ M1']))
+    expect(t.some(x => x.includes('?'))).toBe(false)
+  })
+
+  test('đổi hBe: EL5 và các cao độ phía trên tăng 0,5 m, HB = 2,500, EL6 giữ', () => {
+    const v = values(buildDossierScene(buildDossierModel({ hBe: 2500 }), V))
+    expect(v).toEqual(
+      expect.arrayContaining([
+        '231.337',
+        '236.054',
+        '237.941',
+        '2.500',
+        '228.837'
+      ])
+    )
+    expect(v).not.toContain('230.837')
+  })
+
+  test('đổi caoDoDayBe: mọi cao độ dời cùng một lượng, kích thước giữ', () => {
+    const v = values(
+      buildDossierScene(buildDossierModel({ caoDoDayBe: 230 }), V)
+    )
+    expect(v).toEqual(
+      expect.arrayContaining([
+        '230.000',
+        '232.000',
+        '236.717',
+        '238.604',
+        '6.604',
+        '2.000'
+      ])
+    )
+  })
+
+  test('đổi lCanh: Lc của bảng theo dim LC', () => {
+    const v = values(buildDossierScene(buildDossierModel({ lCanh: 7000 }), V))
+    expect(v).toContain('7.0')
+  })
+
+  test('thông số lưới không theo được: không đưa số sai lên, ghi rõ', () => {
+    const s = buildDossierScene(buildDossierModel({ tCanh: 600 }), V)
+    const t = tableTexts(s)
+    expect(t).toContain(
+      'BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY'
+    )
+    expect(t).not.toContain('230.837')
+  })
+})

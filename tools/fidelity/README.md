@@ -87,10 +87,13 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
 - **Bảng OLE** (Excel liên kết): DWG chỉ giữ hình trình bày (WMF trong luồng
   `\x02OlePres000`). `ole.mjs` đọc hình đó thành nét lưới + chữ (giải mã
   TCVN3 bằng SDK, chữ xoay theo escapement) đặt trong khung OLE2FRAME.
-  SUB-100: kiểm kê gốc và bản sao chuẩn hoá có bảng dưới dạng LINE/TEXT
-  (renderer không vẽ OLE), bản sinh vẽ lại đúng các nét và chữ đó. SUB-020
-  (bảng cao độ, bảng thông số) chưa đưa vào — số liệu phải tính theo tham
-  số (GĐ5).
+  SUB-020 và SUB-100: kiểm kê gốc và bản sao chuẩn hoá có bảng dưới dạng
+  LINE/TEXT (renderer không vẽ OLE), bản sinh vẽ lại đúng lưới và chữ đó.
+  Bảng SUB-020 (cao độ, thông số) tính theo tham số (GĐ5, `sub020Tables`
+  trong `scene030.ts`). Hình OLE gốc mất dấu tiếng Việt (Excel ghi bằng font
+  ANSI: "TÊN M?", "CAO Ð?", "M? M1"… — AutoCAD cũng hiện `?`); bản sinh viết
+  đúng ("TÊN MỐ"…), nên 11 chữ của SUB-020 khác bản gốc **có chủ ý** và
+  S_chu của tờ này ≈ 0,855.
 - **Khung tên `FR A3`** là xref thiếu trong DWG: vùng khung/dải tên nằm ngoài
   vùng chấm pixel; chữ tiêu đề, số tờ vẫn chấm qua S_chu.
 - Đường DWG → DXF của libredwg có thể sót vài đối tượng (đã biết: block
