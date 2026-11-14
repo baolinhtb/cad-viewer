@@ -76,7 +76,9 @@ const DIMVAR_CODES = {
   178: 'dimclrt',
   144: 'dimlfac',
   271: 'dimdec',
-  45: 'dimrnd'
+  45: 'dimrnd',
+  49: 'dimfxl',
+  290: 'dimfxlon'
 }
 const dimVar = (name, value) => {
   const v = Number(value)
@@ -470,7 +472,14 @@ function emit(rec, tf, parentLook, out, attribsOf) {
       const eff = {}
       for (const [k, v] of Object.entries(vars)) {
         if (k === 'dimscale') continue
-        eff[k] = ['dimasz', 'dimexo', 'dimexe', 'dimtxt', 'dimgap'].includes(k)
+        eff[k] = [
+          'dimasz',
+          'dimexo',
+          'dimexe',
+          'dimtxt',
+          'dimgap',
+          'dimfxl'
+        ].includes(k)
           ? r3(v * scale)
           : k === 'dimlfac'
             ? r3(v / spaceK / tf.scale)

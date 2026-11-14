@@ -98,7 +98,8 @@ Mục tiêu từng tờ: S_hinh ≥ 0,98; S_mau ≥ 0,97; S_chu, S_dim ≥ 0,98;
 - Kích thước của biến dim so theo mm giấy (dim trong viewport chia 100, dim paper giữ nguyên; trường `k` của kiểm kê). DIMSCALE không so riêng: kiểu `_33_` lưu kích thước đã nhân (`dimscale 1`,
   `dimtxt 150` thay cho `100 × 1,5`) vì bộ dựng dim của data-model bỏ qua
   DIMSCALE; hình và bản in như nhau. DIMFXL/DIMFXLON (đường gióng cố định,
-  bật trong D100) data-model không có — khác biệt không tránh được.
+  bật trong D100) data-model không có: SDK tự cắt đường gióng trong block dim
+  còn DIMFXL tính từ đường dim, và `acTpDxfOut` ghi nhóm 290/49 cho AutoCAD.
 - **Sơ đồ vị trí mặt cắt (SUB-070)**: renderer của app không vẽ insert
   `*E549` của bản gốc, nên ảnh gốc thiếu sơ đồ này và bản sinh bị tính
   "thừa" ở S_hinh/S_mau; phần khung `*U540` bên trong cũng bị libredwg làm

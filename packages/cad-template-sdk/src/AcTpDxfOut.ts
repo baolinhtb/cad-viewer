@@ -29,6 +29,21 @@ const LINEWEIGHT_VERSION = 23
 /** Version written when the drawing is older than that: AutoCAD 2013. */
 const OUT_VERSION = 'AC1027'
 
+/**
+ * An attribute of a table record that may not have it (`getAttr` throws for
+ * unknown names). Used for DIMFXL/DIMFXLON, which the data model lacks.
+ */
+export function acTpRecordAttr(
+  record: { getAttr(name: never): unknown },
+  name: string
+): unknown {
+  try {
+    return record.getAttr(name as never)
+  } catch {
+    return undefined
+  }
+}
+
 /** DIMSTYLE groups the data-model writer omits, and their record property. */
 const MISSING_DIM_GROUPS: readonly [number, keyof AcDbDimStyleTableRecord][] = [
   [45, 'dimrnd'],
@@ -41,6 +56,11 @@ const MISSING_DIM_GROUPS: readonly [number, keyof AcDbDimStyleTableRecord][] = [
   [177, 'dimclre'],
   [178, 'dimclrt'],
   [271, 'dimdec']
+]
+/** Groups the data model has no property for, kept as record attributes. */
+const ATTR_DIM_GROUPS: readonly [number, string][] = [
+  [49, 'dimfxl'],
+  [290, 'dimfxlon']
 ]
 
 /**
@@ -112,6 +132,11 @@ function completeDimStyle(db: AcDbDatabase, record: string[]): string[] {
   const extra: string[] = []
   for (const [group, key] of MISSING_DIM_GROUPS) {
     const value = style[key]
+    if (present.has(String(group)) || typeof value !== 'number') continue
+    extra.push(String(group), String(value))
+  }
+  for (const [group, key] of ATTR_DIM_GROUPS) {
+    const value = acTpRecordAttr(style, key)
     if (present.has(String(group)) || typeof value !== 'number') continue
     extra.push(String(group), String(value))
   }

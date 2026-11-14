@@ -16,7 +16,8 @@
  *
  * Each entry's comment names the source style it reproduces.
  * DIMFXL/DIMFXLON (fixed-length extension lines, on in D100) have no
- * counterpart in the data model and are not reproduced.
+ * counterpart in the data model: they are record attributes here, applied
+ * by the SDK when it builds a dimension and written to DXF by acTpDxfOut.
  */
 import { AcDbDimTextVertical } from '@mlightcad/data-model'
 
@@ -55,6 +56,14 @@ export interface AcTpDimStyleVars {
   dimclrt?: number
   /** Text style name; created from the catalogue when missing. */
   dimtxsty?: string
+  /**
+   * Fixed-length extension lines (DIMFXLON) and their length from the
+   * dimension line (DIMFXL). Not in the data model: kept as attributes of the
+   * style record, applied by the SDK when it builds the dimension, and
+   * written to DXF (groups 290/49) by `acTpDxfOut`.
+   */
+  dimfxlon?: number
+  dimfxl?: number
 }
 
 /** A dimension style to create on demand. */
@@ -105,6 +114,9 @@ export const ACTP_DIM_STYLES_33: Readonly<Record<string, AcTpDimStyleDef>> = {
     dimclrd: 8,
     dimclre: 8,
     dimclrt: 3,
+    // DIMFXLON on, DIMFXL 4.5: extension lines 4.5 mm from the dim line.
+    dimfxlon: 1,
+    dimfxl: 450,
     dimtxsty: '_33_Arial'
   },
   // "150": every instance overrides to DIMSCALE 100 · DIMASZ 1.3 · DIMEXO 0 ·

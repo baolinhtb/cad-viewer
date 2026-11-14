@@ -136,6 +136,8 @@ const DIM_KEYS: (keyof AcTpDimStyleVars)[] = [
   'dimtad',
   'dimdec',
   'dimrnd',
+  'dimfxl',
+  'dimfxlon',
   'dimlfac',
   'dimclrd',
   'dimclre',

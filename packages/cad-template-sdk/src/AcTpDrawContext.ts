@@ -35,6 +35,7 @@ import {
 } from '@mlightcad/data-model'
 
 import { buildDimensionBlock, formatDimensionText } from './AcTpDimensionBlock'
+import { acTpRecordAttr } from './AcTpDxfOut'
 import {
   acTpAnnotationPresentation,
   acTpAnnotationStyles,
@@ -605,7 +606,9 @@ const DIM_VAR_KEYS: Readonly<Record<string, true>> = {
   dimclrd: true,
   dimclre: true,
   dimclrt: true,
-  dimtxsty: true
+  dimtxsty: true,
+  dimfxlon: true,
+  dimfxl: true
 }
 
 /**
@@ -831,7 +834,9 @@ export function createDrawContext(
     if (overrides.dimtxsty) ensureTextStyle(overrides.dimtxsty)
     const attrs: Record<string, unknown> = { name }
     for (const key of Object.keys(DIM_VAR_KEYS)) {
-      const value = (source as unknown as Record<string, unknown>)[key]
+      const value =
+        (source as unknown as Record<string, unknown>)[key] ??
+        acTpRecordAttr(source, key)
       if (value !== undefined) attrs[key] = value
     }
     Object.assign(attrs, overrides, { name })
@@ -839,6 +844,50 @@ export function createDrawContext(
       new AcDbDimStyleTableRecord(attrs as AcTpDimStyleAttrs)
     )
     return name
+  }
+
+  /**
+   * DIMFXLON/DIMFXL, which the data model does not know: extension lines
+   * reach at most DIMFXL from the dimension line toward their origin, as
+   * AutoCAD draws them.
+   */
+  const fixedLengthExtensions = (
+    entity: AcDbRotatedDimension,
+    style: AcDbDimStyleTableRecord,
+    dimLine: AcGePoint3dLike
+  ) => {
+    const on = acTpRecordAttr(style, 'dimfxlon')
+    const fxl = acTpRecordAttr(style, 'dimfxl')
+    if (!on || typeof fxl !== 'number' || !(fxl > 0)) return
+    const r = entity.rotation
+    const u = [Math.cos(r), Math.sin(r)]
+    const n = [-u[1], u[0]]
+    const block = db.tables.blockTable.getAt(entity.dimBlockId ?? '')
+    for (const e of block?.newIterator() ?? []) {
+      if (!(e instanceof AcDbLine)) continue
+      const a = e.startPoint,
+        b = e.endPoint
+      const d = [b.x - a.x, b.y - a.y]
+      const len = Math.hypot(d[0], d[1])
+      // Extension lines run across the dimension line.
+      if (!len || Math.abs(d[0] * u[0] + d[1] * u[1]) > 1e-6 * len) continue
+      const side = (p: { x: number; y: number }) =>
+        (p.x - dimLine.x) * n[0] + (p.y - dimLine.y) * n[1]
+      const [sa, sb] = [side(a), side(b)]
+      const farIsStart = Math.abs(sa) > Math.abs(sb)
+      const far = farIsStart ? sa : sb
+      if (Math.abs(far) <= fxl) continue
+      const near = farIsStart ? b : a
+      const target = Math.sign(far) * fxl
+      const k = (target - side(near)) / ((farIsStart ? sa : sb) - side(near))
+      const moved = new AcGePoint3d(
+        near.x + ((farIsStart ? a : b).x - near.x) * k,
+        near.y + ((farIsStart ? a : b).y - near.y) * k,
+        0
+      )
+      if (farIsStart) e.startPoint = moved
+      else e.endPoint = moved
+    }
   }
 
   /** Puts a dimension's text where the source had it (DXF 11/21). */
@@ -1161,6 +1210,7 @@ export function createDrawContext(
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
       buildDimensionBlock(db, entity)
+      fixedLengthExtensions(entity, style, dimLine)
       moveDimText(entity, args.textPosition)
       const { textPosition: _tp, rotationDeg: _rd, ...dimArgs } = args
       return place(entity, dimArgs)

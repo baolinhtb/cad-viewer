@@ -737,3 +737,61 @@ describe('mũi tên và làm tròn kích thước như bản gốc', () => {
     expect(dim.dimensionText).toBe('1000')
   })
 })
+
+describe('đường gióng dài cố định (DIMFXLON/DIMFXL)', () => {
+  it('_33_D100: đường gióng chỉ dài 450 tính từ đường dim, như bản gốc', async () => {
+    const { db, ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 1000, y: 0, z: 0 },
+      offset: 3000,
+      dimStyle: '_33_D100'
+    }) as AcDbDimension
+    const lines = [
+      ...db.tables.blockTable.getAt(dim.dimBlockId!)!.newIterator()
+    ].filter(e => e.dxfTypeName === 'LINE') as unknown as {
+      startPoint: { x: number; y: number }
+      endPoint: { x: number; y: number }
+    }[]
+    const ext = lines.filter(
+      l => Math.abs(l.startPoint.x - l.endPoint.x) < 1e-6
+    )
+    expect(ext).toHaveLength(2)
+    for (const l of ext) {
+      const lowest = Math.min(l.startPoint.y, l.endPoint.y)
+      // Đường dim ở y = 3000: đường gióng dừng ở 3000 − 450.
+      expect(lowest).toBeCloseTo(2550)
+    }
+    // DXF ghi DIMFXLON/DIMFXL cho AutoCAD.
+    const dxf = acTpDxfOut(db) as string
+    const rec = dxf.slice(dxf.indexOf('\n2\n_33_D100\n'))
+    expect(rec.slice(0, rec.indexOf('\nENDTAB'))).toMatch(/\n290\n1\n/)
+    expect(rec.slice(0, rec.indexOf('\nENDTAB'))).toMatch(/\n49\n450\n/)
+  })
+
+  it('kiểu không bật DIMFXLON giữ đường gióng tới vật thể', () => {
+    const { db, ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 1000, y: 0, z: 0 },
+      offset: 3000,
+      dimStyle: '_33_Dim100'
+    }) as AcDbDimension
+    const ext = [
+      ...db.tables.blockTable.getAt(dim.dimBlockId!)!.newIterator()
+    ].filter(e => e.dxfTypeName === 'LINE') as unknown as {
+      startPoint: { x: number; y: number }
+      endPoint: { x: number; y: number }
+    }[]
+    const lowest = Math.min(
+      ...ext
+        .filter(l => Math.abs(l.startPoint.x - l.endPoint.x) < 1e-6)
+        .map(l => Math.min(l.startPoint.y, l.endPoint.y))
+    )
+    expect(lowest).toBeLessThan(100)
+  })
+})
