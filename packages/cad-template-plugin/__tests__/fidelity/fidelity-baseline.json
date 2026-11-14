@@ -1,0 +1,167 @@
+{
+ "version": "0.2.0",
+ "sheets": [
+  {
+   "id": "SUB-010",
+   "gen": "BC01",
+   "S_kiem": 0,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 301,
+     "gen": 1637
+    },
+    "texts": {
+     "orig": 52,
+     "gen": 192,
+     "matched": 0,
+     "sameString": 42,
+     "medianOffset": [
+      38.44,
+      137.09
+     ]
+    },
+    "dims": {
+     "orig": 89,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  },
+  {
+   "id": "SUB-020",
+   "gen": "BC02",
+   "S_kiem": 0,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 60,
+     "gen": 90
+    },
+    "texts": {
+     "orig": 15,
+     "gen": 72,
+     "matched": 0,
+     "sameString": 0,
+     "medianOffset": null
+    },
+    "dims": {
+     "orig": 21,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  },
+  {
+   "id": "SUB-070",
+   "gen": "CT01",
+   "S_kiem": 0,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 250,
+     "gen": 1304
+    },
+    "texts": {
+     "orig": 85,
+     "gen": 84,
+     "matched": 0,
+     "sameString": 57,
+     "medianOffset": [
+      202.57,
+      148.91
+     ]
+    },
+    "dims": {
+     "orig": 16,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  },
+  {
+   "id": "SUB-080",
+   "gen": "CT02",
+   "S_kiem": 0,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 212,
+     "gen": 900
+    },
+    "texts": {
+     "orig": 50,
+     "gen": 76,
+     "matched": 0,
+     "sameString": 47,
+     "medianOffset": [
+      187.58,
+      167.86
+     ]
+    },
+    "dims": {
+     "orig": 21,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  },
+  {
+   "id": "SUB-090",
+   "gen": "CT03",
+   "S_kiem": 0,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 212,
+     "gen": 898
+    },
+    "texts": {
+     "orig": 50,
+     "gen": 76,
+     "matched": 0,
+     "sameString": 47,
+     "medianOffset": [
+      231.53,
+      169.45
+     ]
+    },
+    "dims": {
+     "orig": 21,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  },
+  {
+   "id": "SUB-100",
+   "gen": "KL01",
+   "S_kiem": 0.15294117647058825,
+   "S_chu": 0,
+   "S_dim": 0,
+   "detail": {
+    "entities": {
+     "orig": 170,
+     "gen": 118
+    },
+    "texts": {
+     "orig": 23,
+     "gen": 100,
+     "matched": 0,
+     "sameString": 0,
+     "medianOffset": null
+    },
+    "dims": {
+     "orig": 28,
+     "gen": 0,
+     "matched": 0
+    }
+   }
+  }
+ ]
+}
