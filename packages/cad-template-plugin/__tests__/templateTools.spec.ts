@@ -50,6 +50,34 @@ function countEntities(database: AcDbDatabase) {
 }
 
 describe('chay_template', () => {
+  test('ordinary edits cannot silently regenerate a template run', async () => {
+    const db = newDatabase()
+    const created = await runTemplateTool(
+      'chay_template',
+      { ma_template: 'mo_be_mong' },
+      db
+    )
+    expect(created.ok).toBe(true)
+    const ids = [...db.tables.blockTable.modelSpace.newIterator()].map(
+      e => e.objectId
+    )
+    const result = await runTemplateTool(
+      'sua_lan_chay',
+      { ma_lan_chay: 'r1', thong_so: { B: 8500 } },
+      db
+    )
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain('Giữ nguyên bản CAD')
+    expect(
+      [...db.tables.blockTable.modelSpace.newIterator()].map(e => e.objectId)
+    ).toEqual(ids)
+    const rebuilt = await runTemplateTool(
+      'sua_lan_chay',
+      { ma_lan_chay: 'r1', thong_so: { B: 8500 }, dung_lai_toan_bo: true },
+      db
+    )
+    expect(rebuilt.ok).toBe(true)
+  })
   test('is declared with a description the agent can read', () => {
     // The agent takes its description from this declaration rather than
     // restating it, so an undeclared tool has to fail loudly here.
@@ -176,7 +204,9 @@ describe('the catalogue in the tool description', () => {
 
   test('tells the assistant not to re-look-up what it already has', async () => {
     const { TEMPLATE_TOOLS } = await import('../src/templateTools')
-    expect(TEMPLATE_TOOLS[0].description).toContain('ĐỪNG gọi tra_cuu_tieu_chuan')
+    expect(TEMPLATE_TOOLS[0].description).toContain(
+      'ĐỪNG gọi tra_cuu_tieu_chuan'
+    )
     expect(TEMPLATE_TOOLS[0].description).toContain('GỌI NGAY')
   })
 })

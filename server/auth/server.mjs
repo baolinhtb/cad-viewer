@@ -66,6 +66,16 @@ import {
   uploadSkill
 } from './skills.mjs'
 
+import {
+  createUser,
+  updateUser,
+  deleteUser,
+  listUsers,
+  initializeAdmin,
+  ROLE_DESCRIPTIONS,
+  UserError
+} from './users.mjs'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 3000)
 const DB_PATH = process.env.DB_PATH || join(__dirname, 'auth.db')
@@ -78,24 +88,7 @@ migrate(db)
 const hashPassword = (password, salt) =>
   scryptSync(password, salt, 64).toString('hex')
 
-function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-  const password = process.env.ADMIN_PASSWORD
-  if (!email || !password) return
-  const salt = randomBytes(16).toString('hex')
-  const hash = hashPassword(password, salt)
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
-  if (existing) {
-    db.prepare(
-      "UPDATE users SET pass_hash = ?, salt = ?, status = 'active', role = 'admin' WHERE id = ?"
-    ).run(hash, salt, existing.id)
-  } else {
-    db.prepare(
-      "INSERT INTO users (email, name, pass_hash, salt, status, role) VALUES (?, ?, ?, ?, 'active', 'admin')"
-    ).run(email, 'Administrator', hash, salt)
-  }
-}
-seedAdmin()
+initializeAdmin(db, process.env.ADMIN_EMAIL, process.env.ADMIN_PASSWORD)
 
 // --- helpers ---------------------------------------------------------------
 
@@ -350,75 +343,53 @@ const server = createServer(async (req, res) => {
         return
       }
 
+      if (req.method !== 'GET') {
+        const origin = req.headers.origin
+        const host = req.headers['x-forwarded-host'] || req.headers.host
+        if (
+          req.headers['sec-fetch-site'] === 'cross-site' ||
+          (origin && new URL(origin).host !== host)
+        ) {
+          json(res, 403, {
+            error: 'Yêu cầu phải xuất phát từ cùng website.',
+            code: 'invalid_origin'
+          })
+          return
+        }
+      }
       if (req.method === 'GET' && path === '/api/admin/users') {
-        const users = db
-          .prepare(
-            'SELECT id, email, name, status, role, created_at FROM users ORDER BY created_at DESC'
-          )
-          .all()
-        json(res, 200, { users })
+        json(res, 200, {
+          users: listUsers(db, user.id),
+          roles: ROLE_DESCRIPTIONS
+        })
         return
       }
-
-      // Role changes are an administrator's call, and demoting yourself is
-      // refused for the same reason as deactivating yourself: it is the one
-      // move that cannot be undone from inside the application.
-      const roleMatch = path.match(/^\/api\/admin\/users\/(\d+)\/role$/)
-      if (req.method === 'POST' && roleMatch) {
-        const targetId = Number(roleMatch[1])
-        const body = await readBody(req)
-        const role = String(body.role ?? '')
-        if (!Object.values(ROLES).includes(role)) {
-          json(res, 400, {
-            error: 'Vai trò không hợp lệ.',
-            code: 'invalid_role',
-            detail: { allowed: Object.values(ROLES) }
-          })
-          return
-        }
-        if (targetId === user.id && role !== ROLES.ADMIN) {
-          json(res, 400, {
-            error: 'Không thể tự hạ quyền của chính mình.',
-            code: 'cannot_demote_self'
-          })
-          return
-        }
-        const changed = db
-          .prepare('UPDATE users SET role = ? WHERE id = ?')
-          .run(role, targetId)
-        if (!changed.changes) {
-          json(res, 404, {
-            error: 'Không tìm thấy người dùng.',
-            code: 'user_not_found'
-          })
-          return
-        }
-        json(res, 200, { message: 'ok', id: targetId, role })
+      if (req.method === 'POST' && path === '/api/admin/users') {
+        json(res, 201, { user: createUser(db, user.id, await readBody(req)) })
         return
       }
-
-      const m = path.match(
-        /^\/api\/admin\/users\/(\d+)\/(activate|deactivate)$/
+      const account = path.match(/^\/api\/admin\/users\/(\d+)$/)
+      if (account && req.method === 'PATCH') {
+        json(res, 200, {
+          user: updateUser(db, user.id, Number(account[1]), await readBody(req))
+        })
+        return
+      }
+      if (account && req.method === 'DELETE') {
+        json(res, 200, deleteUser(db, user.id, Number(account[1])))
+        return
+      }
+      // Keep existing clients on the same validated permission path.
+      const action = path.match(
+        /^\/api\/admin\/users\/(\d+)\/(role|activate|deactivate)$/
       )
-      if (req.method === 'POST' && m) {
-        const targetId = Number(m[1])
-        const action = m[2]
-        if (action === 'deactivate' && targetId === user.id) {
-          json(res, 400, { error: 'Không thể vô hiệu hóa chính mình.' })
-          return
-        }
-        const status = action === 'activate' ? 'active' : 'disabled'
-        const r = db
-          .prepare('UPDATE users SET status = ? WHERE id = ?')
-          .run(status, targetId)
-        if (!r.changes) {
-          json(res, 404, { error: 'Không tìm thấy tài khoản.' })
-          return
-        }
-        if (status === 'disabled') {
-          db.prepare('DELETE FROM sessions WHERE user_id = ?').run(targetId)
-        }
-        json(res, 200, { message: 'ok' })
+      if (action && req.method === 'POST') {
+        const changes =
+          action[2] === 'role'
+            ? { role: (await readBody(req)).role }
+            : { status: action[2] === 'activate' ? 'active' : 'disabled' }
+        const updated = updateUser(db, user.id, Number(action[1]), changes)
+        json(res, 200, { message: 'ok', id: updated.id, role: updated.role })
         return
       }
     }
@@ -816,6 +787,14 @@ const server = createServer(async (req, res) => {
         return
       }
 
+      if (req.method !== 'GET' && !hasRoleAtLeast(user.role, ROLES.AUTHOR)) {
+        json(res, 403, {
+          error:
+            'Chỉ tác giả thư viện và quản trị viên được sửa quy ước kỹ thuật.',
+          code: 'forbidden'
+        })
+        return
+      }
       const rest = path.slice('/api/standards'.length).replace(/^\//, '')
       const [kind, rawKey] = rest.split('/')
       const key = rawKey ? decodeURIComponent(rawKey) : ''
@@ -1018,6 +997,10 @@ const server = createServer(async (req, res) => {
 
     json(res, 404, { error: 'not found' })
   } catch (err) {
+    if (err instanceof UserError) {
+      json(res, err.status, { error: err.message, code: err.code })
+      return
+    }
     const tooLarge = err.message === 'body too large'
     json(res, tooLarge ? 413 : 400, {
       error: tooLarge

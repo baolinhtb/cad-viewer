@@ -124,19 +124,24 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     }
   })
 
-  test('màu như bản vẽ: layer xám theo nền chuẩn hoá, nét khác màu đúng chỗ', () => {
+  test('giữ layer nền và màu tường minh, ghi chú mới dùng màu phân biệt', () => {
     const colorOf = (e: AcDbEntity) => e.color.colorIndex
     // Layer do template tạo lấy màu của nền chuẩn hoá; chưa quy định thì trắng.
     expect(database.tables.layerTable.getAt('_33_CAU_MO_Be')!.color.colorIndex).toBe(8)
     expect(database.tables.layerTable.getAt('_33_CAU_MIS_Lancan')!.color.colorIndex).toBe(7)
     expect(database.tables.layerTable.getAt('_33_CAU_MO_Tuongdau')!.color.colorIndex).toBe(7)
-    // Kết cấu theo layer; tim tuyến đỏ; ghi chú xanh đúng năm dòng; mốc vàng.
+    // Kết cấu theo layer; tim tuyến đỏ; ghi chú mới xanh; giữ mốc vàng tường minh.
     expect(colorOf(polyOf(drawn, 'mo_be'))).toBe(256)
     expect(colorOf(drawn.find(e => partId(e) === 'duong_tim_01')!)).toBe(1)
     const texts = drawn.filter(e => e.dxfTypeName === 'TEXT') as (AcDbEntity & { textString: string })[]
     const green = texts.filter(t => colorOf(t) === 3).map(t => t.textString).sort()
-    expect(green).toEqual(['BÊ TÔNG ĐỆM C8', 'CỌC KHOAN NHỒI', 'D1200 (M)', 'i=0%', 'i=0%'])
-    expect(colorOf(texts.find(t => t.textString === 'Tim cầu')!)).toBe(256)
+    expect(green).toHaveLength(11)
+    expect(green).toEqual(expect.arrayContaining([
+      'BÊ TÔNG ĐỆM C8', 'CỌC KHOAN NHỒI', 'D1200 (M)', 'i=0%', 'i=0%',
+      'Tim cầu', 'Tim giai đoạn hoàn thiện', 'PHẢI TUYẾN', 'TRÁI TUYẾN', 'gđ1'
+    ]))
+    expect(green.some(t => t.startsWith('Tim-tim 5300 mm < 6D (7200 mm):'))).toBe(true)
+    expect(colorOf(texts.find(t => t.textString === 'Tim cầu')!)).toBe(3)
     const moc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && isPoly(e))
     expect(moc.every(e => colorOf(e) === 2)).toBe(true)
     const nhanMoc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && e.dxfTypeName === 'TEXT')

@@ -9,6 +9,8 @@ import {
 } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
+import { acapEditDossierRun } from './dossier/edit'
+import { DOSSIER_ID } from './dossier/model'
 import { toDrawingPlacement } from './placement'
 import { entitiesOfRun, listRuns } from './runIdentity'
 import {
@@ -103,6 +105,15 @@ export async function editTemplateRun(
     errors.push(...template.validate(values))
   if (errors.length > 0) {
     return { runId, removed: 0, entityCount: 0, layers: [], values, errors }
+  }
+
+  // Both dossier tools and the legacy generic edit tool reach this guard.
+  // A dimension edit must never downgrade detailed source CAD to a schematic.
+  if (run.templateId === DOSSIER_ID) {
+    const result = await acapEditDossierRun(db, run, values)
+    if (!database && !result.errors.length)
+      await AcApDocManager.instance.regen()
+    return result
   }
 
   let removed = 0

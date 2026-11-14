@@ -1,4 +1,12 @@
-import { AcDbEntity, AcGePoint3d } from '@mlightcad/data-model'
+import {
+  AcCmColor,
+  AcCmColorMethod,
+  AcDbEntity,
+  AcDbLinetypeTableRecord,
+  AcDbMText,
+  AcDbText,
+  AcGePoint3d
+} from '@mlightcad/data-model'
 
 import { getDrawingContext } from '../context/DrawingContextProvider'
 import type { CadSession } from '../session/CadSession'
@@ -100,6 +108,10 @@ export function createCadScriptHost(
       }
       return matches
     },
+    grips(id: string) {
+      const entity = getWritableTarget(id, false)
+      return entity.subGetGripPoints().map(p => ({ x: p.x, y: p.y, z: p.z }))
+    },
     byId(id: string): EntitySnapshot | undefined {
       return snapshotById(session, id)
     },
@@ -184,9 +196,7 @@ export function createCadScriptHost(
           ? options.longSide
           : undefined
       const index = effects.previewRequests.length
-      effects.previewRequests.push(
-        longSide !== undefined ? { longSide } : {}
-      )
+      effects.previewRequests.push(longSide !== undefined ? { longSide } : {})
       return { queued: true, index }
     }
   }
@@ -282,6 +292,15 @@ export function createCadScriptHost(
   }
 
   return seal(host, Object.keys(CAD_SCRIPT_API_TREE))
+
+  function getWritableTarget(id: string, writing = true): AcDbEntity {
+    const db = requireDocumentRecord(session).database
+    const entity = db.openObjectForRead(id)
+    if (!(entity instanceof AcDbEntity)) throw new Error('entity_not_found')
+    if (writing && isEntityOnLockedLayer(db, entity))
+      throw new Error('entity_layer_locked')
+    return entity
+  }
 }
 
 /** Transaction methods exposed inside `cad.edit.transaction`. */
@@ -353,6 +372,15 @@ export interface CadEditTransaction {
   }): string
   erase(ids: string[]): number
   setLayer(ids: string[], layer: string): void
+  /** Apply annotation presentation; locked layers are left untouched. */
+  setStyle(
+    ids: string[],
+    style: { color?: number; lineType?: string; linetypeScale?: number }
+  ): void
+  /** Change native text content without replacing the entity or its styling. */
+  setText(id: string, text: string): void
+  /** Move selected native grips, preserving the entity and its other detail. */
+  moveGrips(id: string, indices: number[], dx: number, dy: number): void
   move(ids: string[], dx: number, dy: number): number
   rotate(ids: string[], center: Point2dInput, angleDeg: number): number
   createLayer(name: string): void
@@ -407,6 +435,89 @@ function createTransaction(
         entity.layer = layer
       }
     },
+    setStyle(ids, style) {
+      const { color, lineType, linetypeScale } = style
+      if (
+        color !== undefined &&
+        (!Number.isInteger(color) || color < 1 || color > 256)
+      ) {
+        throw new Error('color must be an ACI index 1–255 or 256 (ByLayer)')
+      }
+      if (
+        linetypeScale !== undefined &&
+        (!Number.isFinite(linetypeScale) || linetypeScale <= 0)
+      ) {
+        throw new Error('linetypeScale must be finite and positive')
+      }
+      const db = session.getDocument()!.database
+      const patterns: Record<string, number[]> = {
+        CENTER: [1.25, -0.25, 0.25, -0.25],
+        DASHED: [0.5, -0.25],
+        HIDDEN: [0.25, -0.125],
+        DASHDOT: [0.5, -0.25, 0, -0.25]
+      }
+      if (lineType !== undefined && !db.tables.linetypeTable.has(lineType)) {
+        const pattern = patterns[lineType]
+        if (!pattern) throw new Error('Unknown linetype: ' + lineType)
+        db.tables.linetypeTable.add(
+          new AcDbLinetypeTableRecord({
+            name: lineType,
+            standardFlag: 0,
+            description: lineType,
+            totalPatternLength: pattern.reduce(
+              (sum, n) => sum + Math.abs(n),
+              0
+            ),
+            pattern: pattern.map(n => ({
+              elementLength: n,
+              elementTypeFlag: 0
+            }))
+          })
+        )
+      }
+      for (const id of ids) {
+        const existing = db.tables.blockTable.getEntityById(id)
+        if (!existing || isEntityOnLockedLayer(db, existing)) continue
+        const entity = db.openEntityForWrite(id)
+        if (!entity) continue
+        if (color !== undefined)
+          entity.color = new AcCmColor(AcCmColorMethod.ByACI, color)
+        if (lineType !== undefined) entity.lineType = lineType
+        if (linetypeScale !== undefined) entity.linetypeScale = linetypeScale
+      }
+    },
+    setText(id, text) {
+      if (typeof text !== 'string' || text.length > 100000)
+        throw new Error('text must be a string of at most 100000 characters')
+      const entity = editableEntity(id)
+      if (!(entity instanceof AcDbText) && !(entity instanceof AcDbMText))
+        throw new Error(
+          'setText requires Text, MText or Attribute; do not override a measured dimension'
+        )
+      const opened = session.getDocument()!.database.openEntityForWrite(entity)!
+      if (opened instanceof AcDbMText) opened.contents = text
+      else (opened as AcDbText).textString = text
+    },
+    moveGrips(id, indices, dx, dy) {
+      if (!Number.isFinite(dx) || !Number.isFinite(dy))
+        throw new Error('grip displacement must be finite')
+      const entity = editableEntity(id)
+      const grips = entity.subGetGripPoints()
+      if (
+        !Array.isArray(indices) ||
+        !indices.length ||
+        indices.some(i => !Number.isInteger(i) || i < 0 || i >= grips.length)
+      )
+        throw new Error(
+          'invalid_grip_indices; read cad.entities.grips(id) first'
+        )
+      if (
+        entity.subMoveGripPointsAt === AcDbEntity.prototype.subMoveGripPointsAt
+      )
+        throw new Error('entity does not support native grip editing')
+      const opened = session.getDocument()!.database.openEntityForWrite(entity)!
+      opened.subMoveGripPointsAt([...new Set(indices)], { x: dx, y: dy, z: 0 })
+    },
     move(ids, dx, dy) {
       const service = session.getDocument()!.entityService
       return service.translateEntities(service.getEntitiesByIds(ids), {
@@ -431,6 +542,15 @@ function createTransaction(
       const result = executor.setCurrentLayer(name)
       if (!result.success) throw new Error(result.error ?? result.message)
     }
+  }
+
+  function editableEntity(id: string): AcDbEntity {
+    const db = session.getDocument()!.database
+    const entity = db.openObjectForRead(id)
+    if (!(entity instanceof AcDbEntity)) throw new Error('entity_not_found')
+    if (isEntityOnLockedLayer(db, entity))
+      throw new Error('entity_layer_locked')
+    return entity
   }
 }
 

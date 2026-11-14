@@ -26,6 +26,7 @@ import {
 } from '@mlightcad/data-model'
 
 import { buildDimensionBlock, formatDimensionText } from './AcTpDimensionBlock'
+import { acTpAnnotationPresentation, acTpAnnotationStyles } from './AcTpSeed'
 import {
   AcTpRunRecord,
   AcTpSemanticTag,
@@ -96,6 +97,12 @@ export interface AcTpTextArgs extends AcTpDrawBase {
   position: AcGePoint3dLike
   text: string
   height?: number
+  /** Rotation in degrees, preserving source annotation orientation. */
+  rotationDeg?: number
+  /** Horizontal alignment: left (0), center (1), right (2). */
+  align?: 0 | 1 | 2
+  /** Text width multiplier from the reference drawing. */
+  widthFactor?: number
   /**
    * Text style, by name. Defaults to {@link TEMPLATE_TEXT_STYLE}.
    *
@@ -115,9 +122,10 @@ export interface AcTpTextArgs extends AcTpDrawBase {
  * in the STYLE table (group 3), so an exported DWG opens in AutoCAD with the
  * same TrueType font. The engineer's own drawings define `Arial` this way.
  */
-export const TEMPLATE_TEXT_STYLES: Readonly<Record<string, { font: string }>> = {
-  Arial: { font: 'arial.ttf' }
-}
+export const TEMPLATE_TEXT_STYLES: Readonly<Record<string, { font: string }>> =
+  {
+    Arial: { font: 'arial.ttf' }
+  }
 
 /** Style every template text gets unless it asks for another. */
 export const TEMPLATE_TEXT_STYLE = 'Arial'
@@ -136,25 +144,26 @@ type AcTpDimStyleAttrs = NonNullable<
   ConstructorParameters<typeof AcDbDimStyleTableRecord>[0]
 >
 
-export const TEMPLATE_DIM_STYLES: Readonly<Record<string, AcTpDimStyleAttrs>> = {
-  D100: {
-    dimscale: 1,
-    dimtxt: 150,
-    dimasz: 130,
-    dimexo: 100,
-    dimexe: 70,
-    dimgap: 60,
-    dimtad: AcDbDimTextVertical.Above,
-    dimtih: 0,
-    dimtoh: 0,
-    dimdec: 2,
-    dimrnd: 1,
-    dimzin: 8,
-    dimlfac: 1,
-    dimclrt: 3,
-    dimtxsty: TEMPLATE_TEXT_STYLE
+export const TEMPLATE_DIM_STYLES: Readonly<Record<string, AcTpDimStyleAttrs>> =
+  {
+    D100: {
+      dimscale: 1,
+      dimtxt: 150,
+      dimasz: 130,
+      dimexo: 100,
+      dimexe: 70,
+      dimgap: 60,
+      dimtad: AcDbDimTextVertical.Above,
+      dimtih: 0,
+      dimtoh: 0,
+      dimdec: 2,
+      dimrnd: 1,
+      dimzin: 8,
+      dimlfac: 1,
+      dimclrt: 3,
+      dimtxsty: TEMPLATE_TEXT_STYLE
+    }
   }
-}
 
 /** Dimension style every template dimension gets unless it asks for another. */
 export const TEMPLATE_DIM_STYLE = 'D100'
@@ -246,14 +255,15 @@ export interface AcTpLeaderArgs extends AcTpDrawBase {
 /**
  * A filled region — the material symbol on a part cut in section.
  *
- * The boundary is a single closed outline of straight segments; the last point
- * joins back to the first, so do not repeat it. Islands and curved edges are
- * deliberately absent: the reference drawings fill plain polygons, and an
- * option that exists but has never been drawn is an option nobody can trust.
+ * Boundaries use straight segments and close back to the first point.
+ * Additional loops preserve islands in source fills; curved source boundaries
+ * can be tessellated before being passed to this context.
  */
 export interface AcTpHatchArgs extends AcTpDrawBase {
   /** Outline of the filled region, in order. Not closed by the caller. */
   boundary: readonly AcGePoint3dLike[]
+  /** Additional boundary loops, including islands, for source solid fills. */
+  additionalLoops?: readonly (readonly AcGePoint3dLike[])[]
   /**
    * Pattern name. Defaults to a solid fill.
    *
@@ -309,9 +319,8 @@ export interface AcTpLayerStyle {
   /** ACI colour index 1–255; `null` or absent when not yet decided. */
   color?: number | null
   /**
-   * Linetype name (CENTER, DASHED, …). Recorded for the catalogue; not applied
-   * when drawing, because a layer naming a linetype the drawing's table lacks
-   * renders nothing — the same failure mode a missing layer has.
+   * Linetype name (CENTER, DASHED, …), registered before assigning a new layer.
+   * Existing drawing layers retain their presentation.
    */
   lineType?: string | null
 }
@@ -363,8 +372,16 @@ export function createDrawContext(
   // looked up the same way or `_33_CAU_MO_Be` and `_33_CAU_MO_BE` would be
   // two layers with two colours.
   const styleOf = new Map<string, AcTpLayerStyle>()
+  for (const [role, style] of Object.entries(acTpAnnotationStyles)) {
+    const name = roleLayers[role]
+    if (name) styleOf.set(name.toLowerCase(), style)
+  }
   for (const [name, style] of Object.entries(layerStyles)) {
-    styleOf.set(name.toLowerCase(), style)
+    const fallback = styleOf.get(name.toLowerCase())
+    styleOf.set(name.toLowerCase(), {
+      color: style.color ?? fallback?.color,
+      lineType: style.lineType ?? fallback?.lineType
+    })
   }
 
   /**
@@ -375,7 +392,12 @@ export function createDrawContext(
    */
   const aci = (value: unknown, what: string): number | undefined => {
     if (value === undefined || value === null) return undefined
-    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 255) {
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 1 ||
+      value > 255
+    ) {
       throw new Error(
         `${what} phải là chỉ số màu ACI nguyên từ 1 đến 255. Nhận được: ${String(value)}`
       )
@@ -393,22 +415,23 @@ export function createDrawContext(
    * doesn't exist" and the drawing comes out blank. The whole generated
    * section was invisible for exactly this reason.
    *
-   * The colour comes from the catalogue, which is where the office keeps its
-   * layer convention; white is only the fallback for a layer nobody has
-   * coloured yet. A layer the drawing already has is left alone, colour
-   * included — see the `layerStyles` parameter.
+   * Office catalogue presentation takes priority over semantic annotation
+   * defaults. Geometry without a convention falls back to white. Existing
+   * drawing layers retain their colours and linetypes.
    */
   const ensureLayer = (name: string): void => {
     const layerTable = db.tables.layerTable
     if (layerTable.has(name)) return
-    const color =
-      aci(styleOf.get(name.toLowerCase())?.color, `Màu của layer '${name}'`) ?? 7
+    const style = styleOf.get(name.toLowerCase())
+    const color = aci(style?.color, `Màu của layer '${name}'`) ?? 7
+    if (style?.lineType) ensureLinetype(style.lineType)
     layerTable.add(
       new AcDbLayerTableRecord({
         name,
         isOff: false,
         color: new AcCmColor(AcCmColorMethod.ByACI, color),
-        isPlottable: true
+        isPlottable: true,
+        ...(style?.lineType ? { linetype: style.lineType } : {})
       })
     )
   }
@@ -470,7 +493,10 @@ export function createDrawContext(
   const ensureLinetype = (name: string): void => {
     const table = db.tables.linetypeTable
     if (table.has(name)) return
-    const known = TEMPLATE_LINETYPES[name]
+    const known =
+      name.toUpperCase() === 'CONTINUOUS'
+        ? { description: 'Solid line', pattern: [] as readonly number[] }
+        : TEMPLATE_LINETYPES[name]
     if (!known) {
       throw new Error(
         `Kiểu nét '${name}' chưa có trong bản vẽ. Dùng ${Object.keys(TEMPLATE_LINETYPES).join(', ')} hoặc một kiểu nét bản vẽ đã khai.`
@@ -483,8 +509,14 @@ export function createDrawContext(
         name,
         standardFlag: 0,
         description: known.description,
-        totalPatternLength: known.pattern.reduce((sum, len) => sum + Math.abs(len) * k, 0),
-        pattern: known.pattern.map(len => ({ elementLength: len * k, elementTypeFlag: 0 }))
+        totalPatternLength: known.pattern.reduce(
+          (sum, len) => sum + Math.abs(len) * k,
+          0
+        ),
+        pattern: known.pattern.map(len => ({
+          elementLength: len * k,
+          elementTypeFlag: 0
+        }))
       })
     )
   }
@@ -503,13 +535,23 @@ export function createDrawContext(
     // ByLayer unless the template asked for a colour of its own. The default
     // is not set explicitly: a fresh entity is already ByLayer, and writing
     // it would turn "no opinion" into an assertion.
-    const color = aci(args.color, `Màu của '${args.partId}'`)
+    const annotation = acTpAnnotationStyles[args.role]
+      ? acTpAnnotationPresentation(args.role, {
+          color: db.tables.layerTable.getAt(layer)?.color.colorIndex,
+          lineType: styleOf.get(layer.toLowerCase())?.lineType
+        })
+      : undefined
+    const layerColor = db.tables.layerTable.getAt(layer)?.color.colorIndex
+    const accent =
+      annotation?.color !== layerColor ? annotation?.color : undefined
+    const color = aci(args.color ?? accent, `Màu của '${args.partId}'`)
     if (color !== undefined) {
       entity.color = new AcCmColor(AcCmColorMethod.ByACI, color)
     }
-    if (args.lineType) {
-      ensureLinetype(args.lineType)
-      entity.lineType = args.lineType
+    const lineType = args.lineType ?? annotation?.lineType
+    if (lineType) {
+      ensureLinetype(lineType)
+      entity.lineType = lineType
     }
 
     const tag: AcTpSemanticTag = {
@@ -557,6 +599,12 @@ export function createDrawContext(
       )
       entity.textString = args.text
       entity.height = args.height ?? 2.5
+      entity.rotation = ((args.rotationDeg ?? 0) * Math.PI) / 180
+      entity.widthFactor = args.widthFactor ?? 1
+      if (args.align) {
+        entity.horizontalMode = args.align
+        entity.alignmentPoint = entity.position.clone()
+      }
       const style = args.style ?? TEMPLATE_TEXT_STYLE
       ensureTextStyle(style)
       entity.styleName = style
@@ -657,20 +705,23 @@ export function createDrawContext(
       entity.hatchStyle = AcDbHatchStyle.Normal
       entity.isSolidFill = patternName === HATCH_PATTERN_SOLID
 
-      const loop = new AcGeLoop2d()
-      for (let i = 0; i < args.boundary.length; i++) {
-        const from = args.boundary[i]
-        // Wraps to the first point: the loop has to close or there is no
-        // inside to fill.
-        const to = args.boundary[(i + 1) % args.boundary.length]
-        loop.add(
-          new AcGeLine2d(
-            new AcGePoint2d(from.x, from.y),
-            new AcGePoint2d(to.x, to.y)
-          )
-        )
+      for (const boundary of [args.boundary, ...(args.additionalLoops ?? [])]) {
+        if (boundary.length < 3)
+          throw new Error('A hatch loop requires at least three points')
+        const loop = new AcGeLoop2d()
+        for (let i = 0; i < boundary.length; i++) {
+          const from = boundary[i]
+          const to = boundary[(i + 1) % boundary.length]
+          if (from.x !== to.x || from.y !== to.y)
+            loop.add(
+              new AcGeLine2d(
+                new AcGePoint2d(from.x, from.y),
+                new AcGePoint2d(to.x, to.y)
+              )
+            )
+        }
+        entity.add(loop)
       }
-      entity.add(loop)
 
       return place(entity, args)
     },
@@ -702,7 +753,11 @@ export function createDrawContext(
         { x: base.x + uy * half, y: base.y - ux * half, z: 0 }
       ]
       const { points: _points, arrowSize: _arrow, ...base_ } = args
-      const line = drawPolyline({ ...base_, points: args.points, closed: false })
+      const line = drawPolyline({
+        ...base_,
+        points: args.points,
+        closed: false
+      })
       const arrow = new AcDbHatch()
       arrow.database = db
       arrow.patternName = HATCH_PATTERN_SOLID
@@ -713,7 +768,9 @@ export function createDrawContext(
       for (let i = 0; i < boundary.length; i++) {
         const a = boundary[i]
         const b = boundary[(i + 1) % boundary.length]
-        loop.add(new AcGeLine2d(new AcGePoint2d(a.x, a.y), new AcGePoint2d(b.x, b.y)))
+        loop.add(
+          new AcGeLine2d(new AcGePoint2d(a.x, a.y), new AcGePoint2d(b.x, b.y))
+        )
       }
       arrow.add(loop)
       place(arrow, base_)

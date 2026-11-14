@@ -6,7 +6,12 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   ...jest.requireActual('../../cad-simple-viewer/src/util/AcApDatabaseEdit')
 }))
 
-import { AcDbDatabase, AcDbFileType, AcDbLine } from '@mlightcad/data-model'
+import {
+  AcDbDatabase,
+  AcDbFileType,
+  AcDbLine,
+  AcDbText
+} from '@mlightcad/data-model'
 import { readSemanticTag } from '@mlightcad/cad-template-sdk'
 import { acapRunMarkedEdits } from '../../cad-simple-viewer/src/util/AcApDatabaseEdit'
 import { runDossierTool } from '../src/dossier/tools'
@@ -74,17 +79,23 @@ describe('dossier tools against a real database', () => {
     expect(sheetIds.size).toBe(6)
     const parts = new Set(entities(db).map(e => readSemanticTag(e)?.partId))
     expect(parts.size).toBeLessThan(60)
-    const footing = entities(db)
+    const source = entities(db)
       .map(e => readSemanticTag(e))
-      .find(t => t?.role === 'mo_be')
-    expect(footing?.params).toMatchObject({ bBe: 7700, lBe: 6000, hBe: 2000 })
+      .filter(t => t?.params?.sourceHandle)
+    expect(source.length).toBeGreaterThan(4000)
+    expect(source.some(t => t?.params?.sourceType === 'HATCH')).toBe(true)
+    expect(listRuns(db)[0].values).toMatchObject({
+      bBe: 7700,
+      lBe: 6000,
+      hBe: 2000
+    })
     const before = entities(db).length
     expect((await runDossierTool('tao_ho_so_mo', {}, db)).ok).toBe(false)
     expect(entities(db)).toHaveLength(before)
     expect(db.transactionManager.undo()).toBe(true)
     expect(entities(db)).toHaveLength(0)
   })
-  test('a width edit updates all sheets, leaves another dossier intact, and is one undo', async () => {
+  test('a width edit cannot replace detailed source CAD with a schematic', async () => {
     const db = database()
     await runDossierTool('tao_ho_so_mo', {}, db)
     await runDossierTool(
@@ -99,15 +110,71 @@ describe('dossier tools against a real database', () => {
       { ma_lan_chay: 'r1', thong_so: { bBe: 8500 } },
       db
     )
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain('Giữ nguyên bản vẽ chi tiết')
     expect(listRuns(db)).toHaveLength(2)
-    expect(listRuns(db)[0].values.bBe).toBe(8500)
-    expect(listRuns(db)[0].values.bThan).toBe(7700)
-    expect(entitiesOfRun(db, 'r1').length).toBeLessThan(oldCount)
-    expect(entitiesOfRun(db, 'r2').map(e => e.objectId)).toEqual(m2)
-    expect(db.transactionManager.undo()).toBe(true)
     expect(listRuns(db)[0].values.bBe).toBe(7700)
+    expect(listRuns(db)[0].values.bThan).toBe(7700)
     expect(entitiesOfRun(db, 'r1')).toHaveLength(oldCount)
+    expect(entitiesOfRun(db, 'r2').map(e => e.objectId)).toEqual(m2)
+    // A refused edit adds no undo entry: undo removes the preceding M2 creation.
+    expect(db.transactionManager.undo()).toBe(true)
+    expect(listRuns(db)).toHaveLength(1)
+    expect(entitiesOfRun(db, 'r1')).toHaveLength(oldCount)
+  })
+
+  test('label and placement edits preserve every handle, manual text and native geometry through undo/redo', async () => {
+    const db = database()
+    await runDossierTool('tao_ho_so_mo', {}, db)
+    const before = entitiesOfRun(db, 'r1')
+    const ids = before.map(e => e.objectId)
+    const sourceNote = before.find(
+      e =>
+        e instanceof AcDbText &&
+        readSemanticTag(e)?.params?.sourceHandle &&
+        !(e as AcDbText).textString.includes('M1')
+    ) as AcDbText
+    sourceNote.textString = 'ENGINEER_DETAIL_KEPT'
+    sourceNote.rotation = 0.4
+    const source = before.find(
+      e => readSemanticTag(e)?.params?.sourceHandle && e.type === 'Polyline'
+    )!
+    const x = source.geometricExtents.min.x
+    const result = await runDossierTool(
+      'sua_ho_so_mo',
+      {
+        ma_lan_chay: 'r1',
+        thong_so: { tenMo: 'M2', congTrinh: 'Cầu đã đổi tên', x: 200 }
+      },
+      db
+    )
+    expect(result.ok).toBe(true)
+    expect(result.data?.soDoiTuongXoa).toBe(0)
+    expect(entitiesOfRun(db, 'r1').map(e => e.objectId)).toEqual(ids)
+    expect(sourceNote.textString).toBe('ENGINEER_DETAIL_KEPT')
+    expect(sourceNote.rotation).toBeCloseTo(0.4, 8)
+    expect(source.geometricExtents.min.x).toBeCloseTo(x + 200)
+    expect(listRuns(db)[0].values.tenMo).toBe('M2')
+    expect(db.transactionManager.undo()).toBe(true)
+    expect(listRuns(db)[0].values.tenMo).toBe('M1')
+    expect(source.geometricExtents.min.x).toBeCloseTo(x)
+    expect(sourceNote.textString).toBe('ENGINEER_DETAIL_KEPT')
+    expect(db.transactionManager.redo()).toBe(true)
+    expect(source.geometricExtents.min.x).toBeCloseTo(x + 200)
+    const download = jest.fn()
+    expect(
+      (
+        await runDossierTool(
+          'xuat_ho_so_mo',
+          { ma_lan_chay: 'r1', dinh_dang: 'dxf' },
+          db,
+          download
+        )
+      ).ok
+    ).toBe(true)
+    const dxf = download.mock.calls[0][0].content as string
+    expect(dxf).toContain('ENGINEER_DETAIL_KEPT')
+    expect((dxf.match(/\nHATCH\r?\n/g) ?? []).length).toBeGreaterThan(1000)
   })
   test('invalid relations and misspelled keys leave the old dossier untouched', async () => {
     const db = database()
@@ -172,12 +239,15 @@ describe('dossier tools against a real database', () => {
       (
         await runDossierTool(
           'sua_ho_so_mo',
-          { ma_lan_chay: 'r1', thong_so: { bBe: 8500 } },
+          {
+            ma_lan_chay: 'r1',
+            thong_so: { congTrinh: 'Công trình sau khi mở lại' }
+          },
           db
         )
       ).ok
     ).toBe(true)
-  })
+  }, 60000)
   test('a generator failure rolls back its erase and partial draw inside an AI turn', async () => {
     const db = database()
     await runDossierTool('tao_ho_so_mo', { thong_so: { thep: 'khong' } }, db)

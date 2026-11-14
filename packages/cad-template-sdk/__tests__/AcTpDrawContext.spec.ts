@@ -529,3 +529,62 @@ describe('leaders: a line with an arrowhead at the thing it points to', () => {
     ).toThrow(/2 điểm/)
   })
 })
+
+describe('annotation conventions', () => {
+  test('new note and center layers have meaningful defaults', () => {
+    const { db, ctx } = createContext()
+    ctx.line({
+      role: 'duong_tim',
+      partId: 'axis',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 1000, y: 0, z: 0 }
+    })
+    ctx.text({
+      role: 'ghi_chu',
+      partId: 'note',
+      position: { x: 0, y: 100, z: 0 },
+      text: 'M1',
+      height: 20
+    })
+    expect(db.tables.layerTable.getAt('GC-GHICHU')!.color.colorIndex).toBe(3)
+    const axis = db.tables.layerTable.getAt('TRUC-TIM')!
+    expect(axis.color.colorIndex).toBe(1)
+    expect(axis.linetype).toBe('CENTER')
+    expect(db.tables.linetypeTable.has('CENTER')).toBe(true)
+  })
+
+  test('office presentation overrides fallback for new layers', () => {
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(
+      db,
+      TEMPLATE_ID,
+      SEED_ROLE_LAYERS,
+      undefined,
+      {
+        'gc-ghichu': { color: 5, lineType: 'DASHED' }
+      }
+    )
+    ctx.line({
+      role: 'ghi_chu',
+      partId: 'leader',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 10, y: 0, z: 0 }
+    })
+    const layer = db.tables.layerTable.getAt('GC-GHICHU')!
+    expect(layer.color.colorIndex).toBe(5)
+    expect(layer.linetype).toBe('DASHED')
+  })
+})
+
+
+test('new annotations use accents without recoloring legacy gray layers', () => {
+  const db = new AcDbDatabase()
+  db.createDefaultData()
+  const ctx = createDrawContext(db, TEMPLATE_ID, SEED_ROLE_LAYERS, undefined, {
+    'GC-GHICHU': {color: 8}
+  })
+  const note = ctx.text({ role: 'ghi_chu', partId: 'new-note', position: {x:0,y:0,z:0}, text: 'M1', height: 20 })
+  expect(db.tables.layerTable.getAt('GC-GHICHU')!.color.colorIndex).toBe(8)
+  expect(note.color.colorIndex).toBe(3)
+})

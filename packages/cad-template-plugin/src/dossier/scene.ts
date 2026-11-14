@@ -1,7 +1,7 @@
 import type { AcTpDrawContext } from '@mlightcad/cad-template-sdk'
 
 import type { DossierModel } from './model'
-import { DOSSIER_VERSION, REFERENCE_ID } from './model'
+import { DOSSIER_VERSION, dossierDefaults, REFERENCE_ID } from './model'
 import bars from './reference/bars.json'
 import reference from './reference/reinforcement.json'
 
@@ -9,12 +9,25 @@ export type XY = [number, number]
 interface Base {
   role: string
   partId: string
+  color?: number
+  sourceHandle?: string
+  sourceLayer?: string
+  sourceType?: string
 }
 export type DossierPrimitive = Base &
   (
     | { kind: 'path'; points: XY[]; closed?: boolean }
+    | { kind: 'fill'; loops: XY[][] }
     | { kind: 'circle'; at: XY; radius: number }
-    | { kind: 'text'; at: XY; text: string; height: number }
+    | {
+        kind: 'text'
+        at: XY
+        text: string
+        height: number
+        rotation?: number
+        align?: number
+        widthFactor?: number
+      }
     | {
         kind: 'dimension'
         start: XY
@@ -28,6 +41,7 @@ export interface DossierSheet {
   title: string
   width: number
   height: number
+  scale: number
   origin: XY
   primitives: DossierPrimitive[]
 }
@@ -35,6 +49,7 @@ export interface DossierScene {
   version: string
   reference: string
   status: 'draft'
+  detailMode: 'source' | 'parametric'
   model: DossierModel
   sheets: DossierSheet[]
 }
@@ -69,6 +84,7 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       title,
       width: W,
       height: H,
+      scale: 100,
       origin: [
         n('x') + (index % 3) * (W + 5000),
         n('y') - Math.floor(index / 3) * (H + 5000)
@@ -137,10 +153,10 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       direction
     })
   function frame(s: DossierSheet) {
-    rect(s, 'ghi_chu', 1500, 1500, W - 3000, H - 3000)
-    path(s, 'ghi_chu', [
+    rect(s, 'tieu_de_ban_ve', 1500, 1500, s.width - 3000, s.height - 3000)
+    path(s, 'tieu_de_ban_ve', [
       [1500, 6500],
-      [W - 1500, 6500]
+      [s.width - 1500, 6500]
     ])
     text(s, 3000, 4900, String(v.congTrinh), 350)
     text(s, 3000, 3600, `${v.tenMo} — ${s.title}`, 350)
@@ -148,7 +164,7 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       s,
       3000,
       2200,
-      `${s.id} | A1 | TL 1:100 | ${DOSSIER_VERSION} | ${REFERENCE_ID}`,
+      `${s.id} | A1 | TL 1:${s.scale} | ${DOSSIER_VERSION} | ${REFERENCE_ID}`,
       230
     )
     text(s, 48000, 4400, 'BẢN NHÁP — CHƯA PHÁT HÀNH THI CÔNG', 360)
@@ -400,7 +416,8 @@ export function buildDossierScene(model: DossierModel): DossierScene {
     const points: XY[] = []
     for (const op of general.primitives.slice(start)) {
       if (op.kind === 'text') continue
-      if (op.kind === 'path') points.push(...op.points)
+      if (op.kind === 'fill') points.push(...op.loops.flat())
+      else if (op.kind === 'path') points.push(...op.points)
       else if (op.kind === 'circle')
         points.push(
           [op.at[0] - op.radius, op.at[1] - op.radius],
@@ -510,59 +527,145 @@ export function buildDossierScene(model: DossierModel): DossierScene {
     'Số đo trong CAD có chênh với bảng gốc; đây là mô hình triển khai bản nháp.',
     250
   )
+  // Source geometry must not be presented as an updated design after dimensions change.
+  const sourceGeometry = Object.entries(dossierDefaults()).every(
+    ([key, value]) =>
+      [
+        'x',
+        'y',
+        'congTrinh',
+        'tenMo',
+        'thep',
+        'thepF3',
+        'thepW16',
+        'beTongLot'
+      ].includes(key) || v[key] === value
+  )
+  const appendReference = (
+    s: DossierSheet,
+    key: keyof typeof reference.views,
+    x: number,
+    y: number
+  ) => {
+    for (const raw of reference.views[key].ops) {
+      const op = { ...raw } as unknown as {
+        kind: 'text' | 'path' | 'fill'
+        role: string
+        color: number
+        at?: XY
+        text?: string
+        height?: number
+        rotation?: number
+        align?: number
+        widthFactor?: number
+        points?: XY[]
+        closed?: boolean
+        loops?: XY[][]
+        sourceHandle: string
+        sourceLayer: string
+        sourceType: string
+      }
+      if (op.text && key !== 'general') {
+        op.text = op.text.replace(/\bM1\b/g, String(v.tenMo))
+        if (v.thepF3 === 'D22') op.text = op.text.replace(/F3-D25/g, 'F3-D22')
+        if (v.thepW16 === 'D16')
+          op.text = op.text.replace(/W16(')?-D14/g, 'W16$1-D16')
+      }
+      const role =
+        op.role === 'geometry'
+          ? key === 'general'
+            ? 'mo_cau'
+            : 'cot_thep'
+          : op.role
+      const color =
+        [7, 8, 9].includes(op.color) && role !== 'mo_cau' && role !== 'cot_thep'
+          ? undefined
+          : op.color
+      const identity = {
+        ...base(s, role),
+        color,
+        sourceHandle: op.sourceHandle,
+        sourceLayer: op.sourceLayer,
+        sourceType: op.sourceType
+      }
+      const shift = (p: XY): XY => [x + p[0], y + p[1]]
+      if (op.kind === 'text' && op.at && op.text)
+        s.primitives.push({
+          ...identity,
+          kind: 'text',
+          at: shift(op.at),
+          text: op.text,
+          height: op.height ?? 150,
+          rotation: op.rotation,
+          align: op.align,
+          widthFactor: op.widthFactor
+        })
+      else if (op.kind === 'fill' && op.loops)
+        s.primitives.push({
+          ...identity,
+          kind: 'fill',
+          loops: op.loops.map(loop => loop.map(shift))
+        })
+      else if (op.points)
+        s.primitives.push({
+          ...identity,
+          kind: 'path',
+          points: op.points.map(shift),
+          closed: op.closed
+        })
+    }
+  }
+  if (sourceGeometry) {
+    const general = sheets[0]
+    general.primitives = []
+    appendReference(general, 'general', 5000, 13000)
+    text(
+      general,
+      5000,
+      54000,
+      `BỐ TRÍ MỐ ${v.tenMo} — CHI TIẾT TRÍCH TỪ CAD GỐC`,
+      420
+    )
+    text(
+      general,
+      5000,
+      10000,
+      'Giữ hình học, ký hiệu và nhãn kích thước gốc; đối chiếu chênh lệch với bảng thông số BC02.',
+      230
+    )
+  }
   for (const [id, title, key] of [
     ['CT01', 'Cốt thép bệ, thân và đỉnh', 'main'],
     ['CT02', 'Cốt thép tường cánh trái', 'left'],
     ['CT03', 'Cốt thép tường cánh phải', 'right']
   ] as const) {
     const s = sheet(id, title)
-    text(s, 6000, 54000, title.toUpperCase(), 420)
+    s.scale = 75
+    s.width = W * 0.75
+    s.height = H * 0.75
+    text(s, 6000, s.height - 3500, title.toUpperCase(), 420)
     if (model.referenceSteelApplicable) {
-      const ref = reference.views[key]
-      for (const op of ref.ops) {
-        if (op.kind === 'text' && op.at && op.text) {
-          let label = op.text
-          if (v.thepF3 === 'D22') label = label.replace(/F3-D25/g, 'F3-D22')
-          if (v.thepW16 === 'D16')
-            label = label
-              .replace(/W16(')?-D14/g, 'W16$1-D16')
-              .replace(/W16-D14/g, 'W16-D16')
-          text(s, 15000 + op.at[0], 14000 + op.at[1], label, op.height ?? 150)
-        } else if (op.points)
-          path(
-            s,
-            'cot_thep',
-            op.points.map(p => [15000 + p[0], 14000 + p[1]] as XY),
-            op.closed ?? false
-          )
-      }
+      appendReference(s, key, (s.width - reference.views[key].width) / 2, 8500)
       text(
         s,
         6000,
-        11000,
-        'Hình tham chiếu gốc, chưa tái thiết kế thép. Cung được chia đoạn; vùng tô không sao chép.',
-        260
-      )
-      text(
-        s,
-        6000,
-        9500,
-        'Các thay đổi F3/W16 đã chọn phải được kỹ sư kiểm tra neo/uốn trước phát hành.',
-        260
+        7500,
+        'Chi tiết nguồn: giữ nét hatch, mũi tên, ký hiệu thép và góc xoay chữ. Chưa tái thiết kế thép.',
+        240
       )
     } else {
-      text(s, 6000, 46000, 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY', 450)
+      text(s, 6000, 34000, 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY', 450)
       text(
         s,
         6000,
-        44000,
+        32000,
         'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.',
         300
       )
       text(
         s,
         6000,
-        42000,
+        30000,
         'Bổ sung thiết kế thép đã duyệt để hoàn thiện tờ này.',
         300
       )
@@ -668,6 +771,7 @@ export function buildDossierScene(model: DossierModel): DossierScene {
     version: DOSSIER_VERSION,
     reference: REFERENCE_ID,
     status: 'draft',
+    detailMode: sourceGeometry ? 'source' : 'parametric',
     model,
     sheets
   }
@@ -704,16 +808,32 @@ export function drawDossierScene(
       const tag = {
         role: op.role,
         partId: op.partId,
+        color: op.color,
         params: {
           ...Object.fromEntries(
             (fields[op.role] ?? []).map(k => [k, scene.model.values[k]])
           ),
+          ...(op.sourceHandle
+            ? {
+                sourceHandle: op.sourceHandle,
+                sourceLayer: op.sourceLayer ?? '',
+                sourceType: op.sourceType ?? ''
+              }
+            : {}),
           sheet: s.id,
           reference: scene.reference,
           status: scene.status
         }
       }
-      if (op.kind === 'path')
+      if (op.kind === 'fill')
+        ctx.hatch({
+          ...tag,
+          boundary: op.loops[0].map(p => point(s, p)),
+          additionalLoops: op.loops
+            .slice(1)
+            .map(loop => loop.map(p => point(s, p)))
+        })
+      else if (op.kind === 'path')
         ctx.polyline({
           ...tag,
           points: op.points.map(p => point(s, p)),
@@ -726,7 +846,10 @@ export function drawDossierScene(
           ...tag,
           position: point(s, op.at),
           text: op.text,
-          height: op.height
+          height: op.height,
+          rotationDeg: op.rotation,
+          align: (op.align ?? 0) as 0 | 1 | 2,
+          widthFactor: op.widthFactor
         })
       else
         ctx.dimension({

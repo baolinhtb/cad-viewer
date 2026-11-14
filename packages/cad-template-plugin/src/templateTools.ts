@@ -2,8 +2,10 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
 import { assemblyCatalogue, findAssembly, runAssembly } from './assembly'
+import { DOSSIER_ID } from './dossier/model'
 import { editTemplateRun } from './editRun'
 import { currentPlacementFrame } from './placement'
+import { listRuns } from './runIdentity'
 import { runTemplate } from './runTemplate'
 import type { AcApToolOutcome, AcApToolSchema } from './semanticTools'
 import { findTemplate, listTemplates } from './templateRegistry'
@@ -47,7 +49,7 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
       'Giá trị ngoài dải sẽ bị từ chối kèm dải đúng — sửa số rồi gọi lại, ' +
       'đừng chuyển sang vẽ tay. ' +
       'CHỈ dùng để dựng bộ phận CHƯA có trong bản vẽ. Nếu người dùng bảo sửa, ' +
-      'đổi, tăng, giảm một thứ đã vẽ rồi thì phải dùng sua_lan_chay — gọi lại ' +
+      'đổi, tăng, giảm một thứ đã vẽ rồi thì dùng script sửa trực tiếp — gọi lại ' +
       'công cụ này là vẽ thêm một bản nữa chồng lên bản cũ, và bản vẽ càng sửa ' +
       'càng rối. mo_ta_ban_ve cho biết bản vẽ đã có lần chạy nào.',
     input_schema: {
@@ -107,11 +109,9 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
   {
     name: 'sua_lan_chay',
     description:
-      'Sửa một bộ phận đã dựng từ template: xoá hình cũ và dựng lại với thông ' +
-      'số mới, giữ nguyên vị trí trong bản vẽ. ' +
-      'DÙNG CÔNG CỤ NÀY mỗi khi người dùng bảo sửa/đổi/tăng/giảm một thứ đã có, ' +
-      'thay vì gọi lại chay_template — gọi lại là vẽ chồng thêm một bản nữa, ' +
-      'để lại bản cũ, và bản vẽ càng sửa càng rối. ' +
+      'Dựng lại một lần chạy template CHỈ khi người dùng yêu cầu rõ việc dựng lại và dung_lai_toan_bo=true. ' +
+      'Sửa thông thường phải dùng execute_cad_script trên đối tượng hiện tại để giữ chi tiết và sửa tay. ' +
+      'Hồ sơ M1 luôn chặn dựng lại hình học; chỉ sửa nhãn/vị trí mà giữ nguyên đối tượng. ' +
       'Lấy mã lần chạy từ mo_ta_ban_ve. ' +
       'Chỉ cần truyền những thông số THAY ĐỔI; phần còn lại giữ nguyên như lần ' +
       'dựng trước. ' +
@@ -123,6 +123,11 @@ export const TEMPLATE_TOOLS: AcApToolSchema[] = [
           type: 'string',
           description:
             'Mã lần chạy cần sửa, ví dụ "r1". Lấy từ mục lanChay của mo_ta_ban_ve.'
+        },
+        dung_lai_toan_bo: {
+          type: 'boolean',
+          description:
+            'Chỉ true nếu người dùng yêu cầu dựng lại toàn bộ từ template, chấp nhận bỏ sửa tay trong lần chạy.'
         },
         thong_so: {
           type: 'object',
@@ -180,9 +185,7 @@ function catalogueDetail(): string {
       .join(', ')
     return `- ${template.meta.id}: ${template.meta.name}${params ? ` [${params}]` : ''}`
   })
-  return lines.length
-    ? lines.join('\n')
-    : '(bản dựng này chưa có template nào)'
+  return lines.length ? lines.join('\n') : '(bản dựng này chưa có template nào)'
 }
 
 /**
@@ -194,9 +197,7 @@ function catalogueDetail(): string {
  */
 function citedStandard(hint?: string): string | undefined {
   if (!hint) return undefined
-  return /TCVN|AASHTO|ISO|QCVN/.test(hint)
-    ? hint.replace(/\.$/, '')
-    : undefined
+  return /TCVN|AASHTO|ISO|QCVN/.test(hint) ? hint.replace(/\.$/, '') : undefined
 }
 
 /**
@@ -296,8 +297,7 @@ export async function runTemplateTool(
     return {
       ok: false,
       status: 'refused',
-      message:
-        `Thông số không hợp lệ, chưa vẽ gì:\n- ${result.errors.join('\n- ')}`
+      message: `Thông số không hợp lệ, chưa vẽ gì:\n- ${result.errors.join('\n- ')}`
     }
   }
 
@@ -368,8 +368,21 @@ async function editRunTool(
     return {
       ok: false,
       status: 'refused',
+      message: `Chưa nêu thông số nào cần đổi cho lần chạy "${runId}", nên không có gì để sửa.`
+    }
+  }
+
+  const run = listRuns(
+    database ??
+      (await import('@mlightcad/cad-simple-viewer')).AcApDocManager.instance
+        .curDocument.database
+  ).find(r => r.id === runId)
+  if (run && run.templateId !== DOSSIER_ID && input.dung_lai_toan_bo !== true) {
+    return {
+      ok: false,
+      status: 'refused',
       message:
-        `Chưa nêu thông số nào cần đổi cho lần chạy "${runId}", nên không có gì để sửa.`
+        'Giữ nguyên bản CAD. Sửa trực tiếp bằng execute_cad_script/tx.setText/tx.moveGrips; không dựng lại template khi người dùng chỉ yêu cầu sửa. Chỉ dùng dung_lai_toan_bo=true khi được yêu cầu rõ việc dựng lại toàn bộ.'
     }
   }
 
@@ -402,8 +415,10 @@ async function editRunTool(
     ok: true,
     status: 'ready',
     message:
-      `Đã sửa ${runId}: ${doi}. Xoá ${result.removed} đối tượng cũ, dựng lại ` +
-      `${result.entityCount} đối tượng trên ${result.layers.length} layer.`,
+      `Đã sửa ${runId}: ${doi}. ` +
+      (result.removed
+        ? `Dựng lại ${result.entityCount} đối tượng.`
+        : `Giữ nguyên ${result.entityCount} đối tượng và các chi tiết hiện có.`),
     data: {
       maLanChay: result.runId,
       soDoiTuongXoa: result.removed,
@@ -467,8 +482,7 @@ async function assembleTool(
     return {
       ok: false,
       status: 'refused',
-      message:
-        `Ghép dừng lại vì có bước không dựng được:\n- ${result.errors.join('\n- ')}`,
+      message: `Ghép dừng lại vì có bước không dựng được:\n- ${result.errors.join('\n- ')}`,
       data: { buoc: result.buoc }
     }
   }
@@ -480,9 +494,14 @@ async function assembleTool(
     message:
       `Đã ghép ${assembly.ten}: ${result.buoc.length} bộ phận, ` +
       `${result.entityCount} đối tượng. Mỗi bộ phận là một lần chạy riêng ` +
-      `(${result.buoc.map(b => b.runId).filter(Boolean).join(', ')}), sửa từng ` +
+      `(${result.buoc
+        .map(b => b.runId)
+        .filter(Boolean)
+        .join(', ')}), sửa từng ` +
       'cái bằng sua_lan_chay.' +
-      (boQua.length ? ` Bỏ qua thông số không phải số: ${boQua.join(', ')}.` : ''),
+      (boQua.length
+        ? ` Bỏ qua thông số không phải số: ${boQua.join(', ')}.`
+        : ''),
     data: {
       maGhep: id,
       soDoiTuong: result.entityCount,

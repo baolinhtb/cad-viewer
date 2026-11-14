@@ -130,7 +130,9 @@ describe('M1 dossier model', () => {
       ).toBe(true)
       for (const p of s.primitives) {
         const points =
-          p.kind === 'path'
+          p.kind === 'fill'
+            ? p.loops.flat()
+            : p.kind === 'path'
             ? p.points
             : p.kind === 'dimension'
               ? [p.start, p.end]
@@ -143,7 +145,7 @@ describe('M1 dossier model', () => {
           expect(y).toBeLessThanOrEqual(s.height)
         }
       }
-      expect(dossierSheetSvg(s)).toContain('viewBox="0 0 84100 59400"')
+      expect(dossierSheetSvg(s)).toContain(`viewBox="0 0 ${s.width} ${s.height}"`)
     }
     const html = dossierHtml(scene)
     expect(html).not.toContain('<img src=x')
@@ -151,4 +153,24 @@ describe('M1 dossier model', () => {
     expect(html.match(/<article /g)).toHaveLength(6)
     expect(html).toContain('@page{size:841mm 594mm')
   })
+})
+
+test('sheet export retains colored notes and patterned centerlines', () => {
+  const scene = buildDossierScene(buildDossierModel())
+  const svg = scene.sheets.map(s => dossierSheetSvg(s)).join('')
+  expect(svg).toContain('color="#166534"')
+  expect(svg).toContain('color="#854d0e"')
+  expect(svg).toContain('stroke-dasharray="375 75 75 75"')
+  expect(svg).toContain('stroke="none" stroke-dasharray="none"')
+  const custom = dossierSheetSvg(scene.sheets[0], undefined, {
+    'GC-GHICHU': { color: 1 }
+  })
+  expect(custom).toContain('color="#b91c1c"')
+})
+
+
+test('legacy gray annotation catalogue exports semantic accents', () => {
+  const scene = buildDossierScene(buildDossierModel())
+  const svg = dossierSheetSvg(scene.sheets[0], undefined, {'GC-GHICHU': {color:8}})
+  expect(svg).toContain('color="#166534"')
 })

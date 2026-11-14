@@ -1,182 +1,630 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quản trị thành viên — CAD Viewer</title>
-<link rel="stylesheet" href="/theme.css">
-<style>
-  /* The reset, body and .panel rules live in theme.css. */
-  header {
-    background: var(--cv-surface-panel);
-    border-bottom: 1px solid var(--cv-border-hairline);
-    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
-  }
-  h1 { font-size: 16px; font-weight: 600; }
-  .who { font-size: 13px; color: var(--cv-ink-secondary); }
-  .who button {
-    margin-left: 12px; padding: 5px 12px; font-size: 12px; cursor: pointer;
-    border: 1px solid var(--cv-border-hairline);
-    border-radius: var(--cv-radius-md);
-    background: var(--cv-surface-raised); color: var(--cv-ink-primary);
-  }
-  /* A native select keeps the platform's own light chrome unless every part
-     of it is named, and one bright control in a dark table is the thing the
-     eye goes to first. */
-  select {
-    padding: 4px 8px; font-size: 12px; font-family: inherit; cursor: pointer;
-    background: var(--cv-surface-canvas); color: var(--cv-ink-primary);
-    border: 1px solid var(--cv-border-hairline);
-    border-radius: var(--cv-radius-md);
-  }
-  select:disabled { color: var(--cv-ink-disabled); cursor: default; }
-  main { max-width: 900px; margin: 24px auto; padding: 0 16px; }
-  .panel { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td {
-    text-align: left; padding: 10px 16px; white-space: nowrap;
-    border-bottom: 1px solid var(--cv-border-hairline);
-  }
-  th { background: var(--cv-surface-raised); font-size: 12px; font-weight: 600; color: var(--cv-ink-secondary); }
-  tr:last-child td { border-bottom: 0; }
-  /* Emails, dates and roles are exact values, so they take the mono face. */
-  td.data { font-family: var(--cv-font-mono); font-variant-numeric: tabular-nums; }
-  /* Status reads from the outline, not a filled pill: a table of filled
-     badges competes with the one action in each row. */
-  .badge {
-    display: inline-block; padding: 2px 9px; font-size: 11px; font-weight: 600;
-    border-radius: var(--cv-radius-sm); border: 1px solid currentColor;
-  }
-  .badge.pending { color: var(--cv-warning); }
-  .badge.active { color: var(--cv-accent); }
-  .badge.disabled { color: var(--cv-danger); }
-  .badge.admin { color: var(--cv-selection); }
-  td button {
-    padding: 5px 12px; border: 1px solid currentColor; font-size: 12px;
-    font-weight: 600; cursor: pointer; background: transparent;
-    border-radius: var(--cv-radius-md);
-  }
-  button.act { color: var(--cv-accent); }
-  button.deact { color: var(--cv-danger); }
-  .empty { padding: 32px; text-align: center; color: var(--cv-ink-disabled); }
-  .toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: var(--cv-surface-raised); color: var(--cv-ink-primary);
-    border: 1px solid var(--cv-border-hairline);
-    padding: 9px 18px; border-radius: var(--cv-radius-md); font-size: 13px;
-    opacity: 0; transition: opacity .3s;
-  }
-  .toast.show { opacity: 1; }
-</style>
-</head>
-<body>
-<header>
-  <h1>Quản trị thành viên</h1>
-  <div class="who"><span id="who"></span><button id="logout">Đăng xuất</button></div>
-</header>
-<main>
-  <div class="panel">
-    <table>
-      <thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày đăng ký</th><th></th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-    <div id="empty" class="empty" style="display:none">Chưa có thành viên nào.</div>
-  </div>
-</main>
-<div id="toast" class="toast"></div>
-<script>
-const rows = document.getElementById('rows')
-let me = null
-
-function toast(text) {
-  const t = document.getElementById('toast')
-  t.textContent = text
-  t.classList.add('show')
-  setTimeout(() => t.classList.remove('show'), 2500)
-}
-
-async function api(path, opts) {
-  const r = await fetch(path, opts)
-  if (r.status === 401) { location.href = '/login?next=/admin'; throw new Error('unauthorized') }
-  return r
-}
-
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
-
-// Roles are shown and set separately from activation: one answers "may this
-// person in at all", the other "how far are they trusted once inside".
-const ROLE_LABEL = {
-  member: 'Thành viên',
-  author: 'Tác giả template',
-  admin: 'Quản trị'
-}
-
-function render(users) {
-  document.getElementById('empty').style.display = users.length ? 'none' : 'block'
-  rows.innerHTML = users.map(u => {
-    const status = { pending: '<span class="badge pending">Chờ kích hoạt</span>',
-      active: '<span class="badge active">Đã kích hoạt</span>',
-      disabled: '<span class="badge disabled">Vô hiệu hóa</span>' }[u.status] ?? ''
-
-    const roleCell = `<select class="role" data-id="${u.id}">` +
-      Object.entries(ROLE_LABEL).map(([value, label]) =>
-        `<option value="${value}"${u.role === value ? ' selected' : ''}>${label}</option>`
-      ).join('') + '</select>'
-
-    const action = u.role === 'admin' ? '' : (u.status === 'active'
-      ? `<button class="deact" data-id="${u.id}" data-a="deactivate">Vô hiệu hóa</button>`
-      : `<button class="act" data-id="${u.id}" data-a="activate">Kích hoạt</button>`)
-
-    return `<tr><td>${esc(u.name)}</td><td class="data">${esc(u.email)}</td><td>${roleCell}</td><td>${status}</td><td class="data">${esc(u.created_at)}</td><td>${action}</td></tr>`
-  }).join('')
-}
-
-rows.addEventListener('change', async event => {
-  const select = event.target.closest('select.role')
-  if (!select) return
-  const previous = select.dataset.previous
-  const response = await api(`/api/admin/users/${select.dataset.id}/role`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: select.value })
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}))
-    alert(body.error || 'Không đổi được vai trò.')
-    if (previous) select.value = previous
-    return
-  }
-  await load()
-})
-
-async function load() {
-  const r = await api('/api/admin/users')
-  if (r.status === 403) { document.body.innerHTML = '<main><div class="panel empty">Bạn không có quyền truy cập trang này.</div></main>'; return }
-  render((await r.json()).users)
-}
-
-rows.addEventListener('click', async e => {
-  const b = e.target.closest('button[data-id]')
-  if (!b) return
-  b.disabled = true
-  const r = await api(`/api/admin/users/${b.dataset.id}/${b.dataset.a}`, { method: 'POST' })
-  const data = await r.json()
-  toast(r.ok ? (b.dataset.a === 'activate' ? 'Đã kích hoạt' : 'Đã vô hiệu hóa') : (data.error || 'Lỗi'))
-  load()
-})
-
-document.getElementById('logout').addEventListener('click', async () => {
-  await fetch('/api/auth/logout', { method: 'POST' })
-  location.href = '/login'
-})
-
-api('/api/auth/me').then(async r => {
-  if (r.ok) {
-    me = await r.json()
-    document.getElementById('who').textContent = me.email
-    load()
-  }
-})
-</script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quản lý tài khoản — CAD Viewer</title>
+    <link rel="stylesheet" href="/theme.css" />
+    <style>
+      body {
+        color-scheme: dark;
+      }
+      header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--cv-border-hairline);
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      h1 {
+        font-size: 20px;
+      }
+      h2 {
+        font-size: 18px;
+      }
+      a {
+        color: var(--cv-selection);
+      }
+      nav {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      main {
+        max-width: 1200px;
+        margin: 28px auto;
+        padding: 0 20px;
+      }
+      .muted {
+        color: var(--cv-ink-secondary);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+        align-items: center;
+      }
+      .toolbar input {
+        flex: 1;
+        min-width: 220px;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+        font-size: 14px;
+        border: 1px solid var(--cv-border-hairline);
+        border-radius: 4px;
+        padding: 10px 12px;
+        color: var(--cv-ink-primary);
+        background: var(--cv-surface-raised);
+      }
+      button {
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--cv-accent);
+        color: var(--cv-accent-foreground);
+        font-weight: 600;
+      }
+      button.danger {
+        color: var(--cv-danger);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .panel {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 14px;
+        border-bottom: 1px solid var(--cv-border-hairline);
+      }
+      th {
+        font-weight: 500;
+        color: var(--cv-ink-secondary);
+        background: var(--cv-surface-raised);
+      }
+      td.actions {
+        white-space: nowrap;
+      }
+      td.actions button {
+        margin-right: 6px;
+        padding: 6px 10px;
+      }
+      .badge {
+        font-size: 12px;
+        border: 1px solid currentColor;
+        border-radius: 4px;
+        padding: 3px 8px;
+        white-space: nowrap;
+      }
+      .active {
+        color: var(--cv-accent);
+      }
+      .pending {
+        color: var(--cv-warning);
+      }
+      .disabled {
+        color: var(--cv-danger);
+      }
+      #empty {
+        padding: 32px;
+        text-align: center;
+      }
+      #feedback {
+        margin: 12px 0;
+        min-height: 22px;
+        color: var(--cv-accent);
+      }
+      #feedback.error,
+      .error {
+        color: var(--cv-danger);
+      }
+      details {
+        margin-top: 24px;
+      }
+      summary {
+        cursor: pointer;
+      }
+      .roles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 14px;
+      }
+      .roles section {
+        padding: 16px;
+        border: 1px solid var(--cv-border-hairline);
+        border-radius: 4px;
+      }
+      .roles p {
+        margin-top: 8px;
+      }
+      dialog {
+        margin: auto;
+        width: min(540px, calc(100% - 32px));
+        padding: 24px;
+        border: 1px solid var(--cv-border-hairline);
+        border-radius: 8px;
+        background: var(--cv-surface-panel);
+        color: var(--cv-ink-primary);
+      }
+      dialog::backdrop {
+        background: #0009;
+      }
+      form {
+        display: grid;
+        gap: 16px;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+      }
+      label small {
+        font-size: 12px;
+        color: var(--cv-ink-secondary);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .error {
+        font-size: 13px;
+        min-height: 18px;
+      }
+      .delete-note {
+        line-height: 1.6;
+        font-size: 14px;
+      }
+      #delete-name {
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 650px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        nav {
+          flex-wrap: wrap;
+          gap: 14px;
+        }
+        .roles {
+          grid-template-columns: 1fr;
+        }
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .toolbar select {
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Quản lý tài khoản</h1>
+      <nav>
+        <a href="/cad-viewer/">Mở CAD</a
+        ><a href="/standards">Quy ước kỹ thuật</a
+        ><span id="who" class="muted"></span
+        ><button id="logout">Đăng xuất</button>
+      </nav>
+    </header>
+    <main id="content" hidden>
+      <p class="muted">
+        Quản lý thông tin đăng nhập, trạng thái hoạt động và quyền sử dụng hệ
+        thống.
+      </p>
+      <div class="toolbar">
+        <input
+          id="search"
+          type="search"
+          aria-label="Tìm tài khoản"
+          placeholder="Tìm theo tên hoặc email"
+        /><select id="role-filter" aria-label="Lọc vai trò">
+          <option value="">Tất cả vai trò</option></select
+        ><select id="status-filter" aria-label="Lọc trạng thái">
+          <option value="">Tất cả trạng thái</option>
+          <option value="active">Đang hoạt động</option>
+          <option value="pending">Chờ kích hoạt</option>
+          <option value="disabled">Đã khóa</option></select
+        ><button id="add" class="primary">Thêm tài khoản</button
+        ><button id="reload">Tải lại</button>
+      </div>
+      <p id="count" class="muted"></p>
+      <div id="feedback" role="status" aria-live="polite"></div>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Họ tên / Email</th>
+              <th>Vai trò</th>
+              <th>Trạng thái</th>
+              <th>Bản vẽ</th>
+              <th>Ngày tạo</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" hidden>Không có tài khoản phù hợp.</div>
+      </div>
+      <details open>
+        <summary>Quyền theo vai trò</summary>
+        <div id="roles" class="roles"></div>
+      </details>
+    </main>
+    <p id="loading" style="padding: 24px" role="status">
+      Đang kiểm tra quyền truy cập…
+    </p>
+    <dialog id="editor" aria-labelledby="editor-title">
+      <form id="account-form">
+        <h2 id="editor-title">Thêm tài khoản</h2>
+        <label
+          >Họ tên<input
+            id="name"
+            name="name"
+            required
+            maxlength="100"
+            autocomplete="off" /></label
+        ><label
+          >Email<input
+            id="email"
+            name="email"
+            type="email"
+            required
+            maxlength="254"
+            autocomplete="off" /></label
+        ><label
+          >Mật khẩu<input
+            id="password"
+            name="password"
+            type="password"
+            minlength="8"
+            maxlength="200"
+            autocomplete="new-password"
+          /><small id="password-help">Từ 8 đến 200 ký tự.</small></label
+        >
+        <div class="form-grid">
+          <label>Vai trò<select id="role" name="role"></select></label
+          ><label
+            >Trạng thái<select id="status" name="status">
+              <option value="active">Đang hoạt động</option>
+              <option value="pending">Chờ kích hoạt</option>
+              <option value="disabled">Đã khóa</option>
+            </select></label
+          >
+        </div>
+        <p class="muted" id="role-help"></p>
+        <p id="form-error" class="error" role="alert"></p>
+        <div class="form-actions">
+          <button type="button" id="cancel">Hủy</button
+          ><button type="submit" id="save" class="primary">
+            Lưu tài khoản
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="delete-dialog" aria-labelledby="delete-title">
+      <form id="delete-form">
+        <h2 id="delete-title">Xóa tài khoản</h2>
+        <p id="delete-name"></p>
+        <p class="delete-note">
+          Tài khoản sẽ mất quyền đăng nhập và mọi phiên làm việc sẽ kết thúc.
+          Bản vẽ và nội dung thư viện sẽ được chuyển sang tài khoản quản trị của
+          bạn; thông tin tác giả trong lịch sử được giữ lại.
+        </p>
+        <p id="delete-data" class="muted"></p>
+        <p id="delete-error" class="error" role="alert"></p>
+        <div class="form-actions">
+          <button type="button" id="delete-cancel">Hủy</button
+          ><button type="submit" id="delete-confirm" class="danger">
+            Xóa tài khoản
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <script>
+      const $ = id => document.getElementById(id)
+      // This standalone administration surface follows the Vietnamese auth-page locale.
+      const messages = {
+        connection: 'Không kết nối được máy chủ.',
+        forbidden: 'Bạn không có quyền quản lý tài khoản.',
+        failed: 'Không thực hiện được thao tác.',
+        created: 'Đã tạo tài khoản.',
+        updated: 'Đã cập nhật tài khoản.',
+        deleted: 'Đã xóa tài khoản và chuyển dữ liệu sang bạn.',
+        add: 'Thêm tài khoản',
+        edit: 'Sửa tài khoản',
+        passwordNew: 'Từ 8 đến 200 ký tự.',
+        passwordEdit:
+          'Để trống để giữ mật khẩu. Đặt mật khẩu mới sẽ kết thúc các phiên đăng nhập.',
+        self: 'Không thể xóa hoặc tự hạ quyền tài khoản đang dùng.'
+      }
+      const statusLabels = {
+        active: 'Đang hoạt động',
+        pending: 'Chờ kích hoạt',
+        disabled: 'Đã khóa'
+      }
+      let users = [],
+        roles = {},
+        me = null,
+        editing = null,
+        deleting = null,
+        busy = false
+      function message(text, error = false) {
+        $('feedback').textContent = text
+        $('feedback').classList.toggle('error', error)
+      }
+      async function api(path, options = {}) {
+        let response
+        try {
+          response = await fetch(path, {
+            ...options,
+            headers: { 'Content-Type': 'application/json', ...options.headers },
+            credentials: 'same-origin'
+          })
+        } catch {
+          throw new Error(messages.connection)
+        }
+        if (response.status === 401) {
+          location.assign('/login?next=/admin')
+          throw new Error('Phiên đăng nhập đã kết thúc.')
+        }
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || messages.failed)
+        return data
+      }
+      function cell(row, text) {
+        const td = document.createElement('td')
+        td.textContent = text
+        row.append(td)
+        return td
+      }
+      function option(select, value, label) {
+        const o = document.createElement('option')
+        o.value = value
+        o.textContent = label
+        select.append(o)
+      }
+      function render() {
+        const query = $('search').value.trim().toLocaleLowerCase('vi')
+        const list = users.filter(
+          u =>
+            (u.name + ' ' + u.email).toLocaleLowerCase('vi').includes(query) &&
+            (!$('role-filter').value || u.role === $('role-filter').value) &&
+            (!$('status-filter').value || u.status === $('status-filter').value)
+        )
+        $('rows').replaceChildren()
+        $('empty').hidden = !!list.length
+        $('count').textContent =
+          `Hiển thị ${list.length} / ${users.length} tài khoản`
+        for (const u of list) {
+          const tr = document.createElement('tr')
+          tr.dataset.id = u.id
+          const identity = cell(tr, '')
+          const name = document.createElement('div')
+          name.textContent = u.name + (u.id === me.id ? ' (bạn)' : '')
+          identity.append(name)
+          const email = document.createElement('div')
+          email.className = 'muted'
+          email.textContent = u.email
+          identity.append(email)
+          cell(tr, roles[u.role]?.label || u.role)
+          const badge = document.createElement('span')
+          badge.className = 'badge ' + u.status
+          badge.textContent = statusLabels[u.status]
+          cell(tr, '').append(badge)
+          cell(tr, String(u.drawing_count))
+          cell(tr, u.created_at)
+          const actions = cell(tr, '')
+          actions.className = 'actions'
+          for (const [action, label] of [
+            ['edit', 'Sửa'],
+            ['toggle', u.status === 'active' ? 'Khóa' : 'Kích hoạt'],
+            ['delete', 'Xóa']
+          ]) {
+            const button = document.createElement('button')
+            button.textContent = label
+            button.dataset.action = action
+            button.dataset.id = u.id
+            if (action === 'delete') button.className = 'danger'
+            if (action !== 'edit' && u.id === me.id) {
+              button.disabled = true
+              button.title = messages.self
+            }
+            actions.append(button)
+          }
+          $('rows').append(tr)
+        }
+      }
+      async function load() {
+        const data = await api('/api/admin/users')
+        users = data.users
+        roles = data.roles
+        render()
+      }
+      function edit(user) {
+        editing = user || null
+        $('account-form').reset()
+        $('form-error').textContent = ''
+        $('editor-title').textContent = user ? messages.edit : messages.add
+        $('name').value = user?.name || ''
+        $('email').value = user?.email || ''
+        $('role').value = user?.role || 'member'
+        $('status').value = user?.status || 'active'
+        $('role').disabled = user?.id === me.id
+        $('status').disabled = user?.id === me.id
+        $('password').required = !user
+        $('password-help').textContent = user
+          ? messages.passwordEdit
+          : messages.passwordNew
+        $('role-help').textContent = roles[$('role').value].description
+        $('editor').showModal()
+        $('name').focus()
+      }
+      $('role').onchange = () => {
+        $('role-help').textContent = roles[$('role').value].description
+      }
+      $('add').onclick = () => edit(null)
+      $('cancel').onclick = () => {
+        if (!busy) $('editor').close()
+      }
+      $('delete-cancel').onclick = () => {
+        if (!busy) $('delete-dialog').close()
+      }
+      for (const id of ['editor', 'delete-dialog'])
+        $(id).addEventListener('cancel', e => {
+          if (busy) e.preventDefault()
+        })
+      $('account-form').onsubmit = async e => {
+        e.preventDefault()
+        if (busy) return
+        busy = true
+        $('save').disabled = true
+        $('form-error').textContent = ''
+        const input = {
+          name: $('name').value,
+          email: $('email').value,
+          role: $('role').value,
+          status: $('status').value
+        }
+        if ($('password').value) input.password = $('password').value
+        try {
+          await api(
+            editing ? '/api/admin/users/' + editing.id : '/api/admin/users',
+            { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(input) }
+          )
+          $('editor').close()
+          if (
+            editing?.id === me.id &&
+            (input.password || input.email.trim().toLowerCase() !== me.email)
+          ) {
+            location.assign('/login?next=/admin')
+            return
+          }
+          message(editing ? messages.updated : messages.created)
+          await load()
+        } catch (error) {
+          if ($('editor').open) $('form-error').textContent = error.message
+          else message(error.message, true)
+        } finally {
+          busy = false
+          $('save').disabled = false
+        }
+      }
+      $('rows').onclick = async e => {
+        const b = e.target.closest('button[data-action]')
+        if (!b || busy) return
+        const user = users.find(u => u.id === Number(b.dataset.id))
+        if (!user) return
+        if (b.dataset.action === 'edit') {
+          edit(user)
+          return
+        }
+        if (b.dataset.action === 'delete') {
+          deleting = user
+          $('delete-name').textContent = user.name + ' — ' + user.email
+          $('delete-data').textContent =
+            `Dữ liệu chuyển: ${user.drawing_count} bản vẽ, ${user.template_count} phiên bản template, ${user.skill_count} hướng dẫn.`
+          $('delete-error').textContent = ''
+          $('delete-dialog').showModal()
+          $('delete-cancel').focus()
+          return
+        }
+        b.disabled = true
+        try {
+          await api('/api/admin/users/' + user.id, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              status: user.status === 'active' ? 'disabled' : 'active'
+            })
+          })
+          message(messages.updated)
+          await load()
+        } catch (error) {
+          message(error.message, true)
+          b.disabled = false
+        }
+      }
+      $('delete-form').onsubmit = async e => {
+        e.preventDefault()
+        if (busy || !deleting) return
+        busy = true
+        $('delete-confirm').disabled = true
+        try {
+          await api('/api/admin/users/' + deleting.id, { method: 'DELETE' })
+          $('delete-dialog').close()
+          message(messages.deleted)
+          await load()
+        } catch (error) {
+          if ($('delete-dialog').open)
+            $('delete-error').textContent = error.message
+          else message(error.message, true)
+        } finally {
+          busy = false
+          $('delete-confirm').disabled = false
+        }
+      }
+      for (const id of ['search', 'role-filter', 'status-filter'])
+        $(id).addEventListener('input', render)
+      $('reload').onclick = () => load().catch(e => message(e.message, true))
+      $('logout').onclick = async () => {
+        try {
+          await api('/api/auth/logout', { method: 'POST' })
+          location.assign('/login')
+        } catch (e) {
+          message(e.message, true)
+        }
+      }
+      async function start() {
+        me = await api('/api/auth/me')
+        if (!me.isAdmin) throw new Error(messages.forbidden)
+        $('who').textContent = me.email
+        const data = await api('/api/admin/users')
+        users = data.users
+        roles = data.roles
+        for (const [value, role] of Object.entries(roles)) {
+          option($('role'), value, role.label)
+          option($('role-filter'), value, role.label)
+          const section = document.createElement('section')
+          const strong = document.createElement('strong')
+          strong.textContent = role.label
+          const p = document.createElement('p')
+          p.textContent = role.description
+          p.className = 'muted'
+          section.append(strong, p)
+          $('roles').append(section)
+        }
+        $('loading').hidden = true
+        $('content').hidden = false
+        render()
+      }
+      start().catch(e => {
+        $('loading').textContent = e.message
+        $('loading').className = 'error'
+      })
+    </script>
+  </body>
 </html>

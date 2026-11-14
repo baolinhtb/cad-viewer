@@ -113,3 +113,33 @@ export const SEED_DICTIONARY: readonly AcTpTerm[] = Object.entries(SEED_ROLES)
   // Sorted so the fallback dictionary is stable whatever the object literal's
   // order becomes.
   .sort((a, b) => a.role.localeCompare(b.role))
+
+/** Semantic annotation accents; chromatic office conventions take priority. */
+export const acTpAnnotationStyles: Readonly<
+  Record<string, { color: number; lineType: string }>
+> = {
+  ghi_chu: { color: 3, lineType: 'Continuous' },
+  ghi_chu_cao_do: { color: 4, lineType: 'Continuous' },
+  kich_thuoc: { color: 2, lineType: 'Continuous' },
+  tieu_de_ban_ve: { color: 7, lineType: 'Continuous' },
+  duong_tim: { color: 1, lineType: 'CENTER' }
+}
+
+/** Resolve presentation for newly generated annotations. Legacy monochrome
+ * layer catalogues remain intact; semantic accents apply to new entities only. */
+export function acTpAnnotationPresentation(
+  role: string,
+  office: { color?: number | null; lineType?: string | null } = {}
+): { color?: number | null; lineType?: string | null } {
+  const fallback = acTpAnnotationStyles[role]
+  const monochrome =
+    office.color != null &&
+    ([7, 8, 9].includes(office.color) || office.color >= 250)
+  return {
+    color:
+      fallback && fallback.color !== 7 && monochrome
+        ? fallback.color
+        : (office.color ?? fallback?.color),
+    lineType: office.lineType ?? fallback?.lineType
+  }
+}

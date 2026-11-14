@@ -8,12 +8,7 @@ import { runTemplate } from '../runTemplate'
 import type { AcApToolOutcome, AcApToolSchema } from '../semanticTools'
 import { layerStyles, roleLayers } from '../templateRegistry'
 import type { DossierDownload } from './export'
-import {
-  dossierDxf,
-  dossierHtml,
-  dossierSheetSvg,
-  downloadDossierFile
-} from './export'
+import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
   buildDossierModel,
   DOSSIER_ID,
@@ -36,7 +31,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_ho_so_mo',
     description:
-      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Một mô hình sinh 6 tờ bản nháp: bố trí chung, bảng, 3 tờ thép tham chiếu, khối lượng. Cọc 2×2. Phân biệt trái/phải tuyến, Lc là chiều dài cánh. Không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Giữ mặc định M1 sẽ dựng chi tiết từ CAD gốc, gồm hatch, mũi tên và block kích thước. Thay kích thước chỉ có hình tham số, không được gọi là bản chi tiết hoàn chỉnh. Một mô hình sinh 6 tờ bản nháp: bố trí chung, bảng, 3 tờ thép tham chiếu, khối lượng. Cọc 2×2. Phân biệt trái/phải tuyến, Lc là chiều dài cánh. Không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
       paramDescription,
     input_schema: {
       type: 'object',
@@ -47,7 +42,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Sửa đúng bộ hồ sơ đang có, mọi hình và bảng cập nhật đồng bộ trong một mốc hoàn tác. Chỉ truyền thông số đổi. ma_lan_chay lấy từ mo_ta_ban_ve. Hình học khác mẫu thì bỏ thép tham chiếu và nêu cần thiết kế lại, không kéo giãn thép.',
+      'Cập nhật tên mố, công trình hoặc vị trí x/y trên hồ sơ đang có, giữ nguyên đối tượng và các chi tiết đã sửa tay. Không xóa rồi dựng lại. Đổi hình học bị từ chối để bảo toàn bản CAD; dùng execute_cad_script, tx.setText/tx.moveGrips trên đúng đối tượng và kiểm tra các hình chiếu liên quan. Không dùng tao_ho_so_mo thay thế hồ sơ sau khi bị từ chối. Chỉ truyền thông số đổi.',
     input_schema: {
       type: 'object',
       properties: { ma_lan_chay: { type: 'string' }, thong_so: parameters },
@@ -69,7 +64,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'xuat_ho_so_mo',
     description:
-      'Tải hồ sơ bản nháp tái sinh từ thông số đã lưu: PDF 6 trang A1, HTML tự chứa, DXF hoặc JSON. Không chứa sửa tay ngoài mô hình; nói rõ trước khi xuất. Không công bố/ghi đè hồ sơ. PDF là ảnh 200 dpi giữ chữ Việt; DXF là bản chỉnh sửa được.',
+      'DXF tải đúng toàn bộ bản vẽ đang mở, gồm chi tiết và sửa tay. PDF 6 trang A1, HTML và JSON tái sinh từ thông số đã lưu, không chứa sửa tay ngoài mô hình; phải nói rõ giới hạn này trước khi xuất. Sau sửa trực tiếp ưu tiên DXF. Không công bố/ghi đè hồ sơ.',
     input_schema: {
       type: 'object',
       properties: {
@@ -101,6 +96,7 @@ function summary(
   extra: Record<string, unknown> = {}
 ): AcApToolOutcome {
   const model = buildDossierModel(values)
+  const detailMode = buildDossierScene(model).detailMode
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
@@ -108,6 +104,11 @@ function summary(
     data: {
       maLanChay: runId,
       trangThaiHoSo: 'draft',
+      mucDoChiTiet: detailMode,
+      moTaChiTiet:
+        detailMode === 'source'
+          ? 'Bố trí trích từ CAD mẫu M1, giữ chi tiết nguồn.'
+          : 'Bố trí theo thông số là sơ đồ; chi tiết cho kích thước mới chưa được thiết kế.',
       thongSo: values,
       caoDo: model.elevations,
       kiemTra: model.issues,
@@ -206,7 +207,7 @@ export async function runDossierTool(
         await import('@mlightcad/cad-pdf-plugin/sheets')
       await downloadSvgSheetsAsPdf(
         scene.sheets.map(s => ({
-          svg: dossierSheetSvg(s),
+          svg: dossierSheetSvg(s, roleLayers(), layerStyles()),
           title: s.title,
           widthMm: 841,
           heightMm: 594
@@ -229,7 +230,7 @@ export async function runDossierTool(
       file = {
         name: `${filename}-ban-nhap.html`,
         mime: 'text/html;charset=utf-8',
-        content: dossierHtml(scene)
+        content: dossierHtml(scene, roleLayers(), layerStyles())
       }
     else if (format === 'json')
       file = {
@@ -241,14 +242,17 @@ export async function runDossierTool(
       file = {
         name: `${filename}-ban-nhap.dxf`,
         mime: 'application/dxf;charset=utf-8',
-        content: dossierDxf(scene, roleLayers(), layerStyles())
+        content: db.dxfOut() as string
       }
     else throw new Error('Định dạng hỗ trợ: pdf, html, dxf, json.')
     download(file)
     return {
       ok: true,
       status: 'ready',
-      message: `Đã xuất ${file.name}: 6 tờ bản nháp tái sinh từ thông số; không chứa sửa tay trên canvas.${format === 'html' ? ' Mở HTML, In → Lưu PDF, A1 ngang, tỷ lệ 100%.' : ''}`,
+      message:
+        format === 'dxf'
+          ? `Đã xuất ${file.name}: toàn bộ bản vẽ hiện tại, giữ chi tiết CAD và các chỉnh sửa trực tiếp.`
+          : `Đã xuất ${file.name}: 6 tờ bản nháp tái sinh từ thông số; không chứa sửa tay trên canvas.${format === 'html' ? ' Mở HTML, In → Lưu PDF, A1 ngang, tỷ lệ 100%.' : ''}`,
       data: {
         tep: file.name,
         trangThaiHoSo: 'draft',

@@ -61,7 +61,7 @@ function response(
   ].join('')
 }
 
-test('prompt creates a dossier, replaces it, and downloads six PDF pages', async ({
+test('prompt creates a dossier, patches labels without replacing detail, and downloads six PDF pages', async ({
   page
 }) => {
   test.setTimeout(180000)
@@ -105,7 +105,10 @@ test('prompt creates a dossier, replaces it, and downloads six PDF pages', async
         : round === 3
           ? {
               name: 'sua_ho_so_mo',
-              input: { ma_lan_chay: 'r1', thong_so: { bBe: 8500 } }
+              input: {
+                ma_lan_chay: 'r1',
+                thong_so: { congTrinh: 'Cầu đổi tên, giữ chi tiết' }
+              }
             }
           : round === 5
             ? {
@@ -173,7 +176,7 @@ test('prompt creates a dossier, replaces it, and downloads six PDF pages', async
   expect(
     before.texts.filter(t => t === 'BẢN NHÁP — CHƯA PHÁT HÀNH THI CÔNG')
   ).toHaveLength(6)
-  await prompt('Tăng rộng bệ M1 lên 8500 mm, giữ thân và cọc.', 2)
+  await prompt('Đổi tên công trình thành Cầu đổi tên, giữ chi tiết.', 2)
   const after = await page.evaluate(() => {
     const manager = (
       window as unknown as {
@@ -207,15 +210,16 @@ test('prompt creates a dossier, replaces it, and downloads six PDF pages', async
         .map(e => e.textString ?? '')
     }
   })
-  expect(after.count).toBeLessThan(before.count)
+  expect(after.count).toBe(before.count)
   expect(
     after.texts.filter(t => t === 'BẢN NHÁP — CHƯA PHÁT HÀNH THI CÔNG')
   ).toHaveLength(6)
-  expect(after.texts).toContain('bBe: 8500')
+  expect(after.texts).toContain('Cầu đổi tên, giữ chi tiết')
+  expect(after.texts).toContain('bBe: 7700')
   expect(after.texts).toContain('bThan: 7700')
   expect(
     after.texts.filter(t => t === 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY')
-  ).toHaveLength(3)
+  ).toHaveLength(0)
   const downloadPromise = page.waitForEvent('download', { timeout: 90000 })
   await prompt('Xuất PDF hồ sơ M1 bản nháp.', 3)
   const download = await downloadPromise

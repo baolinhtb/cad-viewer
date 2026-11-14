@@ -323,6 +323,12 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
     sua_lan_chay: tool({
       description: templateDescription('sua_lan_chay'),
       inputSchema: z.object({
+        dung_lai_toan_bo: z
+          .boolean()
+          .optional()
+          .describe(
+            'Chỉ bật khi người dùng yêu cầu dựng lại toàn bộ từ template, bỏ các sửa tay của lần chạy.'
+          ),
         ma_lan_chay: z
           .string()
           .min(1)
@@ -337,6 +343,7 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
         await ready()
         return runTemplateTool('sua_lan_chay', {
           ma_lan_chay: input.ma_lan_chay,
+          dung_lai_toan_bo: input.dung_lai_toan_bo,
           thong_so: input.thong_so
         })
       }

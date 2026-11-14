@@ -25,6 +25,8 @@ export interface EntitySnapshot {
   type: string
   /** Layer name. */
   layer: string
+  /** Presentation suitable for verifying annotation styles. */
+  style?: { color: number | undefined; lineType: string; linetypeScale: number }
   /** World extents when the entity can report them. */
   extents?: { min: SnapshotPoint; max: SnapshotPoint }
   /** Type-specific geometry fields. */
@@ -42,7 +44,12 @@ export function toEntitySnapshot(entity: AcDbEntity): EntitySnapshot {
     id: entity.objectId,
     ownerId: entity.ownerId,
     type: entity.type,
-    layer: entity.layer
+    layer: entity.layer,
+    style: {
+      color: entity.color.colorIndex,
+      lineType: entity.lineType,
+      linetypeScale: entity.linetypeScale
+    }
   }
   const extents = readSnapshotExtents(entity)
   if (extents) snapshot.extents = extents
@@ -110,6 +117,8 @@ export interface EntityFilterView {
  */
 export function openEntityFilterView(entity: AcDbEntity): EntityFilterView {
   let source: AcDbEntity | undefined = entity
+  let style: EntitySnapshot['style']
+  let styleRead = false
   let extents: EntitySnapshot['extents']
   let extentsRead = false
   let geometry: Record<string, unknown> | undefined
@@ -132,6 +141,21 @@ export function openEntityFilterView(entity: AcDbEntity): EntityFilterView {
     ownerId: { enumerable: true, value: ownerId },
     type: { enumerable: true, value: type },
     layer: { enumerable: true, value: layer },
+    style: {
+      enumerable: true,
+      get() {
+        if (!styleRead) {
+          styleRead = true
+          const e = readSource()
+          style = {
+            color: e.color.colorIndex,
+            lineType: e.lineType,
+            linetypeScale: e.linetypeScale
+          }
+        }
+        return style
+      }
+    },
     extents: {
       enumerable: true,
       get() {

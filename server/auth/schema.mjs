@@ -25,34 +25,110 @@
  * behalf is how a dictionary ends up describing nobody's drawings.
  */
 export const SEED_STANDARDS = {
-  ban_mat_cau: { label: 'Bản mặt cầu', layer: 'KC-BAN', aliases: ['bản mặt cầu', 'bản'] },
-  lop_phu: { label: 'Lớp phủ mặt cầu', layer: 'KC-LOPPHU', aliases: ['lớp phủ', 'bê tông nhựa'] },
-  lan_can: { label: 'Lan can', layer: 'KC-LANCAN', aliases: ['lan can', 'tay vịn'] },
-  go_chan_banh: { label: 'Gờ chắn bánh', layer: 'KC-GOCHAN', aliases: ['gờ chắn bánh', 'gờ chắn'] },
-  ban_qua_do: { label: 'Bản quá độ', layer: 'KC-BANQUADO', aliases: ['bản quá độ'] },
+  ban_mat_cau: {
+    label: 'Bản mặt cầu',
+    layer: 'KC-BAN',
+    aliases: ['bản mặt cầu', 'bản']
+  },
+  lop_phu: {
+    label: 'Lớp phủ mặt cầu',
+    layer: 'KC-LOPPHU',
+    aliases: ['lớp phủ', 'bê tông nhựa']
+  },
+  lan_can: {
+    label: 'Lan can',
+    layer: 'KC-LANCAN',
+    aliases: ['lan can', 'tay vịn']
+  },
+  go_chan_banh: {
+    label: 'Gờ chắn bánh',
+    layer: 'KC-GOCHAN',
+    aliases: ['gờ chắn bánh', 'gờ chắn']
+  },
+  ban_qua_do: {
+    label: 'Bản quá độ',
+    layer: 'KC-BANQUADO',
+    aliases: ['bản quá độ']
+  },
   mo_cau: { label: 'Mố cầu', layer: 'KC-MO', aliases: ['mố', 'mố cầu'] },
   // The abutment taken apart. A sheet that separates the parts needs a term
   // per part, or "sửa tường thân" resolves to nothing; `mo_cau` stays for the
   // cross-sections that draw it as one shape. Layer names here are defaults —
   // an office that calls them `_33_CAU_MO_*` remaps them in this same table.
-  mo_tuong_dau: { label: 'Tường đầu mố', layer: 'KC-MO-TUONGDAU', aliases: ['tường đầu', 'tường đỉnh mố'] },
-  mo_tuong_than: { label: 'Tường thân mố', layer: 'KC-MO-TUONGTHAN', aliases: ['tường thân', 'thân mố'] },
-  mo_tuong_tai: { label: 'Tường tai mố', layer: 'KC-MO-TUONGTAI', aliases: ['tường tai', 'tường cánh'] },
-  mo_be: { label: 'Bệ móng mố', layer: 'KC-MO-BE', aliases: ['bệ mố', 'bệ móng'] },
-  mo_be_tong_lot: { label: 'Bê tông lót', layer: 'KC-MO-BTLOT', aliases: ['bê tông lót', 'bê tông đệm'] },
-  coc_khoan_nhoi: { label: 'Cọc khoan nhồi', layer: 'KC-COC', aliases: ['cọc khoan nhồi', 'cọc nhồi', 'cọc'] },
+  mo_tuong_dau: {
+    label: 'Tường đầu mố',
+    layer: 'KC-MO-TUONGDAU',
+    aliases: ['tường đầu', 'tường đỉnh mố']
+  },
+  mo_tuong_than: {
+    label: 'Tường thân mố',
+    layer: 'KC-MO-TUONGTHAN',
+    aliases: ['tường thân', 'thân mố']
+  },
+  mo_tuong_tai: {
+    label: 'Tường tai mố',
+    layer: 'KC-MO-TUONGTAI',
+    aliases: ['tường tai', 'tường cánh']
+  },
+  mo_be: {
+    label: 'Bệ móng mố',
+    layer: 'KC-MO-BE',
+    aliases: ['bệ mố', 'bệ móng']
+  },
+  mo_be_tong_lot: {
+    label: 'Bê tông lót',
+    layer: 'KC-MO-BTLOT',
+    aliases: ['bê tông lót', 'bê tông đệm']
+  },
+  coc_khoan_nhoi: {
+    label: 'Cọc khoan nhồi',
+    layer: 'KC-COC',
+    aliases: ['cọc khoan nhồi', 'cọc nhồi', 'cọc']
+  },
   goi_cau: { label: 'Gối cầu', layer: 'KC-GOI', aliases: ['gối', 'gối cầu'] },
-  khe_co_gian: { label: 'Khe co giãn', layer: 'KC-KHE', aliases: ['khe co giãn', 'khe'] },
-  ong_thoat_nuoc: { label: 'Ống thoát nước', layer: 'KT-THOATNUOC', aliases: ['ống thoát nước', 'ống thoát'] },
-  cot_thep: { label: 'Cốt thép', layer: 'KC-COTTHEP', aliases: ['cốt thép', 'thép'] },
-  duong_tim: { label: 'Đường tim', layer: 'TRUC-TIM', aliases: ['tim cầu', 'đường tim'] },
+  khe_co_gian: {
+    label: 'Khe co giãn',
+    layer: 'KC-KHE',
+    aliases: ['khe co giãn', 'khe']
+  },
+  ong_thoat_nuoc: {
+    label: 'Ống thoát nước',
+    layer: 'KT-THOATNUOC',
+    aliases: ['ống thoát nước', 'ống thoát']
+  },
+  cot_thep: {
+    label: 'Cốt thép',
+    layer: 'KC-COTTHEP',
+    aliases: ['cốt thép', 'thép']
+  },
+  duong_tim: {
+    label: 'Đường tim',
+    layer: 'TRUC-TIM',
+    aliases: ['tim cầu', 'đường tim']
+  },
   // A level callout is a block with the elevation in an attribute, not free
   // text — nine of them in one abutment sheet. The drawing title likewise sits
   // on a layer of its own, so both are parts a drawing can be asked about.
-  ghi_chu_cao_do: { label: 'Ghi chú cao độ', layer: 'GC-CAODO', aliases: ['cao độ', 'mốc cao độ'] },
-  tieu_de_ban_ve: { label: 'Tiêu đề bản vẽ', layer: 'GC-TIEUDE', aliases: ['tiêu đề', 'tên bản vẽ'] },
-  kich_thuoc: { label: 'Đường kích thước', layer: 'GC-KICHTHUOC', aliases: ['kích thước', 'cột kích thước'] },
-  ghi_chu: { label: 'Ghi chú', layer: 'GC-GHICHU', aliases: ['ghi chú', 'chú thích'] }
+  ghi_chu_cao_do: {
+    label: 'Ghi chú cao độ',
+    layer: 'GC-CAODO',
+    aliases: ['cao độ', 'mốc cao độ']
+  },
+  tieu_de_ban_ve: {
+    label: 'Tiêu đề bản vẽ',
+    layer: 'GC-TIEUDE',
+    aliases: ['tiêu đề', 'tên bản vẽ']
+  },
+  kich_thuoc: {
+    label: 'Đường kích thước',
+    layer: 'GC-KICHTHUOC',
+    aliases: ['kích thước', 'cột kích thước']
+  },
+  ghi_chu: {
+    label: 'Ghi chú',
+    layer: 'GC-GHICHU',
+    aliases: ['ghi chú', 'chú thích']
+  }
 }
 
 /**
@@ -321,6 +397,12 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_skills_status
         ON skills(status, skill_id);
     `)
+  },
+  // v9 — persist bootstrap completion so restarts cannot reset edited accounts.
+  db => {
+    db.exec(
+      'CREATE TABLE IF NOT EXISTS auth_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)'
+    )
   }
 ]
 

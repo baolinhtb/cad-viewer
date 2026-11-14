@@ -22,6 +22,7 @@ export const CAD_SCRIPT_API_TREE = {
   entities: {
     where: true,
     byId: true,
+    grips: true,
     inBox: true
   },
   tables: {
@@ -86,6 +87,9 @@ export const CAD_EDIT_TX_METHODS = [
   'drawText',
   'erase',
   'setLayer',
+  'setStyle',
+  'setText',
+  'moveGrips',
   'move',
   'rotate',
   'createLayer',
@@ -109,8 +113,9 @@ The body may return JSON. Do not import modules or touch the page.
 
 cad.drawing -> { title, currentLayer, units, layers: [{ name, isOn, isFrozen, isLocked }], extents }
 cad.entities lists every entity in the database (model space, paper space, and block definitions, plus attributes on inserts).
-cad.entities.where(predicate) -> snapshots { id, ownerId, type, layer, extents, geometry }
+cad.entities.where(predicate) -> snapshots { id, ownerId, type, layer, style: { color, lineType, linetypeScale }, extents, geometry }
 cad.entities.byId(id) -> snapshot or undefined
+cad.entities.grips(id) -> native editable grip points [{x,y,z}], indexed from 0.
 cad.entities.inBox(min, max) -> snapshots whose extents hit a WCS box
 cad.tables mirrors AcDbDatabase.tables: appIdTable, blockTable, dimStyleTable, linetypeTable, textStyleTable, ucsTable, viewTable, layerTable, viewportTable.
 Each table is { id, records: [{ id, name, ...fields }] }.
@@ -153,6 +158,25 @@ tx draw methods: drawLine, drawCircle, drawArc, drawRectangle, drawPolyline, dra
 drawHatch, drawPoint, drawRay, drawXline, drawSpline, drawText.
 tx edit methods: erase(ids), setLayer(ids, layer), move(ids, dx, dy), rotate(ids, center, angleDeg),
 createLayer(name), setCurrentLayer(name).
+tx.setStyle(ids, { color?, lineType?, linetypeScale? }) changes presentation.
+color: ACI 1–255, 256=ByLayer. lineType: existing table name or CENTER, DASHED,
+HIDDEN, DASHDOT (created if absent). Continuous and ByLayer use existing table names.
+linetypeScale: positive scale multiplying the pattern in drawing units and global LTSCALE.
+Choose scale to make dashes readable at drawing extents/print scale. Locked layers are skipped.
+Example: tx.setStyle([leaderId, noteId], { color: 3 });
+tx.setStyle([axisId], { color: 1, lineType: 'CENTER', linetypeScale: 100 });
+tx.setText(id, text) updates Text, MText or Attribute content in place. It preserves
+the handle, layer, font, alignment, rotation, width and all unrelated geometry.
+tx.moveGrips(id, indices, dx, dy) moves native grip points in WCS, preserving curves,
+hatch loops, block identity and other entity properties. Read cad.entities.grips(id)
+first; grip meaning depends on entity type. Locked/missing/unsupported entities and
+invalid indices are refused. Use tx.move for moving a whole entity.
+For edits, inspect the selection/current drawing and update exact entity ids.
+Preserve existing detail: do not erase a whole drawing or recreate it from templates
+for a local change. Scope model-space edits by ownerId; block-definition edits affect
+all inserts. Check connected geometry, hatches and dimensions after a grip change.
+Do not replace measured dimension labels with made-up text or report a global design
+change after only editing one view. cad.file.saveDxf exports the actual edited database.
 tx draw methods return the new entity id. Prefer one transaction for related geometry.
 Snapshots cover every data-model entity type. Common geometry:
 Circle { center, radius }, Line { start, end }, Arc { center, radius, startAngle, endAngle } in radians,
