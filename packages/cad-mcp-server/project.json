@@ -12,6 +12,11 @@
         "cwd": "packages/cad-mcp-server"
       },
       "dependsOn": ["^build"],
+      "outputs": [
+        "{projectRoot}/dist",
+        "{projectRoot}/lib",
+        "{projectRoot}/dist-runner"
+      ],
       "cache": true
     },
     "clean": {

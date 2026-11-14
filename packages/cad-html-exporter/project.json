@@ -17,6 +17,11 @@
         "^build",
         "@mlightcad/cad-html-plugin:build"
       ],
+      "outputs": [
+        "{projectRoot}/dist",
+        "{projectRoot}/lib",
+        "{projectRoot}/runtime"
+      ],
       "cache": true
     },
     "clean": {
