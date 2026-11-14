@@ -73,7 +73,10 @@ export const ACTP_TEXT_STYLES_33: Readonly<Record<string, AcTpTextStyleDef>> = {
   _33_ArialHep: { name: '_33_ArialHep', font: 'arialn.ttf', widthFactor: 1 },
   // .VnAvantH (TEXT, .VNAVANTH_SAGI, style1a). Kept as its own style so the
   // office can point it at the Avant Garde face it uses; Arial until then.
-  _33_Avant: { name: '_33_Avant', font: 'arial.ttf', widthFactor: 1 }
+  _33_Avant: { name: '_33_Avant', font: 'arial.ttf', widthFactor: 1 },
+  // STANDARD of the source (txt.shx): ATTRIBs stored without a style, such
+  // as the elevation tags of cd11, are drawn with it.
+  _33_Txt: { name: '_33_Txt', font: 'txt.shx', widthFactor: 1 }
 }
 
 /** Dimension styles, keyed by name (sizes as drawn, `dimscale 1`). */

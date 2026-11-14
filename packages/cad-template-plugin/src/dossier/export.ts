@@ -89,6 +89,8 @@ export function dossierSheetSvg(
       lines.push(
         `<path d="M${point(p0)} A${op.radius} ${op.radius} 0 ${sweep > 180 ? 1 : 0} 0 ${point(p1)}" fill="none" stroke="currentColor" stroke-width="16"/>`
       )
+    } else if (op.kind === 'leader') {
+      lines.push(path(op.points))
     } else if (op.kind === 'insert') {
       const def = blocks.find(b => b.name === op.block)
       const k = `translate(${op.at[0]} ${sheet.height - op.at[1]}) rotate(${-(op.rotation ?? 0)}) scale(${op.scale[0]} ${-op.scale[1]})`
@@ -101,7 +103,9 @@ export function dossierSheetSvg(
             `<polyline points="${pts.join(' ')}" fill="none" stroke="currentColor" stroke-width="${16 / Math.abs(op.scale[0])}"/>`
           )
         } else if (e.kind === 'attribute') {
-          const value = op.attributes[e.tag] ?? e.defaultValue ?? ''
+          const own = op.attributes[e.tag]
+          const value =
+            (typeof own === 'string' ? own : own?.value) ?? e.defaultValue ?? ''
           // Text stays upright and unmirrored, as AutoCAD draws ATTRIB.
           const sx = Math.sign(op.scale[0])
           const anchor =

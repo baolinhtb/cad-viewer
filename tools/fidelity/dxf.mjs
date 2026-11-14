@@ -59,6 +59,20 @@ export const num = (rec, code, fallback) => {
 export const all = (rec, code) =>
   rec.pairs.filter(p => p.code === code).map(p => p.value)
 
+/**
+ * Owner handle (group 330) of a record, ignoring the 330s inside `102`
+ * groups such as `{ACAD_REACTORS`: an associative array's INSERT lists its
+ * reactor first, and taking that for the owner loses the entity.
+ */
+export function owner(rec) {
+  let depth = 0
+  for (const p of rec.pairs) {
+    if (p.code === 102) depth += p.value.trim().startsWith('{') ? 1 : -1
+    else if (p.code === 330 && depth === 0) return p.value.trim()
+  }
+  return undefined
+}
+
 /** Points from paired x/y codes (e.g. 10/20) in order of appearance. */
 export function points(rec, xCode, yCode) {
   const out = []
@@ -103,7 +117,7 @@ export function* walk(recs) {
         block = {
           name: get(rec, 2)?.trim(),
           handle: get(rec, 5)?.trim(),
-          owner: get(rec, 330)?.trim()
+          owner: owner(rec)
         }
         continue
       }

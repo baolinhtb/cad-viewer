@@ -30,6 +30,7 @@ import {
   dossierDefaults
 } from '../src/dossier/model'
 import layout from '../src/dossier/reference/layout-mo2.json'
+import type { DossierPrimitive } from '../src/dossier/scene'
 import { buildDossierScene, drawDossierScene } from '../src/dossier/scene'
 import { abutmentDossierLegacyTemplates } from '../src/dossier/template'
 
@@ -180,16 +181,80 @@ describe('bố cục 0.3.0', () => {
     expect(texts.some(t => /mặt cắt/i.test(t))).toBe(true)
   })
 
-  test('kích thước khác bản gốc: không mượn hình gốc, ghi rõ trên tờ', () => {
-    const changed = buildDossierScene(buildDossierModel({ bBe: 8500 }), V)
+  test('kích thước khác bản gốc: tờ chưa có lưới không mượn hình gốc, ghi rõ', () => {
+    const changed = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     expect(changed.detailMode).toBe('parametric')
-    for (const s of changed.sheets)
+    for (const s of changed.sheets.slice(1))
       expect(s.primitives.some(p => p.sourceHandle)).toBe(false)
     expect(
-      changed.sheets[0].primitives.some(
+      changed.sheets[1].primitives.some(
         p => p.kind === 'text' && /CHƯA DỰNG HÌNH/.test(p.text)
       )
     ).toBe(true)
+  })
+})
+
+describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', () => {
+  const content = (s: typeof scene) =>
+    s.sheets[0].primitives.filter(p => p.sourceHandle)
+
+  test('mặc định: 300 đối tượng nguồn, đúng loại như bản gốc', () => {
+    const kinds: Record<string, number> = {}
+    for (const p of content(scene))
+      kinds[p.sourceType!] = (kinds[p.sourceType!] ?? 0) + 1
+    expect(kinds).toEqual({
+      DIMENSION: 89,
+      LINE: 84,
+      LWPOLYLINE: 45,
+      TEXT: 38,
+      INSERT: 27,
+      LEADER: 15,
+      HATCH: 2
+    })
+    expect(scene.blocks?.map(b => b.name)).toEqual(
+      expect.arrayContaining(['cd11', 'D1m', 'D1200-1', 'GA', 'center1'])
+    )
+  })
+
+  test('đổi chiều cao bệ: mọi dim HB đo 2000 → 2500, số dim giữ nguyên', () => {
+    type Dim = Extract<DossierPrimitive, { kind: 'dimension' }>
+    const hb = (s: typeof scene) =>
+      content(s).filter(
+        (p): p is Dim => p.kind === 'dimension' && p.text === 'HB'
+      )
+    const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
+    expect(hb(scene).length).toBeGreaterThan(3)
+    expect(content(tall).filter(p => p.kind === 'dimension')).toHaveLength(89)
+    for (const [before, after] of hb(scene).map(
+      (d, i) => [d, hb(tall)[i]] as const
+    )) {
+      const h = (d: Dim) => Math.abs(d.end[1] - d.start[1])
+      // Bản gốc có HB đo 1997–2000 (vẽ tay, điểm đặt lệch mốc vài mm): điểm
+      // giữa hai mốc đi theo nội suy, nên dài thêm 500 trong vòng 2 mm.
+      expect(Math.abs(h(before) - 2000)).toBeLessThan(5)
+      expect(Math.abs(h(after) - h(before) - 500)).toBeLessThan(2)
+    }
+  })
+
+  test('mặc định là ảnh đồng nhất: không điểm nào dời', () => {
+    const again = buildDossierScene(
+      buildDossierModel({ tenMo: 'M1', caoDoDayBe: 230 }),
+      V
+    )
+    expect(JSON.stringify(content(again))).toBe(JSON.stringify(content(scene)))
+  })
+
+  test('bố trí lưới không theo được thì từ chối, nói lý do', () => {
+    const texts = (values: Record<string, number>) =>
+      buildDossierScene(buildDossierModel(values), V)
+        .sheets[0].primitives.flatMap(p => (p.kind === 'text' ? [p.text] : []))
+        .join(' | ')
+    expect(texts({ tCanh: 600 })).toMatch(/đổi tCanh/)
+    expect(texts({ bBe: 8500 })).toMatch(/bThan = bBe/)
+    expect(texts({ bBe: 8500, bThan: 8500 })).toMatch(/aCocNgang = bBe − 2D/)
+    expect(texts({ bBe: 8500, bThan: 8500, aCocNgang: 6100 })).not.toMatch(
+      /CHƯA DỰNG/
+    )
   })
 })
 

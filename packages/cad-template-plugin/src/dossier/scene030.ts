@@ -29,6 +29,7 @@ import {
   acTpDecodeVnText
 } from '@mlightcad/cad-template-sdk'
 
+import { sheetStretch } from './grid030'
 import type { DossierModel } from './model'
 import { REFERENCE_ID } from './model'
 import layout from './reference/layout-mo2.json'
@@ -81,12 +82,31 @@ type LayoutPrimitive = {
   start?: XY
   end?: XY
   dimLine?: XY
+  textAt?: XY
   aligned?: boolean
   dimStyle?: string
   vars?: Record<string, number>
   block?: string
   scale?: XY
-  attributes?: Record<string, string>
+  attributes?: Record<
+    string,
+    | string
+    | {
+        value: string
+        position: XY
+        height?: number
+        rotationDeg?: number
+        align?: number
+        widthFactor?: number
+        style?: string
+      }
+  >
+  arrowHead?: boolean
+  linetypeScale?: number
+  /** Model content: source layer, handle and entity type. */
+  src?: string
+  handle?: string
+  type?: string
 }
 interface LayoutSheet {
   id: string
@@ -96,6 +116,8 @@ interface LayoutSheet {
   offset?: XY
   title: LayoutPrimitive[]
   paper: LayoutPrimitive[]
+  /** The viewport drawing as real entities (sheets rebuilt in GĐ4). */
+  content?: LayoutPrimitive[]
 }
 const LAYOUT = layout as unknown as {
   blocks: AcTpBlockDef[]
@@ -138,6 +160,53 @@ function dimOverrides(
       out[key] = value
   }
   return Object.keys(out).length ? (out as AcTpDimStyleVars) : undefined
+}
+
+/** Centre of an extracted primitive: picks its view in the stretch grid. */
+function centreOf(p: LayoutPrimitive): XY {
+  const pts: XY[] = [
+    ...(p.points ?? []),
+    ...(p.loops?.flat() ?? []),
+    ...(p.at ? [p.at] : []),
+    ...(p.start ? [p.start, p.end!, p.dimLine!] : [])
+  ]
+  const xs = pts.map(q => q[0]),
+    ys = pts.map(q => q[1])
+  return [
+    (Math.min(...xs) + Math.max(...xs)) / 2,
+    (Math.min(...ys) + Math.max(...ys)) / 2
+  ]
+}
+
+/** `_33_` role of a source entity, by source layer and block (plan §4.2). */
+function contentRole(p: LayoutPrimitive): string {
+  switch (p.kind) {
+    case 'dimension':
+      return 'kich_thuoc'
+    case 'leader':
+      return 'ghi_chu'
+    case 'text':
+      return p.src === 'Tile' ? 'ky_hieu_mat_cat' : 'ghi_chu'
+    case 'insert':
+      return (
+        (
+          {
+            cd11: 'ghi_chu_cao_do',
+            D1m: 'coc_khoan_nhoi',
+            'D1200-1': 'coc_khoan_nhoi',
+            GA: 'ky_hieu_mat_cat',
+            center1: 'duong_tim',
+            A$C6EA20CD3: 'goi_cau'
+          } as Record<string, string>
+        )[p.block ?? ''] ?? 'mo_cau'
+      )
+    default:
+      return p.src === 'Section'
+        ? 'ky_hieu_mat_cat'
+        : p.src === 'Center' || p.src === 'Prf-fgpl'
+          ? 'duong_tim'
+          : 'mo_cau'
+  }
 }
 
 /** Liang–Barsky: the part of segment a→b inside the box, if any. */
@@ -290,7 +359,41 @@ export function buildScene030(
     const push = (p: DossierPrimitive) => s.primitives.push(p)
 
     // ------------------------------------------------ drawing in the viewport
-    if (ls.viewport && ls.model && ls.view && ls.offset) {
+    if (ls.viewport && ls.content) {
+      // Real entities of the source, through the sheet's stretch grid.
+      const x0 = ls.viewport.x * K,
+        y0 = ls.viewport.y * K
+      const stretch = sheetStretch(ls.id, v)
+      if ('error' in stretch)
+        ['CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY', stretch.error].forEach(
+          (t, i) =>
+            push({
+              ...id('ghi_chu'),
+              kind: 'text',
+              at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
+              text: t,
+              height: i ? 300 : 450
+            })
+        )
+      else
+        for (const c of ls.content) {
+          const at = centreOf(c)
+          addPaper(
+            c,
+            contentRole(c),
+            q => {
+              const [x, y] = stretch.map(q, at)
+              return [x0 + x, y0 + y]
+            },
+            1,
+            {
+              sourceHandle: c.handle,
+              sourceLayer: c.src,
+              sourceType: c.type
+            }
+          )
+        }
+    } else if (ls.viewport && ls.model && ls.view && ls.offset) {
       const vp = ls.viewport
       const box = {
         x0: vp.x * K,
@@ -417,19 +520,46 @@ export function buildScene030(
       return text === SOURCE_PROJECT ? project : relabel(text)
     }
 
-    function addPaper(p: LayoutPrimitive, role: string) {
+    /**
+     * Adds one extracted primitive. Paper content is scaled ×100 from paper
+     * millimetres (`k`); model content is already in sheet units and goes
+     * through the stretch grid (`place`).
+     */
+    function addPaper(
+      p: LayoutPrimitive,
+      role: string,
+      place: (q: XY) => XY = scaled,
+      k = K,
+      source: Partial<DossierPrimitive> = {}
+    ) {
       const look = {
         ...id(role),
         color: p.color,
-        ...(p.lineType ? { lineType: p.lineType } : {}),
-        ...(p.lineWeight !== undefined ? { lineWeight: p.lineWeight } : {})
+        // Source entities state their linetype even when continuous, so a
+        // role's default (CENTER for duong_tim) never replaces the source's.
+        ...(p.lineType
+          ? { lineType: p.lineType }
+          : source.sourceHandle
+            ? { lineType: 'Continuous' }
+            : {}),
+        ...(p.lineWeight !== undefined ? { lineWeight: p.lineWeight } : {}),
+        ...(p.linetypeScale !== undefined
+          ? { linetypeScale: p.linetypeScale }
+          : {}),
+        ...(source.sourceHandle
+          ? {
+              sourceHandle: source.sourceHandle,
+              sourceLayer: source.sourceLayer,
+              sourceType: source.sourceType
+            }
+          : {})
       }
       switch (p.kind) {
         case 'path':
           push({
             ...look,
             kind: 'path',
-            points: p.points!.map(scaled),
+            points: p.points!.map(place),
             closed: p.closed,
             ...(p.bulges ? { bulges: p.bulges } : {}),
             ...(p.line ? { line: true } : {})
@@ -439,16 +569,16 @@ export function buildScene030(
           push({
             ...look,
             kind: 'circle',
-            at: scaled(p.at!),
-            radius: p.radius! * K
+            at: place(p.at!),
+            radius: p.radius! * k
           })
           return
         case 'arc':
           push({
             ...look,
             kind: 'arc',
-            at: scaled(p.at!),
-            radius: p.radius! * K,
+            at: place(p.at!),
+            radius: p.radius! * k,
             startAngle: p.startAngle!,
             endAngle: p.endAngle!
           })
@@ -457,7 +587,7 @@ export function buildScene030(
           push({
             ...look,
             kind: 'fill',
-            loops: p.loops!.map(loop => loop.map(scaled)),
+            loops: p.loops!.map(loop => loop.map(place)),
             ...(p.pattern
               ? {
                   pattern: p.pattern,
@@ -471,9 +601,9 @@ export function buildScene030(
           push({
             ...look,
             kind: 'text',
-            at: scaled(p.at!),
+            at: place(p.at!),
             text: p.text!,
-            height: p.height! * K,
+            height: p.height! * k,
             rotation: p.rotation,
             align: p.align,
             widthFactor: p.widthFactor,
@@ -481,9 +611,9 @@ export function buildScene030(
           })
           return
         case 'dimension': {
-          const start = scaled(p.start!),
-            end = scaled(p.end!),
-            line = scaled(p.dimLine!)
+          const start = place(p.start!),
+            end = place(p.end!),
+            line = place(p.dimLine!)
           const rotation = p.aligned ? undefined : (p.rotation ?? 0)
           const horizontal =
             rotation !== undefined &&
@@ -517,20 +647,45 @@ export function buildScene030(
             offset,
             direction,
             dimStyle,
+            ...(p.textAt ? { textAt: place(p.textAt) } : {}),
             ...(p.text !== undefined ? { text: p.text } : {}),
             ...(overrides ? { overrides } : {})
           })
           return
         }
+        case 'leader':
+          push({
+            ...look,
+            kind: 'leader',
+            points: p.points!.map(place),
+            dimStyle: p.dimStyle ?? '_33_D100',
+            arrowHead: p.arrowHead ?? true
+          })
+          return
         case 'insert':
           push({
             ...look,
             kind: 'insert',
             block: p.block!,
-            at: scaled(p.at!),
-            scale: [p.scale![0] * K, p.scale![1] * K],
+            at: place(p.at!),
+            scale: [p.scale![0] * k, p.scale![1] * k],
             rotation: p.rotation,
-            attributes: p.attributes ?? {}
+            attributes: Object.fromEntries(
+              Object.entries(p.attributes ?? {}).map(([tag, a]) => [
+                tag,
+                typeof a === 'string'
+                  ? a
+                  : {
+                      value: a.value,
+                      at: place(a.position),
+                      height: a.height !== undefined ? a.height * k : undefined,
+                      rotation: a.rotationDeg,
+                      align: a.align,
+                      widthFactor: a.widthFactor,
+                      style: a.style
+                    }
+              ])
+            )
           })
           return
       }

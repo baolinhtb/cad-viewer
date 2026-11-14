@@ -38,6 +38,7 @@
     "LINE|2|DASHED|-3": 8,
     "HATCH|8|CONTINUOUS|-3": 2,
     "INSERT|2|CONTINUOUS|-3": 2,
+    "INSERT|4|CONTINUOUS|-3": 1,
     "TEXT|3|CONTINUOUS|-3": 35,
     "LEADER|8|CONTINUOUS|-3": 4,
     "DIMENSION|7|CONTINUOUS|-3": 89,
@@ -46,7 +47,8 @@
     "TEXT|2|CONTINUOUS|-3": 6,
     "LWPOLYLINE|20|CONTINUOUS|5": 6,
     "LWPOLYLINE|9|CONTINUOUS|-3": 1,
-    "LINE|6|CENTER|-3": 1
+    "LINE|6|CENTER|-3": 1,
+    "INSERT|8|CONTINUOUS|-3": 1
    },
    "texts": [
     {
@@ -3280,7 +3282,7 @@
     }
    ],
    "counts": {
-    "model": 309,
+    "model": 311,
     "paper": 4
    }
   },
@@ -4133,7 +4135,7 @@
    "hist": {
     "TEXT|3|CONTINUOUS|-3": 57,
     "INSERT|2|CONTINUOUS|-3": 29,
-    "INSERT|7|CONTINUOUS|-3": 7,
+    "INSERT|7|CONTINUOUS|-3": 20,
     "LINE|4|CONTINUOUS|-3": 14,
     "LINE|3|CONTINUOUS|-3": 1,
     "LWPOLYLINE|4|CONTINUOUS|-3": 7,
@@ -5411,7 +5413,7 @@
     }
    ],
    "counts": {
-    "model": 221,
+    "model": 234,
     "paper": 55
    }
   },
@@ -5446,9 +5448,11 @@
     "POINT|5|CONTINUOUS|-3": 2,
     "LEADER|2|CONTINUOUS|-3": 4,
     "DIMENSION|2|CONTINUOUS|-3": 15,
+    "INSERT|2|CONTINUOUS|13": 1,
     "LWPOLYLINE|9|CONTINUOUS|-3": 5,
     "DIMENSION|13|CONTINUOUS|-3": 6,
     "LEADER|2|CONTINUOUS|13": 36,
+    "INSERT|13|CONTINUOUS|-3": 4,
     "LINE|3|CONTINUOUS|5": 5,
     "LINE|2|DASHED|-3": 6,
     "CIRCLE|2|DASHED|-3": 1,
@@ -6546,7 +6550,7 @@
     }
    ],
    "counts": {
-    "model": 209,
+    "model": 214,
     "paper": 4
    }
   },
@@ -6581,9 +6585,11 @@
     "POINT|5|CONTINUOUS|-3": 2,
     "LEADER|2|CONTINUOUS|-3": 4,
     "DIMENSION|2|CONTINUOUS|-3": 15,
+    "INSERT|2|CONTINUOUS|13": 1,
     "LWPOLYLINE|9|CONTINUOUS|-3": 5,
     "DIMENSION|13|CONTINUOUS|-3": 6,
     "LEADER|2|CONTINUOUS|13": 36,
+    "INSERT|13|CONTINUOUS|-3": 4,
     "LINE|3|CONTINUOUS|5": 5,
     "LINE|2|DASHED|-3": 6,
     "CIRCLE|2|DASHED|-3": 1,
@@ -7681,7 +7687,7 @@
     }
    ],
    "counts": {
-    "model": 209,
+    "model": 214,
     "paper": 4
    }
   },

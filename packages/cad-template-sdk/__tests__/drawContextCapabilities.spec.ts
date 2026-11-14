@@ -133,12 +133,13 @@ describe('kiểu chữ _33_', () => {
     expect(text.textString).toBe('MỐ M1')
   })
 
-  it('đủ 4 kiểu trong danh mục', () => {
+  it('đủ 5 kiểu trong danh mục', () => {
     expect(Object.keys(ACTP_TEXT_STYLES_33).sort()).toEqual([
       '_33_Arial',
       '_33_Arial08',
       '_33_ArialHep',
-      '_33_Avant'
+      '_33_Avant',
+      '_33_Txt'
     ])
   })
 
@@ -482,5 +483,134 @@ describe('acTpDxfOut: vòng tránh bộ ghi DXF của data-model', () => {
       dxf.indexOf('\nENDTAB', dxf.indexOf('\n2\n_33_D100\n'))
     )
     expect(record.match(/\n178\n/g)).toHaveLength(1)
+  })
+})
+
+describe('block lồng block và leader không mũi tên', () => {
+  it('block chứa block: định nghĩa, chèn, giữ qua DXF', async () => {
+    const { db, ctx } = setup()
+    ctx.defineBlock({
+      name: 'COC',
+      entities: [{ kind: 'circle', center: { x: 0, y: 0, z: 0 }, radius: 600 }]
+    })
+    ctx.defineBlock({
+      name: 'HANG_COC',
+      entities: [0, 5300].map(x => ({
+        kind: 'insert' as const,
+        block: 'COC',
+        position: { x, y: 0, z: 0 },
+        scale: { x: -1, y: 1 },
+        rotationDeg: 90
+      }))
+    })
+    ctx.insert({
+      role: 'ky_hieu',
+      partId: 'hang',
+      block: 'HANG_COC',
+      position: { x: 100, y: 200, z: 0 }
+    })
+    const again = await roundTrip(db)
+    const inner = [
+      ...again.tables.blockTable.getAt('HANG_COC')!.newIterator()
+    ] as AcDbBlockReference[]
+    expect(inner.map(e => e.blockTableRecord?.name)).toEqual(['COC', 'COC'])
+    expect(inner[1].position.x).toBeCloseTo(5300)
+    expect(inner[1].scaleFactors.x).toBe(-1)
+    expect(inner[1].rotation).toBeCloseTo(Math.PI / 2)
+    expect(inner[0].color.isByBlock).toBe(true)
+  })
+
+  it('từ chối block bên trong chưa định nghĩa', () => {
+    const { ctx } = setup()
+    expect(() =>
+      ctx.defineBlock({
+        name: 'X',
+        entities: [
+          { kind: 'insert', block: 'CHUA_CO', position: { x: 0, y: 0, z: 0 } }
+        ]
+      })
+    ).toThrow(/chưa được định nghĩa/)
+  })
+
+  it('leader native không mũi tên khi arrowHead false, giữ qua DXF', async () => {
+    const { db, ctx } = setup()
+    ctx.leader({
+      role: 'ghi_chu',
+      partId: 'ld',
+      points: [
+        { x: 0, y: 0, z: 0 },
+        { x: 300, y: 0, z: 0 }
+      ],
+      native: true,
+      dimStyle: '_33_D100',
+      arrowHead: false
+    })
+    const [leader] = ofType<AcDbLeader>(await roundTrip(db), 'LEADER')
+    expect(leader.hasArrowHead).toBe(false)
+  })
+})
+
+describe('attribute đặt theo bản gốc', () => {
+  it('vị trí, kiểu chữ, căn lề của từng ATTRIB được giữ, kể cả insert lật', async () => {
+    const { db, ctx } = setup()
+    ctx.defineBlock({
+      name: 'CD',
+      entities: [
+        {
+          kind: 'attribute',
+          tag: 'ELEV',
+          defaultValue: '0',
+          position: { x: 10, y: 5, z: 0 },
+          height: 1500,
+          align: 2,
+          style: '_33_ArialHep'
+        }
+      ]
+    })
+    ctx.insert({
+      role: 'ky_hieu',
+      partId: 'cd',
+      block: 'CD',
+      position: { x: 1000, y: 0, z: 0 },
+      scale: { x: -0.118, y: 0.118 },
+      attributes: {
+        ELEV: {
+          value: 'EL5',
+          position: { x: 1200, y: 150, z: 0 },
+          height: 177,
+          align: 2,
+          style: '_33_Txt'
+        }
+      }
+    })
+    const [insert] = ofType<AcDbBlockReference>(await roundTrip(db), 'INSERT')
+    const [a] = [...insert.attributeIterator()] as AcDbAttribute[]
+    expect(a.textString).toBe('EL5')
+    expect(a.alignmentPoint.x).toBeCloseTo(1200)
+    expect(a.alignmentPoint.y).toBeCloseTo(150)
+    expect(a.height).toBeCloseTo(177)
+    expect(a.styleName).toBe('_33_Txt')
+    expect(a.horizontalMode).toBe(2)
+  })
+})
+
+describe('vị trí chữ kích thước theo bản gốc', () => {
+  it('textPosition đặt chữ trong block dim và giữ qua DXF', async () => {
+    const { db, ctx } = setup()
+    const dim = ctx.dimension({
+      role: 'net',
+      partId: 'd',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 0, y: 2000, z: 0 },
+      offset: 500,
+      huong: 'dung',
+      dimStyle: '_33_D100',
+      text: 'HB',
+      textPosition: { x: 700, y: 1000, z: 0 }
+    }) as AcDbDimension
+    expect(dim.textPosition.x).toBeCloseTo(700)
+    const [again] = ofType<AcDbDimension>(await roundTrip(db), 'DIMENSION')
+    expect(again.textPosition.x).toBeCloseTo(700)
+    expect(again.textPosition.y).toBeCloseTo(1000)
   })
 })

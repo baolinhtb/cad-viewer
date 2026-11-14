@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { get, num, points, readPairs, records, walk } from './dxf.mjs'
+import { get, num, owner, points, readPairs, records, walk } from './dxf.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const argWork = process.argv.indexOf('--work')
@@ -39,6 +39,11 @@ const INVENTORY = join(
 )
 /** Paper → generated sheet units (1:100 sheets drawn in model space). */
 const K = 100
+/**
+ * Sheet units per source unit for what is being emitted: paper content is
+ * scaled ×100, model content (viewport drawings) is kept in model units.
+ */
+let spaceK = K
 
 const pairs = readPairs(join(WORK, 'mo2.normalized.dxf'))
 const items = [...walk(records(pairs))]
@@ -120,6 +125,7 @@ const blockBase = new Map(
 const TEXT_STYLE = name => {
   const n = String(name ?? '').toLowerCase()
   if (n === '2') return '_33_Arial08'
+  if (n === 'standard') return '_33_Txt'
   if (n.includes('narrow') || n === 'arialn') return '_33_ArialHep'
   if (n.includes('avant') || n === 'text' || n === 'style1a') return '_33_Avant'
   return '_33_Arial'
@@ -253,7 +259,17 @@ function emit(rec, tf, parentLook, out, attribsOf) {
   // Hidden by a dynamic block's visibility state (group 60 = 1).
   if (num(rec, 60, 0) === 1) return
   const l = look(rec, parentLook)
-  const base = lookOut(l)
+  const base = {
+    ...lookOut(l),
+    ...(num(rec, 48, 1) !== 1 ? { linetypeScale: r3(num(rec, 48, 1)) } : {}),
+    ...(spaceK === 1
+      ? {
+          src: (get(rec, 8) ?? '0').trim(),
+          handle: get(rec, 5)?.trim(),
+          type: rec.type
+        }
+      : {})
+  }
   const T = p => P(tf.apply(p))
   switch (rec.type) {
     case 'LINE':
@@ -337,7 +353,7 @@ function emit(rec, tf, parentLook, out, attribsOf) {
           ? {}
           : {
               pattern: get(rec, 2)?.trim(),
-              patternScale: r3(num(rec, 41, 1) * tf.scale * K),
+              patternScale: r3(num(rec, 41, 1) * tf.scale * spaceK),
               patternAngle: r3(num(rec, 52, 0))
             })
       })
@@ -346,7 +362,8 @@ function emit(rec, tf, parentLook, out, attribsOf) {
     case 'TEXT':
     case 'ATTRIB': {
       const text = (get(rec, 1) ?? '').trim()
-      if (!text) return
+      // Blank texts are entities of the source too; kept in model content.
+      if (!text && spaceK !== 1) return
       const h = num(rec, 72, 0)
       const aligned = h !== 0 || num(rec, 74, num(rec, 73, 0)) !== 0
       const anchor = aligned ? points(rec, 11, 21)[0] : points(rec, 10, 20)[0]
@@ -384,23 +401,31 @@ function emit(rec, tf, parentLook, out, attribsOf) {
           if (name) vars[name] = dimVar(name, x[k + 1].value)
         }
       // As drawn on the generated sheet: sizes × DIMSCALE × paper factor.
-      const scale = (vars.dimscale || 1) * K * tf.scale
+      const scale = (vars.dimscale || 1) * spaceK * tf.scale
       const eff = {}
       for (const [k, v] of Object.entries(vars)) {
         if (k === 'dimscale') continue
         eff[k] = ['dimasz', 'dimexo', 'dimexe', 'dimtxt', 'dimgap'].includes(k)
           ? r3(v * scale)
           : k === 'dimlfac'
-            ? r3(v / K / tf.scale)
+            ? r3(v / spaceK / tf.scale)
             : v
       }
-      const override = (get(rec, 1) ?? '').trim()
+      // Font switches `{\\fArial|…;ặt}` only existed to leave the TCVN3 font;
+      // the text is Unicode now, so the plain characters remain.
+      const override = (get(rec, 1) ?? '')
+        .replace(/\{\\f[^;{}]*;([^{}]*)\}/g, '$1')
+        .trim()
       out.push({
         kind: 'dimension',
         ...base,
         start: T(points(rec, 13, 23)[0]),
         end: T(points(rec, 14, 24)[0]),
         dimLine: T(points(rec, 10, 20)[0]),
+        // Where AutoCAD put the text (middle point), moved by hand or not.
+        ...(points(rec, 11, 21)[0]
+          ? { textAt: T(points(rec, 11, 21)[0]) }
+          : {}),
         ...(type === 1
           ? { aligned: true }
           : { rotation: r3(num(rec, 50, 0) + tf.rotation) }),
@@ -436,6 +461,46 @@ function emit(rec, tf, parentLook, out, attribsOf) {
         })
         return
       }
+      if (spaceK === 1) {
+        // Model content keeps its blocks as blocks.
+        out.push({
+          kind: 'insert',
+          ...base,
+          block: sourceBlock(name),
+          at: T(points(rec, 10, 20)[0]),
+          scale: [r3(num(rec, 41, 1)), r3(num(rec, 42, 1))],
+          ...(r3(num(rec, 50, 0)) % 360
+            ? { rotation: r3(num(rec, 50, 0)) }
+            : {}),
+          // Each ATTRIB as stored: AutoCAD keeps its own point and style
+          // (none written = STANDARD), independent of the ATTDEF.
+          attributes: Object.fromEntries(
+            attribs.map(a => {
+              const h = num(a, 72, 0)
+              const aligned = h !== 0 || num(a, 74, 0) !== 0
+              return [
+                get(a, 2)?.trim(),
+                {
+                  value: (get(a, 1) ?? '').trim(),
+                  position: T(
+                    aligned ? points(a, 11, 21)[0] : points(a, 10, 20)[0]
+                  ),
+                  height: r3(num(a, 40)),
+                  ...(r3(num(a, 50, 0))
+                    ? { rotationDeg: r3(num(a, 50, 0)) }
+                    : {}),
+                  ...(TEXT_ALIGN(h) ? { align: TEXT_ALIGN(h) } : {}),
+                  ...(r3(num(a, 41, 1)) !== 1
+                    ? { widthFactor: r3(num(a, 41, 1)) }
+                    : {}),
+                  style: TEXT_STYLE(get(a, 7)?.trim() ?? 'STANDARD')
+                }
+              ]
+            })
+          )
+        })
+        return
+      }
       const child = insertTransform(rec, tf)
       for (const r of body) {
         if (['ATTDEF', 'SEQEND', 'ATTRIB', 'VIEWPORT'].includes(r.type))
@@ -445,6 +510,16 @@ function emit(rec, tf, parentLook, out, attribsOf) {
       for (const a of attribs) emit(a, tf, l, out, () => [])
       return
     }
+    case 'LEADER':
+      out.push({
+        kind: 'leader',
+        ...base,
+        points: points(rec, 10, 20).map(T),
+        dimStyle:
+          DIM_STYLE[(get(rec, 3) ?? '').trim().toLowerCase()] ?? '_33_D100',
+        arrowHead: num(rec, 71, 1) !== 0
+      })
+      return
     case 'MTEXT':
     case 'VIEWPORT':
     case 'OLE2FRAME':
@@ -505,6 +580,305 @@ function symbol(name) {
   return found.name
 }
 
+/** Points along a SPLINE (NURBS, de Boor), 16 per knot span. */
+function splinePoints(r) {
+  const degree = num(r, 71, 3)
+  const knots = r.pairs.filter(p => p.code === 40).map(p => Number(p.value))
+  const ctrl = points(r, 10, 20)
+  const weights = r.pairs.filter(p => p.code === 41).map(p => Number(p.value))
+  if (!ctrl.length) return points(r, 11, 21)
+  const w = i => weights[i] ?? 1
+  const at = t => {
+    let k = degree
+    while (k < knots.length - degree - 2 && t >= knots[k + 1]) k++
+    const d = []
+    for (let j = 0; j <= degree; j++) {
+      const c = ctrl[k - degree + j]
+      const wj = w(k - degree + j)
+      d.push([c[0] * wj, c[1] * wj, wj])
+    }
+    for (let rr = 1; rr <= degree; rr++)
+      for (let j = degree; j >= rr; j--) {
+        const i = k - degree + j
+        const den = knots[i + degree - rr + 1] - knots[i]
+        const a = den ? (t - knots[i]) / den : 0
+        d[j] = d[j].map((v, q) => (1 - a) * d[j - 1][q] + a * v)
+      }
+    return [d[degree][0] / d[degree][2], d[degree][1] / d[degree][2]]
+  }
+  const t0 = knots[degree],
+    t1 = knots[knots.length - degree - 1]
+  const spans = Math.max(1, ctrl.length - degree)
+  const n = spans * 16
+  const out = []
+  for (let s = 0; s <= n; s++) out.push(at(t0 + ((t1 - t0) * s) / n))
+  return out
+}
+
+// ---------------------------------------------------------------- source blocks
+/** Blocks of the model drawings, inner ones first (as defineBlock needs). */
+const sourceBlocks = []
+const sourceName = new Map()
+const BLOCK_LINETYPE = (lt, layer) => {
+  const v = (lt ?? 'BYLAYER').trim().toUpperCase()
+  if (v === 'BYBLOCK') return 'ByBlock'
+  if (v === 'BYLAYER') {
+    if (layer === '0') return 'ByBlock'
+    const own = layers.get(layer.toLowerCase())?.lt ?? 'CONTINUOUS'
+    return own === 'CONTINUOUS' ? 'Continuous' : own
+  }
+  return v === 'CONTINUOUS' ? 'Continuous' : v
+}
+/** Appearance inside a block: layer-0 ByLayer behaves as ByBlock. */
+function blockLook(r) {
+  const layer = (get(r, 8) ?? '0').trim()
+  const own = layers.get(layer.toLowerCase())
+  let color = num(r, 62, 256)
+  if (color === 256) color = layer === '0' ? 0 : (own?.color ?? 7)
+  let lw = num(r, 370, -1)
+  if (lw === -1) lw = layer === '0' ? -2 : (own?.lw ?? -3)
+  return {
+    color: Math.abs(color),
+    lineType: BLOCK_LINETYPE(get(r, 6), layer),
+    lineWeight: lw,
+    ...(num(r, 48, 1) !== 1 ? { linetypeScale: r3(num(r, 48, 1)) } : {})
+  }
+}
+function sourceBlock(name) {
+  if (sourceName.has(name)) return sourceName.get(name)
+  const mapped = name.startsWith('*') ? `MO2_${name.slice(1)}` : name
+  sourceName.set(name, mapped)
+  const [bx, by] = blockBase.get(name) ?? [0, 0]
+  const L = ([x, y]) => ({ x: r3(x - bx), y: r3(y - by), z: 0 })
+  const entities = []
+  for (const r of blocks.get(name) ?? []) {
+    if (num(r, 60, 0) === 1) continue
+    const lk = blockLook(r)
+    switch (r.type) {
+      case 'LINE':
+        entities.push({
+          kind: 'line',
+          ...lk,
+          start: L(points(r, 10, 20)[0]),
+          end: L(points(r, 11, 21)[0])
+        })
+        break
+      case 'LWPOLYLINE': {
+        const pts = []
+        for (const p of r.pairs) {
+          if (p.code === 10) pts.push({ x: Number(p.value) })
+          else if (p.code === 20) pts[pts.length - 1].y = Number(p.value)
+          else if (p.code === 42) pts[pts.length - 1].bulge = Number(p.value)
+        }
+        entities.push({
+          kind: 'polyline',
+          ...lk,
+          points: pts.map(p => ({
+            ...L([p.x, p.y]),
+            ...(p.bulge ? { bulge: r3(p.bulge) } : {})
+          })),
+          ...(num(r, 70, 0) & 1 ? { closed: true } : {})
+        })
+        break
+      }
+      case 'CIRCLE':
+        entities.push({
+          kind: 'circle',
+          ...lk,
+          center: L(points(r, 10, 20)[0]),
+          radius: r3(num(r, 40))
+        })
+        break
+      case 'ARC':
+        entities.push({
+          kind: 'arc',
+          ...lk,
+          center: L(points(r, 10, 20)[0]),
+          radius: r3(num(r, 40)),
+          startAngle: (num(r, 50) * Math.PI) / 180,
+          endAngle: (num(r, 51) * Math.PI) / 180
+        })
+        break
+      case 'TEXT': {
+        const h = num(r, 72, 0)
+        const aligned = h !== 0 || num(r, 73, 0) !== 0
+        entities.push({
+          kind: 'text',
+          ...lk,
+          position: L(aligned ? points(r, 11, 21)[0] : points(r, 10, 20)[0]),
+          text: (get(r, 1) ?? '').trim(),
+          height: r3(num(r, 40)),
+          ...(num(r, 50, 0) ? { rotationDeg: r3(num(r, 50, 0)) } : {}),
+          ...(TEXT_ALIGN(h) ? { align: TEXT_ALIGN(h) } : {}),
+          ...(num(r, 41, 1) !== 1 ? { widthFactor: r3(num(r, 41, 1)) } : {}),
+          style: TEXT_STYLE(get(r, 7)?.trim())
+        })
+        break
+      }
+      case 'HATCH': {
+        const loops = hatchLoops(r)
+        const solid = num(r, 70, 0) === 1
+        entities.push({
+          kind: 'hatch',
+          ...lk,
+          boundary: loops[0].map(L),
+          ...(solid
+            ? {}
+            : {
+                patternName: get(r, 2)?.trim(),
+                patternScale: r3(num(r, 41, 1)),
+                patternAngleDeg: r3(num(r, 52, 0))
+              })
+        })
+        break
+      }
+      case 'ATTDEF': {
+        const h = num(r, 72, 0)
+        const aligned = h !== 0 || num(r, 74, 0) !== 0
+        entities.push({
+          kind: 'attribute',
+          ...lk,
+          tag: get(r, 2)?.trim(),
+          prompt: (get(r, 3) ?? '').trim() || get(r, 2)?.trim(),
+          defaultValue: (get(r, 1) ?? '').trim(),
+          position: L(aligned ? points(r, 11, 21)[0] : points(r, 10, 20)[0]),
+          height: r3(num(r, 40)),
+          ...(num(r, 50, 0) ? { rotationDeg: r3(num(r, 50, 0)) } : {}),
+          ...(TEXT_ALIGN(h) ? { align: TEXT_ALIGN(h) } : {}),
+          ...(num(r, 41, 1) !== 1 ? { widthFactor: r3(num(r, 41, 1)) } : {}),
+          style: TEXT_STYLE(get(r, 7)?.trim())
+        })
+        break
+      }
+      case 'INSERT': {
+        const inner = get(r, 2)?.trim()
+        if (!blocks.has(inner)) {
+          console.warn(
+            `[layout] block ${inner} (trong ${name}) không có — bỏ qua`
+          )
+          break
+        }
+        entities.push({
+          kind: 'insert',
+          ...lk,
+          block: sourceBlock(inner),
+          position: L(points(r, 10, 20)[0]),
+          scale: { x: r3(num(r, 41, 1)), y: r3(num(r, 42, 1)) },
+          ...(r3(num(r, 50, 0)) % 360 ? { rotationDeg: r3(num(r, 50, 0)) } : {})
+        })
+        break
+      }
+      case 'SPLINE':
+        // No SPLINE in the SDK: drawn as the polyline through points of the
+        // curve (de Boor), fine enough at drawing scale.
+        entities.push({
+          kind: 'polyline',
+          ...lk,
+          points: splinePoints(r).map(L),
+          ...(num(r, 70, 0) & 1 ? { closed: true } : {})
+        })
+        break
+      case 'POINT':
+      case 'SEQEND':
+        break // points are not plotted on these sheets
+      default:
+        throw new Error(`Block ${name}: loại ${r.type} chưa hỗ trợ`)
+    }
+  }
+  sourceBlocks.push({ name: mapped, entities })
+  return mapped
+}
+
+// ---------------------------------------------------------------- model content
+/** Sheets whose viewport drawing is rebuilt from real entities (GĐ4). */
+const MODEL_SHEETS = new Set(['SUB-010'])
+const modelHandle = items.find(
+  i => i.table === 'BLOCK_RECORD' && get(i.rec, 2)?.trim() === '*Model_Space'
+)
+const MODEL = get(modelHandle.rec, 5)?.trim()
+const modelRecs = items
+  .filter(i => i.section === 'ENTITIES' && owner(i.rec) === MODEL)
+  .map(i => i.rec)
+const allEntityRecs = items
+  .filter(i => i.section === 'ENTITIES')
+  .map(i => i.rec)
+/** Centre of an entity, by the inventory's own rule (extract-orig.mjs). */
+function centreOf(rec) {
+  let pts
+  switch (rec.type) {
+    case 'LINE':
+      pts = [...points(rec, 10, 20), ...points(rec, 11, 21)]
+      break
+    case 'DIMENSION':
+      pts = [
+        ...points(rec, 13, 23),
+        ...points(rec, 14, 24),
+        ...points(rec, 10, 20)
+      ]
+      break
+    case 'HATCH':
+      pts = points(rec, 10, 20).slice(1)
+      break
+    case 'CIRCLE':
+    case 'ARC': {
+      const [c] = points(rec, 10, 20)
+      const r = num(rec, 40, 0)
+      pts = [
+        [c[0] - r, c[1] - r],
+        [c[0] + r, c[1] + r]
+      ]
+      break
+    }
+    case 'TEXT': {
+      const aligned =
+        num(rec, 72, 0) !== 0 || num(rec, 73, 0) !== 0 || num(rec, 74, 0) !== 0
+      pts = [
+        (aligned ? points(rec, 11, 21)[0] : undefined) ?? points(rec, 10, 20)[0]
+      ]
+      break
+    }
+    default:
+      pts = points(rec, 10, 20)
+  }
+  if (!pts.length) return undefined
+  const xs = pts.map(p => p[0]),
+    ys = pts.map(p => p[1])
+  return [
+    (Math.min(...xs) + Math.max(...xs)) / 2,
+    (Math.min(...ys) + Math.max(...ys)) / 2
+  ]
+}
+function modelContent(win) {
+  spaceK = 1
+  const tf = {
+    apply: ([x, y]) => [x - win.x0, y - win.y0],
+    scale: 1,
+    rotation: 0,
+    mirror: false
+  }
+  const attribsOf = rec => {
+    const at = allEntityRecs.indexOf(rec)
+    const out = []
+    for (
+      let k = at + 1;
+      k < allEntityRecs.length && allEntityRecs[k].type === 'ATTRIB';
+      k++
+    )
+      out.push(allEntityRecs[k])
+    return out
+  }
+  const out = []
+  for (const rec of modelRecs) {
+    if (['ATTRIB', 'SEQEND', 'VIEWPORT'].includes(rec.type)) continue
+    const c = centreOf(rec)
+    if (!c || c[0] < win.x0 || c[0] > win.x1 || c[1] < win.y0 || c[1] > win.y1)
+      continue
+    emit(rec, tf, undefined, out, attribsOf)
+  }
+  spaceK = K
+  return out
+}
+
 // ---------------------------------------------------------------- sheets
 const VIEW = {
   'SUB-010': { view: 'general', offset: [337000, -13000] },
@@ -548,7 +922,8 @@ const sheets = inventory.sheets.map(inv => {
     model: inv.model,
     ...(VIEW[inv.id] ?? {}),
     title,
-    paper
+    paper,
+    ...(MODEL_SHEETS.has(inv.id) ? { content: modelContent(inv.model) } : {})
   }
 })
 
@@ -557,10 +932,10 @@ const out = {
   note:
     'Bố cục 6 tờ A3 của bản gốc cho bộ sinh 0.3.0. Toạ độ mm giấy từ góc dưới trái tờ. ' +
     'Sinh bởi tools/fidelity/extract-layout.mjs; không sửa tay.',
-  blocks: symbolBlocks,
+  blocks: [...symbolBlocks, ...sourceBlocks],
   sheets
 }
 writeFileSync(OUT, JSON.stringify(out) + '\n')
 console.log(
-  `[layout] ${OUT}: ${sheets.map(s => `${s.id} ${s.title.length}+${s.paper.length}`).join(', ')}; ký hiệu ${symbolBlocks.length}; ${JSON.stringify(out).length} B`
+  `[layout] ${OUT}: ${sheets.map(s => `${s.id} ${s.title.length}+${s.paper.length}+${s.content?.length ?? 0}`).join(', ')}; block ${symbolBlocks.length}+${sourceBlocks.length}; ${JSON.stringify(out).length} B`
 )

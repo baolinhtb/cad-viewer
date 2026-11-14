@@ -18,6 +18,7 @@ import {
   AcDbLeader,
   AcDbLine,
   AcDbLinetypeTableRecord,
+  AcDbMText,
   AcDbPolyline,
   AcDbRotatedDimension,
   AcDbText,
@@ -278,6 +279,12 @@ export interface AcTpDimensionArgs extends AcTpDrawBase {
    */
   overrides?: AcTpDimStyleVars
   /**
+   * Middle of the dimension text, where AutoCAD stored it (DXF 11/21). The
+   * data model always centres the text on the dimension line; a drawing
+   * copied from a source places it where the engineer's was.
+   */
+  textPosition?: AcGePoint3dLike
+  /**
    * Dimension style by name. Defaults to {@link TEMPLATE_DIM_STYLE}; must
    * exist in the drawing or be one of {@link TEMPLATE_DIM_STYLES}.
    */
@@ -303,6 +310,11 @@ export interface AcTpLeaderArgs extends AcTpDrawBase {
   native?: boolean
   /** Dimension style of a native leader. Defaults to {@link TEMPLATE_DIM_STYLE}. */
   dimStyle?: string
+  /**
+   * Whether a native leader draws its arrowhead. Defaults to true; source
+   * drawings often have leaders without one.
+   */
+  arrowHead?: boolean
 }
 
 /** Appearance of an entity inside a block definition. */
@@ -353,6 +365,18 @@ export type AcTpBlockEntity = AcTpBlockLook &
         patternAngleDeg?: number
       }
     | {
+        /**
+         * A block inside the block (a nested INSERT). The block must already
+         * be defined — define the inner one first.
+         */
+        kind: 'insert'
+        block: string
+        position: AcGePoint3dLike
+        /** Uniform scale, or per axis (negative mirrors). */
+        scale?: number | { x: number; y: number }
+        rotationDeg?: number
+      }
+    | {
         /** An attribute definition (ATTDEF): a field filled per insert. */
         kind: 'attribute'
         tag: string
@@ -384,8 +408,27 @@ export interface AcTpInsertArgs extends AcTpDrawBase {
   /** Uniform scale, or per axis (negative mirrors, as in the source). */
   scale?: number | { x: number; y: number }
   rotationDeg?: number
-  /** Attribute values by tag; missing tags take the definition's default. */
-  attributes?: Readonly<Record<string, string>>
+  /**
+   * Attribute values by tag; missing tags take the definition's default.
+   * A value may also carry its own placement, as AutoCAD stores each ATTRIB
+   * independently of its definition (moved by grips, or drawn in another
+   * style) — what a drawing copied from a source needs.
+   */
+  attributes?: Readonly<Record<string, string | AcTpAttributeValue>>
+}
+
+/** An attribute value with the placement the source gave it. */
+export interface AcTpAttributeValue {
+  value: string
+  /** Insertion point (alignment point when aligned), world coordinates. */
+  position?: AcGePoint3dLike
+  height?: number
+  rotationDeg?: number
+  /** Horizontal alignment: left (0), centre (1), right (2). */
+  align?: 0 | 1 | 2
+  widthFactor?: number
+  /** Text style; created from the catalogues when missing. */
+  style?: string
 }
 
 /**
@@ -1064,7 +1107,19 @@ export function createDrawContext(
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
       buildDimensionBlock(db, entity)
-      return place(entity, args)
+      if (args.textPosition) {
+        const at = new AcGePoint3d(
+          args.textPosition.x,
+          args.textPosition.y,
+          args.textPosition.z ?? 0
+        )
+        entity.textPosition = at
+        const block = db.tables.blockTable.getAt(entity.dimBlockId ?? '')
+        for (const e of block?.newIterator() ?? [])
+          if (e instanceof AcDbMText) e.location = at.clone()
+      }
+      const { textPosition: _tp, ...dimArgs } = args
+      return place(entity, dimArgs)
     },
 
     hatch: args => place(buildHatch(args), args),
@@ -1081,13 +1136,14 @@ export function createDrawContext(
         const leader = new AcDbLeader()
         for (const p of args.points)
           leader.appendVertex(new AcGePoint3d(p.x, p.y, p.z ?? 0))
-        leader.hasArrowHead = true
+        leader.hasArrowHead = args.arrowHead ?? true
         leader.dimensionStyle = styleName
         const {
           points: _p,
           arrowSize: _a,
           native: _n,
           dimStyle: _d,
+          arrowHead: _h,
           ...identity
         } = args
         return place(leader, identity)
@@ -1117,6 +1173,7 @@ export function createDrawContext(
         arrowSize: _arrow,
         native: _native,
         dimStyle: _dimStyle,
+        arrowHead: _arrowHead,
         ...base_
       } = args
       const line = drawPolyline({
@@ -1188,6 +1245,26 @@ export function createDrawContext(
           case 'hatch':
             entity = buildHatch(spec)
             break
+          case 'insert': {
+            if (!table.has(spec.block))
+              throw new Error(
+                `Block '${def.name}' chèn block '${spec.block}' chưa được định nghĩa; định nghĩa block bên trong trước.`
+              )
+            const inner = new AcDbBlockReference(spec.block)
+            inner.position = new AcGePoint3d(
+              spec.position.x,
+              spec.position.y,
+              spec.position.z ?? 0
+            )
+            const sx =
+              typeof spec.scale === 'number' ? spec.scale : (spec.scale?.x ?? 1)
+            const sy =
+              typeof spec.scale === 'number' ? spec.scale : (spec.scale?.y ?? 1)
+            inner.scaleFactors = { x: sx, y: sy, z: 1 }
+            inner.rotation = ((spec.rotationDeg ?? 0) * Math.PI) / 180
+            entity = inner
+            break
+          }
           case 'attribute': {
             const attdef = buildText(
               { ...spec, text: spec.defaultValue ?? '' },
@@ -1242,19 +1319,49 @@ export function createDrawContext(
       for (const entity of record.newIterator()) {
         const def = entity as AcDbAttributeDefinition
         if (typeof def.tag !== 'string' || !('prompt' in def)) continue
+        const given = args.attributes?.[def.tag]
+        const own: AcTpAttributeValue =
+          typeof given === 'string'
+            ? { value: given }
+            : (given ?? { value: def.textString })
         const attribute = new AcDbAttribute()
         attribute.tag = def.tag
-        attribute.textString = args.attributes?.[def.tag] ?? def.textString
-        attribute.styleName = def.styleName
-        attribute.height = def.height * Math.abs(sy)
-        attribute.widthFactor = def.widthFactor
-        attribute.rotation = def.rotation + angle
-        attribute.position = toWorld(def.position)
-        if (def.horizontalMode) {
-          attribute.horizontalMode = def.horizontalMode
-          attribute.alignmentPoint = toWorld(def.alignmentPoint)
-        }
+        attribute.textString = own.value
         attribute.isInvisible = def.isInvisible
+        if (own.position) {
+          // Placed as given: insertion and alignment point are the same.
+          const style = own.style ?? def.styleName
+          ensureTextStyle(style)
+          attribute.styleName = style
+          attribute.height = own.height ?? def.height * Math.abs(sy)
+          attribute.widthFactor = own.widthFactor ?? def.widthFactor
+          attribute.rotation =
+            own.rotationDeg !== undefined
+              ? (own.rotationDeg * Math.PI) / 180
+              : def.rotation + angle
+          const at = new AcGePoint3d(
+            own.position.x,
+            own.position.y,
+            own.position.z ?? 0
+          )
+          attribute.position = at
+          const align = own.align ?? def.horizontalMode
+          if (align) {
+            attribute.horizontalMode = align
+            attribute.alignmentPoint = at.clone()
+          }
+        } else {
+          if (own.style) ensureTextStyle(own.style)
+          attribute.styleName = own.style ?? def.styleName
+          attribute.height = def.height * Math.abs(sy)
+          attribute.widthFactor = def.widthFactor
+          attribute.rotation = def.rotation + angle
+          attribute.position = toWorld(def.position)
+          if (def.horizontalMode) {
+            attribute.horizontalMode = def.horizontalMode
+            attribute.alignmentPoint = toWorld(def.alignmentPoint)
+          }
+        }
         reference.appendAttributes(attribute)
       }
       const {

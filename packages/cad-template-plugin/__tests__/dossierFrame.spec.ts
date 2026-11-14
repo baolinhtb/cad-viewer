@@ -93,7 +93,9 @@ describe('scene 0.2.0', () => {
                   ]
                 : p.kind === 'dimension'
                   ? [p.start, p.end]
-                  : [p.at]
+                  : p.kind === 'leader'
+                    ? p.points
+                    : [p.at]
         for (const [x, y] of points) {
           expect({
             sheet: s.id,

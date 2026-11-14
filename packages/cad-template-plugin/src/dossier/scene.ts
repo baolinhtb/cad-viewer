@@ -30,6 +30,8 @@ interface Base {
   lineType?: string
   /** Lineweight written on the entity (0.3.0); otherwise ByLayer. */
   lineWeight?: number
+  /** Linetype scale of the entity (0.3.0); otherwise 1. */
+  linetypeScale?: number
 }
 export type DossierPrimitive = Base &
   (
@@ -81,6 +83,15 @@ export type DossierPrimitive = Base &
         dimStyle?: string
         text?: string
         overrides?: AcTpDimStyleVars
+        /** Middle of the text as the source placed it. */
+        textAt?: XY
+      }
+    | {
+        /** A LEADER entity (0.3.0). */
+        kind: 'leader'
+        points: XY[]
+        dimStyle: string
+        arrowHead: boolean
       }
     | {
         /** A block defined in {@link DossierScene.blocks} (0.3.0). */
@@ -90,9 +101,23 @@ export type DossierPrimitive = Base &
         scale: XY
         /** Degrees. */
         rotation?: number
-        attributes: Record<string, string>
+        attributes: Record<string, DossierAttribute>
       }
   )
+/** An attribute value, optionally placed as the source stored it (0.3.0). */
+export type DossierAttribute =
+  | string
+  | {
+      value: string
+      at: XY
+      height?: number
+      /** Degrees. */
+      rotation?: number
+      align?: number
+      widthFactor?: number
+      style?: string
+    }
+
 export interface DossierSheet {
   id: string
   title: string
@@ -950,6 +975,9 @@ export function drawDossierScene(
         color: op.color,
         ...(op.lineType !== undefined ? { lineType: op.lineType } : {}),
         ...(op.lineWeight !== undefined ? { lineWeight: op.lineWeight } : {}),
+        ...(op.linetypeScale !== undefined
+          ? { linetypeScale: op.linetypeScale }
+          : {}),
         params: {
           ...Object.fromEntries(
             (fields[op.role] ?? []).map(k => [k, scene.model.values[k]])
@@ -1007,6 +1035,14 @@ export function drawDossierScene(
           startAngle: (op.startAngle * Math.PI) / 180,
           endAngle: (op.endAngle * Math.PI) / 180
         })
+      else if (op.kind === 'leader')
+        ctx.leader({
+          ...tag,
+          points: op.points.map(p => point(s, p)),
+          native: true,
+          dimStyle: op.dimStyle,
+          arrowHead: op.arrowHead
+        })
       else if (op.kind === 'insert')
         ctx.insert({
           ...tag,
@@ -1014,7 +1050,22 @@ export function drawDossierScene(
           position: point(s, op.at),
           scale: { x: op.scale[0], y: op.scale[1] },
           rotationDeg: op.rotation,
-          attributes: op.attributes
+          attributes: Object.fromEntries(
+            Object.entries(op.attributes).map(([tag, a]) => [
+              tag,
+              typeof a === 'string'
+                ? a
+                : {
+                    value: a.value,
+                    position: point(s, a.at),
+                    height: a.height,
+                    rotationDeg: a.rotation,
+                    align: a.align as 0 | 1 | 2 | undefined,
+                    widthFactor: a.widthFactor,
+                    style: a.style
+                  }
+            ])
+          )
         })
       else if (op.kind === 'text')
         ctx.text({
@@ -1036,7 +1087,8 @@ export function drawDossierScene(
           huong: op.direction,
           ...(op.dimStyle ? { dimStyle: op.dimStyle } : {}),
           ...(op.text !== undefined ? { text: op.text } : {}),
-          ...(op.overrides ? { overrides: op.overrides } : {})
+          ...(op.overrides ? { overrides: op.overrides } : {}),
+          ...(op.textAt ? { textPosition: point(s, op.textAt) } : {})
         })
     }
 }

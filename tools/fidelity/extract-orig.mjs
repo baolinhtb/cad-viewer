@@ -28,6 +28,7 @@ import {
   all,
   get,
   num,
+  owner,
   points,
   readPairs,
   records,
@@ -246,10 +247,10 @@ const PAPERS = [...blockRecordName]
 const insertOwner = new Map(
   items
     .filter(i => i.rec.type === 'INSERT')
-    .map(i => [get(i.rec, 5)?.trim(), get(i.rec, 330)?.trim()])
+    .map(i => [get(i.rec, 5)?.trim(), owner(i.rec)])
 )
 const ownerOf = item => {
-  const own = get(item.rec, 330)?.trim()
+  const own = owner(item.rec)
   if (item.rec.type === 'ATTRIB' && insertOwner.has(own))
     return insertOwner.get(own)
   return own ?? item.block?.handle
