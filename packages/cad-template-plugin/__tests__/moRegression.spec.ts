@@ -191,9 +191,61 @@ describe('hồi quy cách ghép mo_cau_hoan_chinh', () => {
   })
 })
 
-describe('hồi quy hồ sơ mố ho_so_mo_m1 0.1.0', () => {
+/** Per-sheet fingerprint of a scene: roles, counts and a hash of primitives. */
+function fingerprint(scene: ReturnType<typeof buildDossierScene>) {
+  return scene.sheets.map(s => {
+    const roles: Record<string, number> = {}
+    for (const p of s.primitives) roles[p.role] = (roles[p.role] ?? 0) + 1
+    return {
+      id: s.id,
+      title: s.title,
+      origin: s.origin,
+      soPrimitive: s.primitives.length,
+      roles,
+      hash: createHash('sha256')
+        .update(JSON.stringify(s.primitives))
+        .digest('hex')
+        .slice(0, 16)
+    }
+  })
+}
+
+describe('hồi quy hồ sơ mố ho_so_mo_m1 0.2.0 (khung tên)', () => {
   test('cảnh dựng từ tham số mặc định', () => {
     const scene = buildDossierScene(buildDossierModel(dossierDefaults()))
+    expect(scene.version).toBe('0.2.0')
+    expect({
+      version: scene.version,
+      perSheet: fingerprint(scene)
+    }).toMatchSnapshot()
+  })
+
+  test('chỉ khung đổi so với 0.1.0; mọi phần khác giữ nguyên từng primitive', () => {
+    const model = buildDossierModel(dossierDefaults())
+    const oldScene = buildDossierScene(model, '0.1.0')
+    const newScene = buildDossierScene(model, '0.2.0')
+    for (let i = 0; i < oldScene.sheets.length; i++) {
+      // 0.1.0 frame = everything frame() appended last: its count is fixed.
+      const before = oldScene.sheets[i].primitives
+      const after = newScene.sheets[i].primitives
+      const content = after.filter(
+        p => p.role !== 'khung_ten' && p.role !== 'khung_ban_ve'
+      )
+      // The 0.1.0 frame is the last 7 primitives of each sheet (rect, line,
+      // five texts); everything before them is the drawing itself.
+      expect(content).toEqual(before.slice(0, before.length - 7))
+    }
+  })
+})
+
+describe('hồi quy hồ sơ mố ho_so_mo_m1 0.1.0', () => {
+  test('cảnh dựng từ tham số mặc định', () => {
+    // Pinned to its own generator: a saved 0.1.0 run must regenerate exactly
+    // as it did before 0.2.0 existed. Same snapshot as before the change.
+    const scene = buildDossierScene(
+      buildDossierModel(dossierDefaults()),
+      '0.1.0'
+    )
     const perSheet = scene.sheets.map(s => {
       const roles: Record<string, number> = {}
       for (const p of s.primitives) roles[p.role] = (roles[p.role] ?? 0) + 1

@@ -10,7 +10,11 @@ import {
   SEED_ROLE_LAYERS
 } from '@mlightcad/cad-template-sdk'
 
-import { abutmentDossierTemplate } from './dossier/template'
+import {
+  abutmentDossierLegacyTemplates,
+  abutmentDossierTemplate
+} from './dossier/template'
+import { drawingFrameTemplate } from './frame/template'
 import type { AcApRemoteTemplate } from './remoteTemplates'
 
 /**
@@ -32,7 +36,16 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
  * The source of all four is still in `@mlightcad/cad-template-cau-ban-btct`;
  * putting any back is one line in this list.
  */
-const BUILT_IN: readonly AcTpTemplate[] = [abutmentDossierTemplate]
+const BUILT_IN: readonly AcTpTemplate[] = [
+  abutmentDossierTemplate,
+  drawingFrameTemplate
+]
+
+/**
+ * Built-in generators kept for regeneration only: a run pins the version that
+ * made it, and these are those versions. Not listed, not found by id alone.
+ */
+const BUILT_IN_PINNED: readonly AcTpTemplate[] = abutmentDossierLegacyTemplates
 
 /** Templates fetched from the library, keyed by `id@version`. */
 const remote = new Map<string, AcApRemoteTemplate>()
@@ -144,8 +157,9 @@ export function findTemplateVersion(
   version: string
 ): AcTpTemplate | undefined {
   return (
-    BUILT_IN.find(t => t.meta.id === id && t.meta.version === version) ??
-    remote.get(`${id}@${version}`)?.template
+    [...BUILT_IN, ...BUILT_IN_PINNED].find(
+      t => t.meta.id === id && t.meta.version === version
+    ) ?? remote.get(`${id}@${version}`)?.template
   )
 }
 

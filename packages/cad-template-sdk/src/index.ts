@@ -1,5 +1,6 @@
 export * from './AcTpDimensionBlock'
 export * from './AcTpDrawContext'
+export * from './AcTpDrawingFrame'
 export * from './AcTpDrawingDigest'
 export * from './AcTpPartId'
 export * from './AcTpSeed'

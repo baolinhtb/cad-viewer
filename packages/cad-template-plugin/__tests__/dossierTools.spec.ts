@@ -74,7 +74,7 @@ describe('dossier tools against a real database', () => {
     expect(listRuns(db)).toHaveLength(1)
     expect(entities(db).length).toBeGreaterThan(2000)
     const sheetIds = new Set(
-      entities(db).map(e => readSemanticTag(e)?.params.sheet)
+      entities(db).map(e => readSemanticTag(e)?.params?.sheet)
     )
     expect(sheetIds.size).toBe(6)
     const parts = new Set(entities(db).map(e => readSemanticTag(e)?.partId))
@@ -149,7 +149,9 @@ describe('dossier tools against a real database', () => {
       db
     )
     expect(result.ok).toBe(true)
-    expect(result.data?.soDoiTuongXoa).toBe(0)
+    expect(
+      (result.data as { soDoiTuongXoa?: number } | undefined)?.soDoiTuongXoa
+    ).toBe(0)
     expect(entitiesOfRun(db, 'r1').map(e => e.objectId)).toEqual(ids)
     expect(sourceNote.textString).toBe('ENGINEER_DETAIL_KEPT')
     expect(sourceNote.rotation).toBeCloseTo(0.4, 8)

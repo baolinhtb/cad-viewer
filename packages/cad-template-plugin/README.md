@@ -1,6 +1,6 @@
 # Hồ sơ mố từ prompt
 
-`ho_so_mo_m1` 0.1.0 is a **draft dossier generator**, derived from
+`ho_so_mo_m1` 0.2.0 is a **draft dossier generator**, derived from
 `assets/02. BTC- mo_2.dwg`. It is available in the `template` dialog without
 uploading a library module. Existing office templates remain available.
 
@@ -26,6 +26,27 @@ Lengths are **mm**, elevations **m**, slopes **percent**. Positive cross slope
 raises the left chainage side, which appears on the right in the front view.
 `lCanh`/the reference's `Lc` is wing-wall length; `lCoc` is actual pile length.
 `lCoc=0` means unknown, not a zero-length designed pile.
+
+## Title block (0.2.0) and older runs
+
+Every sheet carries the office title block (`khung tên` A1, from
+`acTpBuildDrawingFrame` in the template SDK): project, structure, sheet title,
+sheet number (`M1-BC01`), sheet n/6, scale, date, stage, design office and
+the four signature rows. The title-block parameters (`duAn`, `donVi`,
+`nguoiChuTri`, `nguoiThietKe`, `nguoiKiemTra`, `nguoiDuyet`, `ngay`) may be
+blank, are not design parameters, and never switch the dossier off its
+source drawing. Editing them with `sua_ho_so_mo` patches the frame text in
+place, or redraws only the frame when its layout changes (a blank cell filled,
+a title wrapping); a frame edited by hand is never overwritten.
+
+A run records the generator version that made it. Runs made with 0.1.0 keep
+their original border on every path — regeneration, label edits, PDF/HTML/DXF
+export — because the 0.1.0 generator is still bundled (found by exact
+version, never offered for new dossiers). Title-block fields are refused for
+those runs: they have no title block.
+
+The same layout is available on its own as the bundled template
+`khung_ban_ve` (A3/A1, any scale 1:n) for any drawing.
 
 ## Implementation
 

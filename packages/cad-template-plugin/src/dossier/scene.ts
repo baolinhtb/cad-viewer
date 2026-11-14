@@ -1,7 +1,14 @@
 import type { AcTpDrawContext } from '@mlightcad/cad-template-sdk'
+import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
 
 import type { DossierModel } from './model'
-import { DOSSIER_VERSION, dossierDefaults, REFERENCE_ID } from './model'
+import {
+  DOSSIER_TITLE_KEYS,
+  DOSSIER_VERSION,
+  DOSSIER_VERSIONS,
+  dossierDefaults,
+  REFERENCE_ID
+} from './model'
 import bars from './reference/bars.json'
 import reference from './reference/reinforcement.json'
 
@@ -70,8 +77,19 @@ const steelGroups: Record<string, string> = {
 }
 
 /** A pure scene is prepared before any database mutation, shared by CAD,
- * SVG, print/PDF, and tests. It never invokes the LLM or fetches a library. */
-export function buildDossierScene(model: DossierModel): DossierScene {
+ * SVG, print/PDF, and tests. It never invokes the LLM or fetches a library.
+ *
+ * @param version - Generator version to reproduce. A run keeps the version
+ * it was made with; 0.1.0 draws the original border, later versions the
+ * office title block. Defaults to the current version. */
+export function buildDossierScene(
+  model: DossierModel,
+  version: string = DOSSIER_VERSION
+): DossierScene {
+  if (!DOSSIER_VERSIONS.includes(version))
+    throw new Error(
+      `Bộ sinh hồ sơ phiên bản ${version} không có trong bản cài này (có: ${DOSSIER_VERSIONS.join(', ')}).`
+    )
   const errors = model.issues.filter(i => i.level === 'error')
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'))
   const v = model.values,
@@ -152,7 +170,8 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       offset,
       direction
     })
-  function frame(s: DossierSheet) {
+  /** The 0.1.0 border, unchanged: runs made with it regenerate with it. */
+  function legacyFrame(s: DossierSheet) {
     rect(s, 'tieu_de_ban_ve', 1500, 1500, s.width - 3000, s.height - 3000)
     path(s, 'tieu_de_ban_ve', [
       [1500, 6500],
@@ -164,7 +183,7 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       s,
       3000,
       2200,
-      `${s.id} | A1 | TL 1:${s.scale} | ${DOSSIER_VERSION} | ${REFERENCE_ID}`,
+      `${s.id} | A1 | TL 1:${s.scale} | ${version} | ${REFERENCE_ID}`,
       230
     )
     text(s, 48000, 4400, 'BẢN NHÁP — CHƯA PHÁT HÀNH THI CÔNG', 360)
@@ -176,6 +195,61 @@ export function buildDossierScene(model: DossierModel): DossierScene {
       230
     )
   }
+
+  /** 0.2.0: the office title block (khung tên A1) on every sheet. */
+  function titleFrame(s: DossierSheet, index: number, total: number) {
+    const field = (key: string) => {
+      const value = v[key]
+      return value === undefined ? undefined : String(value)
+    }
+    const frame = acTpBuildDrawingFrame({
+      khoGiay: 'A1',
+      truong: {
+        duAn: field('duAn'),
+        congTrinh: field('congTrinh'),
+        tenBanVe: `${v.tenMo} — ${s.title}`,
+        soHieuTo: `${v.tenMo}-${s.id}`,
+        soTo: `${index + 1}/${total}`,
+        tiLe: `1:${s.scale}`,
+        ngay: field('ngay'),
+        giaiDoan: 'TKBVTC',
+        donVi: field('donVi'),
+        chuTri: field('nguoiChuTri'),
+        thietKe: field('nguoiThietKe'),
+        kiemTra: field('nguoiKiemTra'),
+        duyet: field('nguoiDuyet'),
+        trangThai: 'BẢN NHÁP — CHƯA PHÁT HÀNH THI CÔNG',
+        ghiChu: `Kích thước mm; cao độ m. Hình khai triển theo mô hình. ${REFERENCE_ID} · bộ sinh ${version}`
+      }
+    })
+    // Paper millimetres → sheet units; a 1:75 sheet is still an A1 page.
+    const k = s.scale
+    for (const p of frame.primitives) {
+      // One part per role and sheet, like every other dossier part: the
+      // title block is addressed as a whole, not cell by cell.
+      const partId = `${p.role}_${s.id}`
+      if (p.kind === 'path')
+        s.primitives.push({
+          role: p.role,
+          partId,
+          kind: 'path',
+          points: p.points.map(([x, y]) => [x * k, y * k] as XY),
+          closed: p.closed
+        })
+      else
+        s.primitives.push({
+          role: p.role,
+          partId,
+          kind: 'text',
+          at: [p.at[0] * k, p.at[1] * k],
+          text: p.text,
+          height: p.height * k,
+          align: p.align,
+          widthFactor: p.widthFactor
+        })
+    }
+  }
+
   function pileStub(s: DossierSheet, x: number, y: number) {
     const d = n('D')
     path(s, 'coc_khoan_nhoi', [
@@ -489,8 +563,10 @@ export function buildDossierScene(model: DossierModel): DossierScene {
     text(control, 5000, 52000 - i * 900, `${name}: ${fmt(value)} m`, 300)
   )
   text(control, 43000, 54000, 'THÔNG SỐ THIẾT KẾ', 380)
+  // Title-block fields are not design parameters (and did not exist in
+  // 0.1.0, whose sheets must regenerate unchanged): they are on the frame.
   Object.entries(v)
-    .filter(([k]) => !['x', 'y'].includes(k))
+    .filter(([k]) => !['x', 'y', ...DOSSIER_TITLE_KEYS].includes(k))
     .forEach(([k, value], i) =>
       text(control, 43000, 52000 - i * 1000, `${k}: ${value}`, 260)
     )
@@ -535,6 +611,7 @@ export function buildDossierScene(model: DossierModel): DossierScene {
         'y',
         'congTrinh',
         'tenMo',
+        ...DOSSIER_TITLE_KEYS,
         'thep',
         'thepF3',
         'thepW16',
@@ -766,9 +843,11 @@ export function buildDossierScene(model: DossierModel): DossierScene {
     'Khối lượng gốc chỉ để đối chiếu, không dùng cho hình học đã thay đổi.',
     280
   )
-  for (const s of sheets) frame(s)
+  sheets.forEach((s, i) =>
+    version === '0.1.0' ? legacyFrame(s) : titleFrame(s, i, sheets.length)
+  )
   return {
-    version: DOSSIER_VERSION,
+    version,
     reference: REFERENCE_ID,
     status: 'draft',
     detailMode: sourceGeometry ? 'source' : 'parametric',

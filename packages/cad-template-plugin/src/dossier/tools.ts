@@ -13,7 +13,7 @@ import {
   buildDossierModel,
   DOSSIER_ID,
   DOSSIER_PARAMS,
-  DOSSIER_VERSION
+  DOSSIER_VERSIONS
 } from './model'
 import { buildDossierScene } from './scene'
 import { abutmentDossierTemplate } from './template'
@@ -168,7 +168,7 @@ export async function runDossierTool(
       throw new Error(
         `Không có hồ sơ mố mang mã "${runId}". Dùng mo_ta_ban_ve để lấy mã.`
       )
-    if (run.version !== DOSSIER_VERSION)
+    if (!DOSSIER_VERSIONS.includes(run.version))
       throw new Error(
         `Hồ sơ dùng phiên bản ${run.version}; cần bộ sinh đúng phiên bản để tái tạo.`
       )
@@ -195,7 +195,12 @@ export async function runDossierTool(
       })
     }
     if (name === 'kiem_tra_ho_so') return summary({ ...run.values }, runId)
-    const scene = buildDossierScene(buildDossierModel({ ...run.values }))
+    // Exported with the generator that made the run, so a 0.1.0 dossier
+    // exports with its original border.
+    const scene = buildDossierScene(
+      buildDossierModel({ ...run.values }),
+      run.version
+    )
     const format = String(input.dinh_dang)
     const filename =
       String(run.values.tenMo)

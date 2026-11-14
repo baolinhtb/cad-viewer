@@ -499,6 +499,116 @@ exports[`hồi quy hồ sơ mố ho_so_mo_m1 0.1.0 cảnh dựng từ tham số 
 }
 `;
 
+exports[`hồi quy hồ sơ mố ho_so_mo_m1 0.2.0 (khung tên) cảnh dựng từ tham số mặc định 1`] = `
+{
+  "perSheet": [
+    {
+      "hash": "863576ea1c83a084",
+      "id": "BC01",
+      "origin": [
+        0,
+        0,
+      ],
+      "roles": {
+        "duong_tim": 32,
+        "ghi_chu": 61,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+        "kich_thuoc": 688,
+        "mo_cau": 817,
+      },
+      "soPrimitive": 1637,
+      "title": "Bố trí chung — hình chiếu",
+    },
+    {
+      "hash": "398f624561bc30f7",
+      "id": "BC02",
+      "origin": [
+        89100,
+        0,
+      ],
+      "roles": {
+        "ghi_chu": 51,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+      },
+      "soPrimitive": 90,
+      "title": "Thông số, cao độ và kiểm tra",
+    },
+    {
+      "hash": "a441cf2d4806acad",
+      "id": "CT01",
+      "origin": [
+        178200,
+        0,
+      ],
+      "roles": {
+        "cot_thep": 1112,
+        "duong_tim": 1,
+        "ghi_chu": 59,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+        "kich_thuoc": 93,
+      },
+      "soPrimitive": 1304,
+      "title": "Cốt thép bệ, thân và đỉnh",
+    },
+    {
+      "hash": "463909366441acd0",
+      "id": "CT02",
+      "origin": [
+        0,
+        -64400,
+      ],
+      "roles": {
+        "cot_thep": 699,
+        "duong_tim": 2,
+        "ghi_chu": 49,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+        "kich_thuoc": 111,
+      },
+      "soPrimitive": 900,
+      "title": "Cốt thép tường cánh trái",
+    },
+    {
+      "hash": "ce675e7835e64a8f",
+      "id": "CT03",
+      "origin": [
+        89100,
+        -64400,
+      ],
+      "roles": {
+        "cot_thep": 697,
+        "duong_tim": 2,
+        "ghi_chu": 49,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+        "kich_thuoc": 111,
+      },
+      "soPrimitive": 898,
+      "title": "Cốt thép tường cánh phải",
+    },
+    {
+      "hash": "5b0a4cb031ee15e2",
+      "id": "KL01",
+      "origin": [
+        178200,
+        -64400,
+      ],
+      "roles": {
+        "ghi_chu": 79,
+        "khung_ban_ve": 2,
+        "khung_ten": 37,
+      },
+      "soPrimitive": 118,
+      "title": "Thống kê thép và khối lượng",
+    },
+  ],
+  "version": "0.2.0",
+}
+`;
+
 exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_be_mong.js: hình học không phụ thuộc bảng layer 1`] = `
 [
   "DIMENSION|kich_thuoc|kich_thuoc_01|-3850,-970,3850,-100",

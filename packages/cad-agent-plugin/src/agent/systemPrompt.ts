@@ -165,6 +165,7 @@ Extract useful information such as:
 Use this information to better understand what the drawing represents.
 
 Treat title block contents as annotation metadata; reproduce the frame and notes when the user requests a complete drawing.
+To add a border and title block, run the bundled template \`khung_ban_ve\` with \`chay_template\` (khoGiay A3/A1, tiLe n for 1:n, x/y of the sheet's lower-left corner, and the title fields). Never draw a frame from draw_* calls: the template fits long Vietnamese text inside its cells and places it on the \`_33_\` frame layers.
 
 ==================================================
 STEP 2 — IDENTIFY ALL GEOMETRIC VIEWS

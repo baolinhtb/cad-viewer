@@ -90,9 +90,31 @@ describe('the list the dialog offers', () => {
     expect(listTemplates().map(t => `${t.meta.id}@${t.meta.version}`)).toEqual([
       'mo_mat_chinh@1.1.0',
       'tuong_phong_ho_btct@3.1.0',
-      'ho_so_mo_m1@0.1.0'
+      'ho_so_mo_m1@0.2.0',
+      'khung_ban_ve@1.0.0'
     ])
     // Every version is still visible where versions are the point.
-    expect(listRegisteredTemplates()).toHaveLength(5)
+    expect(listRegisteredTemplates()).toHaveLength(6)
   })
+})
+
+test('an older built-in generator regenerates its runs but is never offered', () => {
+  // ho_so_mo_m1 0.1.0 runs keep their original border: the 0.1.0 generator
+  // is still found by exact version, yet a new dossier always gets 0.2.0.
+  setRemoteTemplates([])
+  expect(findTemplateVersion('ho_so_mo_m1', '0.1.0')?.meta.version).toBe(
+    '0.1.0'
+  )
+  expect(findTemplateVersion('ho_so_mo_m1', '0.2.0')?.meta.version).toBe(
+    '0.2.0'
+  )
+  expect(findTemplate('ho_so_mo_m1')?.meta.version).toBe('0.2.0')
+  expect(
+    listTemplates()
+      .filter(t => t.meta.id === 'ho_so_mo_m1')
+      .map(t => t.meta.version)
+  ).toEqual(['0.2.0'])
+  expect(
+    listRegisteredTemplates().filter(r => r.template.meta.id === 'ho_so_mo_m1')
+  ).toHaveLength(1)
 })

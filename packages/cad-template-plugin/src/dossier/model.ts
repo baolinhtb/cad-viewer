@@ -4,7 +4,32 @@ import type {
 } from '@mlightcad/cad-template-sdk'
 
 export const DOSSIER_ID = 'ho_so_mo_m1'
-export const DOSSIER_VERSION = '0.1.0'
+/**
+ * Generator version written into every run.
+ *
+ * 0.2.0 replaced the sheet border with the office title block
+ * (`acTpBuildDrawingFrame`). Runs recorded at an older version regenerate
+ * with *their* generator — {@link DOSSIER_VERSIONS} — so a saved 0.1.0
+ * dossier keeps its original frame exactly.
+ */
+export const DOSSIER_VERSION = '0.2.0'
+/** Every generator version this build can still regenerate, oldest first. */
+export const DOSSIER_VERSIONS: readonly string[] = ['0.1.0', DOSSIER_VERSION]
+
+/**
+ * Title-block fields (0.2.0). Text only: changing them never changes geometry,
+ * so they neither switch the dossier off its source drawing nor need a
+ * rebuild — a label edit patches them in place. May be left blank.
+ */
+export const DOSSIER_TITLE_KEYS: readonly string[] = [
+  'duAn',
+  'donVi',
+  'nguoiChuTri',
+  'nguoiThietKe',
+  'nguoiKiemTra',
+  'nguoiDuyet',
+  'ngay'
+]
 export const REFERENCE_ID = 'btc-mo2-m1-2026-11-02'
 
 /** Lengths are mm, elevations are m, slopes are percent. Screen x grows
@@ -24,6 +49,26 @@ const PARAMS: readonly AcTpParamSpec[] = [
     default: 'Cầu Km0+400 — Tuyến số 2',
     group: 'Hồ sơ'
   },
+  ...(
+    [
+      ['duAn', 'Dự án'],
+      ['donVi', 'Đơn vị thiết kế'],
+      ['nguoiChuTri', 'Chủ trì'],
+      ['nguoiThietKe', 'Thiết kế'],
+      ['nguoiKiemTra', 'Kiểm tra'],
+      ['nguoiDuyet', 'Duyệt'],
+      ['ngay', 'Ngày']
+    ] as const
+  ).map(
+    ([key, label]): AcTpParamSpec => ({
+      key,
+      label,
+      type: 'text',
+      default: '',
+      group: 'Khung tên',
+      hint: 'Ghi vào khung tên của cả 6 tờ; để trống thì ô để trống.'
+    })
+  ),
   {
     key: 'bBe',
     label: 'Bề rộng bệ',
@@ -423,7 +468,8 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
     else if (
       p.type === 'text' &&
       (typeof raw !== 'string' ||
-        !raw.trim() ||
+        // Title-block fields may be blank; every other text is required.
+        (!raw.trim() && p.default !== '') ||
         raw.length > 100 ||
         raw.split('').some(c => c.charCodeAt(0) < 32))
     )

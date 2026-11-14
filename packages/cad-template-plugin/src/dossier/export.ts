@@ -11,7 +11,7 @@ import {
 } from '@mlightcad/cad-template-sdk'
 import { AcCmColor, AcCmColorMethod, AcDbDatabase } from '@mlightcad/data-model'
 
-import { DOSSIER_ID, DOSSIER_VERSION } from './model'
+import { DOSSIER_ID } from './model'
 import type { DossierScene, DossierSheet, XY } from './scene'
 import { drawDossierScene } from './scene'
 
@@ -139,7 +139,7 @@ export function dossierDxf(
     layers,
     {
       id: 'r1',
-      version: DOSSIER_VERSION,
+      version: scene.version,
       values: scene.model.values
     },
     styles

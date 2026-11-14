@@ -1,12 +1,32 @@
 import { acapRunGroupedEdit } from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
-import { readSemanticTag, writeSemanticTag } from '@mlightcad/cad-template-sdk'
+import {
+  createDrawContext,
+  readSemanticTag,
+  writeSemanticTag
+} from '@mlightcad/cad-template-sdk'
 import { AcDbDatabase, AcDbText, AcGeMatrix3d } from '@mlightcad/data-model'
 
 import type { AcApRunEditResult } from '../editRun'
 import { entitiesOfRun, listRuns } from '../runIdentity'
-import { buildDossierModel } from './model'
-import { buildDossierScene } from './scene'
+import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
+import { buildDossierModel, DOSSIER_ID, DOSSIER_TITLE_KEYS } from './model'
+import type { DossierPrimitive, DossierScene } from './scene'
+import { buildDossierScene, drawDossierScene } from './scene'
+
+/** Roles of the sheet border and title block (0.2.0 and later). */
+const FRAME_ROLES = new Set(['khung_ban_ve', 'khung_ten'])
+const isFrame = (p: { role: string }) => FRAME_ROLES.has(p.role)
+
+/** The frame primitives of every sheet, for comparing two scenes. */
+const frameOf = (scene: DossierScene) =>
+  scene.sheets.map(s => s.primitives.filter(isFrame))
+
+/** Frame texts per sheet, sorted — what the drawing should still show. */
+const frameTexts = (sheets: DossierPrimitive[][]) =>
+  sheets.map(primitives =>
+    primitives.flatMap(p => (p.kind === 'text' ? [p.text] : [])).sort()
+  )
 
 /** Patch dossier labels/placement without regenerating any existing geometry.
  * Geometry parameters require native, scoped edits until a detail-preserving
@@ -27,29 +47,60 @@ export async function acapEditDossierRun(
   })
   const changed = Object.keys(values).filter(k => values[k] !== run.values[k])
   if (!changed.length) return result([])
-  if (changed.some(k => !['tenMo', 'congTrinh', 'x', 'y'].includes(k)))
+  const labelKeys = ['tenMo', 'congTrinh', 'x', 'y', ...DOSSIER_TITLE_KEYS]
+  if (
+    run.version === '0.1.0' &&
+    changed.some(k => DOSSIER_TITLE_KEYS.includes(k))
+  )
+    return result([
+      `Hồ sơ ${run.id} dựng bằng bộ sinh 0.1.0, chưa có khung tên nên không ghi được ${changed
+        .filter(k => DOSSIER_TITLE_KEYS.includes(k))
+        .join(
+          ', '
+        )}. Dựng hồ sơ mới (phiên bản hiện hành) để có khung tên; chưa sửa gì.`
+    ])
+  if (changed.some(k => !labelKeys.includes(k)))
     return result([
       'Giữ nguyên bản vẽ chi tiết: không xóa để dựng lại từ template/sơ đồ. Dùng execute_cad_script, đọc đối tượng hiện tại rồi sửa đúng chữ/điểm grip bằng tx.setText hoặc tx.moveGrips. Thay đổi toàn bộ kích thước hồ sơ cần xác định các hình chiếu, kích thước và cấu tạo liên quan; chưa thay đổi thông số nào.'
     ])
 
   // Plan label changes before opening the transaction. An edited label must
   // not be silently overwritten by a value reconstructed from the template.
-  const before = buildDossierScene(buildDossierModel({ ...run.values }))
-  const after = buildDossierScene(buildDossierModel(values))
+  // Both scenes with the run's own generator: a 0.1.0 dossier keeps its
+  // border, a 0.2.0 one its title block.
+  const before = buildDossierScene(
+    buildDossierModel({ ...run.values }),
+    run.version
+  )
+  const after = buildDossierScene(buildDossierModel(values), run.version)
   const replacements = new Map<
     string,
     { old: string; next: string; expected: number }
   >()
+  // A frame whose structure is unchanged (same lines, same number of text
+  // lines) is patched in place like any other label, keeping every handle.
+  // Only a frame that changes shape — a blank cell filled in, a title that
+  // now wraps onto another line — is redrawn, as a whole, below.
+  const shape = (scene: DossierScene) =>
+    frameOf(scene).map(primitives =>
+      primitives.map(p =>
+        p.kind === 'text' ? ['text', p.at, p.height, p.widthFactor] : p
+      )
+    )
+  const redrawFrame =
+    JSON.stringify(shape(before)) !== JSON.stringify(shape(after))
   for (let s = 0; s < before.sheets.length; s++) {
-    const old = before.sheets[s],
-      next = after.sheets[s]
-    if (old.primitives.length !== next.primitives.length)
+    const keep = (p: DossierPrimitive) => !redrawFrame || !isFrame(p)
+    const oldPrimitives = before.sheets[s].primitives.filter(keep)
+    const nextPrimitives = after.sheets[s].primitives.filter(keep)
+    const old = before.sheets[s]
+    if (oldPrimitives.length !== nextPrimitives.length)
       return result([
         'Cấu trúc hồ sơ đã khác mẫu; giữ nguyên chi tiết và sửa trực tiếp các đối tượng.'
       ])
-    for (let i = 0; i < old.primitives.length; i++) {
-      const a = old.primitives[i],
-        b = next.primitives[i]
+    for (let i = 0; i < oldPrimitives.length; i++) {
+      const a = oldPrimitives[i],
+        b = nextPrimitives[i]
       if (a.kind !== 'text' || b.kind !== 'text' || a.text === b.text) continue
       const key = JSON.stringify([old.id, a.partId, a.text])
       const prior = replacements.get(key)
@@ -79,15 +130,50 @@ export async function acapEditDossierRun(
       ])
     found.forEach(e => patches.set(e.objectId, replacement.next))
   }
+  // The frame is generated layout, not engineering detail, so a changed frame
+  // is redrawn — but only if the drawing still shows exactly the frame this
+  // run generated. A title block edited by hand is not overwritten.
+  const frameEntities = entities.filter(e =>
+    FRAME_ROLES.has(readSemanticTag(e)?.role ?? '')
+  )
+  if (redrawFrame) {
+    const expected = frameOf(before)
+    const actualTexts = before.sheets.map(sheet =>
+      frameEntities
+        .filter(
+          e =>
+            readSemanticTag(e)?.params?.sheet === sheet.id &&
+            e instanceof AcDbText
+        )
+        .map(e => (e as AcDbText).textString)
+        .sort()
+    )
+    if (
+      frameEntities.length !== expected.flat().length ||
+      JSON.stringify(actualTexts) !== JSON.stringify(frameTexts(expected))
+    )
+      return result([
+        'Khung tên trong bản vẽ đã được sửa tay hoặc bị xóa; giữ nguyên, không dựng lại khung. Sửa trực tiếp chữ trong khung tên bằng tx.setText.'
+      ])
+  }
   if (entities.some(e => db.tables.layerTable.getAt(e.layer)?.isLocked))
     return result(['Hồ sơ có layer bị khóa; chưa sửa đối tượng nào.'])
   const dx = Number(values.x) - Number(run.values.x)
   const dy = Number(values.y) - Number(run.values.y)
+  let removed = 0
+  let drawn = 0
   await acapRunGroupedEdit(
     db,
     'Sửa nhãn/vị trí hồ sơ, giữ chi tiết',
     async () => {
       for (const original of entities) {
+        if (
+          redrawFrame &&
+          FRAME_ROLES.has(readSemanticTag(original)?.role ?? '')
+        ) {
+          if (original.erase()) removed += 1
+          continue
+        }
         const entity = db.openEntityForWrite(original)!
         const text = patches.get(entity.objectId)
         if (text !== undefined && entity instanceof AcDbText)
@@ -103,7 +189,34 @@ export async function acapEditDossierRun(
           }
         })
       }
+      if (redrawFrame) {
+        // Drawn at the new placement: `after` already carries the new x, y.
+        const ctx = createDrawContext(
+          db,
+          DOSSIER_ID,
+          roleLayers(),
+          {
+            id: run.id,
+            version: run.version,
+            values: values as Record<string, number | string | boolean>
+          },
+          layerStyles(),
+          { legacyLayers: legacyLayers() }
+        )
+        drawDossierScene(ctx, {
+          ...after,
+          sheets: after.sheets.map(sheet => ({
+            ...sheet,
+            primitives: sheet.primitives.filter(isFrame)
+          }))
+        })
+        drawn = ctx.drawn.length
+      }
     }
   )
-  return result([])
+  return {
+    ...result([]),
+    removed,
+    entityCount: entities.length - removed + drawn
+  }
 }
