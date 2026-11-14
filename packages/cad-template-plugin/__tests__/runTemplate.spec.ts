@@ -90,3 +90,46 @@ describe('runTemplate', () => {
     }
   })
 })
+
+describe('a template that still names an old layer', () => {
+  // An uploaded template from before `_33_` (the live library may hold some)
+  // hard-codes `layer: 'KC-COC'`. It must keep working, on the right layer,
+  // and the result must say what happened so the assistant can relay it.
+  const old = {
+    meta: {
+      id: 'coc_cu',
+      version: '1.0.0',
+      name: 'Cọc kiểu cũ',
+      category: 'Mố trụ'
+    },
+    params: [],
+    generate(ctx: import('@mlightcad/cad-template-sdk').AcTpDrawContext) {
+      ctx.line({
+        role: 'coc_khoan_nhoi',
+        partId: 'coc_01',
+        layer: 'KC-COC',
+        start: { x: 0, y: 0, z: 0 },
+        end: { x: 0, y: -1000, z: 0 }
+      })
+    }
+  }
+
+  test('draws on the _33_ layer and returns the warning', async () => {
+    const database = newDatabase()
+    const result = await runTemplate(old, {}, database)
+    expect(result.errors).toEqual([])
+    expect(result.layers).toEqual(['_33_CAU_MO_Coc'])
+    expect(result.warnings).toEqual([
+      "Layer 'KC-COC' là tên cũ (chỉ để nhận dạng bản vẽ cũ); đã vẽ lên '_33_CAU_MO_Coc' thay thế."
+    ])
+  })
+
+  test('a template on current names reports no warnings at all', async () => {
+    const result = await runTemplate(
+      template,
+      defaultValues(template),
+      newDatabase()
+    )
+    expect(result.warnings).toBeUndefined()
+  })
+})

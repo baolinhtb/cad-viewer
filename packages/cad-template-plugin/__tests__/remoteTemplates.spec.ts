@@ -9,12 +9,15 @@ import {
 import {
   dictionary,
   findTemplate,
+  currentLayerForLegacy,
   layerStyles,
+  legacyLayers,
   listRegisteredTemplates,
   listTemplates,
   roleLayers,
   setDictionary,
   setLayerStyles,
+  setLegacyLayers,
   setRemoteTemplates,
   setRoleLayers
 } from '../src/templateRegistry'
@@ -22,6 +25,7 @@ import {
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
   SEED_ROLE_LAYERS: { lan_can: 'KC-LANCAN' },
+  SEED_LEGACY_LAYERS: { 'LANCAN-CU': 'lan_can' },
   SEED_DICTIONARY: [
     { role: 'lan_can', label: 'Lan can', aliases: [], layer: 'KC-LANCAN' }
   ]
@@ -251,6 +255,31 @@ describe('the company layer mapping', () => {
   beforeEach(() => {
     setRoleLayers(undefined as never)
     setLayerStyles(undefined)
+    setLegacyLayers(undefined)
+  })
+
+  test('old layer names arrive with the mapping and replace the seed list', async () => {
+    expect(legacyLayers()).toEqual({ 'LANCAN-CU': 'lan_can' })
+    await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        roleLayers: { lan_can: '_33_CAU_MIS_Lancan' },
+        legacyLayers: { 'KC-LANCAN': 'lan_can' }
+      })
+    }))
+    expect(legacyLayers()).toEqual({ 'KC-LANCAN': 'lan_can' })
+    expect(currentLayerForLegacy('kc-lancan')).toBe('_33_CAU_MIS_Lancan')
+    expect(currentLayerForLegacy('_33_CAU_MIS_Lancan')).toBeUndefined()
+  })
+
+  test('a server that predates old names keeps the seed list', async () => {
+    await refreshRoleLayers(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ roleLayers: { lan_can: '_33_CAU_MIS_Lancan' } })
+    }))
+    expect(legacyLayers()).toEqual({ 'LANCAN-CU': 'lan_can' })
   })
 
   test('the layer colours arrive with the mapping and are applied with it', async () => {

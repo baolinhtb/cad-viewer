@@ -335,11 +335,24 @@ export async function runTemplateTool(
           'tiêu chuẩn nào cho trị số, các trị số do tính toán quyết định.') +
       // Nói ra khi toạ độ vừa được đọc theo mốc: một phép dời gốc lặng lẽ là
       // thứ khiến người ta tưởng vẽ sai chỗ mà không hiểu vì sao.
-      (moc ? ` Vị trí đọc theo mốc "${moc}".` : ''),
+      (moc ? ` Vị trí đọc theo mốc "${moc}".` : '') +
+      warningText(result.warnings),
     // Only what a later step needs to act on. The message already says the
     // rest, and a tool result is re-sent on every remaining step of the turn.
-    data: { partIds: [templateId], soDoiTuong: result.entityCount }
+    data: {
+      partIds: [templateId],
+      soDoiTuong: result.entityCount,
+      ...(result.warnings?.length ? { canhBao: result.warnings } : {})
+    }
   }
+}
+
+/**
+ * Draw-context warnings, appended to a tool message so the assistant relays
+ * them (an old layer name redirected to `_33_`, say). Empty when none.
+ */
+function warningText(warnings: readonly string[] | undefined): string {
+  return warnings?.length ? ` Cảnh báo: ${warnings.join(' ')}` : ''
 }
 
 /**
@@ -418,13 +431,15 @@ async function editRunTool(
       `Đã sửa ${runId}: ${doi}. ` +
       (result.removed
         ? `Dựng lại ${result.entityCount} đối tượng.`
-        : `Giữ nguyên ${result.entityCount} đối tượng và các chi tiết hiện có.`),
+        : `Giữ nguyên ${result.entityCount} đối tượng và các chi tiết hiện có.`) +
+      warningText(result.warnings),
     data: {
       maLanChay: result.runId,
       soDoiTuongXoa: result.removed,
       soDoiTuong: result.entityCount,
       layers: result.layers,
-      thongSoSauKhiSua: result.values
+      thongSoSauKhiSua: result.values,
+      ...(result.warnings?.length ? { canhBao: result.warnings } : {})
     }
   }
 }

@@ -14,7 +14,12 @@ import { markTemplateVerified } from './remoteTemplates'
 export { defaultValues } from './templateValues'
 import { toDrawingPlacement } from './placement'
 import { nextRunId } from './runIdentity'
-import { findRemoteSource, layerStyles, roleLayers } from './templateRegistry'
+import {
+  findRemoteSource,
+  layerStyles,
+  legacyLayers,
+  roleLayers
+} from './templateRegistry'
 
 /** Outcome of a run, enough to tell the user what was produced. */
 export interface AcApTemplateRunResult {
@@ -26,6 +31,11 @@ export interface AcApTemplateRunResult {
   layers: string[]
   /** Validation messages; when non-empty nothing was drawn. */
   errors: string[]
+  /**
+   * Non-fatal notes from the draw context — today, an old layer name the
+   * template asked for, redirected to its `_33_` layer. Absent when none.
+   */
+  warnings?: string[]
 }
 
 /**
@@ -67,6 +77,7 @@ export async function runTemplate(
   const db = database ?? AcApDocManager.instance.curDocument.database
   let entityCount = 0
   let layers: string[] = []
+  let warnings: string[] = []
 
   // Recorded before drawing so every entity carries it: the drawing then says
   // not just what each part is, but which call made it and with what arguments.
@@ -83,11 +94,13 @@ export async function runTemplate(
         // này về sau là sửa lại chính những trị số ấy.
         values: values as Record<string, number | string | boolean>
       },
-      layerStyles()
+      layerStyles(),
+      { legacyLayers: legacyLayers() }
     )
     await template.generate(ctx, placed)
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
+    warnings = [...ctx.warnings]
   })
 
   // Only the open drawing needs repainting; a caller-supplied database has no
@@ -117,5 +130,11 @@ export async function runTemplate(
     }
   }
 
-  return { entityCount, layers, errors: [], runId }
+  return {
+    entityCount,
+    layers,
+    errors: [],
+    runId,
+    ...(warnings.length ? { warnings } : {})
+  }
 }

@@ -1,81 +1,271 @@
 /**
- * Seed data for the first template (cầu bản BTCT).
+ * Danh mục chuẩn hoá mặc định: vai trò → nhãn, layer `_33_` xuất bản vẽ, màu
+ * layer, và các tên layer cũ chỉ dùng để nhận dạng bản vẽ cũ.
  *
- * Epic 1 runs on this hard-coded set so a real drawing can be produced before
- * the managed dictionary and layer registry exist. Epic 2 replaces it with
- * data served from `/api/standards`; the shape stays the same, so nothing in
- * the SDK changes when that happens.
+ * Đây là **nơi duy nhất** khai báo những thứ ấy phía trình duyệt. Máy chủ
+ * (`server/auth/schema.mjs`, `SEED_STANDARDS`) giữ một bản sao vì nó chạy Node
+ * thuần, không bundler; `__tests__/AcTpSeedMatchesServer.spec.ts` giữ hai bản
+ * khớp nhau. Văn phòng đổi tên layer thì đổi ở đây và ở bản sao, test sẽ chỉ
+ * ra chỗ lệch.
+ *
+ * Quy ước tên, rút từ bản vẽ chuẩn của văn phòng
+ * (`assets/cad-sample/Phantachcaukienmo_va_dat_ten_layer.dwg`):
+ * `_33_CAU_<NHÓM>_<Tên>` cho bộ phận kết cấu (`MO` mố, `TRU` trụ, `NHIP` kết
+ * cấu nhịp, `MIS` phụ trợ), `_33_<Tên>` cho hạng mục dùng chung mọi bộ phận;
+ * `<Tên>` không dấu, chỉ viết hoa chữ cái đầu.
+ *
+ * `legacy` là tên cũ (bộ KC-* mặc định trước đây, và lỗi đặt tên có thật như
+ * `_Matduong_BTN` trong `33_MO_TUONGDAU.dwg`). Chúng chỉ để `gan_nhan_tu_layer`
+ * nhận ra bản vẽ cũ — không bao giờ là layer để vẽ mới lên.
+ *
+ * `color` là màu mặc định khi **máy chủ tạo mới** dòng layer (ACI 8 như mọi
+ * layer `_33_` trong bản vẽ chuẩn, 7 cho nhóm `MIS` như lan can, 7 cho khung).
+ * Phía trình duyệt không dùng nó làm màu dự phòng: màu là việc của danh mục
+ * máy chủ, và đổi màu dự phòng sẽ đổi bản vẽ của mọi template đang chạy.
  */
 
 import type { AcTpTerm } from './AcTpSemanticQuery'
 
-/** Semantic roles the first template draws, with their Vietnamese names. */
-export const SEED_ROLES: Readonly<Record<string, string>> = {
-  ban_mat_cau: 'Bản mặt cầu',
-  lop_phu: 'Lớp phủ mặt cầu',
-  lan_can: 'Lan can',
-  go_chan_banh: 'Gờ chắn bánh',
-  ban_qua_do: 'Bản quá độ',
-  mo_cau: 'Mố cầu',
-  // The abutment, taken apart the way an office actually draws it. `mo_cau`
-  // stays for the whole thing — a cross-section that shows the abutment as one
-  // shape is still a legitimate drawing — but a sheet that separates the parts
-  // needs a term per part, or "sửa tường thân" has nothing to resolve to.
-  // The split follows a real drawing: back wall, stem, wing wall, footing, and
-  // the blinding under it.
-  mo_tuong_dau: 'Tường đầu mố',
-  mo_tuong_than: 'Tường thân mố',
-  mo_tuong_tai: 'Tường tai mố',
-  mo_be: 'Bệ móng mố',
-  mo_be_tong_lot: 'Bê tông lót',
-  coc_khoan_nhoi: 'Cọc khoan nhồi',
-  goi_cau: 'Gối cầu',
-  khe_co_gian: 'Khe co giãn',
-  ong_thoat_nuoc: 'Ống thoát nước',
-  cot_thep: 'Cốt thép',
-  duong_tim: 'Đường tim',
-  ghi_chu_cao_do: 'Ghi chú cao độ',
-  tieu_de_ban_ve: 'Tiêu đề bản vẽ',
-  kich_thuoc: 'Đường kích thước',
-  ghi_chu: 'Ghi chú'
+/** Một mục của danh mục mặc định. */
+export interface AcTpSeedEntry {
+  /** Tên tiếng Việt của vai trò. */
+  label: string
+  /** Layer `_33_` mà vai trò được vẽ lên. */
+  layer: string
+  /** Màu ACI mặc định của layer khi máy chủ tạo mới; `null` là chưa quy định. */
+  color: number | null
+  /** Tên layer cũ, chỉ để nhận dạng bản vẽ cũ. */
+  legacy: readonly string[]
 }
 
+/** Danh mục mặc định, theo thứ tự đọc. */
+export const SEED_CATALOG: Readonly<Record<string, AcTpSeedEntry>> = {
+  // Kết cấu nhịp và mặt cầu.
+  ban_mat_cau: {
+    label: 'Bản mặt cầu',
+    layer: '_33_CAU_NHIP_Banmatcau',
+    color: 8,
+    legacy: ['KC-BAN']
+  },
+  lop_phu: {
+    label: 'Lớp phủ mặt cầu',
+    layer: '_33_Matduong_BTN',
+    color: 8,
+    legacy: ['KC-LOPPHU', '_Matduong_BTN']
+  },
+  lan_can: {
+    label: 'Lan can',
+    layer: '_33_CAU_MIS_Lancan',
+    color: 7,
+    legacy: ['KC-LANCAN']
+  },
+  go_chan_banh: {
+    label: 'Gờ chắn bánh',
+    layer: '_33_CAU_MIS_Gochanbanh',
+    color: 7,
+    legacy: ['KC-GOCHAN']
+  },
+  bo_via: {
+    label: 'Bó vỉa',
+    layer: '_33_CAU_MIS_Bovia',
+    color: 7,
+    legacy: []
+  },
+  ban_qua_do: {
+    label: 'Bản quá độ',
+    layer: '_33_CAU_MO_Banquado',
+    color: 8,
+    legacy: ['KC-BANQUADO']
+  },
+  // Mố. `mo_cau` là cả khối, cho mặt cắt vẽ mố thành một hình; các bộ phận
+  // tách theo đúng cách văn phòng vẽ.
+  mo_cau: {
+    label: 'Mố cầu',
+    layer: '_33_CAU_MO_Tongthe',
+    color: 8,
+    legacy: ['KC-MO']
+  },
+  mo_tuong_dau: {
+    label: 'Tường đầu mố',
+    layer: '_33_CAU_MO_Tuongdau',
+    color: 8,
+    legacy: ['KC-MO-TUONGDAU']
+  },
+  mo_tuong_than: {
+    label: 'Tường thân mố',
+    layer: '_33_CAU_MO_Tuongthan',
+    color: 8,
+    legacy: ['KC-MO-TUONGTHAN']
+  },
+  mo_tuong_tai: {
+    label: 'Tường tai mố',
+    layer: '_33_CAU_MO_Tuongtai',
+    color: 8,
+    legacy: ['KC-MO-TUONGTAI']
+  },
+  mo_be: {
+    label: 'Bệ móng mố',
+    layer: '_33_CAU_MO_Be',
+    color: 8,
+    legacy: ['KC-MO-BE']
+  },
+  mo_be_tong_lot: {
+    label: 'Bê tông lót',
+    layer: '_33_CAU_MO_Betonglot',
+    color: 8,
+    legacy: ['KC-MO-BTLOT']
+  },
+  // Giữ layer của mố để output template mố không đổi; cọc trụ có vai trò riêng
+  // `tru_coc_khoan_nhoi`, nếu không cọc trụ sẽ rơi vào layer của mố.
+  coc_khoan_nhoi: {
+    label: 'Cọc khoan nhồi',
+    layer: '_33_CAU_MO_Coc',
+    color: 8,
+    legacy: ['KC-COC']
+  },
+  // Trụ.
+  tru_xa_mu: {
+    label: 'Xà mũ trụ',
+    layer: '_33_CAU_TRU_Xamu',
+    color: 8,
+    legacy: []
+  },
+  tru_than: {
+    label: 'Thân trụ',
+    layer: '_33_CAU_TRU_Thantru',
+    color: 8,
+    legacy: []
+  },
+  tru_da_ke_goi: {
+    label: 'Đá kê gối',
+    layer: '_33_CAU_TRU_Dakegoi',
+    color: 8,
+    legacy: []
+  },
+  tru_be: {
+    label: 'Bệ móng trụ',
+    layer: '_33_CAU_TRU_Be',
+    color: 8,
+    legacy: []
+  },
+  tru_be_tong_lot: {
+    label: 'Bê tông lót bệ trụ',
+    layer: '_33_CAU_TRU_Betonglot',
+    color: 8,
+    legacy: []
+  },
+  tru_coc_khoan_nhoi: {
+    label: 'Cọc khoan nhồi trụ',
+    layer: '_33_CAU_TRU_Coc',
+    color: 8,
+    legacy: []
+  },
+  // Phụ trợ.
+  goi_cau: {
+    label: 'Gối cầu',
+    layer: '_33_CAU_MIS_Goicau',
+    color: 7,
+    legacy: ['KC-GOI']
+  },
+  khe_co_gian: {
+    label: 'Khe co giãn',
+    layer: '_33_CAU_MIS_Khecogian',
+    color: 7,
+    legacy: ['KC-KHE']
+  },
+  ong_thoat_nuoc: {
+    label: 'Ống thoát nước',
+    layer: '_33_CAU_MIS_Thoatnuoc',
+    color: 7,
+    legacy: ['KT-THOATNUOC']
+  },
+  // Dùng chung mọi bộ phận.
+  cot_thep: {
+    label: 'Cốt thép',
+    layer: '_33_Cotthep',
+    color: 8,
+    legacy: ['KC-COTTHEP']
+  },
+  duong_tim: {
+    label: 'Đường tim',
+    layer: '_33_Timtuyen',
+    color: 8,
+    legacy: ['TRUC-TIM']
+  },
+  ghi_chu_cao_do: {
+    label: 'Ghi chú cao độ',
+    layer: '_33_Ghichu_Caodo',
+    color: 8,
+    legacy: ['GC-CAODO']
+  },
+  tieu_de_ban_ve: {
+    label: 'Tiêu đề bản vẽ',
+    layer: '_33_Tieudebanve',
+    color: 8,
+    legacy: ['GC-TIEUDE']
+  },
+  kich_thuoc: {
+    label: 'Đường kích thước',
+    layer: '_33_Duongghikichthuoc',
+    color: 8,
+    legacy: ['GC-KICHTHUOC']
+  },
+  ghi_chu: {
+    label: 'Ghi chú',
+    layer: '_33_Ghichu',
+    color: 8,
+    legacy: ['GC-GHICHU']
+  },
+  ky_hieu_mat_cat: {
+    label: 'Ký hiệu mặt cắt',
+    layer: '_33_Kyhieumatcat',
+    color: 8,
+    legacy: []
+  },
+  // Trình bày tờ bản vẽ.
+  khung_ban_ve: {
+    label: 'Khung bản vẽ',
+    layer: '_33_Khungbanve',
+    color: 7,
+    legacy: []
+  },
+  khung_ten: {
+    label: 'Khung tên',
+    layer: '_33_Khungten',
+    color: 7,
+    legacy: []
+  }
+}
+
+/** Semantic roles, with their Vietnamese names. Derived from the catalogue. */
+export const SEED_ROLES: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(SEED_CATALOG).map(([role, entry]) => [role, entry.label])
+)
+
 /**
- * Layer each role is drawn on.
+ * Layer each role is drawn on — always a `_33_` name.
  *
  * Layer is presentation, not identity — the semantic tag is what identifies an
- * entity. Two roles may share a layer without becoming indistinguishable.
+ * entity. The deployment's standardisation layer overrides this whole map.
  */
-export const SEED_ROLE_LAYERS: Readonly<Record<string, string>> = {
-  ban_mat_cau: 'KC-BAN',
-  lop_phu: 'KC-LOPPHU',
-  lan_can: 'KC-LANCAN',
-  go_chan_banh: 'KC-GOCHAN',
-  ban_qua_do: 'KC-BANQUADO',
-  mo_cau: 'KC-MO',
-  // Default names only. An office that names these `_33_CAU_MO_Tuongdau` maps
-  // them through the standardisation layer, which overrides this whole map —
-  // baking one office's prefix in here would impose it on every other.
-  mo_tuong_dau: 'KC-MO-TUONGDAU',
-  mo_tuong_than: 'KC-MO-TUONGTHAN',
-  mo_tuong_tai: 'KC-MO-TUONGTAI',
-  mo_be: 'KC-MO-BE',
-  mo_be_tong_lot: 'KC-MO-BTLOT',
-  // Thiếu dòng này thì template cọc ném "vai trò chưa được khai trong quy ước
-  // layer" và không vẽ được nét nào. Template cọc cũ né bằng cách tự ghi cứng
-  // 'KC-COC' vào từng lời gọi, nên nó vẽ được nhưng đứng ngoài tầng chuẩn hoá:
-  // văn phòng đổi tên layer thì cọc không đổi theo.
-  coc_khoan_nhoi: 'KC-COC',
-  goi_cau: 'KC-GOI',
-  khe_co_gian: 'KC-KHE',
-  ong_thoat_nuoc: 'KT-THOATNUOC',
-  cot_thep: 'KC-COTTHEP',
-  duong_tim: 'TRUC-TIM',
-  ghi_chu_cao_do: 'GC-CAODO',
-  tieu_de_ban_ve: 'GC-TIEUDE',
-  kich_thuoc: 'GC-KICHTHUOC',
-  ghi_chu: 'GC-GHICHU'
-}
+export const SEED_ROLE_LAYERS: Readonly<Record<string, string>> =
+  Object.fromEntries(
+    Object.entries(SEED_CATALOG).map(([role, entry]) => [role, entry.layer])
+  )
+
+/**
+ * Old layer name → role, for recognising drawings made before `_33_`.
+ *
+ * Recognition only: nothing is ever drawn on these. A template that still
+ * names one directly is redirected to the role's current layer, with a
+ * warning (see `createDrawContext`).
+ */
+export const SEED_LEGACY_LAYERS: Readonly<Record<string, string>> =
+  Object.fromEntries(
+    Object.entries(SEED_CATALOG).flatMap(([role, entry]) =>
+      entry.legacy.map(name => [name, role] as const)
+    )
+  )
 
 /**
  * Every role must have a layer; a role without one cannot be drawn.
@@ -93,10 +283,6 @@ export function findRolesWithoutLayer(
 
 /**
  * The seed dictionary, in the shape the standardisation layer serves.
- *
- * Derived from the two maps above rather than written out a third time: a
- * third copy is a third thing to forget when a role is added, and the failure
- * would be a term the assistant silently cannot resolve.
  *
  * Carries no aliases. `resolveTerm` matches the label directly, so "lan can"
  * resolves without one; the company's own alternative names are exactly what

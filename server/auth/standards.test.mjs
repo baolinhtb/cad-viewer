@@ -45,7 +45,15 @@ test('a fresh database starts with the seed dictionary, not empty', () => {
   const terms = listTerms(db)
   assert.equal(terms.length, Object.keys(SEED_STANDARDS).length)
   assert.ok(terms.some(term => term.role === 'lan_can'))
-  assert.equal(listLayers(db).length, Object.keys(SEED_STANDARDS).length)
+  const layers = listLayers(db)
+  const current = layers.filter(layer => !layer.legacyOf)
+  const legacy = layers.filter(layer => layer.legacyOf)
+  assert.equal(current.length, Object.keys(SEED_STANDARDS).length)
+  assert.ok(current.every(layer => layer.name.startsWith('_33_')))
+  assert.equal(
+    legacy.length,
+    Object.values(SEED_STANDARDS).flatMap(seed => seed.legacy).length
+  )
 })
 
 test('a term is searchable by its aliases, not only its canonical name', () => {
@@ -190,9 +198,14 @@ test('the seed pairs every role with the layer the SDK draws it on', () => {
   // it the client has no central mapping to override its built-in one.
   const db = freshDb()
   const mapping = roleLayerMap(db)
-  assert.equal(mapping.lan_can, 'KC-LANCAN')
-  assert.equal(mapping.ban_mat_cau, 'KC-BAN')
+  assert.equal(mapping.lan_can, '_33_CAU_MIS_Lancan')
+  assert.equal(mapping.ban_mat_cau, '_33_CAU_NHIP_Banmatcau')
   assert.equal(Object.keys(mapping).length, Object.keys(SEED_STANDARDS).length)
+  // One catalogue: every role is drawn on a `_33_` layer, never on an old name.
+  assert.deepEqual(
+    Object.entries(mapping).filter(([, layer]) => !layer.startsWith('_33_')),
+    []
+  )
 })
 
 test('a role with no layer is reported, not silently mapped', () => {
@@ -237,7 +250,9 @@ test('the seeded standards contradict themselves in no way', () => {
   assert.deepEqual(found, {
     rolesWithoutLayer: [],
     rolesWithUnknownLayer: [],
-    unusedLayers: []
+    unusedLayers: [],
+    rolesOnLegacyLayer: [],
+    legacyWithUnknownTarget: []
   })
 })
 
@@ -253,10 +268,11 @@ test("layer names follow AutoCAD rules, not one office's convention", () => {
   // The names in a real drawing an engineer sent. Every one of them was
   // rejected by the previous allow-list, which required a leading letter or
   // digit because the built-in convention happened to look like `KC-BAN`.
+  // (The first three are seeded now, so variants of them are created here.)
   for (const name of [
-    '_33_CAU_MO_Tuongdau',
-    '_33_Duongghikichthuoc',
-    '_Matduong_BTN',
+    '_33_CAU_MO_Tuongdau_Phu',
+    '_33_Duongghikichthuoc_Phu',
+    '_Matduong_BTNC',
     'Main_01'
   ]) {
     assert.equal(createLayer(db, 1, { name, meaning: name }).name, name)
@@ -291,7 +307,7 @@ test('an office points a seeded role at its own layer name', () => {
   // sheet, and until the name rule was widened it could not be entered at all.
   const db = freshDb()
   createLayer(db, 1, {
-    name: '_33_CAU_MO_Tuongthan',
+    name: '_33_CAU_MO_Thanmo_VP',
     meaning: 'Tường thân mố'
   })
   const seeded = getTerm(db, 'mo_tuong_than')
@@ -300,10 +316,10 @@ test('an office points a seeded role at its own layer name', () => {
   updateTerm(db, 1, 'mo_tuong_than', {
     label: seeded.label,
     aliases: seeded.aliases,
-    layer: '_33_CAU_MO_Tuongthan'
+    layer: '_33_CAU_MO_Thanmo_VP'
   })
 
-  assert.equal(roleLayerMap(db).mo_tuong_than, '_33_CAU_MO_Tuongthan')
+  assert.equal(roleLayerMap(db).mo_tuong_than, '_33_CAU_MO_Thanmo_VP')
   // The pair is consistent, so it raises no contradiction.
   assert.deepEqual(
     findContradictions(db).rolesWithUnknownLayer.filter(

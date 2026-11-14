@@ -263,3 +263,47 @@ describe('what the success message claims', () => {
     }
   })
 })
+
+describe('chay_template on a template that still names an old layer', () => {
+  afterAll(() => registerLibrary('mo_be_mong.js', 'tuong_phong_ho.js'))
+
+  test('draws, and the assistant is told the old name was redirected', async () => {
+    setRemoteTemplates([
+      {
+        template: {
+          meta: {
+            id: 'coc_cu',
+            version: '1.0.0',
+            name: 'Cọc kiểu cũ',
+            category: 'Mố trụ'
+          },
+          params: [],
+          generate(ctx: import('@mlightcad/cad-template-sdk').AcTpDrawContext) {
+            ctx.line({
+              role: 'coc_khoan_nhoi',
+              partId: 'coc_01',
+              layer: 'KC-COC',
+              start: { x: 0, y: 0, z: 0 },
+              end: { x: 0, y: -1000, z: 0 }
+            })
+          }
+        },
+        source: {
+          templateId: 'coc_cu',
+          version: '1.0.0',
+          name: 'Cọc kiểu cũ',
+          status: 'published'
+        }
+      } as never
+    ])
+    const outcome = await runTemplateTool(
+      'chay_template',
+      { ma_template: 'coc_cu' },
+      newDatabase()
+    )
+    expect(outcome.ok).toBe(true)
+    expect(outcome.message).toContain('_33_CAU_MO_Coc')
+    expect(outcome.message).toContain("Cảnh báo: Layer 'KC-COC' là tên cũ")
+    expect((outcome.data as { canhBao?: string[] }).canhBao).toHaveLength(1)
+  })
+})

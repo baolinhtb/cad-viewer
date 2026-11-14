@@ -111,8 +111,13 @@ test('the block carries terms, aliases, layers and templates', () => {
   const { text } = buildStandardsBlock(db)
   assert.match(text, /lan_can: Lan can/)
   assert.match(text, /còn gọi là .*tay vịn/)
-  assert.match(text, /layer KC-LANCAN/)
+  assert.match(text, /layer _33_CAU_MIS_Lancan/)
   assert.match(text, /Danh mục layer:/)
+  // Old names are listed apart, as recognition-only, pointing at their `_33_`.
+  const [catalogue, legacy] = text.split('Tên layer cũ')
+  assert.doesNotMatch(catalogue.split('Danh mục layer:')[1], /KC-LANCAN/)
+  assert.match(legacy, /- KC-LANCAN → _33_CAU_MIS_Lancan/)
+  assert.match(legacy, /- _Matduong_BTN → _33_Matduong_BTN/)
   assert.match(text, /Template đã công bố:/)
 })
 

@@ -130,10 +130,17 @@ export function buildStandardsBlock(db) {
       return parts.join(' · ')
     })
 
-  const layers = listLayers(db)
+  const allLayers = listLayers(db)
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
+  const layers = allLayers
+    .filter(layer => !layer.legacyOf)
     .map(layer => `- ${layer.name}: ${layer.meaning}`)
+  // Old names are listed apart, and say what they are, because an assistant
+  // that sees `KC-BAN` in the catalogue will otherwise draw on it.
+  const legacyLayers = allLayers
+    .filter(layer => layer.legacyOf)
+    .map(layer => `- ${layer.name} → ${layer.legacyOf}`)
 
   const templates = listTemplates(db, null, { includeDrafts: false })
     .slice()
@@ -174,6 +181,13 @@ export function buildStandardsBlock(db) {
     'Danh mục layer:',
     ...layers,
     '',
+    ...(legacyLayers.length
+      ? [
+          'Tên layer cũ — CHỈ để nhận dạng bản vẽ cũ, KHÔNG vẽ hay tạo layer mới với các tên này (vẽ lên layer bên phải mũi tên):',
+          ...legacyLayers,
+          ''
+        ]
+      : []),
     'Template đã công bố:',
     ...(templates.length ? templates : ['- (chưa có)']),
     '',

@@ -292,13 +292,15 @@ export async function refreshRoleLayers(
   fetchImpl: AcApFetch = fetch as unknown as AcApFetch,
   url = '/api/standards/role-layers'
 ): Promise<boolean> {
-  const { setLayerStyles, setRoleLayers } = await import('./templateRegistry')
+  const { setLayerStyles, setLegacyLayers, setRoleLayers } =
+    await import('./templateRegistry')
   try {
     const response = await fetchImpl(url, { credentials: 'same-origin' })
     if (!response.ok) return false
     const body = (await response.json()) as {
       roleLayers?: Record<string, string>
       layerStyles?: Record<string, { color?: number | null; lineType?: string | null }>
+      legacyLayers?: Record<string, string>
     }
     // An empty mapping is not an answer worth applying: it would leave every
     // role unlayered and every template unable to draw.
@@ -310,6 +312,9 @@ export async function refreshRoleLayers(
     // same place, by the same people, and a mapping without them would draw
     // the right layer in the wrong colour.
     setLayerStyles(body.layerStyles ?? {})
+    // A server that predates the field sends none; the SDK's list of old
+    // names then stays in force rather than recognising nothing.
+    if (body.legacyLayers) setLegacyLayers(body.legacyLayers)
     return true
   } catch {
     return false

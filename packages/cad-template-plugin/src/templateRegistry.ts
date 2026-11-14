@@ -1,9 +1,14 @@
 import type {
   AcTpLayerStyleMap,
+  AcTpLegacyLayerMap,
   AcTpTemplate,
   AcTpTerm
 } from '@mlightcad/cad-template-sdk'
-import { SEED_DICTIONARY, SEED_ROLE_LAYERS } from '@mlightcad/cad-template-sdk'
+import {
+  SEED_DICTIONARY,
+  SEED_LEGACY_LAYERS,
+  SEED_ROLE_LAYERS
+} from '@mlightcad/cad-template-sdk'
 
 import { abutmentDossierTemplate } from './dossier/template'
 import type { AcApRemoteTemplate } from './remoteTemplates'
@@ -179,6 +184,38 @@ export function setRoleLayers(mapping: Readonly<Record<string, string>>) {
 
 export function roleLayers() {
   return roleLayerOverride ?? SEED_ROLE_LAYERS
+}
+
+/**
+ * Old layer name → role, for recognising drawings made before `_33_`.
+ *
+ * Never used to choose a layer to draw on: `gan_nhan_tu_layer` reads it to tag
+ * old drawings, and the draw context uses it to redirect a template that
+ * still names an old layer. Seeded from the SDK; the server's list replaces
+ * it once loaded.
+ */
+let legacyLayerOverride: AcTpLegacyLayerMap | undefined
+
+export function setLegacyLayers(mapping: AcTpLegacyLayerMap | undefined) {
+  legacyLayerOverride = mapping
+}
+
+export function legacyLayers(): AcTpLegacyLayerMap {
+  return legacyLayerOverride ?? SEED_LEGACY_LAYERS
+}
+
+/**
+ * The `_33_` layer to use instead of an old layer name, or `undefined` when
+ * `name` is not an old name (or its role still draws on it in this
+ * deployment). Compared case-insensitively, as AutoCAD does.
+ */
+export function currentLayerForLegacy(name: string): string | undefined {
+  const wanted = name.toLowerCase()
+  const entry = Object.entries(legacyLayers()).find(
+    ([legacy]) => legacy.toLowerCase() === wanted
+  )
+  const current = entry ? roleLayers()[entry[1]] : undefined
+  return current && current.toLowerCase() !== wanted ? current : undefined
 }
 
 /**

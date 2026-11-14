@@ -16,6 +16,7 @@ import { entitiesOfRun, listRuns } from './runIdentity'
 import {
   findTemplateVersion,
   layerStyles,
+  legacyLayers,
   roleLayers
 } from './templateRegistry'
 
@@ -30,6 +31,8 @@ export interface AcApRunEditResult {
   /** The full value set after merging; empty errors means it was applied. */
   values: AcTpParamValues
   errors: string[]
+  /** Non-fatal notes from the draw context, e.g. an old layer redirected. */
+  warnings?: string[]
 }
 
 /**
@@ -119,6 +122,7 @@ export async function editTemplateRun(
   let removed = 0
   let entityCount = 0
   let layers: string[] = []
+  let warnings: string[] = []
 
   await acapRunGroupedEdit(db, `Sửa ${template.meta.name}`, async () => {
     // Erase first: leaving the old geometry in place while the new is added is
@@ -140,7 +144,8 @@ export async function editTemplateRun(
         version: template.meta.version,
         values: values as Record<string, number | string | boolean>
       },
-      layerStyles()
+      layerStyles(),
+      { legacyLayers: legacyLayers() }
     )
     await template.generate(
       ctx,
@@ -148,11 +153,20 @@ export async function editTemplateRun(
     )
     entityCount = ctx.drawn.length
     layers = [...new Set(ctx.drawn.map(e => e.layer))]
+    warnings = [...ctx.warnings]
   })
 
   if (!database) {
     AcApDocManager.instance.regen()
   }
 
-  return { runId, removed, entityCount, layers, values, errors: [] }
+  return {
+    runId,
+    removed,
+    entityCount,
+    layers,
+    values,
+    errors: [],
+    ...(warnings.length ? { warnings } : {})
+  }
 }

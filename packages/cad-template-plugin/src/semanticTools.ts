@@ -13,7 +13,7 @@ import {
 
 import { listRuns } from './runIdentity'
 import { tagDrawingFromLayers } from './tagFromLayers'
-import { roleLayers } from './templateRegistry'
+import { legacyLayers, roleLayers } from './templateRegistry'
 
 /**
  * The tools an assistant is given, and the one place they are executed.
@@ -165,7 +165,9 @@ export const TAG_TOOL: AcApToolSchema = {
     'trong nền chuẩn hóa. Dùng khi mo_ta_ban_ve báo "untagged" — sau khi gán ' +
     'thì tim_bo_phan và các lệnh sửa mới làm việc được. Chỉ suy ra vai trò từ ' +
     'layer, không suy ra bên trái/phải hay số thứ tự vì layer không nói điều ' +
-    'đó. Đối tượng đã có nhãn thì giữ nguyên. Báo lại những layer chưa khai ' +
+    'đó. Đối tượng đã có nhãn thì giữ nguyên. Nhận cả tên layer cũ (KC-*, ' +
+    '_Matduong_BTN…) của bản vẽ trước chuẩn _33_; những layer ấy chỉ để nhận ' +
+    'dạng, khi vẽ mới luôn dùng layer _33_. Báo lại những layer chưa khai ' +
     'để người dùng bổ sung vào nền chuẩn hóa, đừng tự đoán.',
   input_schema: {
     type: 'object',
@@ -275,7 +277,7 @@ export function tagFromLayers(): AcApToolOutcome {
     return { ok: false, status: 'refused', message: 'Chưa mở bản vẽ nào.' }
   }
 
-  const result = tagDrawingFromLayers(db, roleLayers())
+  const result = tagDrawingFromLayers(db, roleLayers(), legacyLayers())
 
   if (result.tagged === 0) {
     return {
@@ -303,12 +305,20 @@ export function tagFromLayers(): AcApToolOutcome {
       `${result.theoVaiTro.length} bộ phận.` +
       (result.layerChuaNhanDien.length > 0
         ? ` Còn ${result.layerChuaNhanDien.length} layer chưa khai trong nền chuẩn hóa.`
+        : '') +
+      (result.theoLayerCu.length > 0
+        ? ` ${result.theoLayerCu.length} layer là tên cũ (` +
+          result.theoLayerCu
+            .map(item => `${item.layer} → ${item.layerMoi ?? '?'}`)
+            .join(', ') +
+          '); nên đổi tên layer trong bản vẽ sang chuẩn _33_.'
         : ''),
     data: {
       soDoiTuong: result.tagged,
       daCoNhan: result.daCoNhan,
       boPhan: result.theoVaiTro,
-      layerChuaNhanDien: result.layerChuaNhanDien
+      layerChuaNhanDien: result.layerChuaNhanDien,
+      ...(result.theoLayerCu.length ? { layerCu: result.theoLayerCu } : {})
     }
   }
 }

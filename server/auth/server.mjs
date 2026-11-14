@@ -24,6 +24,7 @@ import {
   listLayers,
   listTerms,
   roleLayerMap,
+  legacyLayerMap,
   layerStyleMap,
   StandardsError,
   updateLayer,
@@ -829,7 +830,10 @@ const server = createServer(async (req, res) => {
       if (kind === 'role-layers' && req.method === 'GET') {
         json(res, 200, {
           roleLayers: roleLayerMap(db),
-          layerStyles: layerStyleMap(db)
+          layerStyles: layerStyleMap(db),
+          // Old names → role, for recognising drawings made before `_33_`.
+          // Never used for drawing; clients that predate it ignore the field.
+          legacyLayers: legacyLayerMap(db)
         })
         return
       }
@@ -888,14 +892,16 @@ const server = createServer(async (req, res) => {
           return
         }
         if (req.method === 'DELETE' && key) {
-          if (!deleteLayer(db, key)) {
-            json(res, 404, {
-              error: 'Không tìm thấy layer.',
-              code: STANDARD_ERRORS.NOT_FOUND
-            })
-            return
-          }
-          json(res, 200, { message: 'ok' })
+          handle(() => {
+            if (!deleteLayer(db, key)) {
+              json(res, 404, {
+                error: 'Không tìm thấy layer.',
+                code: STANDARD_ERRORS.NOT_FOUND
+              })
+              return
+            }
+            json(res, 200, { message: 'ok' })
+          })
           return
         }
       }

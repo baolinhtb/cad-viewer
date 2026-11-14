@@ -214,45 +214,54 @@ describe('colour: the layer catalogue decides, the template may override', () =>
     // The office's own drawings carry grey (ACI 8) structure layers; a
     // template drawing white on them was the one visible difference between
     // "the engineer's file" and "the template's output".
-    const { db, ctx } = await setup({ 'KC-BAN': { color: 8 } })
+    const { db, ctx } = await setup({ _33_CAU_NHIP_Banmatcau: { color: 8 } })
     line(ctx)
-    expect(db.tables.layerTable.getAt('KC-BAN')!.color.colorIndex).toBe(8)
+    expect(
+      db.tables.layerTable.getAt('_33_CAU_NHIP_Banmatcau')!.color.colorIndex
+    ).toBe(8)
     // The entity itself stays ByLayer: colour is the layer's business.
     expect(ctx.drawn[0].color.colorIndex).toBe(256)
   })
 
   test('catalogue names match the layer case-insensitively, as AutoCAD does', async () => {
-    const { db, ctx } = await setup({ 'kc-ban': { color: 3 } })
+    const { db, ctx } = await setup({ _33_cau_nhip_banmatcau: { color: 3 } })
     line(ctx)
-    expect(db.tables.layerTable.getAt('KC-BAN')!.color.colorIndex).toBe(3)
+    expect(
+      db.tables.layerTable.getAt('_33_CAU_NHIP_Banmatcau')!.color.colorIndex
+    ).toBe(3)
   })
 
   test('a layer with no catalogue colour is white, as before', async () => {
-    const { db, ctx } = await setup({ 'KC-BAN': { color: null } })
+    const { db, ctx } = await setup({ _33_CAU_NHIP_Banmatcau: { color: null } })
     line(ctx)
-    expect(db.tables.layerTable.getAt('KC-BAN')!.color.colorIndex).toBe(7)
+    expect(
+      db.tables.layerTable.getAt('_33_CAU_NHIP_Banmatcau')!.color.colorIndex
+    ).toBe(7)
   })
 
   test('a layer the drawing already has keeps its own colour', async () => {
     // The engineer's file outranks the office default: recolouring a layer
     // they set up would change every entity already on it.
-    const { db, ctx, AcCmColor, AcCmColorMethod, AcDbLayerTableRecord } = await setup({
-      'KC-BAN': { color: 8 }
-    })
+    const { db, ctx, AcCmColor, AcCmColorMethod, AcDbLayerTableRecord } =
+      await setup({
+        _33_CAU_NHIP_Banmatcau: { color: 8 }
+      })
     db.tables.layerTable.add(
       new AcDbLayerTableRecord({
-        name: 'KC-BAN',
+        name: '_33_CAU_NHIP_Banmatcau',
         isOff: false,
         color: new AcCmColor(AcCmColorMethod.ByACI, 5),
         isPlottable: true
       })
     )
     line(ctx)
-    expect(db.tables.layerTable.getAt('KC-BAN')!.color.colorIndex).toBe(5)
+    expect(
+      db.tables.layerTable.getAt('_33_CAU_NHIP_Banmatcau')!.color.colorIndex
+    ).toBe(5)
   })
 
   test('a template may give one entity its own ACI colour', async () => {
-    const { ctx } = await setup({ 'KC-BAN': { color: 8 } })
+    const { ctx } = await setup({ _33_CAU_NHIP_Banmatcau: { color: 8 } })
     line(ctx, { color: 1 })
     expect(ctx.drawn[0].color.colorIndex).toBe(1)
   })
@@ -263,8 +272,8 @@ describe('colour: the layer catalogue decides, the template may override', () =>
   })
 
   test('a catalogue colour outside the ACI range is refused too', async () => {
-    const { ctx } = await setup({ 'KC-BAN': { color: 999 } })
-    expect(() => line(ctx)).toThrow(/KC-BAN/)
+    const { ctx } = await setup({ _33_CAU_NHIP_Banmatcau: { color: 999 } })
+    expect(() => line(ctx)).toThrow(/_33_CAU_NHIP_Banmatcau/)
   })
 })
 
@@ -546,8 +555,8 @@ describe('annotation conventions', () => {
       text: 'M1',
       height: 20
     })
-    expect(db.tables.layerTable.getAt('GC-GHICHU')!.color.colorIndex).toBe(3)
-    const axis = db.tables.layerTable.getAt('TRUC-TIM')!
+    expect(db.tables.layerTable.getAt('_33_Ghichu')!.color.colorIndex).toBe(3)
+    const axis = db.tables.layerTable.getAt('_33_Timtuyen')!
     expect(axis.color.colorIndex).toBe(1)
     expect(axis.linetype).toBe('CENTER')
     expect(db.tables.linetypeTable.has('CENTER')).toBe(true)
@@ -562,7 +571,7 @@ describe('annotation conventions', () => {
       SEED_ROLE_LAYERS,
       undefined,
       {
-        'gc-ghichu': { color: 5, lineType: 'DASHED' }
+        _33_ghichu: { color: 5, lineType: 'DASHED' }
       }
     )
     ctx.line({
@@ -571,7 +580,7 @@ describe('annotation conventions', () => {
       start: { x: 0, y: 0, z: 0 },
       end: { x: 10, y: 0, z: 0 }
     })
-    const layer = db.tables.layerTable.getAt('GC-GHICHU')!
+    const layer = db.tables.layerTable.getAt('_33_Ghichu')!
     expect(layer.color.colorIndex).toBe(5)
     expect(layer.linetype).toBe('DASHED')
   })
@@ -582,9 +591,76 @@ test('new annotations use accents without recoloring legacy gray layers', () => 
   const db = new AcDbDatabase()
   db.createDefaultData()
   const ctx = createDrawContext(db, TEMPLATE_ID, SEED_ROLE_LAYERS, undefined, {
-    'GC-GHICHU': {color: 8}
+    _33_Ghichu: { color: 8 }
   })
   const note = ctx.text({ role: 'ghi_chu', partId: 'new-note', position: {x:0,y:0,z:0}, text: 'M1', height: 20 })
-  expect(db.tables.layerTable.getAt('GC-GHICHU')!.color.colorIndex).toBe(8)
+  expect(db.tables.layerTable.getAt('_33_Ghichu')!.color.colorIndex).toBe(8)
   expect(note.color.colorIndex).toBe(3)
+})
+
+describe('old layer names are redirected, not refused', () => {
+  // An uploaded template from before `_33_` may hard-code `layer: 'KC-COC'`.
+  // Throwing would break a drawing an engineer relies on over a naming
+  // question; drawing on the old name would put new geometry outside the
+  // catalogue. The context draws on the role's current layer and says so.
+  const pile = (layer: string) => ({
+    role: 'coc_khoan_nhoi',
+    partId: 'coc_01',
+    layer,
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 0, y: -1000, z: 0 }
+  })
+
+  test('an explicit old name lands on the current _33_ layer, with a warning', () => {
+    const { db, ctx } = createContext()
+    const a = ctx.line(pile('KC-COC'))
+    const b = ctx.line(pile('kc-coc'))
+    expect(a.layer).toBe('_33_CAU_MO_Coc')
+    expect(b.layer).toBe('_33_CAU_MO_Coc')
+    expect(db.tables.layerTable.getAt('KC-COC')).toBeUndefined()
+    // One warning per cause, not one per entity.
+    expect(ctx.warnings).toEqual([
+      "Layer 'KC-COC' là tên cũ (chỉ để nhận dạng bản vẽ cũ); đã vẽ lên '_33_CAU_MO_Coc' thay thế.",
+      "Layer 'kc-coc' là tên cũ (chỉ để nhận dạng bản vẽ cũ); đã vẽ lên '_33_CAU_MO_Coc' thay thế."
+    ])
+  })
+
+  test('the alias belongs to its own role, whichever role the entity carries', () => {
+    const { ctx } = createContext()
+    const entity = ctx.line({ ...pile('_Matduong_BTN'), role: 'ghi_chu' })
+    expect(entity.layer).toBe('_33_Matduong_BTN')
+  })
+
+  test('a deployment still mapping the role to the old name keeps it, silently', () => {
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(db, TEMPLATE_ID, {
+      ...SEED_ROLE_LAYERS,
+      coc_khoan_nhoi: 'KC-COC'
+    })
+    expect(ctx.line(pile('KC-COC')).layer).toBe('KC-COC')
+    expect(ctx.warnings).toEqual([])
+  })
+
+  test('the server list of old names replaces the seed one', () => {
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const ctx = createDrawContext(
+      db,
+      TEMPLATE_ID,
+      SEED_ROLE_LAYERS,
+      undefined,
+      {},
+      { legacyLayers: { 'COC-CU': 'coc_khoan_nhoi' } }
+    )
+    expect(ctx.line(pile('COC-CU')).layer).toBe('_33_CAU_MO_Coc')
+    // Not in the supplied list, so not redirected.
+    expect(ctx.line(pile('KC-COC')).layer).toBe('KC-COC')
+  })
+
+  test('ordinary explicit layers are untouched and raise nothing', () => {
+    const { ctx } = createContext()
+    expect(ctx.line(pile('_33_Kyhieumatcat')).layer).toBe('_33_Kyhieumatcat')
+    expect(ctx.warnings).toEqual([])
+  })
 })

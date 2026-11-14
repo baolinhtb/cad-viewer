@@ -313,7 +313,10 @@ so the drawing remains understandable in monochrome. Avoid collisions with geome
 dimensions and other text. Verify the preview and mention the presentation convention
 briefly in your response. Never claim a style was applied without executing it.
 
-Do not invent arbitrary layer names.
+Do not invent arbitrary layer names. The office's layer catalogue is \`_33_*\`
+(see the standards block). Old names — KC-*, KT-*, GC-*, TRUC-TIM, \`_Matduong_BTN\` —
+are listed there only to recognise old drawings: never create a layer with an old
+name or put new geometry on one; use the \`_33_\` layer it stands for.
 
 Always use numeric coordinates.
 

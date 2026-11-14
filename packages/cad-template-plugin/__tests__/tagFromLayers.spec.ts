@@ -156,3 +156,75 @@ describe('tagDrawingFromLayers', () => {
     expect(again.daCoNhan).toBe(2)
   })
 })
+
+describe('old layer names (before _33_)', () => {
+  const LEGACY = {
+    'KC-MO-BE': 'mo_be',
+    _Matduong_BTN: 'lop_phu',
+    'KC-BAN': 'ban_mat_cau'
+  }
+  const CURRENT = {
+    ...ROLE_LAYERS,
+    lop_phu: '_33_Matduong_BTN',
+    ban_mat_cau: '_33_CAU_NHIP_Banmatcau'
+  }
+
+  test('an old drawing is recognised through its old names', () => {
+    // `_Matduong_BTN` is the slip in 33_MO_TUONGDAU.dwg (no `33_`).
+    const { db, entities } = drawingWith([
+      'KC-MO-BE',
+      '_Matduong_BTN',
+      'kc-ban',
+      '_33_CAU_MO_Tuongthan'
+    ])
+    const result = tagDrawingFromLayers(db, CURRENT, LEGACY)
+    expect(result.tagged).toBe(4)
+    expect(entities.map(e => readSemanticTag(e)?.role)).toEqual([
+      'mo_be',
+      'lop_phu',
+      'ban_mat_cau',
+      'mo_tuong_than'
+    ])
+    expect(result.theoLayerCu).toEqual([
+      {
+        role: 'ban_mat_cau',
+        layer: 'kc-ban',
+        layerMoi: '_33_CAU_NHIP_Banmatcau',
+        soDoiTuong: 1
+      },
+      {
+        role: 'lop_phu',
+        layer: '_Matduong_BTN',
+        layerMoi: '_33_Matduong_BTN',
+        soDoiTuong: 1
+      },
+      {
+        role: 'mo_be',
+        layer: 'KC-MO-BE',
+        layerMoi: '_33_CAU_MO_Be',
+        soDoiTuong: 1
+      }
+    ])
+    expect(result.layerChuaNhanDien).toEqual([])
+  })
+
+  test('a current layer name wins over an old one spelled the same', () => {
+    const { db, entities } = drawingWith(['SHARED'])
+    const result = tagDrawingFromLayers(
+      db,
+      { mo_be: 'SHARED' },
+      { SHARED: 'lop_phu' }
+    )
+    expect(readSemanticTag(entities[0])?.role).toBe('mo_be')
+    expect(result.theoLayerCu).toEqual([])
+  })
+
+  test('without the old-name list, old drawings stay untagged as before', () => {
+    const { db } = drawingWith(['KC-MO-BE'])
+    const result = tagDrawingFromLayers(db, CURRENT)
+    expect(result.tagged).toBe(0)
+    expect(result.layerChuaNhanDien).toEqual([
+      { layer: 'KC-MO-BE', soDoiTuong: 1 }
+    ])
+  })
+})

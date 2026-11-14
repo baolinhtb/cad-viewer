@@ -12,19 +12,15 @@
  */
 
 /**
- * The seed standardisation set, mirroring `SEED_ROLES` / `SEED_ROLE_LAYERS` in
- * `cad-template-sdk`.
+ * The seed set as migrations v3 and v6 wrote it — frozen.
  *
- * Duplicated here rather than imported: the service runs on plain Node with no
- * bundler and must not depend on a browser package. The SDK constants stay the
- * compile-time contract for template authors; these are the runtime seed for a
- * fresh database. A test pins the two together.
- *
- * Aliases are the words engineers actually use for the same part. They are
- * deliberately sparse — the company fills them in, and guessing on their
- * behalf is how a dictionary ends up describing nobody's drawings.
+ * Migrations must never change behaviour after they have shipped, so v3/v6
+ * keep reading this exact list (KC-* layers) even though the current catalogue
+ * is `SEED_STANDARDS` below. Migration v10 also uses it to recognise a term
+ * that still carries its untouched v3/v6 layer, which is the only kind it
+ * moves to `_33_`.
  */
-export const SEED_STANDARDS = {
+export const SEED_STANDARDS_V3 = {
   ban_mat_cau: {
     label: 'Bản mặt cầu',
     layer: 'KC-BAN',
@@ -128,6 +124,518 @@ export const SEED_STANDARDS = {
     label: 'Ghi chú',
     layer: 'GC-GHICHU',
     aliases: ['ghi chú', 'chú thích']
+  }
+}
+
+/** Freezes a seed literal all the way down, so no caller can edit it. */
+function deepFreeze(value) {
+  if (value && typeof value === 'object') {
+    for (const inner of Object.values(value)) deepFreeze(inner)
+    Object.freeze(value)
+  }
+  return value
+}
+
+/**
+ * The catalogue exactly as migration v10 applies it — FROZEN.
+ *
+ * Like `SEED_STANDARDS_V3`, this never changes once released: a database
+ * migrated last month and one migrated next year must end up the same. To
+ * change the catalogue later (rename a layer, add a role), leave this alone,
+ * point `SEED_STANDARDS` at a new literal, and add a new migration (v11…)
+ * that carries the difference. `migrationV10.test.mjs` pins this literal by
+ * hash, so an accidental edit fails the build.
+ *
+ * - `layer`: the `_33_` layer the role is drawn on.
+ * - `color`: ACI colour given to that layer only when it is created here; an
+ *   existing row keeps whatever the office set.
+ * - `legacy`: old names kept for recognising old drawings only
+ *   (`gan_nhan_tu_layer`), never drawn on.
+ * - `aliases`: words engineers use for the part. Only this copy has them; a
+ *   migration skips any alias another term already claims.
+ */
+export const SEED_STANDARDS_V10 = deepFreeze({
+  ban_mat_cau: {
+    label: 'Bản mặt cầu',
+    layer: '_33_CAU_NHIP_Banmatcau',
+    color: 8,
+    legacy: ['KC-BAN'],
+    aliases: ['bản mặt cầu', 'bản']
+  },
+  lop_phu: {
+    label: 'Lớp phủ mặt cầu',
+    layer: '_33_Matduong_BTN',
+    color: 8,
+    legacy: ['KC-LOPPHU', '_Matduong_BTN'],
+    aliases: ['lớp phủ', 'bê tông nhựa']
+  },
+  lan_can: {
+    label: 'Lan can',
+    layer: '_33_CAU_MIS_Lancan',
+    color: 7,
+    legacy: ['KC-LANCAN'],
+    aliases: ['lan can', 'tay vịn']
+  },
+  go_chan_banh: {
+    label: 'Gờ chắn bánh',
+    layer: '_33_CAU_MIS_Gochanbanh',
+    color: 7,
+    legacy: ['KC-GOCHAN'],
+    aliases: ['gờ chắn bánh', 'gờ chắn']
+  },
+  bo_via: {
+    label: 'Bó vỉa',
+    layer: '_33_CAU_MIS_Bovia',
+    color: 7,
+    legacy: [],
+    aliases: ['bó vỉa']
+  },
+  ban_qua_do: {
+    label: 'Bản quá độ',
+    layer: '_33_CAU_MO_Banquado',
+    color: 8,
+    legacy: ['KC-BANQUADO'],
+    aliases: ['bản quá độ']
+  },
+  mo_cau: {
+    label: 'Mố cầu',
+    layer: '_33_CAU_MO_Tongthe',
+    color: 8,
+    legacy: ['KC-MO'],
+    aliases: ['mố', 'mố cầu']
+  },
+  mo_tuong_dau: {
+    label: 'Tường đầu mố',
+    layer: '_33_CAU_MO_Tuongdau',
+    color: 8,
+    legacy: ['KC-MO-TUONGDAU'],
+    aliases: ['tường đầu', 'tường đỉnh mố']
+  },
+  mo_tuong_than: {
+    label: 'Tường thân mố',
+    layer: '_33_CAU_MO_Tuongthan',
+    color: 8,
+    legacy: ['KC-MO-TUONGTHAN'],
+    aliases: ['tường thân', 'thân mố']
+  },
+  mo_tuong_tai: {
+    label: 'Tường tai mố',
+    layer: '_33_CAU_MO_Tuongtai',
+    color: 8,
+    legacy: ['KC-MO-TUONGTAI'],
+    aliases: ['tường tai', 'tường cánh']
+  },
+  mo_be: {
+    label: 'Bệ móng mố',
+    layer: '_33_CAU_MO_Be',
+    color: 8,
+    legacy: ['KC-MO-BE'],
+    aliases: ['bệ mố', 'bệ móng']
+  },
+  mo_be_tong_lot: {
+    label: 'Bê tông lót',
+    layer: '_33_CAU_MO_Betonglot',
+    color: 8,
+    legacy: ['KC-MO-BTLOT'],
+    aliases: ['bê tông lót', 'bê tông đệm']
+  },
+  coc_khoan_nhoi: {
+    label: 'Cọc khoan nhồi',
+    layer: '_33_CAU_MO_Coc',
+    color: 8,
+    legacy: ['KC-COC'],
+    aliases: ['cọc khoan nhồi', 'cọc nhồi', 'cọc']
+  },
+  tru_xa_mu: {
+    label: 'Xà mũ trụ',
+    layer: '_33_CAU_TRU_Xamu',
+    color: 8,
+    legacy: [],
+    aliases: ['xà mũ']
+  },
+  tru_than: {
+    label: 'Thân trụ',
+    layer: '_33_CAU_TRU_Thantru',
+    color: 8,
+    legacy: [],
+    aliases: ['cột trụ', 'tường thân trụ']
+  },
+  tru_da_ke_goi: {
+    label: 'Đá kê gối',
+    layer: '_33_CAU_TRU_Dakegoi',
+    color: 8,
+    legacy: [],
+    aliases: ['đá kê']
+  },
+  tru_be: {
+    label: 'Bệ móng trụ',
+    layer: '_33_CAU_TRU_Be',
+    color: 8,
+    legacy: [],
+    aliases: ['bệ trụ']
+  },
+  tru_be_tong_lot: {
+    label: 'Bê tông lót bệ trụ',
+    layer: '_33_CAU_TRU_Betonglot',
+    color: 8,
+    legacy: [],
+    aliases: ['bê tông lót trụ']
+  },
+  tru_coc_khoan_nhoi: {
+    label: 'Cọc khoan nhồi trụ',
+    layer: '_33_CAU_TRU_Coc',
+    color: 8,
+    legacy: [],
+    aliases: ['cọc trụ']
+  },
+  goi_cau: {
+    label: 'Gối cầu',
+    layer: '_33_CAU_MIS_Goicau',
+    color: 7,
+    legacy: ['KC-GOI'],
+    aliases: ['gối', 'gối cầu']
+  },
+  khe_co_gian: {
+    label: 'Khe co giãn',
+    layer: '_33_CAU_MIS_Khecogian',
+    color: 7,
+    legacy: ['KC-KHE'],
+    aliases: ['khe co giãn', 'khe']
+  },
+  ong_thoat_nuoc: {
+    label: 'Ống thoát nước',
+    layer: '_33_CAU_MIS_Thoatnuoc',
+    color: 7,
+    legacy: ['KT-THOATNUOC'],
+    aliases: ['ống thoát nước', 'ống thoát']
+  },
+  cot_thep: {
+    label: 'Cốt thép',
+    layer: '_33_Cotthep',
+    color: 8,
+    legacy: ['KC-COTTHEP'],
+    aliases: ['cốt thép', 'thép']
+  },
+  duong_tim: {
+    label: 'Đường tim',
+    layer: '_33_Timtuyen',
+    color: 8,
+    legacy: ['TRUC-TIM'],
+    aliases: ['tim cầu', 'đường tim']
+  },
+  ghi_chu_cao_do: {
+    label: 'Ghi chú cao độ',
+    layer: '_33_Ghichu_Caodo',
+    color: 8,
+    legacy: ['GC-CAODO'],
+    aliases: ['cao độ', 'mốc cao độ']
+  },
+  tieu_de_ban_ve: {
+    label: 'Tiêu đề bản vẽ',
+    layer: '_33_Tieudebanve',
+    color: 8,
+    legacy: ['GC-TIEUDE'],
+    aliases: ['tiêu đề', 'tên bản vẽ']
+  },
+  kich_thuoc: {
+    label: 'Đường kích thước',
+    layer: '_33_Duongghikichthuoc',
+    color: 8,
+    legacy: ['GC-KICHTHUOC'],
+    aliases: ['kích thước', 'cột kích thước']
+  },
+  ghi_chu: {
+    label: 'Ghi chú',
+    layer: '_33_Ghichu',
+    color: 8,
+    legacy: ['GC-GHICHU'],
+    aliases: ['ghi chú', 'chú thích']
+  },
+  ky_hieu_mat_cat: {
+    label: 'Ký hiệu mặt cắt',
+    layer: '_33_Kyhieumatcat',
+    color: 8,
+    legacy: [],
+    aliases: ['mặt cắt']
+  },
+  khung_ban_ve: {
+    label: 'Khung bản vẽ',
+    layer: '_33_Khungbanve',
+    color: 7,
+    legacy: [],
+    aliases: ['khung bản vẽ', 'khung giấy']
+  },
+  khung_ten: {
+    label: 'Khung tên',
+    layer: '_33_Khungten',
+    color: 7,
+    legacy: [],
+    aliases: ['khung tên']
+  }
+})
+
+/**
+ * The current standardisation catalogue: every role on a `_33_` layer.
+ *
+ * Mirrors `SEED_CATALOG` in `packages/cad-template-sdk/src/AcTpSeed.ts`, which
+ * is the one place an office edits names, labels and colours. Duplicated here
+ * because the service runs on plain Node with no bundler and the image copies
+ * only `server/auth/*.mjs`; `AcTpSeedMatchesServer.spec.ts` pins the two.
+ *
+ * Today it is the v10 catalogue. When it changes, it becomes its own literal
+ * here and a new migration brings existing databases to it; migrations never
+ * read this constant.
+ */
+export const SEED_STANDARDS = SEED_STANDARDS_V10
+
+const lower = value => String(value ?? '').toLowerCase()
+
+/**
+ * What migration v10 would change in this database, without changing it.
+ *
+ * Shared by the migration and by `dry-run-v10.mjs`, so what an operator reads
+ * on a copy of production is exactly what the migration will do. Works on a
+ * v9 database (no `legacy_of` column yet) and on one already at v10.
+ *
+ * Conservative by construction — it only ever adds:
+ * - layers: a missing `_33_` layer is inserted; an existing row (compared
+ *   case-insensitively, as AutoCAD does) is never rewritten.
+ * - terms: a missing role is inserted; an existing term is moved only while it
+ *   still carries the untouched v3/v6 layer, no layer, or one of its own
+ *   legacy names. A term pointing anywhere else was chosen by a person.
+ * - legacy names: marked `legacy_of` only when nothing draws on them any more.
+ *
+ * @param db - Open database (may be read-only).
+ * @returns The plan, plus what was skipped and why.
+ */
+export function planStandardsV10(db) {
+  const hasColumn = db
+    .prepare(`PRAGMA table_info(standard_layers)`)
+    .all()
+    .some(column => column.name === 'legacy_of')
+  const layerRows = db
+    .prepare(
+      `SELECT name, ${hasColumn ? 'legacy_of' : 'NULL AS legacy_of'} FROM standard_layers`
+    )
+    .all()
+  const layers = new Map(layerRows.map(row => [lower(row.name), row]))
+  const termRows = db
+    .prepare(`SELECT role, label, aliases, layer FROM standard_terms`)
+    .all()
+  const terms = new Map(termRows.map(row => [row.role, row]))
+
+  const plan = {
+    addColumn: !hasColumn,
+    insertLayers: [],
+    insertTerms: [],
+    moveTerms: [],
+    markLegacy: [],
+    skipped: []
+  }
+
+  for (const [role, seed] of Object.entries(SEED_STANDARDS_V10)) {
+    if (!layers.has(lower(seed.layer))) {
+      const row = { name: seed.layer, meaning: seed.label, color: seed.color }
+      plan.insertLayers.push(row)
+      layers.set(lower(seed.layer), { name: seed.layer, legacy_of: null })
+    }
+  }
+
+  // Words other terms already answer to. A seed alias that clashes is dropped:
+  // the person who entered the other one decided what it means.
+  const claimed = new Map()
+  const claim = (word, role) => {
+    const key = lower(String(word).trim())
+    if (key && !claimed.has(key)) claimed.set(key, role)
+  }
+  for (const row of termRows) {
+    claim(row.label, row.role)
+    let aliases = []
+    try {
+      aliases = JSON.parse(row.aliases ?? '[]')
+    } catch {
+      aliases = []
+    }
+    if (Array.isArray(aliases))
+      for (const alias of aliases) claim(alias, row.role)
+  }
+
+  const finalLayer = new Map(termRows.map(row => [row.role, row.layer]))
+  for (const [role, seed] of Object.entries(SEED_STANDARDS_V10)) {
+    const row = terms.get(role)
+    if (!row) {
+      if (claimed.has(lower(seed.label))) {
+        plan.skipped.push({
+          kind: 'term',
+          role,
+          reason: `nhãn "${seed.label}" đã thuộc thuật ngữ ${claimed.get(lower(seed.label))}`
+        })
+        continue
+      }
+      claim(seed.label, role)
+      const aliases = []
+      for (const alias of seed.aliases) {
+        if (lower(alias) === lower(seed.label)) continue
+        if (claimed.has(lower(alias))) {
+          plan.skipped.push({
+            kind: 'alias',
+            role,
+            name: alias,
+            reason: `đã thuộc thuật ngữ ${claimed.get(lower(alias))}`
+          })
+          continue
+        }
+        claim(alias, role)
+        aliases.push(alias)
+      }
+      plan.insertTerms.push({
+        role,
+        label: seed.label,
+        aliases,
+        layer: seed.layer
+      })
+      finalLayer.set(role, seed.layer)
+      continue
+    }
+
+    const current = row.layer
+    if (current && lower(current) === lower(seed.layer)) continue
+    const untouched = [SEED_STANDARDS_V3[role]?.layer, ...seed.legacy]
+      .filter(Boolean)
+      .map(lower)
+    if (!current || untouched.includes(lower(current))) {
+      plan.moveTerms.push({ role, from: current ?? null, to: seed.layer })
+      finalLayer.set(role, seed.layer)
+    } else {
+      plan.skipped.push({
+        kind: 'term',
+        role,
+        reason: `đang trỏ layer người dùng chọn "${current}", giữ nguyên`
+      })
+    }
+  }
+
+  const drawnOn = new Set([...finalLayer.values()].filter(Boolean).map(lower))
+  for (const [role, seed] of Object.entries(SEED_STANDARDS_V10)) {
+    for (const name of seed.legacy) {
+      const row = layers.get(lower(name))
+      if (drawnOn.has(lower(name))) {
+        const owner = [...finalLayer.entries()].find(
+          ([, layer]) => lower(layer) === lower(name)
+        )?.[0]
+        plan.skipped.push({
+          kind: 'legacy',
+          role,
+          name,
+          reason: `thuật ngữ ${owner} vẫn vẽ lên layer này, không đánh dấu là tên cũ`
+        })
+        continue
+      }
+      if (!row) {
+        plan.markLegacy.push({
+          name,
+          legacyOf: seed.layer,
+          insert: true,
+          meaning: `Tên cũ của ${seed.layer} — chỉ để nhận dạng bản vẽ cũ`
+        })
+      } else if (!row.legacy_of) {
+        plan.markLegacy.push({
+          name: row.name,
+          legacyOf: seed.layer,
+          insert: false
+        })
+      } else if (lower(row.legacy_of) !== lower(seed.layer)) {
+        plan.skipped.push({
+          kind: 'legacy',
+          role,
+          name: row.name,
+          reason: `đã là tên cũ của "${row.legacy_of}", giữ nguyên`
+        })
+      }
+    }
+  }
+
+  return plan
+}
+
+/**
+ * Applies a plan from {@link planStandardsV10} in one transaction.
+ *
+ * Every statement re-checks its own guard, so applying a stale plan, or the
+ * same plan twice, changes nothing that was not meant to change. Nothing is
+ * deleted; rows inserted here have no `updated_by`.
+ */
+export function applyStandardsV10(db, plan) {
+  db.exec('BEGIN')
+  try {
+    if (plan.addColumn) {
+      const has = db
+        .prepare(`PRAGMA table_info(standard_layers)`)
+        .all()
+        .some(column => column.name === 'legacy_of')
+      if (!has) db.exec(`ALTER TABLE standard_layers ADD COLUMN legacy_of TEXT`)
+    }
+
+    const insertLayer = db.prepare(
+      `INSERT INTO standard_layers (name, meaning, color, legacy_of, updated_by, updated_at)
+       SELECT ?, ?, ?, ?, NULL, datetime('now')
+        WHERE NOT EXISTS
+          (SELECT 1 FROM standard_layers WHERE lower(name) = lower(?))`
+    )
+    for (const layer of plan.insertLayers) {
+      insertLayer.run(
+        layer.name,
+        layer.meaning,
+        layer.color ?? null,
+        null,
+        layer.name
+      )
+    }
+
+    const insertTerm = db.prepare(
+      `INSERT OR IGNORE INTO standard_terms
+         (role, label, aliases, layer, updated_by, updated_at)
+       VALUES (?, ?, ?, ?, NULL, datetime('now'))`
+    )
+    for (const term of plan.insertTerms) {
+      insertTerm.run(
+        term.role,
+        term.label,
+        JSON.stringify(term.aliases),
+        term.layer
+      )
+    }
+
+    const moveTerm = db.prepare(
+      `UPDATE standard_terms SET layer = ?, updated_at = datetime('now')
+        WHERE role = ?
+          AND ((? IS NULL AND layer IS NULL) OR lower(layer) = lower(?))`
+    )
+    for (const move of plan.moveTerms) {
+      moveTerm.run(move.to, move.role, move.from, move.from)
+    }
+
+    const markLegacy = db.prepare(
+      `UPDATE standard_layers SET legacy_of = ?
+        WHERE lower(name) = lower(?) AND legacy_of IS NULL`
+    )
+    for (const legacy of plan.markLegacy) {
+      if (legacy.insert) {
+        insertLayer.run(
+          legacy.name,
+          legacy.meaning,
+          null,
+          legacy.legacyOf,
+          legacy.name
+        )
+      } else {
+        markLegacy.run(legacy.legacyOf, legacy.name)
+      }
+    }
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
   }
 }
 
@@ -249,7 +757,7 @@ const MIGRATIONS = [
     const layer = db.prepare(
       `INSERT OR IGNORE INTO standard_layers (name, meaning) VALUES (?, ?)`
     )
-    for (const [role, seed] of Object.entries(SEED_STANDARDS)) {
+    for (const [role, seed] of Object.entries(SEED_STANDARDS_V3)) {
       term.run(role, seed.label, JSON.stringify(seed.aliases ?? []))
       layer.run(seed.layer, seed.label)
     }
@@ -327,7 +835,7 @@ const MIGRATIONS = [
     const setLayer = db.prepare(
       `UPDATE standard_terms SET layer = ? WHERE role = ? AND layer IS NULL`
     )
-    for (const [role, seed] of Object.entries(SEED_STANDARDS)) {
+    for (const [role, seed] of Object.entries(SEED_STANDARDS_V3)) {
       setLayer.run(seed.layer, role)
     }
   },
@@ -403,6 +911,20 @@ const MIGRATIONS = [
     db.exec(
       'CREATE TABLE IF NOT EXISTS auth_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)'
     )
+  },
+
+  // v10 — one `_33_` catalogue; KC-*/KT-* become names kept for recognition.
+  //
+  // The office draws on `_33_*` and had re-pointed most terms by hand; the
+  // rest still sat on the KC-* defaults, so one drawing could come out on two
+  // naming systems. Old names cannot simply be deleted — the archive is drawn
+  // on them and `gan_nhan_tu_layer` needs to read it — so they stay as rows
+  // marked `legacy_of`, which the role → layer map never serves.
+  //
+  // Additive only; see planStandardsV10. `dry-run-v10.mjs` prints the same
+  // plan without writing, for checking against a copy of production first.
+  db => {
+    applyStandardsV10(db, planStandardsV10(db))
   }
 ]
 
@@ -410,21 +932,24 @@ const MIGRATIONS = [
  * Brings a database up to the current schema version.
  *
  * @param db - Open database.
+ * @param target - Stop at this version instead of the latest. Only tests use
+ * it, to build a database exactly as an older release left it.
  * @returns The version the database is now at.
  */
-export function migrate(db) {
+export function migrate(db, target = MIGRATIONS.length) {
   db.exec('PRAGMA journal_mode = WAL;')
 
   const current = db.prepare('PRAGMA user_version').get().user_version ?? 0
+  const last = Math.min(target, MIGRATIONS.length)
 
-  for (let version = current; version < MIGRATIONS.length; version++) {
+  for (let version = current; version < last; version++) {
     MIGRATIONS[version](db)
     // PRAGMA does not accept bound parameters, and `version` is a loop counter
     // over a fixed array — never user input.
     db.exec(`PRAGMA user_version = ${version + 1}`)
   }
 
-  return MIGRATIONS.length
+  return Math.max(current, last)
 }
 
 /** Schema version this code expects. */

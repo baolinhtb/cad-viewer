@@ -26,7 +26,11 @@ import {
 } from '@mlightcad/data-model'
 
 import { buildDimensionBlock, formatDimensionText } from './AcTpDimensionBlock'
-import { acTpAnnotationPresentation, acTpAnnotationStyles } from './AcTpSeed'
+import {
+  acTpAnnotationPresentation,
+  acTpAnnotationStyles,
+  SEED_LEGACY_LAYERS
+} from './AcTpSeed'
 import {
   AcTpRunRecord,
   AcTpSemanticTag,
@@ -303,6 +307,27 @@ export interface AcTpDrawContext {
   leader(args: AcTpLeaderArgs): AcDbEntity
   /** Everything drawn so far in this run, in drawing order. */
   readonly drawn: readonly AcDbEntity[]
+  /**
+   * Things the run did differently from what the template asked, in
+   * Vietnamese, one per distinct cause — today only an old layer name
+   * redirected to its `_33_` layer. Callers pass these on to the person or
+   * the assistant; they are not errors, the drawing is complete.
+   */
+  readonly warnings: readonly string[]
+}
+
+/** Old layer name → role (see `SEED_LEGACY_LAYERS`). */
+export type AcTpLegacyLayerMap = Readonly<Record<string, string>>
+
+/** Extra options for {@link createDrawContext}. */
+export interface AcTpDrawContextOptions {
+  /**
+   * Old layer names kept for recognition only. A template that names one of
+   * these explicitly (an uploaded template from before `_33_` that hard-codes
+   * `'KC-COC'`, say) is redirected to the layer its role is drawn on now.
+   * Defaults to the SDK seed.
+   */
+  legacyLayers?: AcTpLegacyLayerMap
 }
 
 /** Maps a semantic role to the layer its entities belong on. */
@@ -359,7 +384,8 @@ export function createDrawContext(
    * says: those properties belong to the drawing, and an engineer's own file
    * outranks the office default.
    */
-  layerStyles: AcTpLayerStyleMap = {}
+  layerStyles: AcTpLayerStyleMap = {},
+  options: AcTpDrawContextOptions = {}
 ): AcTpDrawContext {
   // Single place the RegApp is registered. Doing it here rather than leaving it
   // to each caller is what keeps "exactly one definition per file" true — an
@@ -367,6 +393,34 @@ export function createDrawContext(
   ensureSemanticTagRegApp(db)
 
   const drawn: AcDbEntity[] = []
+  const warnings: string[] = []
+
+  const legacyRole = new Map<string, string>()
+  for (const [name, role] of Object.entries(
+    options.legacyLayers ?? SEED_LEGACY_LAYERS
+  )) {
+    legacyRole.set(name.toLowerCase(), role)
+  }
+
+  /**
+   * The layer an explicitly named layer really goes on.
+   *
+   * An old name is redirected rather than refused: uploaded templates in the
+   * live library may still hard-code `'KC-COC'`, and refusing would break a
+   * drawing an engineer relies on over a naming question. Redirected only
+   * when the role has a different current layer — a deployment whose mapping
+   * still uses the old name keeps drawing on it, silently, as it asked.
+   */
+  const resolveExplicit = (layer: string): string => {
+    const role = legacyRole.get(layer.toLowerCase())
+    const current = role ? roleLayers[role] : undefined
+    if (!current || current.toLowerCase() === layer.toLowerCase()) return layer
+    const note =
+      `Layer '${layer}' là tên cũ (chỉ để nhận dạng bản vẽ cũ); ` +
+      `đã vẽ lên '${current}' thay thế.`
+    if (!warnings.includes(note)) warnings.push(note)
+    return current
+  }
 
   // AutoCAD compares layer names case-insensitively, so the catalogue must be
   // looked up the same way or `_33_CAU_MO_Be` and `_33_CAU_MO_BE` would be
@@ -522,7 +576,10 @@ export function createDrawContext(
   }
 
   const place = (entity: AcDbEntity, args: AcTpDrawBase): AcDbEntity => {
-    const layer = args.layer ?? roleLayers[args.role]
+    const layer =
+      args.layer !== undefined
+        ? resolveExplicit(args.layer)
+        : roleLayers[args.role]
     if (!layer) {
       throw new Error(
         `Vai trò '${args.role}' chưa được khai trong quy ước layer. ` +
@@ -775,6 +832,10 @@ export function createDrawContext(
       arrow.add(loop)
       place(arrow, base_)
       return line
+    },
+
+    get warnings() {
+      return warnings
     },
 
     get drawn() {

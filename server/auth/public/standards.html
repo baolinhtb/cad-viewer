@@ -339,7 +339,7 @@
           <input
             id="l-name"
             class="slug"
-            placeholder="Tên layer (vd: KC-DAMCHU)"
+            placeholder="Tên layer (vd: _33_CAU_NHIP_Damchu)"
             size="22"
             autocomplete="off"
           />
@@ -359,6 +359,10 @@
           />
           <button id="l-add" class="primary">Thêm layer</button>
         </div>
+        <label class="note">
+          <input id="l-hide-legacy" type="checkbox" checked />
+          Ẩn tên layer cũ (chỉ dùng để nhận dạng bản vẽ cũ)
+        </label>
         <div class="panel">
           <table>
             <thead>
@@ -366,6 +370,7 @@
                 <th>Tên layer</th>
                 <th>Ý nghĩa</th>
                 <th>Màu</th>
+                <th>Tên cũ của</th>
                 <th>Sửa lần cuối</th>
                 <th></th>
               </tr>
@@ -381,6 +386,11 @@
           lá, 4 lam, 5 xanh dương, 6 tím, 7 trắng, 8 xám, 9 xám nhạt); template
           dựng lên layer mới sẽ lấy đúng màu này, layer đã có sẵn trong bản vẽ
           giữ màu của bản vẽ.
+        </p>
+        <p class="note">
+          Một layer đánh dấu là <b>tên cũ</b> (ví dụ <code>KC-BAN</code> thay
+          cho <code>_33_CAU_NHIP_Banmatcau</code>) chỉ dùng để nhận dạng bản vẽ
+          cũ khi gắn nhãn từ layer; không template hay trợ lý nào vẽ lên nó.
         </p>
       </section>
     </main>
@@ -444,6 +454,8 @@
           return `Đã tồn tại: ${body.detail?.value ?? ''}`
         if (body.code === 'standard_invalid')
           return body.detail?.reason ?? 'Dữ liệu không hợp lệ.'
+        if (body.code === 'standard_in_use')
+          return `Còn tên cũ trỏ tới layer này: ${(body.detail?.legacyNames ?? []).join(', ')}`
         return body.error || `Lỗi ${response.status}`
       }
 
@@ -491,6 +503,31 @@
                 .map(
                   l =>
                     `<li><code>${esc(l.name)}</code> — ${esc(l.meaning)}</li>`
+                )
+                .join('') +
+              `</ul>`
+          )
+        }
+
+        if (contradictions.rolesOnLegacyLayer?.length) {
+          blocks.push(
+            `<h2>Thuật ngữ còn trỏ vào tên layer cũ</h2><ul>` +
+              contradictions.rolesOnLegacyLayer
+                .map(
+                  t =>
+                    `<li><code>${esc(t.role)}</code> trỏ tới tên cũ <code>${esc(t.layer)}</code>; đang vẽ lên <code>${esc(t.drawsOn)}</code>.</li>`
+                )
+                .join('') +
+              `</ul>`
+          )
+        }
+        if (contradictions.legacyWithUnknownTarget?.length) {
+          blocks.push(
+            `<h2>Tên cũ trỏ tới layer không có trong danh mục</h2><ul>` +
+              contradictions.legacyWithUnknownTarget
+                .map(
+                  l =>
+                    `<li><code>${esc(l.name)}</code> → <code>${esc(l.legacyOf)}</code></li>`
                 )
                 .join('') +
               `</ul>`
@@ -895,18 +932,25 @@
           : '<span class="missing">chưa đặt</span>'
 
       async function loadLayers() {
-        const { layers } = await (await api('/api/standards/layers')).json()
+        const { layers: all } = await (
+          await api('/api/standards/layers')
+        ).json()
+        const layers = $('l-hide-legacy').checked
+          ? all.filter(layer => !layer.legacyOf)
+          : all
         $('l-empty').hidden = layers.length > 0
         $('l-rows').innerHTML = layers
           .map(
             layer => `
-    <tr data-name="${esc(layer.name)}" data-color="${layer.color ?? ''}">
+    <tr data-name="${esc(layer.name)}" data-color="${layer.color ?? ''}" data-legacy="${esc(layer.legacyOf ?? '')}">
       <td class="slug">${esc(layer.name)}</td>
       <td>${esc(layer.meaning)}</td>
       <td class="aci">${swatch(layer.color)}</td>
+      <td class="slug">${layer.legacyOf ? esc(layer.legacyOf) : ''}</td>
       <td class="when">${esc(layer.updatedAt)}${layer.updatedBy ? ` · #${layer.updatedBy}` : ''}</td>
       <td data-edit>
         <button class="ghost" data-act="edit-color">Đổi màu</button>
+        <button class="ghost" data-act="edit-legacy">Tên cũ…</button>
         <button class="ghost danger" data-act="del-layer">Xóa</button>
       </td>
     </tr>`
@@ -956,6 +1000,24 @@
           say('Đã đổi màu.', 'ok')
           return refresh()
         }
+        if (button.dataset.act === 'edit-legacy') {
+          const next = prompt(
+            `"${name}" là tên cũ của layer nào? (nhập tên layer _33_ đang dùng; để trống nếu "${name}" là layer đang dùng)`,
+            row.dataset.legacy
+          )
+          if (next === null) return
+          const response = await api(
+            `/api/standards/layers/${encodeURIComponent(name)}`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ legacyOf: next.trim() || null })
+            }
+          )
+          if (!response.ok) return say(await explain(response))
+          say('Đã lưu.', 'ok')
+          return refresh()
+        }
         if (button.dataset.act === 'del-layer') {
           if (!confirm(`Xóa layer "${name}"?`)) return
           const response = await api(
@@ -967,6 +1029,8 @@
           refresh()
         }
       })
+
+      $('l-hide-legacy').addEventListener('change', () => loadLayers())
 
       // --- shell ---
       document.querySelectorAll('.tab').forEach(tab => {

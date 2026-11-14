@@ -2,6 +2,7 @@ import {
   AcApDocManager,
   acapRunDatabaseEdit
 } from '@mlightcad/cad-simple-viewer'
+import { currentLayerForLegacy } from '@mlightcad/cad-template-plugin'
 import {
   type AcTpSide,
   ensureSemanticTagRegApp,
@@ -1177,6 +1178,13 @@ export class CadActionExecutor {
     if (accessError) {
       return accessError
     }
+    // An old name (KC-*) stays usable on an old drawing that has it — the
+    // drawing's own layers are the engineer's — but the assistant is told the
+    // `_33_` name, so new geometry is not placed on the old layer by habit.
+    const current = currentLayerForLegacy(layerName)
+    const note = current
+      ? ` Lưu ý: '${layerName}' là tên layer cũ, chỉ để nhận dạng; vẽ mới hãy dùng '${current}'.`
+      : ''
     try {
       const changed = runEdit('Agent: set_current_layer', () => {
         return AcApDocManager.instance.curDocument.layerService.setCurrentLayer(
@@ -1184,7 +1192,10 @@ export class CadActionExecutor {
         )
       })
       return changed
-        ? { success: true, message: `Current layer set to ${layerName}` }
+        ? {
+            success: true,
+            message: `Current layer set to ${layerName}.${note}`
+          }
         : {
             success: false,
             message: `Layer not found: ${layerName}`,
@@ -1210,19 +1221,35 @@ export class CadActionExecutor {
     if (accessError) {
       return accessError
     }
+    // Old names (KC-*, KT-*, `_Matduong_BTN`) are recognition-only. Asked to
+    // create one that the drawing does not already have, the `_33_` layer it
+    // stands for is created instead — the same redirect the template draw
+    // context applies — and the result says so.
+    const current = currentLayerForLegacy(layerName)
+    const exists = Boolean(
+      AcApDocManager.instance.curDocument.database.tables.layerTable.getAt(
+        layerName
+      )
+    )
+    const target = current && !exists ? current : layerName
+    const note = current
+      ? exists
+        ? ` Lưu ý: '${layerName}' là tên layer cũ, chỉ để nhận dạng; vẽ mới hãy dùng '${current}'.`
+        : ` '${layerName}' là tên layer cũ (chỉ để nhận dạng); đã dùng '${current}' thay thế.`
+      : ''
     try {
       const result = runEdit('Agent: create_layer', () => {
         return AcApDocManager.instance.curDocument.layerService.createLayers([
-          layerName
+          target
         ])
       })
       if (result.created > 0) {
-        return { success: true, message: `Layer created: ${layerName}` }
+        return { success: true, message: `Layer created: ${target}.${note}` }
       }
-      if (result.existed.includes(layerName)) {
+      if (result.existed.includes(target)) {
         return {
           success: true,
-          message: `Layer already exists: ${layerName}`
+          message: `Layer already exists: ${target}.${note}`
         }
       }
       return {

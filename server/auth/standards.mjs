@@ -14,7 +14,8 @@ export const ERRORS = {
   NOT_FOUND: 'standard_not_found',
   DUPLICATE: 'standard_duplicate',
   ALIAS_CONFLICT: 'standard_alias_conflict',
-  INVALID: 'standard_invalid'
+  INVALID: 'standard_invalid',
+  IN_USE: 'standard_in_use'
 }
 
 /** Roles are matched by machine, so they are ASCII slugs with no diacritics. */
@@ -221,6 +222,9 @@ function rowToLayer(row) {
     meaning: row.meaning,
     color: row.color ?? null,
     lineType: row.line_type ?? null,
+    // Set when this name is kept only to recognise old drawings: the `_33_`
+    // layer it stands for. Such a layer is never served for drawing.
+    legacyOf: row.legacy_of ?? null,
     updatedBy: row.updated_by ?? null,
     updatedAt: row.updated_at
   }
@@ -284,20 +288,59 @@ function cleanLineType(value) {
   return text ? text : null
 }
 
+/**
+ * Checks the `_33_` layer an old name is said to stand for.
+ *
+ * The target must exist and must itself be a real layer: an old name pointing
+ * at another old name would make "which layer do I draw on" a chain to follow,
+ * and a name pointing at itself would make it a loop.
+ */
+function assertLegacyOf(db, value, selfName) {
+  if (value === undefined) return undefined
+  if (value === null || String(value).trim() === '') return null
+  const target = String(value).trim()
+  const reason = text =>
+    new StandardsError(ERRORS.INVALID, { field: 'legacyOf', reason: text })
+  if (target.toLowerCase() === String(selfName).toLowerCase()) {
+    throw reason('Layer không thể là tên cũ của chính nó')
+  }
+  const row = getLayer(db, target)
+  if (!row) throw reason(`Không có layer "${target}" trong danh mục`)
+  if (row.legacyOf) {
+    throw reason(`"${row.name}" cũng là tên cũ; hãy trỏ tới layer đang dùng`)
+  }
+  if (legacyNamesOf(db, selfName).length > 0) {
+    throw reason('Layer này đang có tên cũ trỏ tới, không thể thành tên cũ')
+  }
+  return row.name
+}
+
+/** Old names that stand for this layer. */
+function legacyNamesOf(db, name) {
+  return db
+    .prepare(
+      `SELECT name FROM standard_layers WHERE lower(legacy_of) = lower(?)`
+    )
+    .all(String(name ?? ''))
+    .map(row => row.name)
+}
+
 export function createLayer(db, userId, input) {
   const { name, meaning } = assertLayerInput(input)
   if (getLayer(db, name)) {
     throw new StandardsError(ERRORS.DUPLICATE, { field: 'name', value: name })
   }
+  const legacyOf = assertLegacyOf(db, input.legacyOf, name) ?? null
   db.prepare(
     `INSERT INTO standard_layers
-       (name, meaning, color, line_type, updated_by, updated_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+       (name, meaning, color, line_type, legacy_of, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(
     name,
     meaning,
     assertColor(input.color),
     cleanLineType(input.lineType),
+    legacyOf,
     userId
   )
   return getLayer(db, name)
@@ -307,9 +350,10 @@ export function updateLayer(db, userId, name, input) {
   const existing = getLayer(db, name)
   if (!existing) throw new StandardsError(ERRORS.NOT_FOUND, { name })
 
+  const legacyOf = assertLegacyOf(db, input.legacyOf, existing.name)
   db.prepare(
     `UPDATE standard_layers
-        SET meaning = ?, color = ?, line_type = ?,
+        SET meaning = ?, color = ?, line_type = ?, legacy_of = ?,
             updated_by = ?, updated_at = datetime('now')
       WHERE lower(name) = lower(?)`
   ).run(
@@ -320,6 +364,7 @@ export function updateLayer(db, userId, name, input) {
     input.lineType === undefined
       ? existing.lineType
       : cleanLineType(input.lineType),
+    legacyOf === undefined ? existing.legacyOf : legacyOf,
     userId,
     name
   )
@@ -327,6 +372,13 @@ export function updateLayer(db, userId, name, input) {
 }
 
 export function deleteLayer(db, name) {
+  // Deleting a layer that old names stand for would leave those names pointing
+  // at nothing, and the drawings on them unrecognisable. Refused, not
+  // cascaded: which way to resolve it is a decision for a person.
+  const dependants = legacyNamesOf(db, name)
+  if (dependants.length > 0) {
+    throw new StandardsError(ERRORS.IN_USE, { name, legacyNames: dependants })
+  }
   const result = db
     .prepare(`DELETE FROM standard_layers WHERE lower(name) = lower(?)`)
     .run(String(name ?? ''))
@@ -341,9 +393,37 @@ export function deleteLayer(db, name) {
  * a layer nobody chose.
  */
 export function roleLayerMap(db) {
+  const canonical = new Map()
+  for (const layer of listLayers(db)) {
+    if (layer.legacyOf) canonical.set(layer.name.toLowerCase(), layer.legacyOf)
+  }
   const mapping = {}
   for (const term of listTerms(db)) {
-    if (term.layer) mapping[term.role] = term.layer
+    if (!term.layer) continue
+    // A term left pointing at an old name still draws on the layer that name
+    // stands for: old names are for reading old drawings, never for drawing.
+    mapping[term.role] = canonical.get(term.layer.toLowerCase()) ?? term.layer
+  }
+  return mapping
+}
+
+/**
+ * Old layer name → role, for recognising drawings made before `_33_`.
+ *
+ * Resolved through the layer the old name stands for, so renaming a term's
+ * layer carries its old names along. An old name whose layer no term uses is
+ * left out — there is no role to give its entities.
+ */
+export function legacyLayerMap(db) {
+  const roleOf = new Map()
+  for (const term of listTerms(db)) {
+    if (term.layer) roleOf.set(term.layer.toLowerCase(), term.role)
+  }
+  const mapping = {}
+  for (const layer of listLayers(db)) {
+    if (!layer.legacyOf) continue
+    const role = roleOf.get(layer.legacyOf.toLowerCase())
+    if (role) mapping[layer.name] = role
   }
   return mapping
 }
@@ -377,6 +457,11 @@ export function findContradictions(db) {
   const terms = listTerms(db)
   const layers = listLayers(db)
   const known = new Set(layers.map(layer => layer.name.toLowerCase()))
+  const legacy = new Map(
+    layers
+      .filter(layer => layer.legacyOf)
+      .map(layer => [layer.name.toLowerCase(), layer])
+  )
   const used = new Set(
     terms.filter(term => term.layer).map(term => term.layer.toLowerCase())
   )
@@ -390,10 +475,25 @@ export function findContradictions(db) {
     rolesWithUnknownLayer: terms
       .filter(term => term.layer && !known.has(term.layer.toLowerCase()))
       .map(term => ({ role: term.role, layer: term.layer })),
-    /** Layers no term draws on: harmless, but usually a rename left behind. */
+    /** Layers no term draws on: harmless, but usually a rename left behind.
+     * Old names are expected to be unused and are not listed. */
     unusedLayers: layers
-      .filter(layer => !used.has(layer.name.toLowerCase()))
-      .map(layer => ({ name: layer.name, meaning: layer.meaning }))
+      .filter(layer => !layer.legacyOf && !used.has(layer.name.toLowerCase()))
+      .map(layer => ({ name: layer.name, meaning: layer.meaning })),
+    /** Terms still pointing at an old name; they draw on its `_33_` layer. */
+    rolesOnLegacyLayer: terms
+      .filter(term => term.layer && legacy.has(term.layer.toLowerCase()))
+      .map(term => ({
+        role: term.role,
+        layer: term.layer,
+        drawsOn: legacy.get(term.layer.toLowerCase()).legacyOf
+      })),
+    /** Old names standing for a layer that is no longer in the catalogue. */
+    legacyWithUnknownTarget: layers
+      .filter(
+        layer => layer.legacyOf && !known.has(layer.legacyOf.toLowerCase())
+      )
+      .map(layer => ({ name: layer.name, legacyOf: layer.legacyOf }))
   }
 }
 

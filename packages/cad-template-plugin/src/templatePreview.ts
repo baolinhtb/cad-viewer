@@ -9,7 +9,7 @@ import {
   AcDbPolyline
 } from '@mlightcad/data-model'
 
-import { layerStyles, roleLayers } from './templateRegistry'
+import { layerStyles, legacyLayers, roleLayers } from './templateRegistry'
 import { defaultValues } from './templateValues'
 
 /**
@@ -130,7 +130,14 @@ export function renderTemplatePreview(
   try {
     const db = new AcDbDatabase()
     db.createDefaultData()
-    const ctx = createDrawContext(db, template.meta.id, roleLayers(), undefined, layerStyles())
+    const ctx = createDrawContext(
+      db,
+      template.meta.id,
+      roleLayers(),
+      undefined,
+      layerStyles(),
+      { legacyLayers: legacyLayers() }
+    )
     const result = template.generate(ctx, defaultValues(template))
     if (result && typeof (result as Promise<void>).then === 'function') {
       // A template that draws asynchronously cannot be previewed synchronously,
