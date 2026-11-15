@@ -30,9 +30,12 @@ export const PROVIDER_MODEL_OPTIONS: Record<
   // screenshot, and offering a text-only model would disable that silently.
   proxy: [
     {
+      // The server's CLI bridge (tools/codex-cad/bridge.mjs), now Claude Code
+      // by default. The value stays `codex-cli` because the app server, its
+      // /api/ai/context and saved user settings all use it.
       value: 'codex-cli',
-      labelEn: 'Codex CLI (server)',
-      labelZh: 'Codex CLI (server)',
+      labelEn: 'Claude CLI (server)',
+      labelZh: 'Claude CLI (server)',
       supportsVision: true
     },
     {
