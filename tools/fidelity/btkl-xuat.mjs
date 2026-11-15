@@ -5,7 +5,8 @@
  *
  *   node tools/fidelity/btkl-xuat.mjs [--out /workspace/cadview-shots/btkl]
  *
- * 1. jest `btklXlsx.spec.ts` with BTKL_OUT: `btkl-M1.xlsx`, `m1-doi-chieu.md`
+ * 1. jest `btklXlsx.spec.ts` and `btklSheets.spec.ts` with BTKL_OUT: the
+ *    A3 sheets as `work/btkl.dxf`, and `btkl-M1.xlsx`, `m1-doi-chieu.md`
  *    (the full comparison with the SUB-100 table) and `btkl-M1.json`.
  * 2. openpyxl: sheets, headers, merged cells, number formats, formulas and
  *    their cached values.
@@ -13,6 +14,7 @@
  *    (fullCalcOnLoad), exports each sheet as CSV and the workbook as PDF
  *    (first page as PNG); the recalculated steel total must equal the
  *    cached one.
+ * 4. Renders each A3 BTKL sheet as `btkl-to-<n>.png`.
  *
  * Writes only outside the repository; `xlsx-kiem.json` records the checks.
  */
@@ -36,7 +38,11 @@ const run = (cmd, args, opts = {}) => {
 // 1. Sample files.
 run(
   join(ROOT, 'node_modules/.bin/jest'),
-  ['packages/cad-template-plugin/__tests__/btklXlsx.spec.ts', '--runInBand'],
+  [
+    'packages/cad-template-plugin/__tests__/btklXlsx.spec.ts',
+    'packages/cad-template-plugin/__tests__/btklSheets.spec.ts',
+    '--runInBand'
+  ],
   { env: { ...process.env, BTKL_OUT: OUT }, stdio: 'inherit' }
 )
 const xlsx = join(OUT, 'btkl-M1.xlsx')
@@ -192,6 +198,28 @@ check(
   btklRows.some(r => r[1] === 'Bê tông C30 mố') &&
     btklRows.some(r => r[1] === 'Tường cánh (2 bên)'),
   btklRows[4]
+)
+
+// 4. The A3 sheets through the application's renderer (needs the CLI built).
+const sheets = JSON.parse(
+  readFileSync(join(OUT, 'work', 'btkl-sheets.json'), 'utf8')
+)
+const jobs = sheets.map((sheet, k) => ({
+  name: sheet.id,
+  input: join(OUT, 'work', 'btkl.dxf'),
+  window: sheet.window,
+  px: 2970,
+  out: join(OUT, `btkl-to-${k + 1}.png`)
+}))
+writeFileSync(join(OUT, 'work', 'btkl-render-jobs.json'), JSON.stringify(jobs))
+run('node', [
+  'tools/fidelity/render.mjs',
+  join(OUT, 'work', 'btkl-render-jobs.json')
+])
+check(
+  'Render: mỗi tờ BTKL một ảnh',
+  jobs.every(j => readdirSync(OUT).includes(j.out.split('/').pop())),
+  jobs.map(j => j.out)
 )
 
 writeFileSync(
