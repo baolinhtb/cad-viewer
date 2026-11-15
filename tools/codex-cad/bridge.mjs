@@ -1,11 +1,34 @@
+/* global process, Buffer */
 import { randomUUID } from 'node:crypto'
-import { createServer } from 'node:http'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { CodexCadSession } from './app-server.mjs'
+import { claudeMessage } from './claude-step.mjs'
+
+/**
+ * Backends, chosen by CAD_AGENT_BACKEND: `claude` (default, Claude Code CLI)
+ * or `codex` (Codex app-server, kept for rollback). Both answer one step in
+ * the same shape.
+ */
+export const BACKENDS = {
+  claude: { provider: 'claude-cli', name: 'Claude CLI', infer: claudeMessage },
+  codex: { provider: 'codex-cli', name: 'Codex CLI', infer: codexMessage }
+}
+
+/** The backend named by `value` (CAD_AGENT_BACKEND), or why it is invalid. */
+export function selectBackend(value = process.env.CAD_AGENT_BACKEND) {
+  const key = (value || 'claude').trim().toLowerCase()
+  const backend = BACKENDS[key]
+  if (!backend)
+    throw new Error(
+      `CAD_AGENT_BACKEND="${value}" không hợp lệ; chọn claude hoặc codex.`
+    )
+  return backend
+}
 
 // Translate a single browser-owned agent step. On a tool call we return the
 // request without executing it here; the browser executes and supplies the
@@ -129,7 +152,7 @@ export function anthropicEvents(message) {
   }
   result += event('message_delta', {
     delta: { stop_reason: message.stop_reason, stop_sequence: null },
-    usage: { output_tokens: 0 }
+    usage: { output_tokens: message.usage?.output_tokens ?? 0 }
   })
   return result + event('message_stop', {})
 }
@@ -137,7 +160,10 @@ export function anthropicEvents(message) {
 export function createBridge({
   allowedPeers = ['127.0.0.1'],
   maxConcurrent = 2,
-  infer = codexMessage
+  backend = selectBackend(),
+  infer = backend.infer,
+  provider = backend.provider,
+  name = backend.name
 } = {}) {
   let active = 0
   return createServer(async (req, res) => {
@@ -149,7 +175,7 @@ export function createBridge({
     if (req.method === 'GET' && req.url === '/health') {
       res
         .writeHead(200, { 'content-type': 'application/json' })
-        .end(JSON.stringify({ ok: true, provider: 'codex-cli', active }))
+        .end(JSON.stringify({ ok: true, provider, active }))
       return
     }
     if (req.method !== 'POST' || req.url !== '/messages') {
@@ -159,7 +185,7 @@ export function createBridge({
     if (active >= maxConcurrent) {
       res.writeHead(429, { 'content-type': 'application/json' }).end(
         JSON.stringify({
-          error: { message: 'Codex đang bận. Vui lòng thử lại sau.' }
+          error: { message: `${name} đang bận. Vui lòng thử lại sau.` }
         })
       )
       return
@@ -185,7 +211,7 @@ export function createBridge({
           'cache-control': 'no-store',
           'x-accel-buffering': 'no'
         })
-        res.write(': Codex connected\n\n')
+        res.write(`: ${name} connected\n\n`)
         heartbeat = setInterval(() => res.write(': waiting\n\n'), 10000)
       }
       const message = await infer(body, { signal: abort.signal })
@@ -220,11 +246,15 @@ if (
 ) {
   const host = process.env.CODEX_BRIDGE_HOST || '127.0.0.1'
   const port = Number(process.env.CODEX_BRIDGE_PORT || 4180)
+  const backend = selectBackend()
   const server = createBridge({
-    allowedPeers: (process.env.CODEX_BRIDGE_PEERS || '127.0.0.1').split(',')
+    allowedPeers: (process.env.CODEX_BRIDGE_PEERS || '127.0.0.1').split(','),
+    backend
   })
   server.listen(port, host, () =>
-    console.log(`CAD Codex bridge listening ${host}:${port}`)
+    console.log(
+      `CAD agent bridge (${backend.provider}) listening ${host}:${port}`
+    )
   )
   for (const signal of ['SIGTERM', 'SIGINT'])
     process.on(signal, () => server.close(() => process.exit(0)))
