@@ -68,6 +68,14 @@ agent `sua_ho_so_mo`**, kiểm dim (HB, LC, B Mố, D Cọc), bảng cao độ, 
 và cảnh báo; render các tờ bị đổi thành `param-<biến thể>-<tờ>.png` cùng
 `param-macdinh-<tờ>.png`, và ghi `params.json`.
 
+## Đo khối lượng bê tông trên hình gốc (BTKL B1)
+
+`node tools/fidelity/btkl-do.mjs [--out /workspace/cadview-shots/btkl]` đo
+thân, tường đỉnh, cánh, tường tai, vai kê bản quá độ, vút trên SUB-010 (theo
+handle trong `layout-mo2.json`) cùng bảng thông số SUB-020, đặt cạnh bảng khối
+lượng SUB-100 và ghi `do-tiet-dien.json` (ngoài repo). Mỗi dòng có công thức,
+handle nguồn và ghi chú: khớp, gần khớp hay không giải thích được.
+
 ## Công thức (mỗi tờ)
 
 Mực = điểm ảnh có kênh màu > 40 trên nền đen. Vùng chấm pixel = vùng hình
