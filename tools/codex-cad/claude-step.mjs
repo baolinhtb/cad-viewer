@@ -68,6 +68,19 @@ Bạn là MỘT bước suy luận của trợ lý CAD chạy trong trình duy�
 - Xong việc hoặc cần hỏi người dùng: "tool" = null, "text" là câu trả lời.
 - Không tuyên bố thành công nếu chưa có tool_result xác nhận.`
 
+const PROXY_KEYS = [
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'ALL_PROXY',
+  'NO_PROXY',
+  'http_proxy',
+  'https_proxy',
+  'all_proxy',
+  'no_proxy',
+  'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE'
+]
+
 /** Threshold above which the system prompt goes through a file, not argv. */
 const MAX_SYSTEM_ARG = 100 * 1024
 
@@ -89,7 +102,11 @@ export function claudeEnv(source = process.env) {
     'LC_ALL',
     'TMPDIR',
     'CLAUDE_CODE_OAUTH_TOKEN',
-    'ANTHROPIC_API_KEY'
+    'ANTHROPIC_API_KEY',
+    // Network and CA settings the deployment writes to
+    // /etc/cad-codex-bridge.env (deploy-codeco33.mjs): without them a host
+    // behind a proxy cannot reach the API.
+    ...PROXY_KEYS
   ])
     if (source[key]) env[key] = source[key]
   return env

@@ -1,5 +1,5 @@
 [Unit]
-Description=CAD Viewer Codex CLI bridge
+Description=CAD Viewer agent CLI bridge (Claude CLI by default, Codex for rollback)
 After=network-online.target docker.service
 Wants=network-online.target
 
@@ -9,9 +9,16 @@ User=root
 WorkingDirectory=/srv/cad-viewer
 Environment=HOME=/root
 Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Backend: claude (default) | codex. Rollback: set CAD_AGENT_BACKEND=codex
+# (in /etc/cad-codex-bridge.env, which overrides Environment= lines).
+Environment=CAD_AGENT_BACKEND=claude
+Environment=CLAUDE_COMMAND=/root/.local/bin/claude
 Environment=CODEX_COMMAND=/root/.local/bin/codex
 Environment=CODEX_BRIDGE_HOST=172.21.0.1
 Environment=CODEX_BRIDGE_PEERS=172.21.0.2,172.21.0.1
+# CLAUDE_CODE_OAUTH_TOKEN=… (mode 600, never logged).
+EnvironmentFile=/etc/cad-agent/claude.env
+# Proxy/CA variables written by deploy-codeco33.mjs; optional overrides.
 EnvironmentFile=-/etc/cad-codex-bridge.env
 ExecStart=/usr/local/bin/node /srv/cad-viewer/tools/codex-cad/bridge.mjs
 Restart=on-failure

@@ -184,6 +184,8 @@ const ENV = {
   CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat-secret',
   CLAUDE_COMMAND: '/root/.local/bin/claude',
   CAD_AGENT_CLAUDE_MODEL: 'claude-opus-5-5',
+  HTTPS_PROXY: 'http://proxy:3128',
+  NODE_EXTRA_CA_CERTS: '/etc/ssl/ca.pem',
   SECRET_ELSEWHERE: 'must-not-pass'
 }
 const firstUserMessage = call => JSON.parse(call.stdin.trim()).message
@@ -225,11 +227,13 @@ test('claude: arguments, environment and stdin of one step', async () => {
   assert.ok(args.includes('--strict-mcp-config'))
   assert.deepEqual(JSON.parse(flag('--json-schema')).required, ['text', 'tool'])
   assert.equal(flag('--model'), 'claude-opus-5-5')
-  // Minimal environment: credentials and PATH/HOME, no other secrets.
+  // Minimal environment: credentials, PATH/HOME, proxy/CA; no other secrets.
   assert.deepEqual(options.env, {
     PATH: '/usr/bin',
     HOME: '/root',
     CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat-secret',
+    HTTPS_PROXY: 'http://proxy:3128',
+    NODE_EXTRA_CA_CERTS: '/etc/ssl/ca.pem',
     DISABLE_AUTOUPDATER: '1',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     DISABLE_TELEMETRY: '1',
