@@ -35,7 +35,7 @@ Có hai cách:
   bị gom vào menu **"…"** ở cuối ribbon.
 - Hoặc gõ lệnh **`agent`** vào dòng lệnh. Gõ lại lần nữa thì đóng bảng.
 
-Bảng **Trợ lý** (tiêu đề "CAD Agent") mở ở bên phải. Gõ câu lệnh vào ô
+Bảng **Trợ lý** (thẻ "Trợ lý", nhãn dọc "CAD Agent") mở ở cạnh trái màn hình. Gõ câu lệnh vào ô
 **"Mô tả hình cần vẽ…"** rồi nhấn **Enter**, hoặc bấm nút mũi tên **Gửi**.
 Trong lúc agent làm việc, nút đổi thành **Dừng** và hiện "Đang xử lý…".
 
@@ -45,6 +45,8 @@ Trong lúc agent làm việc, nút đổi thành **Dừng** và hiện "Đang x�
 
 Ô **Chế độ** nằm ở góc dưới bên trái ô nhập. Hãy chọn **Nhanh**: agent vẽ
 xong không chụp màn hình kiểm lại, đủ cho các việc trong tài liệu này.
+Ô **Mô hình** bên cạnh để mặc định **Claude CLI (server)**: máy chủ chạy
+agent bằng Claude CLI.
 
 - **Suy luận sâu**: agent vẽ xong thì chụp màn hình và tự kiểm (tối đa 5
   vòng). Chậm hơn và cần mô hình đọc được ảnh.
@@ -91,8 +93,12 @@ Gõ:
 - **Bị từ chối, hồ sơ giữ nguyên:** đổi số hoặc bố trí cọc, `tCanh`, dốc,
   `bThan` khác `bBe`, hoặc hình bị tràn khỏi khung A3.
 - Hồ sơ đã bị sửa tay thì `sua_ho_so_mo` cũng từ chối dựng lại.
-- Khi hình học khác M1, các tờ thép SUB-070/080/090 và bảng thống kê SUB-100
-  ghi **"chưa có phương án thép"**.
+- Khi hình học khác M1, các tờ thép SUB-070/080/090 ghi **"CHƯA CÓ PHƯƠNG ÁN
+  THÉP CHO HÌNH HỌC NÀY"** và SUB-100 ghi **"BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG
+  CHƯA ÁP DỤNG"**. Agent báo cao độ mới (ví dụ đỉnh bệ 231,337 m, đáy bệ giữ
+  228,837 m) và nhắc lại các mục còn mở.
+- Trên hình, kích thước chiều cao bệ ghi bằng ký hiệu **HB** (không ghi số);
+  hình bệ cao lên theo số mới.
 
 Để làm theo các ví dụ ở Phần 2, đưa bệ về như cũ:
 
@@ -108,7 +114,11 @@ Trụ dựng bằng cách ghép **`tru_cau_hoan_chinh`**: một lệnh dựng c�
 > Dựng trụ cầu bằng cách ghép tru_cau_hoan_chinh, đặt tim trụ ở x = 0,
 > đáy bê tông lót ở y = -60000.
 
-- Agent gọi **`ghep_bo_phan`** với mã ghép `tru_cau_hoan_chinh`.
+- Agent thường đọc hướng dẫn trụ trước (`công cụ: doc_huong_dan`), rồi gọi
+  **`ghep_bo_phan`** với mã ghép `tru_cau_hoan_chinh`.
+- Kết quả là hai lần chạy: `r2` mặt chính (tim x = 0) và `r3` mặt bên (tim
+  x = 16000). Agent nói rõ đây là bố cục sơ bộ, liệt kê thông số mặc định và
+  các điểm cần kiểm theo TCVN 11823.
 - **Thông số chung của cách ghép:**
   - `x`, `y`: tim trụ và đáy bê tông lót;
   - `kcHinh`: khoảng cách giữa hai hình chiếu, mặc định 16000;
@@ -133,8 +143,10 @@ thông số mới thì phải **dựng lại cả hai lần chạy** theo templa
 > Dựng lại toàn bộ trụ T1 theo template, cả mặt chính và mặt bên, với chiều
 > dài cọc lCoc = 25000 mm.
 
-- Agent gọi `mo_ta_ban_ve` để lấy mã hai lần chạy, rồi gọi **`sua_lan_chay`**
-  hai lần với `dung_lai_toan_bo = true`.
+- Agent gọi **`sua_lan_chay`** hai lần (`r2` rồi `r3`) với
+  `dung_lai_toan_bo = true`. Nếu agent chưa biết mã lần chạy, nó gọi
+  `mo_ta_ban_ve` trước để lấy.
+- Cọc trên cả hai hình kéo dài 25 m.
 - Nếu bạn chỉ nói "đổi…", agent sẽ sửa thẳng trên nét CAD
   (`execute_cad_script`). Hình đổi, nhưng thông số lưu trong lần chạy không
   đổi, nên **BTKL không thấy thay đổi**.
@@ -168,7 +180,8 @@ Gõ:
 > Lập bảng bóc tách khối lượng kết cấu cho các mố, trụ trong bản vẽ.
 
 - Agent gọi **`tao_btkl`**. Các tờ A3 BTKL đặt cách mép phải bản vẽ 10 m,
-  đáy tờ ngang đáy bản vẽ.
+  đáy tờ ngang đáy bản vẽ. Với M1 và T1 có hai tờ: BTKL-01 và BTKL-02 (TIẾP
+  THEO).
 - Muốn đặt ở chỗ khác thì nói vị trí, ví dụ "…đặt bảng ở x = 200000, y = 0".
 - Agent trả **mã lần chạy** của BTKL (ví dụ `r4`) và các tổng chính.
 - Mỗi bản vẽ chỉ có **một** BTKL; gọi lập lần nữa sẽ bị từ chối.
@@ -215,6 +228,8 @@ So với bảng SUB-100 bản gốc của M1:
 
 ![Tờ A3 BTKL-01 phóng to](img/09-to-btkl.png)
 
+![Tờ BTKL-02 (tiếp theo): phần trụ T1](img/09b-to-btkl-tiep.png)
+
 ### Bước 10 — Cập nhật sau khi sửa kích thước: `cap_nhat_btkl`
 
 Bảng **không tự đổi** khi bạn sửa mố hoặc trụ. Ví dụ gõ hai câu:
@@ -226,6 +241,10 @@ Bảng **không tự đổi** khi bạn sửa mố hoặc trụ. Ví dụ gõ ha
 - Agent gọi `sua_ho_so_mo`, rồi **`cap_nhat_btkl`** với mã BTKL. Tờ được dựng
   lại tại chỗ (cùng mã, cùng vị trí). Kết quả có cả tổng **trước** và
   **sau**.
+- Khi đã có BTKL, agent thường tự gọi `cap_nhat_btkl` ngay sau câu sửa đầu
+  tiên. Câu thứ hai lúc đó chỉ được trả lời "BTKL đã khớp bản vẽ hiện tại",
+  không sửa gì thêm.
+- Ván khuôn mố tính lại theo bệ mới (280,846 m² khi bệ cao 2500 mm).
 - Bệ M1 thành 114,821 m³.
 - **Thép mố bị từ chối**, vì hình học không còn là M1 gốc. Tường tai, ụ chống
   xô, lan can và vật tư cũng bị từ chối. Do đó tổng bê tông C30 ghi "Thiếu
@@ -267,6 +286,9 @@ Gõ:
   - cờ, bắt đầu bằng `⚑`;
   - với dòng bị từ chối: "Không tính: …" kèm lý do.
 
+Ảnh dưới là tệp xuất ở bước 11 (bệ đang cao 2500 mm) mở trong LibreOffice
+Calc, nên nhiều dòng của mố ghi "Không tính: …".
+
 ![Sheet BTKL trong Excel](img/12-xlsx-btkl.png)
 
 ### Bước 13 — Đọc sheet thép chi tiết
@@ -283,6 +305,10 @@ Gõ:
 
 Dấu thập phân hiển thị theo cài đặt vùng của máy mở tệp: tiếng Việt hiện
 `14.058,319`, tiếng Anh hiện `14,058.319`. Giá trị lưu bên trong như nhau.
+
+Ảnh dưới chụp sau khi đưa bệ về 2000 mm, cập nhật BTKL và xuất lại
+(`sua_ho_so_mo` → `cap_nhat_btkl` → `xuat_btkl`). Ô I4 đang chọn, thanh
+công thức hiện `=G4*H4`; cột Ghi chú có cờ `⚑` của F3.
 
 ![Sheet thép chi tiết của mố M1](img/13-xlsx-thep.png)
 
@@ -313,7 +339,11 @@ Ví dụ một lần bị từ chối:
 
 > Đổi số cọc mố M1 thành 3 cọc theo ngang cầu.
 
-Agent trả lý do và hồ sơ giữ nguyên.
+Agent từ chối, không gọi công cụ nào và hồ sơ giữ nguyên. Lý do: hồ sơ M1
+dựng theo bộ sinh 0.3.0, chỉ co giãn được `hBe`, `hLot`, `lBe`, `muiBe`,
+`tThan`, `hThan`, `hDau`, `lCanh`, `D`, `bBe`; mọi thay đổi số hoặc bố trí
+cọc bị từ chối. Agent gợi ý các hướng khác (đổi thông số cho phép, dựng mặt
+chính mố riêng bằng `mo_mat_chinh` với 3 cọc, hoặc sửa tay).
 
 ![Thông báo từ chối khi đổi số cọc mố](img/14-tu-choi.png)
 
