@@ -76,6 +76,16 @@ handle trong `layout-mo2.json`) cùng bảng thông số SUB-020, đặt cạnh 
 lượng SUB-100 và ghi `do-tiet-dien.json` (ngoài repo). Mỗi dòng có công thức,
 handle nguồn và ghi chú: khớp, gần khớp hay không giải thích được.
 
+## Xuất BTKL mẫu M1 và kiểm xlsx (BTKL B5)
+
+`node tools/fidelity/btkl-xuat.mjs [--out /workspace/cadview-shots/btkl]`
+chạy `btklXlsx.spec.ts` với `BTKL_OUT` để ghi `btkl-M1.xlsx` (sheet BTKL 5 cột
+và sheet thép chi tiết 69 dòng), `m1-doi-chieu.md` (bảng đối chiếu đủ dòng với
+SUB-100) và `btkl-M1.json`; rồi kiểm tệp xlsx bằng **openpyxl** (sheet, cột,
+định dạng số, công thức và giá trị cache) và **LibreOffice** headless (tính lại
+công thức, xuất CSV từng sheet, PDF và ảnh trang). Ghi `xlsx-kiem.json`; thoát
+mã 1 nếu một kiểm sai. Mọi thứ ghi ngoài repo.
+
 ## Công thức (mỗi tờ)
 
 Mực = điểm ảnh có kênh màu > 40 trên nền đen. Vùng chấm pixel = vùng hình
