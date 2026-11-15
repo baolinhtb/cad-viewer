@@ -38,6 +38,10 @@ describe('BTKL mố — M1 against the SUB-100 table', () => {
       '4.4',
       '4.5',
       '5',
+      '5.1',
+      '5.2',
+      '5.3',
+      '5.4',
       '6',
       '6.1',
       '6.2',
@@ -51,7 +55,9 @@ describe('BTKL mố — M1 against the SUB-100 table', () => {
       '6.10',
       '6.11',
       '7.1',
-      '7.2'
+      '7.2',
+      '7.3',
+      '7.4'
     ])
   })
 
@@ -105,14 +111,50 @@ describe('BTKL mố — M1 against the SUB-100 table', () => {
       ['ong_pvc', SRC.ongPvcD125],
       ['bot_xop', SRC.chenBotXop],
       ['hop_chot', SRC.hopChot],
-      ['bt_nhua', SRC.btNhua],
-      ['van_khuon', SRC.vanKhuon]
+      ['bt_nhua', SRC.btNhua]
     ] as const) {
       expect(line(r, key).nguon).toBe('ban_goc')
       expect(kl(r, key)).toBe(value)
     }
     // The ear-wall formula found in B1 gives the same value.
     expect(2 * 0.15 * 1.2 * 1).toBeCloseTo(SRC.beTong.tai, 9)
+  })
+
+  test('formwork: contact faces, 0.546 m² over the source — flagged', () => {
+    // Wing sections as in line 1.4.
+    const high = (6653 * 2500 + ((6688 - 1786 + 1500) / 2) * 3500) / 1e6
+    const low = high - 0.14 * 2.5
+    expect(kl(r, 'van_khuon_be')).toBeCloseTo(2 * (7.7 + 6) * 2, 9)
+    expect(kl(r, 'van_khuon_than')).toBeCloseTo(2 * 7.7 * 4.717, 9)
+    expect(kl(r, 'van_khuon_dinh')).toBeCloseTo(2 * 7.7 * 1.887, 9)
+    expect(kl(r, 'van_khuon_canh')).toBeCloseTo(2 * (high + low), 9)
+    const sum = ['be', 'than', 'dinh', 'canh'].reduce(
+      (s, k) => s + kl(r, `van_khuon_${k}`),
+      0
+    )
+    expect(kl(r, 'van_khuon')).toBeCloseTo(sum, 9)
+    expect(kl(r, 'van_khuon')).toBeCloseTo(267.1456, 4)
+    expect(kl(r, 'van_khuon') - SRC.vanKhuon).toBeCloseTo(0.5456, 4)
+    expect(line(r, 'van_khuon').nguon).toBe('tham_so')
+    expect(line(r, 'van_khuon').laTong).toBe(true)
+    expect(line(r, 'van_khuon').banGoc).toBe(266.6)
+    expect(line(r, 'van_khuon').flags?.map(f => f.code)).toEqual([
+      'lech_ban_goc_van_khuon',
+      'van_khuon_cho_dinh_muc'
+    ])
+    expect(line(r, 'van_khuon').flags![0].message).toBe(
+      'Bảng gốc ghi 266,6 m², nhỏ hơn quy tắc mặt tiếp xúc 0,546 m² (0,2 %); chưa tái lập đúng số của bảng.'
+    )
+  })
+
+  test('formwork of the corbel and haunches: listed apart, outside the totals', () => {
+    const chamfer = Math.hypot(0.3, 0.3)
+    expect(kl(r, 'van_khuon_vai_ke')).toBeCloseTo((chamfer + 0.3) * 6.7, 9)
+    expect(kl(r, 'van_khuon_vut')).toBeCloseTo(2 * chamfer * 5.194, 9)
+    for (const k of ['van_khuon_vai_ke', 'van_khuon_vut']) {
+      expect(line(r, k).nhom).toBe('ghi_chu')
+      expect(line(r, k).trongTong).toBe(false)
+    }
   })
 
   test('concrete total: the parts, 0.763 m³ over the source total', () => {
@@ -200,8 +242,7 @@ describe('BTKL mố — changed geometry', () => {
       'ong_pvc',
       'bot_xop',
       'hop_chot',
-      'bt_nhua',
-      'van_khuon'
+      'bt_nhua'
     ]) {
       expect(line(r, key).nguon).toBe('tu_choi')
       expect(line(r, key).khoiLuong).toBeNull()
@@ -215,13 +256,17 @@ describe('BTKL mố — changed geometry', () => {
     )
     expect(line(r, 'thep').nguon).toBe('tu_choi')
     expect(r.bars).toEqual([])
+    // Formwork follows the footing height.
+    expect(kl(r, 'van_khuon_be')).toBeCloseTo(2 * (7.7 + 6) * 2.5, 9)
+    expect(line(r, 'van_khuon').nguon).toBe('tham_so')
     expect(r.items.filter(i => i.key.startsWith('thep_'))).toEqual([])
   })
 
   test('no line is compared with the source any more, and no source flag stays', () => {
     expect(r.items.filter(i => i.banGoc !== undefined)).toEqual([])
     expect(r.items.flatMap(i => i.flags ?? []).map(f => f.code)).toEqual([
-      'mau_thuan_lot'
+      'mau_thuan_lot',
+      'van_khuon_cho_dinh_muc'
     ])
   })
 

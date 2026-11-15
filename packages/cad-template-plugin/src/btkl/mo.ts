@@ -12,7 +12,10 @@
  *   linearly, so the centre heights are the mean heights;
  * - wings: from the stem back face to the wing end; on the footing, then a
  *   1:1 underside to a 1500 end, the top rising with the long fall. The
- *   lower wing sits `docNgang · bMatDuong` lower, except on the flat footing.
+ *   lower wing sits `docNgang · bMatDuong` lower, except on the flat footing;
+ * - formwork (B4): contact faces — the footing's four sides and the two large
+ *   faces of the stem, head wall and each wing; the corbel and haunches are
+ *   listed apart, outside the totals.
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
@@ -38,8 +41,10 @@ const EAR = { t: 150, h: 1200 }
 const CORBEL_SECTION = 0.1365
 /** Corbel underside below the head-wall top, mm (A–A: 21891 − 20481). */
 const CORBEL_DROP = 1410
-/** Stem–wing haunch leg, mm (plan). */
+/** Stem–wing haunch leg, mm (plan); also the corbel's chamfer legs (A–A). */
 const HAUNCH = 300
+/** Corbel vertical face, mm (A–A: 20781 → 21081). */
+const CORBEL_FACE = 300
 
 const S = BTKL_M1_SOURCE
 const PI = Math.PI
@@ -345,14 +350,75 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   )
 
   // ---- 5. Formwork (B4) --------------------------------------------------
-  fromSource(
-    'van_khuon',
-    '5',
-    'Ván khuôn',
-    'm2',
-    S.vanKhuon,
-    'van_khuon',
-    '; quy tắc đo ván khuôn chưa chốt (B4)'
+  // Contact-face rule read from the source: the four sides of the footing and
+  // the two large faces of the stem, the head wall and each wing — 267.146
+  // at M1 against the table's 266.600 (+0.2 %); no reading of the drawing
+  // gives the table's figure exactly. Pending the measurement document.
+  const formFaces: [string, string, number, string][] = [
+    [
+      'van_khuon_be',
+      'Ván khuôn bệ (4 mặt bên)',
+      (2 * (n('bBe') + n('lBe')) * n('hBe')) / 1e6,
+      `2 × (${f(n('bBe'))} + ${f(n('lBe'))}) × ${f(n('hBe'))}`
+    ],
+    [
+      'van_khuon_than',
+      'Ván khuôn tường thân (2 mặt)',
+      (2 * n('bThan') * n('hThan')) / 1e6,
+      `2 × ${f(n('bThan'))} × ${f(n('hThan'))}`
+    ],
+    [
+      'van_khuon_dinh',
+      'Ván khuôn tường đỉnh (2 mặt)',
+      (2 * n('bThan') * n('hDau')) / 1e6,
+      `2 × ${f(n('bThan'))} × ${f(n('hDau'))}`
+    ],
+    [
+      'van_khuon_canh',
+      'Ván khuôn tường cánh (2 mặt × 2 bên)',
+      2 * (high.area + low.area),
+      `2 × (${acTpBtklNumber(high.area)} + ${acTpBtklNumber(low.area)}) (tiết diện cánh như dòng 1.4)`
+    ]
+  ]
+  const formTotal = formFaces.reduce((sum, face) => sum + face[2], 0)
+  add({
+    key: 'van_khuon',
+    stt: '5',
+    nhom: 'van_khuon',
+    hangMuc: 'Ván khuôn',
+    donVi: 'm2',
+    khoiLuong: formTotal,
+    dienGiai: `Cộng 5.1–5.${formFaces.length}: diện tích mặt tiếp xúc (4 mặt bên bệ; 2 mặt lớn của thân, tường đỉnh, mỗi tường cánh)`,
+    nguon: 'tham_so',
+    laTong: true,
+    ...compare(S.vanKhuon),
+    flags: [
+      ...(sourceGeometry
+        ? [
+            {
+              code: 'lech_ban_goc_van_khuon',
+              message: `Bảng gốc ghi 266,6 m², nhỏ hơn quy tắc mặt tiếp xúc ${acTpBtklNumber(formTotal - S.vanKhuon)} m² (${acTpBtklNumber(((formTotal - S.vanKhuon) / S.vanKhuon) * 100, 1)} %); chưa tái lập đúng số của bảng.`
+            }
+          ]
+        : []),
+      {
+        code: 'van_khuon_cho_dinh_muc',
+        message:
+          'Quy tắc đo ván khuôn theo bản gốc M1 (diện tích mặt tiếp xúc); chờ văn bản đo bóc/định mức để chốt (Q2).'
+      }
+    ]
+  })
+  formFaces.forEach(([key, hangMuc, value, dienGiai], k) =>
+    add({
+      key,
+      stt: `5.${k + 1}`,
+      nhom: 'van_khuon',
+      hangMuc,
+      donVi: 'm2',
+      khoiLuong: value,
+      dienGiai,
+      nguon: 'tham_so'
+    })
   )
 
   // ---- 6. Steel ----------------------------------------------------------
@@ -482,6 +548,32 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     donVi: 'm3',
     khoiLuong: (2 * (HAUNCH * HAUNCH) * haunchHeight) / 2 / 1e9,
     dienGiai: `2 × ${f(HAUNCH)}²/2 × ${f(haunchHeight)}`,
+    nguon: 'tham_so',
+    trongTong: false
+  })
+  // Their formwork, listed apart like their concrete: the corbel's chamfered
+  // underside and vertical face (its top carries the approach slab, its ends
+  // meet the wings); the haunch's diagonal face.
+  const chamfer = Math.hypot(HAUNCH, HAUNCH)
+  add({
+    key: 'van_khuon_vai_ke',
+    stt: '7.3',
+    nhom: 'ghi_chu',
+    hangMuc: 'Ván khuôn vai kê bản quá độ (không cộng tổng)',
+    donVi: 'm2',
+    khoiLuong: ((chamfer + CORBEL_FACE) * between) / 1e6,
+    dienGiai: `(${acTpBtklNumber(chamfer / 1000)} + ${f(CORBEL_FACE)}) × ${f(between)} (mặt vát dưới + mặt đứng)`,
+    nguon: 'tham_so',
+    trongTong: false
+  })
+  add({
+    key: 'van_khuon_vut',
+    stt: '7.4',
+    nhom: 'ghi_chu',
+    hangMuc: 'Ván khuôn vút thân–cánh (không cộng tổng)',
+    donVi: 'm2',
+    khoiLuong: (2 * chamfer * haunchHeight) / 1e6,
+    dienGiai: `2 × ${acTpBtklNumber(chamfer / 1000)} × ${f(haunchHeight)} (mặt chéo)`,
     nguon: 'tham_so',
     trongTong: false
   })
