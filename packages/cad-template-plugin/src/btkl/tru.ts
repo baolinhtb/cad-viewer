@@ -19,9 +19,11 @@
  *   × `lXaMu`;
  * - bearing seats: `soGoi × soHangGoi` blocks.
  *
- * Formwork uses a provisional rule (vertical and soffit faces cast against
- * forms; not the blinding, top faces or faces against other concrete) until
- * the measurement document is chosen (question Q2).
+ * Formwork follows the abutment's rule read from its source (B4): the
+ * footing's four sides and the two large faces of the stem and the cap;
+ * round columns by their perimeter. The faces that rule leaves out — the
+ * cap's ends and soffits, the bearing seats — are listed apart, outside the
+ * totals. Pending the measurement document (question Q2).
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
@@ -73,9 +75,9 @@ const PI = Math.PI
 
 /** Provisional formwork rule, shown with every formwork line. */
 const FORMWORK_FLAG: AcTpBtklFlag = {
-  code: 'van_khuon_quy_tac_tam',
+  code: 'van_khuon_cho_dinh_muc',
   message:
-    'Quy tắc đo ván khuôn tạm (mặt bên và mặt đáy hẫng; không tính lớp lót, mặt trên, mặt tiếp giáp bê tông khác) — chờ văn bản đo bóc (Q2).'
+    'Quy tắc đo ván khuôn như mố M1 (diện tích mặt tiếp xúc lớn: 4 mặt bên bệ; 2 mặt lớn của thân và xà mũ; cột tròn tính theo chu vi); chờ văn bản đo bóc/định mức để chốt (Q2).'
 }
 const GRADE_FLAG: AcTpBtklFlag = {
   code: 'mac_be_tong_chua_chot',
@@ -276,7 +278,7 @@ export function acTpBtklTru(
         }
   )
 
-  // ---- 4. Formwork (provisional rule) --------------------------------------
+  // ---- 4. Formwork (large contact faces, as the abutment) -----------------
   add({
     key: 'van_khuon',
     stt: '4',
@@ -316,45 +318,21 @@ export function acTpBtklTru(
           key: 'van_khuon_than',
           stt: '4.2',
           nhom: 'van_khuon',
-          hangMuc: 'Ván khuôn thân (4 mặt bên)',
+          hangMuc: 'Ván khuôn thân tường (2 mặt lớn)',
           donVi: 'm2',
-          khoiLuong: (2 * (n('bThan') + n('tThan')) * n('hThan')) / 1e6,
-          dienGiai: `2 × (${f(n('bThan'))} + ${f(n('tThan'))}) × ${f(n('hThan'))}`,
+          khoiLuong: (2 * n('bThan') * n('hThan')) / 1e6,
+          dienGiai: `2 × ${f(n('bThan'))} × ${f(n('hThan'))}`,
           nguon: 'tham_so'
         }
   )
-  const slope = Math.hypot(lh, h - hd)
-  const capSides = 2 * capFront + 2 * n('lXaMu') * hd + 2 * n('lXaMu') * slope
-  const capSoffit = (footprint: number) => n('lXaMu') * (B - 2 * lh) - footprint
-  const capFormwork = (footprint: number) =>
-    (capSides + capSoffit(footprint)) / 1e6
-  const capText = (footprint: string) =>
-    `2 mặt chính 2 × ${acTpBtklNumber(capFront / 1e6)} + 2 mặt đầu 2 × ${f(n('lXaMu'))} × ${f(hd)} + đáy vát 2 × ${f(n('lXaMu'))} × ${acTpBtklNumber(slope / 1000)} + đáy phẳng ${f(n('lXaMu'))} × ${f(B - 2 * lh)} − ${footprint}`
   add({
     key: 'van_khuon_xa_mu',
     stt: '4.3',
     nhom: 'van_khuon',
-    hangMuc: 'Ván khuôn xà mũ',
+    hangMuc: 'Ván khuôn xà mũ (2 mặt chính)',
     donVi: 'm2',
-    khoiLuong: capFormwork(
-      cot ? n('soCot') * columnArea : n('bThan') * n('tThan')
-    ),
-    dienGiai: capText(
-      cot
-        ? `${n('soCot')} cột × π × ${f(n('dCot'))}²/4`
-        : `thân ${f(n('bThan'))} × ${f(n('tThan'))}`
-    ),
-    nguon: 'tham_so',
-    ...(cot ? { flags: [ROUND_COLUMNS] } : {})
-  })
-  add({
-    key: 'van_khuon_da_ke',
-    stt: '4.4',
-    nhom: 'van_khuon',
-    hangMuc: 'Ván khuôn đá kê gối',
-    donVi: 'm2',
-    khoiLuong: (seats * 2 * (n('bDaKe') + n('lDaKe')) * n('hDaKe')) / 1e6,
-    dienGiai: `${seats} × 2 × (${f(n('bDaKe'))} + ${f(n('lDaKe'))}) × ${f(n('hDaKe'))}`,
+    khoiLuong: (2 * capFront) / 1e6,
+    dienGiai: `2 × ${acTpBtklNumber(capFront / 1e6)} (mặt chính như dòng 1.3)`,
     nguon: 'tham_so'
   })
   const forms = items.filter(i => i.stt.startsWith('4.'))
@@ -379,6 +357,37 @@ export function acTpBtklTru(
     dienGiai: '',
     nguon: 'tu_choi',
     lyDo: 'Trụ chưa có phương án cốt thép: template trụ là bố cục sơ bộ, không có bố trí thép.'
+  })
+
+  // ---- 6. Formwork the rule leaves out, listed apart ------------------------
+  const slope = Math.hypot(lh, h - hd)
+  const footprint = cot ? n('soCot') * columnArea : n('bThan') * n('tThan')
+  add({
+    key: 'van_khuon_xa_mu_dau_day',
+    stt: '6.1',
+    nhom: 'ghi_chu',
+    hangMuc: 'Ván khuôn mặt đầu và mặt đáy xà mũ (không cộng tổng)',
+    donVi: 'm2',
+    khoiLuong:
+      (2 * n('lXaMu') * hd +
+        2 * n('lXaMu') * slope +
+        n('lXaMu') * (B - 2 * lh) -
+        footprint) /
+      1e6,
+    dienGiai: `2 mặt đầu 2 × ${f(n('lXaMu'))} × ${f(hd)} + đáy vát 2 × ${f(n('lXaMu'))} × ${acTpBtklNumber(slope / 1000)} + đáy phẳng ${f(n('lXaMu'))} × ${f(B - 2 * lh)} − ${cot ? `${n('soCot')} cột × π × ${f(n('dCot'))}²/4` : `thân ${f(n('bThan'))} × ${f(n('tThan'))}`}`,
+    nguon: 'tham_so',
+    trongTong: false
+  })
+  add({
+    key: 'van_khuon_da_ke',
+    stt: '6.2',
+    nhom: 'ghi_chu',
+    hangMuc: 'Ván khuôn đá kê gối (không cộng tổng)',
+    donVi: 'm2',
+    khoiLuong: (seats * 2 * (n('bDaKe') + n('lDaKe')) * n('hDaKe')) / 1e6,
+    dienGiai: `${seats} × 2 × (${f(n('bDaKe'))} + ${f(n('lDaKe'))}) × ${f(n('hDaKe'))}`,
+    nguon: 'tham_so',
+    trongTong: false
   })
   return { doiTuong: ten, items, bars: [], errors: [] }
 }

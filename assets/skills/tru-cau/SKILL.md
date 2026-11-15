@@ -1,6 +1,6 @@
 ---
 name: tru-cau
-description: Dựng và sửa bản vẽ TRỤ CẦU (mặt chính, mặt bên) bằng template của thư viện — bê tông lót, bệ, cọc khoan nhồi, thân tường đặc hoặc thân cột, xà mũ có đầu hẫng, đá kê gối — rồi kiểm theo TCVN 11823 sau khi dựng. Dùng khi người dùng muốn tạo trụ mới (T1, T2…), đổi kích thước bệ, thân, xà mũ, số cọc, số gối, hoặc hỏi ràng buộc tiêu chuẩn cho trụ. Từ khoá — trụ cầu, trụ T1, xà mũ, thân trụ, trụ thân cột, trụ nạng chống, bệ trụ, cọc khoan nhồi trụ, đá kê gối, mặt chính trụ, mặt bên trụ, dựng trụ.
+description: Dựng và sửa bản vẽ TRỤ CẦU (mặt chính, mặt bên) bằng template của thư viện — bê tông lót, bệ, cọc khoan nhồi, thân tường đặc hoặc thân cột, xà mũ có đầu hẫng, đá kê gối — rồi kiểm theo TCVN 11823 sau khi dựng. Dùng khi người dùng muốn tạo trụ mới (T1, T2…), đổi kích thước bệ, thân, xà mũ, số cọc, số gối, hoặc hỏi ràng buộc tiêu chuẩn cho trụ. Từ khoá — trụ cầu, trụ T1, xà mũ, thân trụ, trụ thân cột, trụ nạng chống, bệ trụ, cọc khoan nhồi trụ, đá kê gối, mặt chính trụ, mặt bên trụ, dựng trụ, khối lượng trụ, bóc tách khối lượng trụ, BTKL.
 ---
 
 # Dựng & sửa bản vẽ trụ cầu bằng template
@@ -19,6 +19,24 @@ không bao giờ trình bày kích thước mặc định như trị số của 
 | Sửa trụ đã dựng | `mo_ta_ban_ve` lấy mã lần chạy, rồi `sua_lan_chay` cho **từng** lần chạy (mặt chính và mặt bên là hai lần chạy) với **chỉ** các giá trị đổi. Không chạy lại `ghep_bo_phan`: sẽ vẽ chồng. |
 | Thêm khung tên | `chay_template` với `khung_ban_ve` (A3/A1, `tiLe`). |
 | Vị trí | `x` là tim trụ trên hình đó, `y` là **đáy bê tông lót**. Trong cách ghép, mặt bên đặt tại `x + kcHinh`. |
+
+## Bóc tách khối lượng (BTKL)
+
+`tao_btkl` gom mọi trụ (và mố) trong bản vẽ vào tờ A3 bảng khối lượng;
+`cap_nhat_btkl` tính lại sau `sua_lan_chay`; `xuat_btkl` tải xlsx. Một trụ
+dựng bằng `tru_cau_hoan_chinh` (mặt chính + mặt bên) được đếm **một lần**.
+
+- Bê tông theo cấu kiện: bệ, thân, xà mũ (mặt chính có hai đầu hẫng vát ×
+  `lXaMu`), đá kê; lót trừ tiết diện cọc. **Mác bê tông chưa chốt** (cờ).
+- Ván khuôn theo quy tắc mặt tiếp xúc lớn như mố M1 (4 mặt bên bệ; 2 mặt lớn
+  thân và xà mũ); mặt đầu/đáy xà mũ và đá kê liệt kê riêng, không cộng tổng.
+  Cờ chờ văn bản định mức.
+- Giả định chủ dự án chốt, gắn cờ `gia_dinh` trên từng dòng: thân cột là
+  **cột tròn** đường kính `dCot`; đầu cọc **ngàm 150 mm** vào bệ như mố; cọc
+  **không có ống vách**.
+- Cọc chỉ tính khi có `lCoc`. **Thép trụ luôn bị từ chối** — template trụ là
+  bố cục sơ bộ, không có bố trí thép.
+- Mặc định (thân tường): bê tông 197,542 m³, lót 5,335 m³, ván khuôn 167,2 m².
 
 ## Tham số: lời kỹ sư → khoá template
 

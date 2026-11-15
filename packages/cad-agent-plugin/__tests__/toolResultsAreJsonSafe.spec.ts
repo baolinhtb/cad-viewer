@@ -25,6 +25,11 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     'xuat_ho_so_mo'
   ].map(name => ({ name, description: name })),
   runDossierTool: () => Promise.resolve(returned.template),
+  BTKL_TOOLS: ['tao_btkl', 'cap_nhat_btkl', 'xuat_btkl'].map(name => ({
+    name,
+    description: name
+  })),
+  runBtklTool: () => Promise.resolve(returned.template),
   SEMANTIC_TOOLS: [
     { name: 'moc_toa_do', description: 'd', input_schema: {} },
     { name: 'mo_ta_ban_ve', description: 'd', input_schema: {} },

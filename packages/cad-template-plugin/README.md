@@ -5,7 +5,7 @@
 (SUB-010 … SUB-100), drawn with real CAD entities. It is available in the `template` dialog without
 uploading a library module. Existing office templates remain available.
 
-The CAD agent exposes four tools:
+The CAD agent exposes four dossier tools:
 
 | Tool | Behavior |
 | --- | --- |
@@ -22,6 +22,40 @@ Example prompts:
 > Đổi rộng bệ M1 thành 8500 mm, giữ rộng thân và khoảng cách cọc.
 
 > Kiểm tra các mục còn thiếu của M1 rồi xuất PDF và DXF bản nháp.
+
+## Structural quantity take-off (BTKL)
+
+`src/btkl/` computes the quantities of the abutments and piers built from
+templates — pure functions, parameters in, lines out, each line with its
+formula written in the run's own values, its source and its flags:
+
+- `acTpBtklMo` (abutment `ho_so_mo_m1`): concrete by part (footing less the
+  pile heads embedded 150 mm, stem, head wall, wings), blinding less the pile
+  sections, piles when `lCoc` is known, formwork by large contact faces (the
+  rule read from the source: 267.146 m² against its 266.6), steel from the 69
+  bars of the source table at its kg/m. At the source geometry each line is
+  compared with the SUB-100 table and differences are flagged; lines the
+  drawing cannot derive (ear walls, shear keys, parapet, materials) use the
+  source figures there and are refused once the geometry changes, as is the
+  steel. Corbel and haunches are listed apart, outside the totals.
+- `acTpBtklTru` (piers `tru_mat_chinh`/`tru_mat_ben`): footing, stem (wall or
+  round columns), cap, bearing seats, blinding, piles, formwork by the same
+  rule. Owner assumptions are flagged `gia_dinh` on their lines; steel is
+  refused (the pier templates have none).
+- Outputs: A3 sheets (`btkl_ket_cau`, a built-in template drawn with lines and
+  text in the SUB-100 style, more sheets when long) and an `.xlsx` workbook
+  (`acTpBtklWorkbook`: a five-column BTKL sheet and a bar schedule per
+  object) written by a dependency-free ZIP/SpreadsheetML writer.
+
+| Tool | Behavior |
+| --- | --- |
+| `tao_btkl` | Take off every abutment and pier in the drawing onto A3 sheets beside it. Refuse a second take-off. |
+| `cap_nhat_btkl` | Re-read the drawing and redraw the take-off in place after dimensions change; no change, no edit. |
+| `xuat_btkl` | Download `.xlsx` (or JSON) — of a take-off run, warning when the drawing has changed since, or straight from the drawing. |
+
+`node tools/fidelity/btkl-xuat.mjs` writes the M1 and pier samples (xlsx, A3
+renders, the comparison with SUB-100) outside the repository and checks the
+workbooks with openpyxl and LibreOffice.
 
 Lengths are **mm**, elevations **m**, slopes **percent**. Positive cross slope
 raises the left chainage side, which appears on the right in the front view.

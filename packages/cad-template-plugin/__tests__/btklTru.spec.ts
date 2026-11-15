@@ -50,8 +50,9 @@ describe('BTKL trụ — wall stem, defaults', () => {
       '4.1 van_khuon_be',
       '4.2 van_khuon_than',
       '4.3 van_khuon_xa_mu',
-      '4.4 van_khuon_da_ke',
-      '5 thep'
+      '5 thep',
+      '6.1 van_khuon_xa_mu_dau_day',
+      '6.2 van_khuon_da_ke'
     ])
     expect(r.items.filter(i => i.banGoc !== undefined)).toEqual([])
   })
@@ -88,17 +89,28 @@ describe('BTKL trụ — wall stem, defaults', () => {
     )
   })
 
-  test('formwork by hand, provisional rule flagged', () => {
+  test('formwork by hand: large faces as the abutment, flagged', () => {
     expect(kl(r, 'van_khuon_be')).toBeCloseTo(2 * 15.5 * 2, 9)
-    expect(kl(r, 'van_khuon_than')).toBeCloseTo(2 * 7.4 * 6, 9)
-    // 2 fronts + 2 ends + 2 chamfered soffits + flat soffit less the stem.
-    const cap =
-      2 * 16.6 + 2 * 2 * 0.8 + 2 * 2 * Math.hypot(2, 0.7) + 2 * 8 - 6 * 1.4
-    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(cap, 9)
-    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(52.475848, 6)
+    expect(kl(r, 'van_khuon_than')).toBeCloseTo(2 * 6 * 6, 9)
+    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(2 * 16.6, 9)
+    expect(kl(r, 'van_khuon')).toBeCloseTo(62 + 72 + 33.2, 9)
+    expect(codes(r, 'van_khuon')).toEqual(['van_khuon_cho_dinh_muc'])
+    expect(line(r, 'van_khuon').flags![0].message).toBe(
+      'Quy tắc đo ván khuôn như mố M1 (diện tích mặt tiếp xúc lớn: 4 mặt bên bệ; 2 mặt lớn của thân và xà mũ; cột tròn tính theo chu vi); chờ văn bản đo bóc/định mức để chốt (Q2).'
+    )
+  })
+
+  test('faces the rule leaves out: listed apart, outside the totals', () => {
+    // Cap: 2 ends + 2 chamfered soffits + flat soffit less the stem.
+    expect(kl(r, 'van_khuon_xa_mu_dau_day')).toBeCloseTo(
+      2 * 2 * 0.8 + 2 * 2 * Math.hypot(2, 0.7) + 2 * 8 - 6 * 1.4,
+      9
+    )
     expect(kl(r, 'van_khuon_da_ke')).toBeCloseTo(10 * 2 * 1.4 * 0.2, 9)
-    expect(kl(r, 'van_khuon')).toBeCloseTo(62 + 88.8 + cap + 5.6, 9)
-    expect(codes(r, 'van_khuon')).toEqual(['van_khuon_quy_tac_tam'])
+    for (const k of ['van_khuon_xa_mu_dau_day', 'van_khuon_da_ke']) {
+      expect(line(r, k).nhom).toBe('ghi_chu')
+      expect(line(r, k).trongTong).toBe(false)
+    }
   })
 
   test('steel refused', () => {
@@ -123,10 +135,11 @@ describe('BTKL trụ — column stem: round columns, flagged', () => {
     )
     expect(kl(r, 'van_khuon_than')).toBeCloseTo(2 * Math.PI * 1.2 * 6, 9)
     expect(codes(r, 'van_khuon_than')).toEqual(['gia_dinh'])
-    const cap =
-      2 * 16.6 + 2 * 2 * 0.8 + 2 * 2 * Math.hypot(2, 0.7) + 2 * 8 - 2 * area
-    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(cap, 9)
-    expect(codes(r, 'van_khuon_xa_mu')).toEqual(['gia_dinh'])
+    expect(kl(r, 'van_khuon')).toBeCloseTo(62 + 2 * Math.PI * 1.2 * 6 + 33.2, 9)
+    expect(kl(r, 'van_khuon_xa_mu_dau_day')).toBeCloseTo(
+      2 * 2 * 0.8 + 2 * 2 * Math.hypot(2, 0.7) + 2 * 8 - 2 * area,
+      9
+    )
     expect(kl(r, 'be_tong')).toBeCloseTo(
       112.982124 + 2 * area * 6 + 33.2 + 0.96,
       6
@@ -138,9 +151,10 @@ describe('BTKL trụ — other shapes and refusals', () => {
   test('a cap without chamfer is a plain prism', () => {
     const r = acTpBtklTru({ hXaMuDau: 1500 })
     expect(kl(r, 'xa_mu')).toBeCloseTo(12 * 1.5 * 2, 9)
+    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(2 * 18, 9)
     // The "chamfer" is then the horizontal soffit of the overhang.
-    expect(kl(r, 'van_khuon_xa_mu')).toBeCloseTo(
-      2 * 18 + 2 * 2 * 1.5 + 2 * 2 * 2 + 2 * 8 - 8.4,
+    expect(kl(r, 'van_khuon_xa_mu_dau_day')).toBeCloseTo(
+      2 * 2 * 1.5 + 2 * 2 * 2 + 2 * 8 - 8.4,
       9
     )
   })

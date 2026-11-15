@@ -1,6 +1,6 @@
 ---
 name: mo-cau
-description: Dựng và sửa bản vẽ MỐ CẦU (mặt chính) bằng template của thư viện — bê tông lót, bệ móng, cọc khoan nhồi, tường thân, tường đầu, tường tai, lớp phủ, lan can — rồi kiểm theo TCVN 11823 sau khi dựng. Dùng khi người dùng muốn tạo mố mới (M1, M2…), đổi bề rộng, chiều cao, cao độ hay độ dốc ngang của mố đang có, hoặc hỏi ràng buộc tiêu chuẩn cho mố. Từ khoá — mố cầu, mố M1, bệ mố, bệ móng, tường thân, tường đầu, tường tai, cọc khoan nhồi, độ dốc ngang, siêu cao, cao độ đáy bệ, dựng mố.
+description: Dựng và sửa bản vẽ MỐ CẦU (mặt chính) bằng template của thư viện — bê tông lót, bệ móng, cọc khoan nhồi, tường thân, tường đầu, tường tai, lớp phủ, lan can — rồi kiểm theo TCVN 11823 sau khi dựng. Dùng khi người dùng muốn tạo mố mới (M1, M2…), đổi bề rộng, chiều cao, cao độ hay độ dốc ngang của mố đang có, hoặc hỏi ràng buộc tiêu chuẩn cho mố. Từ khoá — mố cầu, mố M1, bệ mố, bệ móng, tường thân, tường đầu, tường tai, cọc khoan nhồi, độ dốc ngang, siêu cao, cao độ đáy bệ, dựng mố, khối lượng mố, bóc tách khối lượng, BTKL, bảng khối lượng, xuất xlsx khối lượng.
 ---
 
 # Dựng & sửa bản vẽ mố cầu bằng template
@@ -49,6 +49,39 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 - Các mâu thuẫn nguồn C8/C10, F3 D22/D25, W16 D14/D16 chưa được tự chốt.
 - Hồ sơ dựng bằng 0.1.0 (khung cũ) và 0.2.0 (khung tên A1) vẫn dựng lại và
   xuất đúng như lúc tạo; với chúng `sua_ho_so_mo` chỉ sửa nhãn/vị trí/khung tên.
+
+### Bóc tách khối lượng (BTKL)
+
+Khi người dùng hỏi **khối lượng**, **bóc tách khối lượng**, **bảng khối
+lượng** của mố/trụ đã dựng:
+
+- Lập: `tao_btkl` — gom mọi hồ sơ mố (`ho_so_mo_m1`) và trụ trong bản vẽ,
+  vẽ tờ A3 bảng 5 cột (STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công
+  thức) bên phải bản vẽ. Đã có BTKL thì không lập chồng.
+- Sau khi sửa kích thước mố/trụ: `cap_nhat_btkl` + mã lần chạy BTKL. Tờ
+  BTKL dựng lại tại chỗ; không đổi gì thì không sửa.
+- Tải: `xuat_btkl` — `xlsx` (sheet BTKL + sheet thép chi tiết từng thanh) hoặc
+  `json`. Có cảnh báo "đã đổi từ lúc lập" thì đề nghị `cap_nhat_btkl` trước.
+
+Mố M1 ở thông số mặc định — đối chiếu bảng SUB-100 bản gốc:
+
+| Dòng | Bản gốc | BTKL | Nguồn / cờ |
+|---|---:|---:|---|
+| Bệ (trừ đầu cọc ngàm 150 mm) | 91,721 | 91,721 | tham số |
+| Tường thân | 53,667 | 54,481 | tham số; cờ `lech_ban_goc_than` (chưa giải thích được) |
+| Tường đỉnh | 7,267 | 7,265 | tham số (làm tròn) |
+| Tường cánh | 27,710 | 27,661 | tham số; cờ `lech_ban_goc_canh` |
+| Tai, ụ chống xô, lan can, vật tư | như gốc | như gốc | số bản gốc khi hình học là M1; đổi hình học thì **từ chối** |
+| Lót C10 (trừ tiết diện cọc) | 4,446 | 4,446 | tham số; cờ C8/C10 |
+| Ván khuôn (mặt tiếp xúc lớn) | 266,6 | 267,146 | tham số; cờ lệch và cờ `van_khuon_cho_dinh_muc` |
+| Thép 69 thanh (kg/m bảng gốc) | 14 058,319 | 14 058,319 | đổi hình học thì **từ chối** |
+
+- Vai kê bản quá độ và vút thân–cánh có trên hình nhưng bảng gốc không tính:
+  BTKL liệt kê riêng (bê tông và ván khuôn), **không cộng tổng**.
+- Cọc chỉ tính khi có `lCoc`; không tự đoán chiều dài.
+- Mọi cờ (lệch bản gốc, mâu thuẫn chưa chốt, chờ định mức) và mọi dòng từ
+  chối phải nói lại với người dùng; BTKL là bản nháp, chưa áp định mức/đơn
+  giá.
 
 ### Một mặt chính hoặc từng cấu kiện — luồng cũ
 

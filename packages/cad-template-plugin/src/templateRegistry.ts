@@ -10,6 +10,7 @@ import {
   SEED_ROLE_LAYERS
 } from '@mlightcad/cad-template-sdk'
 
+import { btklTemplate } from './btkl/template'
 import {
   abutmentDossierLegacyTemplates,
   abutmentDossierTemplate
@@ -35,10 +36,14 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
  *
  * The source of all four is still in `@mlightcad/cad-template-cau-ban-btct`;
  * putting any back is one line in this list.
+ *
+ * The quantity take-off (`btkl_ket_cau`) is computed from the runs it lists,
+ * not drawn from a guessed outline, so it ships too.
  */
 const BUILT_IN: readonly AcTpTemplate[] = [
   abutmentDossierTemplate,
-  drawingFrameTemplate
+  drawingFrameTemplate,
+  btklTemplate
 ]
 
 /**

@@ -108,7 +108,7 @@ describe('recognising an uploaded module', () => {
 
 describe('the registry', () => {
   // Only the measured, explicitly draft dossier ships with the application.
-  const BUILT_IN_IDS: string[] = ['ho_so_mo_m1', 'khung_ban_ve']
+  const BUILT_IN_IDS: string[] = ['ho_so_mo_m1', 'khung_ban_ve', 'btkl_ket_cau']
 
   beforeEach(() => setRemoteTemplates([]))
 

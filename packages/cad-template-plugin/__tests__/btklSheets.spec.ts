@@ -1,9 +1,4 @@
-/**
- * BTKL B6 — the take-off drawn as A3 sheets.
- *
- * With BTKL_OUT=<dir> (set by `tools/fidelity/btkl-xuat.mjs`) it also writes
- * the M1 sheets as DXF and the window of each sheet for rendering.
- */
+/** BTKL B6 — the take-off drawn as A3 sheets. */
 jest.mock('../../cad-simple-viewer/src/editor/global/eventBus', () => ({
   eventBus: { emit: jest.fn() }
 }))
@@ -12,11 +7,7 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   ...jest.requireActual('../../cad-simple-viewer/src/util/AcApDatabaseEdit')
 }))
 
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-
 import {
-  acTpDxfOut,
   acTpEstimateTextWidth,
   readSemanticTag
 } from '@mlightcad/cad-template-sdk'
@@ -29,7 +20,6 @@ import {
   acTpBtklWrap,
   btklTemplate
 } from '../src/btkl'
-import { dossierDefaults } from '../src/dossier/model'
 import { entitiesOfRun } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
 
@@ -214,10 +204,20 @@ describe('BTKL template in a drawing', () => {
     db.createDefaultData()
     return db
   }
+  const values = (objects: unknown) => ({
+    doiTuong: JSON.stringify(objects),
+    congTrinh: 'Cầu Km0+400 — Tuyến số 2',
+    x: 0,
+    y: 0
+  })
 
   test('draws on _33_ layers in _33_Arial, one part per role and sheet', async () => {
     const db = database()
-    const made = await runTemplate(btklTemplate, dossierDefaults(), db)
+    const made = await runTemplate(
+      btklTemplate,
+      values([{ loai: 'mo', ten: 'M1', thay: {} }]),
+      db
+    )
     expect(made.errors).toEqual([])
     const entities = entitiesOfRun(db, made.runId!)
     expect(entities.length).toBeGreaterThan(200)
@@ -232,32 +232,57 @@ describe('BTKL template in a drawing', () => {
     )
     expect(new Set(table.map(t => t.styleName))).toEqual(new Set(['_33_Arial']))
     expect(entities.some(e => e instanceof AcDbLine)).toBe(true)
-    if (process.env.BTKL_OUT) {
-      const out = process.env.BTKL_OUT
-      mkdirSync(join(out, 'work'), { recursive: true })
-      writeFileSync(join(out, 'work', 'btkl.dxf'), acTpDxfOut(db, 6) as string)
-      const sheetsOf = acTpBtklSheets([acTpBtklMo()], { x: 0, y: 0 })
-      writeFileSync(
-        join(out, 'work', 'btkl-sheets.json'),
-        JSON.stringify(
-          sheetsOf.map(s => ({
-            id: s.id,
-            window: {
-              x0: s.origin[0],
-              y0: s.origin[1],
-              x1: s.origin[0] + s.width,
-              y1: s.origin[1] + s.height
-            }
-          }))
-        )
+    expect(
+      entities.some(
+        e =>
+          e instanceof AcDbText &&
+          e.textString ===
+            'Công trình: Cầu Km0+400 — Tuyến số 2 · Đối tượng: Mố M1'
       )
-    }
+    ).toBe(true)
   })
 
-  test('invalid parameters are refused before drawing', () => {
+  test('an abutment and a pier on one set of sheets', async () => {
+    const db = database()
+    const made = await runTemplate(
+      btklTemplate,
+      values([
+        { loai: 'mo', ten: 'M1', thay: {} },
+        { loai: 'tru', ten: 'Trụ T1', thay: { loaiThan: 'cot' } }
+      ]),
+      db
+    )
+    expect(made.errors).toEqual([])
+    const texts = entitiesOfRun(db, made.runId!)
+      .filter((e): e is AcDbText => e instanceof AcDbText)
+      .map(t => t.textString)
+    expect(texts).toEqual(expect.arrayContaining(['MỐ M1', 'TRỤ T1']))
+    expect(texts).toContain('Thân trụ — 2 cột tròn D1200')
+  })
+
+  test('the object list and every object are checked before drawing', () => {
+    const ok = values([{ loai: 'mo', ten: 'M1', thay: {} }])
+    expect(btklTemplate.validate!(ok)).toEqual([])
     expect(
-      btklTemplate.validate!({ ...dossierDefaults(), hBe: 'abc' })
-    ).not.toEqual([])
-    expect(btklTemplate.validate!(dossierDefaults())).toEqual([])
+      btklTemplate.validate!(
+        values([{ loai: 'mo', ten: 'M1', thay: { hBe: 'abc' } }])
+      ).length
+    ).toBeGreaterThan(0)
+    expect(
+      btklTemplate.validate!(
+        values([{ loai: 'tru', ten: 'Trụ T1', thay: { khong: 1 } }])
+      )
+    ).toEqual(['Trụ T1: Không có thông số trụ "khong".'])
+    expect(btklTemplate.validate!({ ...ok, doiTuong: '[' })).toEqual([
+      'Đối tượng: không đọc được JSON.'
+    ])
+    expect(btklTemplate.validate!({ ...ok, doiTuong: '[]' })).toEqual([
+      'Đối tượng: cần một danh sách mố/trụ, ít nhất một phần tử.'
+    ])
+    expect(
+      btklTemplate.validate!({ ...ok, doiTuong: '[{"loai":"cau"}]' })
+    ).toEqual([
+      'Đối tượng 1: cần {"loai":"mo"|"tru","ten":chuỗi,"thay":{tên → số/chuỗi}}.'
+    ])
   })
 })

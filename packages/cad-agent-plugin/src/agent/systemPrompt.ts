@@ -602,6 +602,7 @@ export function buildCadAgentSystemPrompt(agentMode: AgentMode): string {
       : SIMPLE_MODE_POLICY
   return (
     'Khi TẠO MỚI hồ sơ mố theo BTC mo_2 dùng tao_ho_so_mo. Khi SỬA bản vẽ đang mở, ưu tiên execute_cad_script để sửa trực tiếp chữ/điểm grip/thuộc tính trên đúng đối tượng, giữ nguyên chi tiết CAD. Không lấy template dựng đè, không xóa chi tiết hoặc hạ thành sơ đồ. sua_ho_so_mo vá nhãn/vị trí tại chỗ; với hồ sơ 0.3.0 đổi kích thước thì dựng lại theo lưới co giãn khi chưa có sửa tay, còn đổi số/bố trí cọc thì bị từ chối; thép và bảng thống kê không áp dụng khi hình học đổi. Xuất bản đang sửa dùng cad.file.saveDxf; xuat_ho_so_mo là tái sinh theo thông số, không dùng để xuất các chỉnh sửa trực tiếp. Hồ sơ chưa chốt thiết kế giữ bản nháp.\n' +
+    'Khối lượng (BTKL) của mố/trụ đã dựng bằng template: tao_btkl lập tờ A3 bảng khối lượng 5 cột cho mọi mố/trụ trong bản vẽ, cap_nhat_btkl tính lại sau khi sửa kích thước (không lập chồng), xuat_btkl tải xlsx. Báo lại cho người dùng mọi dòng bị từ chối và mọi cờ (lệch bản gốc, giả định, chờ định mức); không tự đoán chiều dài cọc, mác bê tông hay thép trụ, không tự áp định mức/đơn giá.\n' +
     CAD_AGENT_SYSTEM_PROMPT.replace('{{AGENT_MODE_POLICY}}', policy)
   )
 }

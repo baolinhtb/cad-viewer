@@ -20,6 +20,14 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     'kiem_tra_ho_so',
     'xuat_ho_so_mo'
   ].map(name => ({ name, description: `Hồ sơ mố: ${name}` })),
+  BTKL_TOOLS: ['tao_btkl', 'cap_nhat_btkl', 'xuat_btkl'].map(name => ({
+    name,
+    description: `BTKL: ${name}`
+  })),
+  runBtklTool: (name: string, input: unknown) => {
+    calls.push({ name, input })
+    return Promise.resolve({ ok: true, status: 'ready', message: 'BTKL' })
+  },
   runDossierTool: (name: string, input: unknown) => {
     calls.push({ name, input })
     return Promise.resolve({ ok: true, status: 'ready', message: 'bản nháp' })
@@ -194,6 +202,28 @@ describe('the tool set offered to the model', () => {
     expect(tools.chay_template.description).toContain('cau_ban_btct')
     // Ranges travel with it: a range the model can read is a lookup it can skip.
     expect(tools.chay_template.description).toContain('4–20 m')
+  })
+})
+
+describe('the quantity take-off tools', () => {
+  const tools = createCadTools() as unknown as Record<
+    string,
+    {
+      description: string
+      execute: (input: unknown, options?: unknown) => Promise<unknown>
+    }
+  >
+
+  test('are offered and reach the one implementation', async () => {
+    for (const name of ['tao_btkl', 'cap_nhat_btkl', 'xuat_btkl'])
+      expect(tools[name].description).toBe(`BTKL: ${name}`)
+    calls.length = 0
+    await tools.cap_nhat_btkl.execute({ ma_lan_chay: 'r3' })
+    await tools.xuat_btkl.execute({ dinh_dang: 'xlsx' })
+    expect(calls).toEqual([
+      { name: 'cap_nhat_btkl', input: { ma_lan_chay: 'r3' } },
+      { name: 'xuat_btkl', input: { dinh_dang: 'xlsx' } }
+    ])
   })
 })
 

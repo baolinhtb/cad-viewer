@@ -9,7 +9,12 @@ import {
   TEMPLATE_TOOLS,
   templateToolDescription
 } from '@mlightcad/cad-template-plugin'
-import { DOSSIER_TOOLS, runDossierTool } from '@mlightcad/cad-template-plugin'
+import {
+  BTKL_TOOLS,
+  DOSSIER_TOOLS,
+  runBtklTool,
+  runDossierTool
+} from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 // `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
 // handing it a v3-classic schema makes the checker relate the two model
@@ -191,6 +196,38 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
         })
         .strict(),
       execute: async input => runDossierTool('xuat_ho_so_mo', input)
+    }),
+    // Quantity take-off of the abutments and piers already in the drawing.
+    tao_btkl: tool({
+      description: BTKL_TOOLS.find(t => t.name === 'tao_btkl')!.description,
+      inputSchema: z
+        .object({
+          vi_tri: z.object({ x: z.number(), y: z.number() }).strict().optional()
+        })
+        .strict(),
+      execute: async input => {
+        await ready()
+        return runBtklTool('tao_btkl', input)
+      }
+    }),
+    cap_nhat_btkl: tool({
+      description: BTKL_TOOLS.find(t => t.name === 'cap_nhat_btkl')!
+        .description,
+      inputSchema: z.object({ ma_lan_chay: z.string().min(1) }).strict(),
+      execute: async input => {
+        await ready()
+        return runBtklTool('cap_nhat_btkl', input)
+      }
+    }),
+    xuat_btkl: tool({
+      description: BTKL_TOOLS.find(t => t.name === 'xuat_btkl')!.description,
+      inputSchema: z
+        .object({
+          ma_lan_chay: z.string().min(1).optional(),
+          dinh_dang: z.enum(['xlsx', 'json']).optional()
+        })
+        .strict(),
+      execute: async input => runBtklTool('xuat_btkl', input)
     }),
     // The semantic group comes first because it is what the model should reach
     // for first: the geometry tools below act on coordinates and object ids,
