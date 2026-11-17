@@ -35,7 +35,13 @@
  * - not logged in: exit 1, `is_error: true`, result "Not logged in · …";
  * - base64 image blocks in the stream-json user message are read as images;
  * - `--max-turns` is accepted (absent from `--help`, present in both builds);
- *   hitting it ends the run with `subtype: "error_max_turns"`.
+ *   hitting it ends the run with `subtype: "error_max_turns"`;
+ * - `--exclude-dynamic-system-prompt-sections` (2.1.326) is not usable here:
+ *   its own help says it "only applies with the default system prompt
+ *   (ignored with --system-prompt)", and this step always passes one, which
+ *   replaces the CLI's coding-agent prompt rather than adding to it. Nor is
+ *   `--bare`: it reads credentials strictly from ANTHROPIC_API_KEY, never the
+ *   OAuth token the deployment uses.
  *
  * Credentials (CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY) are passed to the
  * child only; stderr is never logged nor quoted in errors.
@@ -57,36 +63,54 @@ import { createInterface } from 'node:readline'
  * on the tool it had just chosen. A model that writes its arguments as a JSON
  * string is being sloppy, not wrong: {@link readStepAnswer} parses it here,
  * where the fix costs nothing.
+ *
+ * `toolNames` turns `tool.name` into an enum: the browser's list is the whole
+ * set of legal answers, and saying so in the schema is the one place the model
+ * cannot skim past. A name is still normalized by {@link normalizeToolName}
+ * afterwards, so a decoration the CLI lets through costs nothing either.
  */
-export const CLAUDE_STEP_SCHEMA = {
-  type: 'object',
-  properties: {
-    text: {
-      type: 'string',
-      description: 'Lời nói với người dùng ở bước này; có thể rỗng.'
+export function claudeStepSchema(toolNames = []) {
+  const names = toolNames.filter(name => typeof name === 'string' && name)
+  return {
+    type: 'object',
+    properties: {
+      text: {
+        type: 'string',
+        description: 'Lời nói với người dùng ở bước này; có thể rỗng.'
+      },
+      tool: {
+        anyOf: [
+          { type: 'null' },
+          {
+            type: 'object',
+            properties: {
+              name: names.length
+                ? {
+                    type: 'string',
+                    enum: [...names],
+                    description:
+                      'Tên công cụ, phải là một tên trong danh sách công cụ của trình duyệt.'
+                  }
+                : { type: 'string' },
+              input: { anyOf: [{ type: 'object' }, { type: 'string' }] }
+            },
+            required: ['name']
+          }
+        ]
+      }
     },
-    tool: {
-      anyOf: [
-        { type: 'null' },
-        {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            input: { anyOf: [{ type: 'object' }, { type: 'string' }] }
-          },
-          required: ['name']
-        }
-      ]
-    }
-  },
-  required: ['text', 'tool'],
-  additionalProperties: false
+    required: ['text', 'tool'],
+    additionalProperties: false
+  }
 }
+
+/** The schema without a tool list (shape only). */
+export const CLAUDE_STEP_SCHEMA = claudeStepSchema()
 
 const PROTOCOL = `
 # Giao thức cầu nối (bắt buộc)
 Bạn là MỘT bước suy luận của trợ lý CAD chạy trong trình duyệt. Bạn không chạy công cụ: trình duyệt chạy công cụ bạn chọn và gửi tool_result ở lượt sau.
-- Danh sách công cụ và lịch sử hội thoại nằm trong tin nhắn người dùng, dạng JSON. Tiếp tục từ cuối lịch sử; không lặp lại công cụ đã có tool_result.
+- Danh sách công cụ (JSON) và lịch sử hội thoại (văn bản) nằm trong tin nhắn người dùng. Lịch sử là BIÊN BẢN: "#n GỌI <công cụ> <input>" là công cụ bạn đã chọn, "#n KẾT QUẢ" là kết quả trình duyệt trả về. Tiếp tục từ cuối lịch sử; không lặp lại công cụ đã có kết quả.
 - Trả lời đúng structured output { "text": chuỗi, "tool": null | { "name": tên công cụ, "input": đối tượng } }.
 - Cần công cụ: chọn đúng MỘT công cụ có trong danh sách, "input" khớp input_schema của nó; "text" là câu ngắn nói việc sắp làm (có thể rỗng).
 - Xong việc hoặc cần hỏi người dùng: "tool" = null, "text" là câu trả lời.
@@ -154,7 +178,7 @@ export function claudeEnv(source = process.env) {
 const DEFAULT_MAX_TURNS = 4
 
 /** CLI arguments of one step. */
-export function claudeArgs({ system, systemFile, model, maxTurns }) {
+export function claudeArgs({ system, systemFile, model, maxTurns, toolNames }) {
   return [
     '-p',
     '--input-format',
@@ -172,35 +196,90 @@ export function claudeArgs({ system, systemFile, model, maxTurns }) {
     '',
     '--strict-mcp-config',
     '--json-schema',
-    JSON.stringify(CLAUDE_STEP_SCHEMA),
+    JSON.stringify(claudeStepSchema(toolNames)),
     '--max-turns',
     String(maxTurns || DEFAULT_MAX_TURNS),
     ...(model ? ['--model', model] : [])
   ]
 }
 
+/** How a message role is announced in the rendered history. */
+const ROLE_LABEL = { user: 'NGƯỜI DÙNG', assistant: 'TRỢ LÝ' }
+
 /**
- * The single stream-json user message: tools and history as JSON text,
- * images kept as Anthropic base64 blocks after it (referenced by number).
+ * The conversation so far, as plain text.
+ *
+ * The browser speaks Anthropic's format, so its history carries native
+ * `tool_use` / `tool_result` blocks. Handing that JSON to a CLI that has no
+ * CAD tools put 15–20 worked examples of exactly the forbidden calling style
+ * in front of the model, in its own voice, growing with every step — and the
+ * model followed the examples rather than the protocol: 16 of 27 steps on
+ * 17/11/2026 were refused mid-run, each costing an extra model call. Rendered
+ * as a record ("#3 GỌI …" / "#3 KẾT QUẢ: …") the same information says what
+ * happened without demonstrating how to ask, and the only calling convention
+ * left in the request is the structured output.
+ *
+ * Images stay Anthropic blocks: `onImage` takes one and returns its number,
+ * which the text refers to.
+ */
+export function renderHistory(messages, onImage) {
+  const numberOf = new Map()
+  const lines = []
+  let calls = 0
+  const plain = block => {
+    if (typeof block === 'string') return block
+    if (block?.type === 'text') return block.text ?? ''
+    if (block?.type === 'image') return `[Ảnh đính kèm ${onImage(block)}]`
+    // Anything else (a thinking block, a format this bridge has not met) is
+    // kept verbatim rather than dropped: losing history silently is worse.
+    return JSON.stringify(block)
+  }
+  for (const message of messages) {
+    const role =
+      ROLE_LABEL[message?.role] ?? String(message?.role ?? '').toUpperCase()
+    const content = Array.isArray(message?.content)
+      ? message.content
+      : [{ type: 'text', text: String(message?.content ?? '') }]
+    for (const block of content) {
+      if (block?.type === 'tool_use') {
+        const number = ++calls
+        if (block.id) numberOf.set(block.id, number)
+        lines.push(
+          `#${number} GỌI ${block.name} ${JSON.stringify(block.input ?? {})}`
+        )
+      } else if (block?.type === 'tool_result') {
+        const number = numberOf.get(block.tool_use_id)
+        const body = Array.isArray(block.content)
+          ? block.content.map(plain).join('\n')
+          : plain(block.content ?? '')
+        lines.push(
+          `#${number ?? '?'} KẾT QUẢ${block.is_error ? ' (LỖI)' : ''}: ${body}`
+        )
+      } else {
+        const text = plain(block)
+        if (text.trim()) lines.push(`${role}: ${text}`)
+      }
+    }
+  }
+  return lines.join('\n')
+}
+
+/**
+ * The single stream-json user message: the tool list as JSON, the history as
+ * text, images kept as Anthropic base64 blocks after it (referenced by number).
  */
 export function claudeInput(body, retryNote) {
   const images = []
-  const messages = body.messages.map(message => ({
-    ...message,
-    content: Array.isArray(message.content)
-      ? message.content.map(block => {
-          if (block?.type !== 'image') return block
-          const source = block.source
-          if (
-            source?.type !== 'base64' ||
-            !/^image\/(png|jpeg|webp|gif)$/.test(source.media_type)
-          )
-            throw new Error('Cầu nối Claude chỉ nhận ảnh đính kèm dạng base64.')
-          images.push({ type: 'image', source })
-          return { type: 'text', text: `[Ảnh đính kèm ${images.length}]` }
-        })
-      : message.content
-  }))
+  const history = renderHistory(body.messages, block => {
+    const source = block.source
+    if (
+      source?.type !== 'base64' ||
+      !/^image\/(png|jpeg|webp|gif)$/.test(source.media_type)
+    )
+      throw new Error('Cầu nối Claude chỉ nhận ảnh đính kèm dạng base64.')
+    images.push({ type: 'image', source })
+    return images.length
+  })
   const tools = (body.tools ?? []).map(t => ({
     name: t.name,
     description: t.description ?? '',
@@ -208,7 +287,11 @@ export function claudeInput(body, retryNote) {
   }))
   const text =
     `Công cụ có sẵn (JSON):\n${JSON.stringify(tools)}\n\n` +
-    `Lịch sử hội thoại (JSON${images.length ? `; ${images.length} ảnh đính kèm gửi theo thứ tự ngay sau` : ''}):\n${JSON.stringify(messages)}` +
+    'Lịch sử hội thoại (biên bản, không phải cách gọi công cụ: ' +
+    '"#n GỌI <công cụ> <input JSON>" là công cụ bạn đã chọn ở bước trước, ' +
+    '"#n KẾT QUẢ" là kết quả trình duyệt trả về' +
+    `${images.length ? `; ${images.length} ảnh đính kèm gửi theo thứ tự ngay sau` : ''}):\n` +
+    history +
     (retryNote ? `\n\n${retryNote}` : '')
   return (
     JSON.stringify({
@@ -579,7 +662,8 @@ export async function claudeMessage(
       system,
       systemFile,
       model: env.CAD_AGENT_CLAUDE_MODEL,
-      maxTurns: Number(env.CAD_AGENT_CLAUDE_MAX_TURNS) || undefined
+      maxTurns: Number(env.CAD_AGENT_CLAUDE_MAX_TURNS) || undefined,
+      toolNames
     })
     const childEnv = claudeEnv(env)
     const usage = { input_tokens: 0, output_tokens: 0 }
