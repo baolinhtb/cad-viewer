@@ -421,11 +421,13 @@ export function buildDossierScene(
       path(
         s,
         'lan_can',
+        // One profile, mirrored per side so the 150 bevel faces the road
+        // on both rails (it used to face outward on the left one).
         [
-          [cx + x - 250, y],
-          [cx + x + 250, y],
-          [cx + x + 150, y + n('hLanCan')],
-          [cx + x - 100, y + n('hLanCan')]
+          [cx + x - 250 * side, y],
+          [cx + x + 250 * side, y],
+          [cx + x + 150 * side, y + n('hLanCan')],
+          [cx + x - 100 * side, y + n('hLanCan')]
         ],
         true
       )
