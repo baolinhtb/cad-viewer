@@ -40,6 +40,18 @@ Biến môi trường:
 | `CLAUDE_CODE_OAUTH_TOKEN`     | —                  | token đăng nhập, nạp từ `/etc/cad-agent/claude.env`  |
 | `CAD_AGENT_CLAUDE_MODEL`      | (mặc định của CLI) | ví dụ `claude-opus-5-5`                              |
 | `CAD_AGENT_CLAUDE_TIMEOUT_MS` | `600000`           | quá hạn thì huỷ tiến trình và báo lỗi                |
+| `CAD_AGENT_CLAUDE_MAX_TURNS`  | `4`                | trần số lượt của một lần chạy CLI (`--max-turns`)    |
+
+Mỗi bước ghi một dòng chẩn đoán ra stdout của service (xem bằng `journalctl -u cad-codex-bridge -f`):
+
+```
+{"tag":"cad-agent-step","luot":2,"ket_qua":"ok","cong_cu":"tao_ho_so_mo",
+ "buoc":[{"luot":1,"turns":4,"ms":8100,"tu_choi":[{"ten":"tao_ho_so_mo","goc":true,"ly_do":"cong_cu_khong_co"}],"dap_an":"ok","chon":"chay_template","bo_cong_cu":["tao_ho_so_mo"]},
+         {"luot":2,"turns":2,"ms":6400,"dap_an":"ok","chon":"tao_ho_so_mo"}],
+ "tong":{"input_tokens":100319,"output_tokens":639}}
+```
+
+Dòng này chỉ có số đếm, mã lỗi và tên công cụ do trình duyệt gửi lên — không có nội dung người dùng, bản vẽ hay token; tên công cụ mô hình bịa ra ghi là `<lạ>`. `tu_choi` là những lần CLI từ chối ngay trong một lần chạy (`cong_cu_khong_co` = mô hình gọi thẳng tool gốc, `sai_schema` = structured output sai định dạng); `bo_cong_cu` là khi mô hình vì thế mà bỏ một công cụ CÓ trong danh sách — bước đó được chạy lại kèm lời nhắc rằng công cụ vẫn dùng được.
 
 Vận hành (systemd `cad-codex-bridge`, xem `cad-codex-bridge.service`):
 
@@ -49,7 +61,7 @@ Vận hành (systemd `cad-codex-bridge`, xem `cad-codex-bridge.service`):
 
 Rollback về Codex: thêm `CAD_AGENT_BACKEND=codex` vào `/etc/cad-codex-bridge.env` (tệp này ghi đè các dòng `Environment=`), rồi `systemctl restart cad-codex-bridge`; `/health` trả `"provider":"codex-cli"`. Bỏ dòng đó để quay lại Claude.
 
-Đã kiểm thật với claude 2.1.325: `--input-format stream-json` bắt buộc đi với `--output-format stream-json`; kết quả nằm ở `structured_output` của sự kiện `result`; chưa đăng nhập thì thoát mã 1 với `is_error: true`. System prompt lớn hơn 100 KB được ghi ra tệp và truyền bằng `--system-prompt-file` (cờ này chạy được trên 2.1.325 nhưng không có trong `--help`; kiểm lại trên bản của server nếu prompt lớn).
+Đã kiểm thật với claude 2.1.290 và 2.1.326: `--input-format stream-json` bắt buộc đi với `--output-format stream-json`; kết quả nằm ở `structured_output` của sự kiện `result`; chưa đăng nhập thì thoát mã 1 với `is_error: true`. `--max-turns` cũng không có trong `--help` nhưng được chấp nhận (cờ lạ bị báo `unknown option`); chạm trần thì `result` có `subtype: "error_max_turns"` và bước được chạy lại một lần. System prompt lớn hơn 100 KB được ghi ra tệp và truyền bằng `--system-prompt-file` (cờ này chạy được trên 2.1.325 nhưng không có trong `--help`; kiểm lại trên bản của server nếu prompt lớn).
 
 Kiểm thử adapter: `node --test --test-isolation=none tools/codex-cad/bridge.test.mjs server/auth/ai.test.mjs`. Riêng bridge: `node --test 'tools/codex-cad/*.test.mjs'` (Node 24 không nhận đường dẫn thư mục cho `--test`).
 

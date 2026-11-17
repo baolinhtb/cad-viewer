@@ -262,6 +262,24 @@ export async function runTemplateTool(
     }
   }
 
+  // The abutment dossier has a tool of its own, and the difference is not
+  // cosmetic: `tao_ho_so_mo` refuses a second dossier for an abutment that
+  // already has one, reports whether the sheets came out as the source
+  // drawing's detail or as a schematic, and refreshes the view. Run through
+  // here, the same template draws without any of that — which is how an
+  // engineer who asked for M1 got a 474-object schematic described as a
+  // dossier, with nothing in the answer saying the detail had been dropped.
+  if (id === DOSSIER_ID) {
+    return {
+      ok: false,
+      status: 'refused',
+      message:
+        `Hồ sơ mố "${DOSSIER_ID}" dựng bằng tao_ho_so_mo, không bằng chay_template ` +
+        '(tao_ho_so_mo kiểm trùng tên mố, báo mức độ chi tiết và làm tươi khung nhìn). ' +
+        'Hồ sơ đã có thì sửa bằng sua_ho_so_mo với mã lần chạy.'
+    }
+  }
+
   const template = findTemplate(id)
   if (!template) {
     // Naming the alternatives matters: a model that invented an id will invent

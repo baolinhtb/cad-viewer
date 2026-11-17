@@ -11,7 +11,12 @@ import {
   createBridge,
   selectBackend
 } from './bridge.mjs'
-import { claudeMessage } from './claude-step.mjs'
+import {
+  claudeArgs,
+  claudeMessage,
+  normalizeToolName,
+  readStepAnswer
+} from './claude-step.mjs'
 
 test('a CAD tool request is returned to the browser without server execution', async () => {
   let closed = false
@@ -546,4 +551,259 @@ test('busy message names the backend, not Codex', async () => {
   } finally {
     await new Promise(resolve => server.close(resolve))
   }
+})
+
+/** One CLI run in which the model reached for `name` and the CLI refused it. */
+const refusedRun = (name, said, answer, extra = {}) => ({
+  events: [
+    {
+      type: 'assistant',
+      message: {
+        content: [
+          name === 'StructuredOutput'
+            ? {
+                type: 'tool_use',
+                id: 'call_1',
+                name: 'StructuredOutput',
+                input: { text: '', tool: { name: extra.meant, input: 'x' } }
+              }
+            : { type: 'tool_use', id: 'call_1', name, input: {} }
+        ]
+      }
+    },
+    {
+      type: 'user',
+      message: {
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'call_1',
+            is_error: true,
+            content: said
+          }
+        ]
+      }
+    },
+    resultEvent(answer, { num_turns: 4 })
+  ]
+})
+
+test('claude: a decorated tool name and a stringified input are read, not refused', () => {
+  assert.equal(normalizeToolName(' functions.tao_btkl '), 'tao_btkl')
+  assert.equal(normalizeToolName('`default_api.xuat_btkl`'), 'xuat_btkl')
+  const names = ['tao_btkl', 'xuat_btkl']
+  assert.deepEqual(
+    readStepAnswer(
+      {
+        structured_output: {
+          text: 'ok',
+          tool: {
+            name: 'functions.tao_btkl',
+            input: '{"vi_tri":{"x":1,"y":2}}'
+          }
+        }
+      },
+      names
+    ),
+    {
+      text: 'ok',
+      tool: { name: 'tao_btkl', input: { vi_tri: { x: 1, y: 2 } } }
+    }
+  )
+  // A missing input is an empty one; a string that is not JSON still refuses,
+  // and the refusal carries a code for the log.
+  assert.deepEqual(
+    readStepAnswer(
+      { structured_output: { text: '', tool: { name: 'tao_btkl' } } },
+      names
+    ),
+    { text: '', tool: { name: 'tao_btkl', input: {} } }
+  )
+  const bad = readStepAnswer(
+    {
+      structured_output: {
+        text: '',
+        tool: { name: 'tao_btkl', input: 'xin chào' }
+      }
+    },
+    names
+  )
+  assert.equal(bad.code, 'sai_input')
+  assert.equal(bad.name, 'tao_btkl')
+  // The turn cap travels with every run.
+  assert.equal(
+    claudeArgs({ system: 's' })[
+      claudeArgs({ system: 's' }).indexOf('--max-turns') + 1
+    ],
+    '4'
+  )
+})
+
+test('claude: a tool the CLI refused mid-run is not allowed to look banned', async () => {
+  // The 17/11/2026 incident: the CLI answers "No such tool available" to a
+  // tool the browser does offer, and the model quietly switches to another one.
+  const { spawn, calls } = fakeSpawn([
+    refusedRun(
+      'tao_btkl',
+      '<tool_use_error>Error: No such tool available: tao_btkl</tool_use_error>',
+      {
+        text: 'Công cụ tao_btkl không dùng được trong phiên này, tôi dùng xuat_btkl.',
+        tool: { name: 'xuat_btkl', input: {} }
+      }
+    ),
+    {
+      events: [resultEvent({ text: '', tool: { name: 'tao_btkl', input: {} } })]
+    }
+  ])
+  const lines = []
+  const result = await claudeMessage(
+    { messages: [{ role: 'user', content: 'Lập BTKL' }], tools: TOOLS },
+    { spawn, env: ENV, log: line => lines.push(line) }
+  )
+  assert.equal(calls.length, 2)
+  const note = firstUserMessage(calls[1]).content[0].text
+  assert.match(note, /"tao_btkl" CÓ trong danh sách và dùng được/)
+  assert.match(note, /KHÔNG phải công cụ bị cấm/)
+  assert.equal(result.content[0].name, 'tao_btkl')
+  const entry = JSON.parse(lines.at(-1))
+  assert.equal(entry.tag, 'cad-agent-step')
+  assert.equal(entry.cong_cu, 'tao_btkl')
+  assert.deepEqual(entry.buoc[0].tu_choi, [
+    { ten: 'tao_btkl', goc: true, ly_do: 'cong_cu_khong_co' }
+  ])
+  assert.deepEqual(entry.buoc[0].bo_cong_cu, ['tao_btkl'])
+  assert.equal(entry.buoc[0].turns, 4)
+})
+
+test('claude: a schema refusal does not move the model off its tool either', async () => {
+  const { spawn, calls } = fakeSpawn([
+    refusedRun(
+      'StructuredOutput',
+      'Output does not match required schema: /tool/input: must be object',
+      { text: 'Không dùng được, tôi dừng.', tool: null },
+      { meant: 'tao_btkl' }
+    ),
+    {
+      events: [resultEvent({ text: '', tool: { name: 'tao_btkl', input: {} } })]
+    }
+  ])
+  const result = await claudeMessage(
+    { messages: [{ role: 'user', content: 'Lập BTKL' }], tools: TOOLS },
+    { spawn, env: ENV, log: null }
+  )
+  assert.equal(calls.length, 2)
+  assert.match(
+    firstUserMessage(calls[1]).content[0].text,
+    /lỗi kênh gọi\/định dạng/
+  )
+  assert.equal(result.content[0].name, 'tao_btkl')
+})
+
+test('claude: keeping the refused tool is not retried, and an unknown name is not logged', async () => {
+  // The model stood its ground: one run, no second model call.
+  const kept = fakeSpawn([
+    refusedRun(
+      'tao_btkl',
+      '<tool_use_error>Error: No such tool available: tao_btkl</tool_use_error>',
+      { text: '', tool: { name: 'tao_btkl', input: {} } }
+    )
+  ])
+  const lines = []
+  await claudeMessage(
+    { messages: [{ role: 'user', content: 'Lập BTKL' }], tools: TOOLS },
+    { spawn: kept.spawn, env: ENV, log: line => lines.push(line) }
+  )
+  assert.equal(kept.calls.length, 1)
+  assert.equal(JSON.parse(lines.at(-1)).ket_qua, 'ok')
+
+  // A name the model invented is counted, never printed.
+  const invented = fakeSpawn([
+    refusedRun(
+      'rm_rf_everything',
+      '<tool_use_error>Error: No such tool available: rm_rf_everything</tool_use_error>',
+      { text: '', tool: { name: 'tao_btkl', input: {} } }
+    )
+  ])
+  const quiet = []
+  await claudeMessage(
+    { messages: [{ role: 'user', content: 'Lập BTKL' }], tools: TOOLS },
+    { spawn: invented.spawn, env: ENV, log: line => quiet.push(line) }
+  )
+  assert.equal(invented.calls.length, 1)
+  assert.doesNotMatch(quiet.at(-1), /rm_rf_everything/)
+  assert.match(quiet.at(-1), /<lạ>/)
+})
+
+test('claude: the turn cap ends a run that is retried, not the whole step', async () => {
+  const { spawn, calls } = fakeSpawn([
+    {
+      events: [
+        {
+          type: 'result',
+          subtype: 'error_max_turns',
+          is_error: true,
+          result: 'Reached max turns',
+          num_turns: 4,
+          usage: { input_tokens: 7, output_tokens: 3 }
+        }
+      ],
+      code: 1
+    },
+    { events: [resultEvent({ text: 'Xong.', tool: null })] }
+  ])
+  const lines = []
+  const result = await claudeMessage(
+    { messages: [{ role: 'user', content: 'Lập BTKL' }], tools: TOOLS },
+    { spawn, env: ENV, log: line => lines.push(line) }
+  )
+  assert.equal(calls.length, 2)
+  assert.match(
+    firstUserMessage(calls[1]).content[0].text,
+    /chạm giới hạn số lượt/
+  )
+  assert.deepEqual(result.content, [{ type: 'text', text: 'Xong.' }])
+  assert.equal(JSON.parse(lines.at(-1)).buoc[0].het_luot, true)
+})
+
+test('claude: the diagnostic line carries no prompt, no drawing and no token', async () => {
+  const { spawn } = fakeSpawn([
+    {
+      events: [
+        resultEvent({
+          text: 'Mố M1 nằm ở lý trình bí mật.',
+          tool: { name: 'tao_btkl', input: { vi_tri: { x: 123456, y: 7 } } }
+        })
+      ]
+    }
+  ])
+  const lines = []
+  await claudeMessage(
+    {
+      system: [{ type: 'text', text: 'NỀN CHUẨN HÓA CỦA CÔNG TY' }],
+      messages: [{ role: 'user', content: 'Dựng mố cho cầu BÍ MẬT' }],
+      tools: TOOLS
+    },
+    { spawn, env: ENV, log: line => lines.push(line) }
+  )
+  assert.equal(lines.length, 1)
+  const line = lines[0]
+  for (const leak of [
+    'BÍ MẬT',
+    'NỀN CHUẨN HÓA',
+    'sk-ant',
+    '123456',
+    'lý trình'
+  ])
+    assert.doesNotMatch(line, new RegExp(leak))
+  const entry = JSON.parse(line)
+  assert.deepEqual(Object.keys(entry).sort(), [
+    'buoc',
+    'cong_cu',
+    'ket_qua',
+    'luot',
+    'tag',
+    'tong'
+  ])
+  assert.equal(entry.cong_cu, 'tao_btkl')
+  assert.deepEqual(entry.tong, { input_tokens: 103, output_tokens: 40 })
 })

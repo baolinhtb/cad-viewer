@@ -164,6 +164,24 @@ describe('chay_template', () => {
     expect(outcome.message).toContain(template.meta.id)
   })
 
+  test('the abutment dossier is sent to its own tool, and nothing is drawn', async () => {
+    // Run through chay_template the dossier draws without the duplicate-name
+    // check, without the detail-mode report and without the view refresh — the
+    // path that handed an engineer a schematic called a dossier on 17/11/2026.
+    const database = newDatabase()
+    const drawn = () => [...database.tables.blockTable.modelSpace.newIterator()]
+    const before = drawn().length
+    const outcome = await runTemplateTool(
+      'chay_template',
+      { ma_template: 'ho_so_mo_m1' },
+      database
+    )
+    expect(outcome.ok).toBe(false)
+    expect(outcome.message).toContain('tao_ho_so_mo')
+    expect(outcome.message).toContain('sua_ho_so_mo')
+    expect(drawn().length).toBe(before)
+  })
+
   test('an unknown tool name is refused by name', async () => {
     const outcome = await runTemplateTool('ve_cai_gi_do', {}, newDatabase())
     expect(outcome.ok).toBe(false)
