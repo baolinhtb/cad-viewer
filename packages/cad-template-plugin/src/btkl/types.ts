@@ -45,6 +45,11 @@ export interface AcTpBtklItem {
   /** The source table's value for this line, when it has one. */
   banGoc?: number
   flags?: AcTpBtklFlag[]
+  /**
+   * Parameters this line depends on: it is compared with, or copied from,
+   * the source table only while all of them keep the M1 value.
+   */
+  phuThuoc?: string[]
   /** Stable key for tests and tools. */
   key: string
 }

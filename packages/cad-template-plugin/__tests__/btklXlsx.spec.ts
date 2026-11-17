@@ -200,7 +200,7 @@ describe('BTKL workbook — M1', () => {
       '7,7 × 1,5 × 4,717 (chiều cao tại tim = trung bình theo dốc ngang) · Bảng gốc 53,667, chênh +0,814 · ⚑ Bảng gốc ghi 53,667 m³, nhỏ hơn hình học 0,814 m³ (1,5 %); chưa giải thích được — đang chờ kỹ sư xác nhận.'
     )
     expect(by('coc')).toBe(
-      'Không tính: Chưa có chiều dài cọc (lCoc = 0); bản gốc cũng không thống kê cọc.'
+      'Không tính: Chưa có chiều dài cọc (lCoc = 0); bản gốc M1 cũng không thống kê cọc. Nhập lCoc (mm, chiều dài một cọc theo hồ sơ địa chất) qua sua_ho_so_mo hoặc cap_nhat_btkl rồi chạy lại — không làm đổi hình vẽ; sẽ tính 4 × π × 1,2²/4 × lCoc.'
     )
     expect(by('thep_le18')).toBe(
       'Theo nhóm đường kính (định mức gia công) · Không cộng vào tổng (đã có trong các dòng theo đường kính)'
@@ -231,13 +231,21 @@ describe('BTKL workbook — M1', () => {
   })
 
   test('refused steel leaves a one-line steel sheet with the reason', () => {
-    const p = unzip(acTpBtklWorkbook([acTpBtklMo({ hBe: 2500 })]))
+    const p = unzip(acTpBtklWorkbook([acTpBtklMo({ thepF3: 'D25' })]))
     const s = cells(p.get('xl/worksheets/sheet2.xml')!)
     expect(s.get('A4')!.v).toBe(
-      'Không có bảng thép: Hình học hoặc cấu tạo thép đã khác mẫu M1: không dùng bảng thép cũ; cần phương án thép mới.'
+      'Không có bảng thép: Cấu tạo thép đã khác mẫu M1 (F3 D25 hoặc W16 D14): không dùng bảng thép cũ; cần phương án thép mới.'
     )
     expect(p.get('xl/worksheets/sheet2.xml')).toContain(
       '<mergeCell ref="A4:K4"/>'
+    )
+  })
+
+  test('estimated steel says there is no bar list, and gives the estimate', () => {
+    const p = unzip(acTpBtklWorkbook([acTpBtklMo({ hBe: 2500 })]))
+    const s = cells(p.get('xl/worksheets/sheet2.xml')!)
+    expect(s.get('A4')!.v).toMatch(
+      /^Không có bảng thép: chưa có bố trí từng thanh cho hình học này; Cốt thép \(tạm tính theo hàm lượng mẫu M1\) = [\d ]+,\d+ kg/
     )
   })
 

@@ -131,11 +131,18 @@ describe('BTKL tools — abutment M1', () => {
       )
     ).toEqual([{ loai: 'mo', ten: 'M1', ma: 'r1', thay: { hBe: 2500 } }])
     const now = tong(refreshed)[0]
-    expect(now.beTongM3).toBeNull()
-    expect(now.thepKg).toBeNull()
-    expect(now.tuChoi).toEqual(
+    // Only the footing changed: the concrete total follows it, the steel is
+    // estimated from the M1 ratios, and only the piles are still refused.
+    expect(now.beTongM3).toBe(210.116)
+    expect(now.thepKg).toBeGreaterThan(14058.319)
+    expect(now.tuChoi).toEqual([
+      expect.stringMatching(
+        /^3 Bê tông cọc khoan nhồi D1200: Chưa có chiều dài cọc/
+      )
+    ])
+    expect(now.co).toEqual(
       expect.arrayContaining([
-        '6 Cốt thép: Hình học hoặc cấu tạo thép đã khác mẫu M1: không dùng bảng thép cũ; cần phương án thép mới.'
+        expect.stringMatching(/^6 \[thep_tam_tinh_ham_luong\]/)
       ])
     )
     expect((refreshed.data as { truoc: Tong[] }).truoc[0].beTongM3).toBe(
