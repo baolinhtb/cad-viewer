@@ -1,0 +1,4 @@
+---
+---
+
+Safer AI edits of a dossier. Every `execute_cad_script` result now carries an `audit` (entities erased/changed/created, layers and template runs touched), and the server logs each script with that audit in a new `ai_script_runs` table (migration v11, additive). `tx.erase` refuses entities that belong to a template run unless the script input sets `choPhepXoaHoSo: true`, and each script of an AI turn is its own named undo step. A dimension change through `sua_ho_so_mo` keeps the three steel sheets and the SUB-100 tables as M1, marked "not updated", and adds the parametric take-off to SUB-100 instead of blanking them; a regeneration that would drop more than 10 % of the dossier asks for `xac_nhan_bo_doi_tuong` first. The 0.2.0 schematic's parapets are now mirror images, the bevel facing the road on both sides.

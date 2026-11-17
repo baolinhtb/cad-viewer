@@ -66,6 +66,7 @@ export const agentZh = {
   unsavedSettings: '请先保存设置后再发送消息。',
   missingApiKey: '请先在设置中配置 API Key 后再发送消息。',
   turnUndoLabelFallback: 'AI 命令',
+  scriptUndoLabel: 'AI 脚本',
   providerProxy: '本部署（推荐）',
   toolFailed: '工具运行出错，结果未知',
   agentModeCompact: '精简',

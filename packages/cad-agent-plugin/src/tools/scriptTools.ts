@@ -2,9 +2,21 @@ import {
   createCadToolCatalog,
   type ToolResult
 } from '@mlightcad/cad-agent-core'
+import { readSemanticTag } from '@mlightcad/cad-template-sdk'
+import type { AcDbEntity } from '@mlightcad/data-model'
 import { type Schema, tool } from 'ai'
 
 import type { AgentMode } from '../storage/AgentModeStore'
+
+/**
+ * The template run an entity belongs to, as `<template> <run>` — what the
+ * script runtime's erase guard refuses and its audit lists. Entities no
+ * template drew (imported DWG, strokes drawn by the assistant) have none.
+ */
+export function scriptEntityOwner(entity: AcDbEntity): string | undefined {
+  const tag = readSemanticTag(entity)
+  return tag?.run ? `${tag.templateId} ${tag.run.id}` : undefined
+}
 
 /** Options for {@link createCadScriptTools}. */
 export interface CreateCadScriptToolsOptions {
@@ -13,6 +25,15 @@ export interface CreateCadScriptToolsOptions {
    * model. Simple mode disables both; high-inference keeps them enabled.
    */
   agentMode?: AgentMode
+  /**
+   * Runs one `execute_cad_script` call as an undo step of its own (see
+   * `withScriptUndoStep`). Injected by the agent rather than imported here so
+   * this module stays free of the viewer.
+   */
+  scriptUndoStep?: (
+    intent: string | undefined,
+    run: () => Promise<ToolResult>
+  ) => Promise<ToolResult>
 }
 
 /**
@@ -89,6 +110,11 @@ function toCadToolModelOutput(output: unknown, attachPreviewImages: boolean) {
   return { type: 'content' as const, value: content }
 }
 
+function intentOf(input: unknown): string | undefined {
+  const intent = (input as { intent?: unknown } | null)?.intent
+  return typeof intent === 'string' && intent.trim() ? intent : undefined
+}
+
 /**
  * Creates the tool set exposed to the CAD agent LLM.
  *
@@ -104,7 +130,10 @@ export function createCadScriptTools(
 ) {
   const allowPreviewCapture = options.agentMode === 'high-inference'
   return Object.fromEntries(
-    createCadToolCatalog(undefined, { allowPreviewCapture }).map(entry => [
+    createCadToolCatalog(undefined, {
+      allowPreviewCapture,
+      entityOwner: scriptEntityOwner
+    }).map(entry => [
       entry.name,
       // Pin OUTPUT so `toModelOutput` is checked against ToolResult. The
       // schema is cast to the AI SDK's own `Schema` type: letting TS compare
@@ -113,7 +142,12 @@ export function createCadScriptTools(
       tool<unknown, ToolResult>({
         description: entry.description,
         inputSchema: entry.inputSchema as unknown as Schema<unknown>,
-        execute: async (input: unknown) => entry.execute(input),
+        execute: async (input: unknown) =>
+          entry.name === 'execute_cad_script' && options.scriptUndoStep
+            ? options.scriptUndoStep(intentOf(input), () =>
+                entry.execute(input)
+              )
+            : entry.execute(input),
         // AI SDK v5 passes the raw execute() result here, not `{ output }`;
         // destructuring it sends `null` to the model (see cadTools.spec.ts).
         toModelOutput: (output: ToolResult) =>

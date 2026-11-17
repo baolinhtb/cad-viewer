@@ -71,6 +71,7 @@ export const agentEn = {
   unsavedSettings: 'Save settings before sending messages.',
   missingApiKey: 'Configure an API key in settings before sending messages.',
   turnUndoLabelFallback: 'AI command',
+  scriptUndoLabel: 'AI script',
   providerProxy: 'This deployment (recommended)',
   toolFailed: 'the tool failed; outcome unknown',
   agentModeCompact: 'Compact',

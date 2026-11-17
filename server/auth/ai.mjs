@@ -414,7 +414,7 @@ export async function sendToProvider(
     response.ok && wantsStream ? null : await response.json().catch(() => ({}))
 
   if (!response.ok) {
-    recordCall(db, {
+    const failedId = recordCall(db, {
       userId: user.id,
       drawingId: body.drawingId ?? null,
       command: body.command ?? '',
@@ -422,6 +422,7 @@ export async function sendToProvider(
       usage: {},
       errorCode: result?.error?.type ?? `http_${response.status}`
     })
+    recordScriptRuns(db, user.id, body, failedId)
     throw new AiError(
       ERRORS.UPSTREAM,
       {
@@ -443,6 +444,7 @@ export async function sendToProvider(
       model,
       usage: {}
     })
+    recordScriptRuns(db, user.id, body, callId)
 
     return {
       callId,
@@ -460,6 +462,7 @@ export async function sendToProvider(
     model,
     usage: result.usage ?? {}
   })
+  recordScriptRuns(db, user.id, body, callId)
 
   return { callId, standardsHash: standards.hash, body: result }
 }
@@ -559,6 +562,141 @@ export function recordCall(db, entry) {
       entry.errorCode ?? null
     )
   return Number(result.lastInsertRowid)
+}
+
+/** Longest script kept in `ai_script_runs.code`; the rest is cut. */
+export const MAX_LOGGED_SCRIPT_CHARS = 20_000
+
+/** Text of a `tool_result` block, whatever shape the SDK gave it. */
+function toolResultText(block) {
+  if (typeof block.content === 'string') return block.content
+  if (Array.isArray(block.content))
+    return block.content
+      .filter(part => part?.type === 'text' && typeof part.text === 'string')
+      .map(part => part.text)
+      .join('')
+  return ''
+}
+
+/**
+ * The `execute_cad_script` runs a request reports for the first time.
+ *
+ * A step's request carries the whole history, but only its last message is
+ * new: the results of the tools the previous answer called. Each result is
+ * paired with its call in the assistant message just before it, which holds
+ * the script itself. The result is the JSON `ToolResult` the browser returned;
+ * its `audit` says what the script changed. A result that is not that JSON
+ * (an older browser) still logs the script, with the outcome left empty.
+ */
+export function scriptRunsOf(messages) {
+  if (!Array.isArray(messages) || messages.length < 2) return []
+  const last = messages[messages.length - 1]
+  const previous = messages[messages.length - 2]
+  if (last?.role !== 'user' || previous?.role !== 'assistant') return []
+  if (!Array.isArray(last.content) || !Array.isArray(previous.content))
+    return []
+  const calls = new Map(
+    previous.content
+      .filter(
+        block =>
+          block?.type === 'tool_use' &&
+          block.name === 'execute_cad_script' &&
+          typeof block.id === 'string' &&
+          typeof block.input?.code === 'string'
+      )
+      .map(block => [block.id, block.input])
+  )
+  const runs = []
+  for (const block of last.content) {
+    if (block?.type !== 'tool_result' || !calls.has(block.tool_use_id)) continue
+    const input = calls.get(block.tool_use_id)
+    let result
+    try {
+      result = JSON.parse(toolResultText(block))
+    } catch {
+      result = undefined
+    }
+    const audit =
+      result && typeof result.audit === 'object' && result.audit
+        ? result.audit
+        : undefined
+    const count = v => (Number.isInteger(v) && v >= 0 ? v : null)
+    const names = v =>
+      Array.isArray(v)
+        ? JSON.stringify(v.filter(x => typeof x === 'string').slice(0, 200))
+        : null
+    runs.push({
+      toolUseId: block.tool_use_id,
+      intent:
+        typeof input.intent === 'string' ? input.intent.slice(0, 200) : null,
+      code: input.code.slice(0, MAX_LOGGED_SCRIPT_CHARS),
+      codeChars: input.code.length,
+      allowErase: input.choPhepXoaHoSo === true,
+      success:
+        typeof result?.success === 'boolean'
+          ? result.success
+          : block.is_error
+            ? false
+            : null,
+      // The machine code before any explanation ("erase_blocked_template_run").
+      errorCode:
+        typeof result?.error === 'string'
+          ? result.error.split(/[:\s]/, 1)[0].slice(0, 80)
+          : null,
+      erased: count(audit?.erased),
+      modified: count(audit?.modified),
+      created: count(audit?.created),
+      blockedErase: count(audit?.blockedErase),
+      layers: names(audit?.layers),
+      runs: names(audit?.runs)
+    })
+  }
+  return runs
+}
+
+/**
+ * Logs the scripts a request reports. Never fails the request: the log is
+ * evidence, not a gate.
+ *
+ * @returns How many rows were written.
+ */
+export function recordScriptRuns(db, userId, body, callId) {
+  try {
+    const insert = db.prepare(
+      `INSERT OR IGNORE INTO ai_script_runs
+         (call_id, user_id, drawing_id, tool_use_id, intent, code, code_chars,
+          allow_erase, success, error_code, erased, modified, created,
+          blocked_erase, layers, runs)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    let written = 0
+    for (const run of scriptRunsOf(body?.messages))
+      written += insert.run(
+        callId ?? null,
+        userId,
+        body.drawingId ?? null,
+        run.toolUseId,
+        run.intent,
+        run.code,
+        run.codeChars,
+        run.allowErase ? 1 : 0,
+        run.success === null ? null : run.success ? 1 : 0,
+        run.errorCode,
+        run.erased,
+        run.modified,
+        run.created,
+        run.blockedErase,
+        run.layers,
+        run.runs
+      ).changes
+    return written
+  } catch (error) {
+    console.error(
+      '[ai] could not log script runs:',
+      error instanceof Error ? error.message : String(error)
+    )
+    return 0
+  }
 }
 
 /**

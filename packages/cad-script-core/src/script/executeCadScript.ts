@@ -1,8 +1,11 @@
+import type { AcDbEntity } from '@mlightcad/data-model'
+
 import { DRAWING_PREVIEW_LONG_SIDE_PX } from '../preview/types'
 import type { CadSession } from '../session/CadSession'
 import { requireDocument } from '../session/documentAccess'
 import type { ToolResult, ToolResultImage } from '../tools/types'
 import {
+  CadScriptAuditTracker,
   type CadScriptEffects,
   type CadScriptLimits,
   createCadScriptHost,
@@ -55,6 +58,23 @@ export interface CadScriptRunOptions {
    * previews regardless of this flag.
    */
   fulfillPreviews?: boolean
+  /**
+   * Names the template run an entity belongs to. `tx.erase` refuses such
+   * entities unless the script input sets `choPhepXoaHoSo: true`, and the
+   * result's `audit.runs` lists every run the script touched.
+   */
+  entityOwner?: (entity: AcDbEntity) => string | undefined
+}
+
+/** Input of `execute_cad_script`. */
+export interface CadScriptInput {
+  code: string
+  intent?: string
+  /**
+   * The user explicitly asked to delete entities that belong to a template
+   * run (a dossier sheet, a generated part). Without it `tx.erase` refuses them.
+   */
+  choPhepXoaHoSo?: boolean
 }
 
 /**
@@ -70,7 +90,7 @@ export interface CadScriptRunOptions {
  * @returns A {@link ToolResult}. Write scripts that time out do not commit.
  */
 export async function executeCadScript(
-  input: { code: string; intent?: string },
+  input: CadScriptInput,
   session: CadSession,
   options: CadScriptRunOptions = {}
 ): Promise<ToolResult> {
@@ -94,10 +114,22 @@ export async function executeCadScript(
     previewRequests: [],
     dxfSaveRequests: []
   }
-  const host = createCadScriptHost(session, effects, {
-    maxTicks: options.limits?.maxTicks ?? 100_000,
-    maxMilliseconds: options.limits?.maxMilliseconds ?? 2_000
-  })
+  const guard = {
+    entityOwner: options.entityOwner,
+    allowOwnedErase: input.choPhepXoaHoSo === true
+  }
+  const tracker = new CadScriptAuditTracker(options.entityOwner)
+  const host = createCadScriptHost(
+    session,
+    effects,
+    {
+      maxTicks: options.limits?.maxTicks ?? 100_000,
+      maxMilliseconds: options.limits?.maxMilliseconds ?? 2_000
+    },
+    guard,
+    tracker
+  )
+  const audit = () => tracker.result(effects.createdIds.length)
 
   try {
     const source = instrumentCadScript(input.code)
@@ -122,7 +154,8 @@ export async function executeCadScript(
       highlightedIds: effects.highlightedIds,
       ...(effects.createdIds.length ? { entityIds: effects.createdIds } : {}),
       ...(images.length ? { images } : {}),
-      ...(savedFiles.length ? { savedFiles } : {})
+      ...(savedFiles.length ? { savedFiles } : {}),
+      ...(validation.usesEdit ? { audit: audit() } : {})
     }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
@@ -137,7 +170,8 @@ export async function executeCadScript(
       error: reason,
       log: effects.log,
       highlightedIds: effects.highlightedIds,
-      ...(images.length ? { images } : {})
+      ...(images.length ? { images } : {}),
+      ...(validation.usesEdit ? { audit: audit() } : {})
     }
   }
 }
@@ -179,10 +213,7 @@ async function fulfillPreviewRequests(
   return images
 }
 
-function fulfillScriptDxfSaves(
-  session: CadSession,
-  effects: CadScriptEffects
-) {
+function fulfillScriptDxfSaves(session: CadSession, effects: CadScriptEffects) {
   if (!effects.dxfSaveRequests.length) return []
   const doc = session.getDocument()
   if (!doc) throw new Error('no_document')

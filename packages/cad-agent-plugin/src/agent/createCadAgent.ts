@@ -16,7 +16,7 @@ import type { LlmSettings } from '../storage/LlmSettingsStore'
 import { cadActionExecutor } from '../tools/CadActionExecutor'
 import { createCadTools } from '../tools/cadTools'
 import { formatChatError } from '../ui/formatChatError'
-import { withTurnUndoMark } from './agentTurnEdit'
+import { withScriptUndoStep, withTurnUndoMark } from './agentTurnEdit'
 import { extractConversationContext } from './conversationContext'
 import { createModelFromSettings } from './createModel'
 import { captureDrawingPreview } from './drawingPreviewCapture'
@@ -67,7 +67,10 @@ export function createCadAgent(
   return new Agent({
     model: createModelFromSettings(settings),
     system: buildCadAgentSystemPrompt(resolved.agentMode),
-    tools: createCadTools({ agentMode: resolved.agentMode }),
+    tools: createCadTools({
+      agentMode: resolved.agentMode,
+      scriptUndoStep: withScriptUndoStep
+    }),
     maxOutputTokens: 16_000,
     stopWhen: stepCountIs(
       typeof options === 'number' ? options : stepBudget(resolved.agentMode)

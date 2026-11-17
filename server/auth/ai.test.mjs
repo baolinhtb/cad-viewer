@@ -7,9 +7,11 @@ import {
   effortLevel,
   ERRORS,
   estimateCost,
+  MAX_LOGGED_SCRIPT_CHARS,
   monthlyUsage,
   recordCall,
   recordOutcome,
+  scriptRunsOf,
   sendToProvider
 } from './ai.mjs'
 import { migrate } from './schema.mjs'
@@ -752,4 +754,166 @@ test('a workspace id travels as a header when set, and no header at all when not
   } finally {
     delete process.env.ANTHROPIC_WORKSPACE_ID
   }
+})
+
+/** One step of a conversation: the scripts called, then their results. */
+function scriptStep(calls) {
+  return [
+    { role: 'user', content: 'Sửa lan can mố M1' },
+    {
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Tôi sửa lan can.' },
+        ...calls.map(c => ({
+          type: 'tool_use',
+          id: c.id,
+          name: c.name ?? 'execute_cad_script',
+          input: c.input
+        }))
+      ]
+    },
+    {
+      role: 'user',
+      content: calls.map(c => ({
+        type: 'tool_result',
+        tool_use_id: c.id,
+        content: c.result
+      }))
+    }
+  ]
+}
+
+test('each script a step reports is logged with what it did', async () => {
+  // 17/11/2026: a lan can disappeared after sixteen scripts and no record said
+  // which one erased it. The script and its audit now land in one row.
+  const db = freshDb()
+  process.env.ANTHROPIC_API_KEY = 'sk-test'
+  const blocked = {
+    success: false,
+    message: 'Script failed',
+    error: 'erase_blocked_template_run: 12 of 12 entities belong to …',
+    audit: {
+      erased: 0,
+      modified: 0,
+      created: 0,
+      layers: [],
+      runs: [],
+      blockedErase: 12
+    }
+  }
+  const done = {
+    success: true,
+    message: 'Script finished',
+    audit: {
+      erased: 3,
+      modified: 5,
+      created: 1,
+      layers: ['_33_LAN_CAN', '0'],
+      runs: ['ho_so_mo_m1 r1'],
+      blockedErase: 0
+    }
+  }
+  const body = {
+    drawingId: 'd-1',
+    messages: scriptStep([
+      {
+        id: 'toolu_1',
+        input: { code: 'cad.edit.transaction("x", tx => tx.erase(ids))' },
+        result: JSON.stringify(blocked)
+      },
+      {
+        id: 'toolu_2',
+        input: {
+          code: 'return 1',
+          intent: 'xoá lan can trái',
+          choPhepXoaHoSo: true
+        },
+        // High-inference results come as content parts.
+        result: [{ type: 'text', text: JSON.stringify(done) }]
+      },
+      // Other tools are not scripts and are not logged here.
+      {
+        id: 'toolu_3',
+        name: 'sua_ho_so_mo',
+        input: { code: 'x' },
+        result: '{}'
+      }
+    ])
+  }
+  const { callId } = await sendToProvider(
+    db,
+    USER,
+    body,
+    fakeProvider(OK_REPLY)
+  )
+  const rows = db.prepare('SELECT * FROM ai_script_runs ORDER BY id').all()
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].call_id, callId)
+  assert.equal(rows[0].drawing_id, 'd-1')
+  assert.equal(rows[0].code, 'cad.edit.transaction("x", tx => tx.erase(ids))')
+  assert.equal(rows[0].success, 0)
+  assert.equal(rows[0].error_code, 'erase_blocked_template_run')
+  assert.equal(rows[0].blocked_erase, 12)
+  assert.equal(rows[0].allow_erase, 0)
+  assert.equal(rows[1].intent, 'xoá lan can trái')
+  assert.equal(rows[1].allow_erase, 1)
+  assert.equal(rows[1].success, 1)
+  assert.deepEqual(
+    [rows[1].erased, rows[1].modified, rows[1].created],
+    [3, 5, 1]
+  )
+  assert.deepEqual(JSON.parse(rows[1].layers), ['_33_LAN_CAN', '0'])
+  assert.deepEqual(JSON.parse(rows[1].runs), ['ho_so_mo_m1 r1'])
+
+  // The next step repeats the history; the same scripts are not logged twice.
+  await sendToProvider(db, USER, body, fakeProvider(OK_REPLY))
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM ai_script_runs').get().n,
+    2
+  )
+})
+
+test('only the newest results are read, and long scripts are capped', () => {
+  const long = 'x'.repeat(MAX_LOGGED_SCRIPT_CHARS + 50)
+  const step = scriptStep([
+    { id: 't', input: { code: long }, result: 'not json' }
+  ])
+  const [run] = scriptRunsOf(step)
+  assert.equal(run.code.length, MAX_LOGGED_SCRIPT_CHARS)
+  assert.equal(run.codeChars, MAX_LOGGED_SCRIPT_CHARS + 50)
+  // A result that is not the browser's JSON still logs the script.
+  assert.equal(run.success, null)
+  assert.equal(run.erased, null)
+  // Once the conversation has moved on, the old step is history, not news.
+  assert.deepEqual(
+    scriptRunsOf([...step, { role: 'assistant', content: 'xong' }]),
+    []
+  )
+  assert.deepEqual(scriptRunsOf([{ role: 'user', content: 'x' }]), [])
+})
+
+test('a broken log never fails the call', async () => {
+  const db = freshDb()
+  process.env.ANTHROPIC_API_KEY = 'sk-test'
+  db.exec('DROP TABLE ai_script_runs')
+  const errors = []
+  const original = console.error
+  console.error = (...args) => errors.push(args.join(' '))
+  try {
+    const out = await sendToProvider(
+      db,
+      USER,
+      {
+        messages: scriptStep([
+          { id: 't', input: { code: 'return 1' }, result: '{}' }
+        ])
+      },
+      fakeProvider(OK_REPLY)
+    )
+    assert.ok(out.callId)
+  } finally {
+    console.error = original
+  }
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /could not log script runs/)
 })
