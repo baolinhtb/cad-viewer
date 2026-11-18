@@ -665,8 +665,11 @@ export function buildDossierScene(
   text(control, 43000, 54000, 'THÔNG SỐ THIẾT KẾ', 380)
   // Title-block fields are not design parameters (and did not exist in
   // 0.1.0, whose sheets must regenerate unchanged): they are on the frame.
+  // nhanKichThuoc is a 0.3.0 presentation choice, unknown to these sheets.
   Object.entries(v)
-    .filter(([k]) => !['x', 'y', ...DOSSIER_TITLE_KEYS].includes(k))
+    .filter(
+      ([k]) => !['x', 'y', 'nhanKichThuoc', ...DOSSIER_TITLE_KEYS].includes(k)
+    )
     .forEach(([k, value], i) =>
       text(control, 43000, 52000 - i * 1000, `${k}: ${value}`, 260)
     )
@@ -959,7 +962,8 @@ function isSourceGeometry(v: DossierModel['values']): boolean {
         'beTongLot',
         // Not drawn: the elevations show the piles broken off. Like the
         // model's steel check, a pile length is not a change of geometry.
-        'lCoc'
+        'lCoc',
+        'nhanKichThuoc'
       ].includes(key) || v[key] === value
   )
 }

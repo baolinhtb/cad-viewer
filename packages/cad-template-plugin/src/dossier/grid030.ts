@@ -84,7 +84,8 @@ const FREE = new Set([
   'thepW16',
   'beTongLot',
   'caoDoDayBe',
-  'lCoc'
+  'lCoc',
+  'nhanKichThuoc'
 ])
 
 /** Elevation lines shared by the front view and both sections. */

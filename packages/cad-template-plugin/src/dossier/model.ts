@@ -378,6 +378,19 @@ const PARAMS: readonly AcTpParamSpec[] = [
     group: 'Đối chiếu'
   },
   {
+    key: 'nhanKichThuoc',
+    label: 'Chữ trên kích thước và cao độ',
+    type: 'choice',
+    default: 'ky_hieu',
+    choices: [
+      { value: 'ky_hieu', label: 'Ký hiệu như bản gốc (B Mố, HB, EL…)' },
+      { value: 'so_do', label: 'Số đo theo thông số' },
+      { value: 'ca_hai', label: 'Ký hiệu = số đo' }
+    ],
+    group: 'Trình bày',
+    hint: 'Bản gốc ghi ký hiệu thay cho số trên kích thước và mốc cao độ; so_do/ca_hai cho hiện số đo, đổi theo thông số. Không đổi hình học.'
+  },
+  {
     key: 'x',
     label: 'Gốc bộ tờ X',
     type: 'number',
