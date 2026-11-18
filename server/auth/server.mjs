@@ -35,9 +35,11 @@ import {
   buildStandardsBlock,
   ERRORS as AI_ERRORS,
   isConfigured as isAiConfigured,
+  listScriptRuns,
   MAX_AI_REQUEST_BYTES,
   monthlyUsage,
   recordOutcome,
+  scheduleScriptRunPruning,
   sendToProvider
 } from './ai.mjs'
 import {
@@ -467,6 +469,18 @@ const server = createServer(async (req, res) => {
             detail: error.detail ?? null
           })
         }
+        return
+      }
+
+      // The script log: an admin reads every row, anyone else their own.
+      if (req.method === 'GET' && path === '/api/ai/script-runs') {
+        const query = new URL(req.url, 'http://localhost').searchParams
+        json(res, 200, {
+          runs: listScriptRuns(db, user, {
+            drawingId: query.get('drawingId') ?? undefined,
+            limit: query.get('limit') ?? undefined
+          })
+        })
         return
       }
 
@@ -1016,6 +1030,9 @@ const server = createServer(async (req, res) => {
     })
   }
 })
+
+// Script log retention (90 days); the timer never keeps the process alive.
+scheduleScriptRunPruning(db)
 
 server.listen(PORT, () => {
   console.log(`auth service listening on :${PORT}, db: ${DB_PATH}`)

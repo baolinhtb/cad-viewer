@@ -7,10 +7,13 @@ import {
   effortLevel,
   ERRORS,
   estimateCost,
+  listScriptRuns,
   MAX_LOGGED_SCRIPT_CHARS,
   monthlyUsage,
+  pruneScriptRuns,
   recordCall,
   recordOutcome,
+  scheduleScriptRunPruning,
   scriptRunsOf,
   sendToProvider
 } from './ai.mjs'
@@ -916,4 +919,70 @@ test('a broken log never fails the call', async () => {
   }
   assert.equal(errors.length, 1)
   assert.match(errors[0], /could not log script runs/)
+})
+
+/** A script log row, `age` days old, run by `userId`. */
+function logRun(db, { userId = 1, age = 0, id = `t${Math.random()}` } = {}) {
+  db.prepare(
+    `INSERT INTO ai_script_runs
+       (user_id, tool_use_id, code, code_chars, created_at)
+     VALUES (?, ?, 'return 1', 8, datetime('now', ?))`
+  ).run(userId, id, `-${age} days`)
+}
+
+test('script log rows older than 90 days are pruned, newer ones kept', () => {
+  const db = freshDb()
+  logRun(db, { age: 120 })
+  logRun(db, { age: 91 })
+  logRun(db, { age: 89 })
+  logRun(db, { age: 0 })
+  assert.equal(pruneScriptRuns(db), 2)
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM ai_script_runs').get().n,
+    2
+  )
+  assert.equal(pruneScriptRuns(db), 0)
+})
+
+test('the pruning job runs at start and then on its timer, and can be stopped', async () => {
+  const db = freshDb()
+  logRun(db, { age: 200 })
+  const stop = scheduleScriptRunPruning(db, { everyMs: 20 })
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM ai_script_runs').get().n,
+    0
+  )
+  logRun(db, { age: 300 })
+  await new Promise(resolve => setTimeout(resolve, 60))
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM ai_script_runs').get().n,
+    0
+  )
+  stop()
+  logRun(db, { age: 300 })
+  await new Promise(resolve => setTimeout(resolve, 60))
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM ai_script_runs').get().n,
+    1
+  )
+})
+
+test('an admin reads every script run; anyone else only their own', () => {
+  const db = freshDb()
+  db.prepare(
+    `INSERT INTO users (id, email, name, pass_hash, salt, role)
+     VALUES (2, 'b@x.vn', 'Người khác', 'h', 's', 'member'),
+            (3, 'c@x.vn', 'Quản trị', 'h', 's', 'admin')`
+  ).run()
+  logRun(db, { userId: 1, id: 'a' })
+  logRun(db, { userId: 2, id: 'b' })
+  const ids = viewer =>
+    listScriptRuns(db, viewer)
+      .map(r => r.tool_use_id)
+      .sort()
+  assert.deepEqual(ids({ id: 3, role: 'admin' }), ['a', 'b'])
+  assert.deepEqual(ids({ id: 1, role: 'member' }), ['a'])
+  // An author is not an admin: still only their own.
+  assert.deepEqual(ids({ id: 2, role: 'author' }), ['b'])
+  assert.deepEqual(ids(undefined), [])
 })

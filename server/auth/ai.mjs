@@ -699,6 +699,81 @@ export function recordScriptRuns(db, userId, body, callId) {
   }
 }
 
+/** Days a script log row is kept (standard assumption 7). */
+export const SCRIPT_RUN_RETENTION_DAYS = 90
+
+/**
+ * Deletes script log rows older than `days`. The log holds scripts the model
+ * wrote, which can quote what people typed into their drawings; it is kept
+ * long enough to investigate an incident, not forever.
+ *
+ * @returns How many rows were deleted.
+ */
+export function pruneScriptRuns(db, days = SCRIPT_RUN_RETENTION_DAYS) {
+  return Number(
+    db
+      .prepare('DELETE FROM ai_script_runs WHERE created_at < datetime(?, ?)')
+      .run('now', `-${Number(days)} days`).changes
+  )
+}
+
+/**
+ * Runs {@link pruneScriptRuns} now and then once a day. The timer does not
+ * keep the process alive, and a failed prune is logged, never thrown.
+ *
+ * @returns A function that stops the timer.
+ */
+export function scheduleScriptRunPruning(
+  db,
+  { days = SCRIPT_RUN_RETENTION_DAYS, everyMs = 24 * 60 * 60 * 1000 } = {}
+) {
+  const prune = () => {
+    try {
+      const removed = pruneScriptRuns(db, days)
+      if (removed) console.log(`[ai] pruned ${removed} script log rows`)
+    } catch (error) {
+      console.error(
+        '[ai] could not prune script runs:',
+        error instanceof Error ? error.message : String(error)
+      )
+    }
+  }
+  prune()
+  const timer = setInterval(prune, everyMs)
+  timer.unref?.()
+  return () => clearInterval(timer)
+}
+
+/**
+ * Script log rows a viewer may read: an admin reads every row, anyone else
+ * only the scripts run in their own sessions (standard assumption 7).
+ * Newest first.
+ */
+export function listScriptRuns(db, viewer, { drawingId, limit = 100 } = {}) {
+  const all = viewer?.role === 'admin'
+  const where = [
+    ...(all ? [] : ['user_id = ?']),
+    ...(drawingId ? ['drawing_id = ?'] : [])
+  ]
+  const params = [
+    ...(all ? [] : [viewer?.id ?? -1]),
+    ...(drawingId ? [String(drawingId)] : [])
+  ]
+  return db
+    .prepare(
+      `SELECT * FROM ai_script_runs
+        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+        ORDER BY id DESC
+        LIMIT ?`
+    )
+    .all(...params, Math.min(Math.max(1, Number(limit) || 100), 500))
+    .map(row => ({
+      ...row,
+      layers: row.layers ? JSON.parse(row.layers) : null,
+      runs: row.runs ? JSON.parse(row.runs) : null
+    }))
+}
+
 /**
  * Records what an AI edit actually did, once the browser knows.
  *
