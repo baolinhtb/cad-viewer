@@ -110,12 +110,15 @@ describe('BTKL mố — M1 against the SUB-100 table', () => {
       ['vua', SRC.vuaKhongCoNgot],
       ['ong_pvc', SRC.ongPvcD125],
       ['bot_xop', SRC.chenBotXop],
-      ['hop_chot', SRC.hopChot],
-      ['bt_nhua', SRC.btNhua]
+      ['hop_chot', SRC.hopChot]
     ] as const) {
       expect(line(r, key).nguon).toBe('ban_goc')
       expect(kl(r, key)).toBe(value)
     }
+    // Asphalt is computed (assumption 4) and lands on the table at M1.
+    expect(line(r, 'bt_nhua').nguon).toBe('tham_so')
+    expect(kl(r, 'bt_nhua')).toBeCloseTo(SRC.btNhua, 9)
+    expect(line(r, 'bt_nhua').banGoc).toBe(SRC.btNhua)
     // The ear-wall formula found in B1 gives the same value.
     expect(2 * 0.15 * 1.2 * 1).toBeCloseTo(SRC.beTong.tai, 9)
   })
@@ -255,7 +258,7 @@ describe('BTKL mố — changed geometry', () => {
       'hop_chot',
       'bt_nhua'
     ]) {
-      expect(line(r, key).nguon).toBe('ban_goc')
+      expect(line(r, key).nguon).not.toBe('tu_choi')
       expect(kl(r, key)).toBe(kl(m1, key))
       expect(line(r, key).phuThuoc).not.toContain('hBe')
     }
@@ -283,7 +286,7 @@ describe('BTKL mố — changed geometry', () => {
       'lech_ban_goc_than',
       'lech_ban_goc_canh',
       'mau_thuan_lot',
-      'bt_nhua_cho_ky_su',
+      'bt_nhua_gia_dinh',
       'van_khuon_cho_dinh_muc',
       'thep_tam_tinh_ham_luong'
     ])
@@ -350,25 +353,28 @@ describe('BTKL mố — changed geometry', () => {
     expect(line(t, 'u_chong_xo').nguon).toBe('ban_goc')
   })
 
-  test('the rail scales with the wing length; a new section is refused', () => {
+  test('the rail scales with the wing length and the rail height (assumption 2)', () => {
     const w = acTpBtklMo({ lCanh: 8000 })
     expect(kl(w, 'lan_can')).toBeCloseTo((5.223 * 8) / 6.5, 9)
     expect(line(w, 'lan_can').flags?.map(f => f.code)).toEqual([
       'ty_le_ban_goc'
     ])
     const h = acTpBtklMo({ hLanCan: 1300 })
-    expect(line(h, 'lan_can').nguon).toBe('tu_choi')
-    expect(line(h, 'lan_can').lyDo).toBe(
-      'Đã đổi hLanCan so với mẫu M1; bản vẽ gốc không có đủ kích thước để tính lại dòng này.'
+    expect(line(h, 'lan_can').nguon).toBe('tham_so')
+    expect(kl(h, 'lan_can')).toBeCloseTo((5.223 * 1300) / 1140, 9)
+    const both = acTpBtklMo({ lCanh: 8000, hLanCan: 1300 })
+    expect(kl(both, 'lan_can')).toBeCloseTo(
+      5.223 * (8 / 6.5) * (1300 / 1140),
+      9
     )
-    expect(line(h, 'be_tong').lyDo).toBe('Thiếu lan can trên tường cánh.')
-    expect(line(h, 'thep').nguon).toBe('tu_choi')
-    expect(line(h, 'thep').lyDo).toBe(
-      'Không quy đổi được thép theo hàm lượng mẫu M1: thiếu thể tích lan can trên tường cánh.'
-    )
+    // Nothing refused any more: the concrete total and the steel follow.
+    expect(line(h, 'be_tong').nguon).toBe('tham_so')
+    expect(line(h, 'thep').nguon).toBe('tham_so')
+    // The wing thickness does not size the rail.
+    expect(line(acTpBtklMo({ tCanh: 600 }), 'lan_can').nguon).toBe('ban_goc')
   })
 
-  test('materials follow the bearings, the stem width and the drain height', () => {
+  test('materials follow the bearings and the stem width (assumption 3)', () => {
     const g = acTpBtklMo({ soGoi: 2 })
     expect(kl(g, 'vua')).toBeCloseTo(0.02, 9)
     expect(kl(g, 'hop_chot')).toBe(2)
@@ -376,27 +382,41 @@ describe('BTKL mố — changed geometry', () => {
     expect(line(g, 'u_chong_xo').nguon).toBe('tu_choi')
     const b = acTpBtklMo({ bThan: 7000 })
     expect(kl(b, 'bot_xop')).toBeCloseTo((0.049 * 7) / 7.7, 9)
-    expect(line(b, 'u_chong_xo').lyDo).toContain('Đã đổi bThan')
-    const h = acTpBtklMo({ hThan: 5000 })
-    expect(kl(h, 'ong_pvc')).toBeCloseTo((9.5 * 6.887) / 6.604, 9)
-    expect(line(h, 'ong_pvc').dienGiai).toBe(
-      '9,5 × 6,887/6,604 (bảng gốc M1 theo tỉ lệ chiều cao thân + tường đỉnh)'
+    expect(kl(b, 'ong_pvc')).toBeCloseTo((9.5 * 7) / 7.7, 9)
+    expect(line(b, 'ong_pvc').dienGiai).toBe(
+      '9,5 × 7/7,7 (bảng gốc M1 theo tỉ lệ bThan)'
     )
+    expect(line(b, 'u_chong_xo').lyDo).toContain('Đã đổi bThan')
+    // The drain no longer follows the stem height.
+    expect(kl(acTpBtklMo({ hThan: 5000 }), 'ong_pvc')).toBe(9.5)
   })
 
-  test('asphalt keeps the table and asks an engineer, even when it did not follow', () => {
-    expect(line(m1, 'bt_nhua').nguon).toBe('ban_goc')
-    expect(line(m1, 'bt_nhua').banGoc).toBe(SRC.btNhua)
-    expect(line(m1, 'bt_nhua').flags?.map(f => f.code)).toEqual([
-      'bt_nhua_cho_ky_su'
-    ])
-    const w = acTpBtklMo({ bMatDuong: 6500 })
-    expect(line(w, 'bt_nhua').nguon).toBe('ban_goc')
-    expect(kl(w, 'bt_nhua')).toBe(SRC.btNhua)
-    expect(line(w, 'bt_nhua').banGoc).toBeUndefined()
-    expect(line(w, 'bt_nhua').flags![0].message).toContain(
-      'bMatDuong đã đổi nhưng dòng này KHÔNG đổi theo'
+  test('asphalt: carriageway × length on the abutment × 7 cm, flagged (assumption 4)', () => {
+    const area = line(m1, 'bt_nhua')
+    expect(area.nguon).toBe('tham_so')
+    expect(area.khoiLuong).toBeCloseTo(118.448, 9)
+    expect(area.flags?.map(f => f.code)).toEqual(['bt_nhua_gia_dinh'])
+    // The volume of the layer is written out on the same line.
+    expect(area.dienGiai).toContain(
+      'khối lượng lớp mặt 118,448 × 0,07 = 8,291 m³'
     )
+    const w = acTpBtklMo({ bMatDuong: 6500 })
+    expect(kl(w, 'bt_nhua')).toBeCloseTo((6.5 * 118.448) / 7, 9)
+    expect(line(w, 'bt_nhua').banGoc).toBeUndefined()
+    expect(line(w, 'bt_nhua').flags![0].message).toMatch(/^Giả định:/)
+  })
+
+  test('estimated steel counts in the steel total, flag kept (assumption 1)', () => {
+    const r = acTpBtklMo({ hBe: 2500 })
+    const thep = line(r, 'thep')
+    expect(thep.trongTong).toBe(true)
+    const parts = r.items.filter(i => i.key.startsWith('thep_hl_'))
+    for (const p of parts) expect(p.trongTong).toBe(true)
+    expect(thep.khoiLuong).toBeCloseTo(
+      parts.reduce((s, i) => s + i.khoiLuong!, 0),
+      9
+    )
+    expect(thep.flags?.[0].message).toContain('đã tính vào tổng thép')
   })
 
   // From the server session's draft of item d.

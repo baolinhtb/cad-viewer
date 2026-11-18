@@ -77,12 +77,14 @@ export const BTKL_MO_PHU_THUOC: Record<string, readonly string[]> = {
   // Fixed detail of the source; its size and count follow the stem width and
   // the bearings, which the drawing does not dimension.
   u_chong_xo: ['bThan', 'soGoi'],
-  // Scaled with the wing length; its section (rail height, wing thickness)
-  // is not dimensioned, so changing it refuses the line.
-  lan_can: ['lCanh', 'hLanCan', 'tCanh'],
+  // Scaled with the wing length and the rail height (standard assumption 2,
+  // docs/GIA-DINH-TIEU-CHUAN.md); the rail section is taken as independent
+  // of the wing thickness.
+  lan_can: ['lCanh', 'hLanCan'],
   lot: ['bBe', 'lBe', 'phuLot', 'hLot', 'D', 'soCotCoc', 'soHangCoc'],
   vua: ['soGoi'],
-  ong_pvc: ['hThan', 'hDau'],
+  // Drain pipes counted across the stem width (standard assumption 3).
+  ong_pvc: ['bThan'],
   bot_xop: ['bThan'],
   hop_chot: ['soGoi'],
   bt_nhua: ['bMatDuong'],
@@ -103,6 +105,14 @@ export const BTKL_MO_PHU_THUOC: Record<string, readonly string[]> = {
   ]
 }
 const DEP = BTKL_MO_PHU_THUOC
+
+/** Asphalt layer thickness, m — the standard 7 cm (standard assumption 4). */
+export const BTKL_BT_NHUA_DAY = 0.07
+/**
+ * Asphalt length on the abutment, m: the M1 table's area over the M1 road
+ * width (118.448 m² / 7 m). The source does not dimension it.
+ */
+export const BTKL_BT_NHUA_DAI = BTKL_M1_SOURCE.btNhua / 7
 
 /** Steel groups of `bars.json` and the concrete line whose volume carries them. */
 const STEEL_GROUPS: [string, string[], string][] = [
@@ -401,10 +411,14 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     S.beTong.lanCan,
     'be_tong',
     '',
-    // Only the length is known to scale it; a new section is refused.
-    changedOf(DEP.lan_can).every(k => k === 'lCanh')
-      ? scaled(S.beTong.lanCan, n('lCanh') / 1000, d0('lCanh') / 1000, 'lCanh')
-      : null
+    // Length × rail height, both relative to M1 (standard assumption 2).
+    {
+      khoiLuong:
+        (S.beTong.lanCan * n('lCanh') * n('hLanCan')) /
+        (d0('lCanh') * d0('hLanCan')),
+      dienGiai: `${acTpBtklNumber(S.beTong.lanCan)} × ${f(n('lCanh'))}/${f(d0('lCanh'))} × ${f(n('hLanCan'))}/${f(d0('hLanCan'))} (bảng gốc M1 theo tỉ lệ chiều dài cánh × chiều cao lan can)`,
+      tyLe: true
+    }
   )
   const parts = items.filter(i => i.nhom === 'be_tong' && i.stt.includes('.'))
   const refused = parts.filter(i => i.khoiLuong === null)
@@ -482,8 +496,6 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     '',
     scaled(S.vuaKhongCoNgot, n('soGoi'), d0('soGoi'), 'số gối')
   )
-  const drain = n('hThan') + n('hDau')
-  const drain0 = d0('hThan') + d0('hDau')
   fromSource(
     'ong_pvc',
     '4.2',
@@ -492,12 +504,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     S.ongPvcD125,
     'vat_tu',
     '',
-    scaled(
-      S.ongPvcD125,
-      drain / 1000,
-      drain0 / 1000,
-      'chiều cao thân + tường đỉnh'
-    )
+    scaled(S.ongPvcD125, n('bThan') / 1000, d0('bThan') / 1000, 'bThan')
   )
   fromSource(
     'bot_xop',
@@ -513,28 +520,26 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     khoiLuong: (S.hopChot * n('soGoi')) / d0('soGoi'),
     dienGiai: `${acTpBtklNumber(S.hopChot / d0('soGoi'))} hộp/gối × ${n('soGoi')} gối (như mẫu M1)`
   })
-  // The source does not say what area it measured (road width × which
-  // length): the table's figure is kept even when its parameters change —
-  // decision d — and the flag says whether it still matches the geometry.
-  const asphaltMoved = changedOf(DEP.bt_nhua)
+  // Asphalt (standard assumption 4): carriageway width × length on the
+  // abutment × layer thickness. The length is the M1 table's area over its
+  // road width (the source does not dimension it); the thickness is the
+  // standard 7 cm. Both flagged as assumptions.
+  const asphaltArea = (n('bMatDuong') / 1000) * BTKL_BT_NHUA_DAI
+  const asphaltFlag = {
+    code: 'bt_nhua_gia_dinh',
+    message: `Giả định: chiều dài trên mố ${acTpBtklNumber(BTKL_BT_NHUA_DAI)} m lấy từ bảng M1 (118,448 m² / 7 m), lớp dày ${acTpBtklNumber(BTKL_BT_NHUA_DAY)} m theo tiêu chuẩn — kỹ sư xác nhận theo hồ sơ thực.`
+  }
   add({
     key: 'bt_nhua',
     stt: '4.5',
     nhom: 'vat_tu',
     hangMuc: 'Bê tông nhựa nóng 2 kg/m²',
     donVi: 'm2',
-    khoiLuong: S.btNhua,
-    dienGiai: 'Bảng SUB-100 bản gốc',
-    nguon: 'ban_goc',
-    ...(asphaltMoved.length ? {} : { banGoc: S.btNhua }),
-    flags: [
-      {
-        code: 'bt_nhua_cho_ky_su',
-        message: asphaltMoved.length
-          ? `${asphaltMoved.join(', ')} đã đổi nhưng dòng này KHÔNG đổi theo: vẫn là số của bảng gốc M1; cần kỹ sư xác nhận cách đo (bề rộng mặt đường × chiều dài nào).`
-          : 'Giữ nguyên số của bảng gốc M1; cần kỹ sư xác nhận cách đo (bề rộng mặt đường × chiều dài nào) trước khi tính theo thông số.'
-      }
-    ]
+    khoiLuong: asphaltArea,
+    dienGiai: `${f(n('bMatDuong'))} × ${acTpBtklNumber(BTKL_BT_NHUA_DAI)} (bề rộng phần xe chạy × chiều dài trên mố); khối lượng lớp mặt ${acTpBtklNumber(asphaltArea)} × ${acTpBtklNumber(BTKL_BT_NHUA_DAY)} = ${acTpBtklNumber(asphaltArea * BTKL_BT_NHUA_DAY)} m³`,
+    nguon: 'tham_so',
+    ...compare('bt_nhua', S.btNhua),
+    flags: [asphaltFlag]
   })
 
   // ---- 5. Formwork (B4) --------------------------------------------------
@@ -679,7 +684,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
           {
             code: 'thep_tam_tinh_ham_luong',
             message:
-              'Tạm tính theo hàm lượng mẫu M1 (sai số cỡ ±10–15 %), chỉ dùng cho dự toán sơ bộ; chưa có bố trí thép cho hình học này.'
+              'Tạm tính theo hàm lượng mẫu M1 (sai số cỡ ±10–15 %), đã tính vào tổng thép; chỉ dùng cho dự toán sơ bộ, chưa có bố trí thép cho hình học này.'
           }
         ]
       })
