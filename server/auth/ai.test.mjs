@@ -713,7 +713,7 @@ test('the block lists published guides by id and description, and no drafts', ()
   })
   uploadSkill(db, 2, guide('tru-cau', 'Dựng trụ cầu.'))
   uploadSkill(db, 2, guide('mo-cau', 'Dựng và sửa mố cầu\n theo tham số.'))
-  publishSkill(db, 2, 'mo-cau')
+  publishSkill(db, 2, 'mo-cau', 'admin')
 
   const { text, hash } = buildStandardsBlock(db)
   // Published: one line, id then description, newline in the source flattened.

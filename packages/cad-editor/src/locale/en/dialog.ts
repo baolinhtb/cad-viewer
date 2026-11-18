@@ -587,7 +587,7 @@ export default {
     intro:
       'A guide is a folder holding SKILL.md, with name and description in its header, and references/*.md. The assistant sees the description of every published guide on each call and reads the body only when a request matches it.',
     empty: 'No guides yet.',
-    readOnly: 'Only authors can upload or publish guides.',
+    readOnly: 'Sign in to draft guides; only an admin publishes them.',
     upload: 'Upload guide folder…',
     uploadFiles: 'or pick .md files…',
     uploading: 'Uploading…',

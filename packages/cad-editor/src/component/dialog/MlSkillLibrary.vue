@@ -27,8 +27,12 @@ import { useI18n } from 'vue-i18n'
  * controls that would be refused anyway.
  */
 const props = defineProps<{
-  /** Whether this member holds the author role. */
+  /** Whether this person may write drafts — any signed-in member. */
   canEdit: boolean
+  /** Whether this person may publish (and delete any guide) — admins only (standard assumption 11). */
+  canPublish?: boolean
+  /** The signed-in member's id: one's own guides are editable. */
+  userId?: number | null
   /** True while the panel is the one on screen; the list loads on that edge. */
   active: boolean
 }>()
@@ -403,7 +407,7 @@ async function saveDraft() {
             }}
           </el-button>
           <el-button
-            v-if="canEdit"
+            v-if="canEdit && skill.uploadedBy === userId"
             size="small"
             :loading="busy === skill.skillId"
             :data-testid="`skill-edit-${skill.skillId}`"
@@ -412,7 +416,7 @@ async function saveDraft() {
             {{ t('dialog.skillLibrary.edit') }}
           </el-button>
           <el-button
-            v-if="canEdit && skill.status !== 'published'"
+            v-if="canPublish && skill.status !== 'published'"
             size="small"
             type="primary"
             :loading="busy === skill.skillId"
@@ -421,7 +425,12 @@ async function saveDraft() {
             {{ t('dialog.skillLibrary.publish') }}
           </el-button>
           <el-button
-            v-if="canEdit"
+            v-if="
+              canPublish ||
+              (canEdit &&
+                skill.uploadedBy === userId &&
+                skill.status !== 'published')
+            "
             size="small"
             type="danger"
             plain

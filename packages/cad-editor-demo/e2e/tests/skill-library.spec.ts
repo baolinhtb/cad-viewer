@@ -54,7 +54,7 @@ const json = (route: Route, body: unknown, status = 200) =>
  */
 function serveLibrary(
   page: Page,
-  role: 'author' | 'member',
+  role: 'admin' | 'author' | 'member',
   seed: StoredGuide[] = []
 ) {
   const guides = new Map(seed.map(guide => [guide.skillId, guide]))
@@ -64,7 +64,7 @@ function serveLibrary(
 
   const install = async () => {
     await page.route('**/api/auth/me', route =>
-      json(route, { id: 1, email: 'a@x.vn', role, isAdmin: role === 'author' })
+      json(route, { id: 1, email: 'a@x.vn', role, isAdmin: role === 'admin' })
     )
     await page.route('**/api/templates', route =>
       json(route, { templates: [] })
@@ -198,10 +198,12 @@ async function openGuideTab(page: Page) {
   return { dialog, panel }
 }
 
-test('an author uploads a guide, sees it as a draft, publishes it, then deletes it', async ({
+// Publishing is an admin's (standard assumption 11), so the full cycle runs
+// as one.
+test('an admin uploads a guide, sees it as a draft, publishes it, then deletes it', async ({
   page
 }) => {
-  const library = serveLibrary(page, 'author')
+  const library = serveLibrary(page, 'admin')
   await library.install()
   const { panel } = await openGuideTab(page)
 
@@ -282,9 +284,10 @@ test('a member sees the published guides and no way to change them', async ({
   await expect(item.locator('.ml-skill-lib__status')).toHaveText(
     /Published|Đã công bố/
   )
-  await expect(panel).toContainText(/Only authors|Chỉ tác giả/)
-  await expect(page.getByTestId('skill-files-input')).toHaveCount(0)
-  await expect(page.getByTestId('skill-folder-input')).toHaveCount(0)
+  // A member drafts guides of their own, but a colleague's published guide
+  // is not theirs to publish, edit or delete.
+  await expect(page.getByTestId('skill-compose')).toBeVisible()
+  await expect(page.getByTestId('skill-edit-mo-cau')).toHaveCount(0)
   await expect(
     item.getByRole('button', { name: /^(Publish|Công bố)$/ })
   ).toHaveCount(0)
@@ -319,10 +322,13 @@ test('a refused upload shows the reason, and the library is left as it was', asy
   await expect(panel.locator('[data-skill="mo-cau"]')).toBeVisible()
 })
 
-test('an author writes a guide in the editor and edits it, always as a draft', async ({
+test('a member writes a guide in the editor and edits their own, always as a draft', async ({
   page
 }) => {
-  const library = serveLibrary(page, 'author', [PUBLISHED])
+  // Their own guide, published earlier by an admin.
+  const library = serveLibrary(page, 'member', [
+    { ...PUBLISHED, uploadedBy: 1 }
+  ])
   await library.install()
   const { panel } = await openGuideTab(page)
 
@@ -386,10 +392,21 @@ test('an author writes a guide in the editor and edits it, always as a draft', a
   expect(library.requests.some(r => r.path.endsWith('/publish'))).toBe(false)
 })
 
-test('a member has no editor', async ({ page }) => {
-  const library = serveLibrary(page, 'member', [PUBLISHED])
+test('a member drafts but cannot publish; an admin sees the draft to publish', async ({
+  page
+}) => {
+  const draft = { ...PUBLISHED, status: 'draft' as const, uploadedBy: 1 }
+  const library = serveLibrary(page, 'member', [draft])
   await library.install()
-  await openGuideTab(page)
-  await expect(page.getByTestId('skill-compose')).toHaveCount(0)
-  await expect(page.getByTestId('skill-edit-mo-cau')).toHaveCount(0)
+  const { panel } = await openGuideTab(page)
+  const item = panel.locator('[data-skill="mo-cau"]')
+  await expect(item.locator('.ml-skill-lib__status')).toHaveText(/Draft|Nháp/)
+  await expect(
+    item.getByRole('button', { name: /^(Publish|Công bố)$/ })
+  ).toHaveCount(0)
+  // Their own draft: they may still edit or delete it.
+  await expect(page.getByTestId('skill-edit-mo-cau')).toBeVisible()
+  await expect(
+    item.getByRole('button', { name: /^(Delete|Xoá)$/ })
+  ).toBeVisible()
 })

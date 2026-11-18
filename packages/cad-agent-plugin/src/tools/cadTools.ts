@@ -423,7 +423,7 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
         'Dùng khi người dùng muốn ghi lại kinh nghiệm, hoặc sau một phiên thành công có từ 3 bước công cụ trở lên — khi đó HỎI người dùng trước, chỉ gọi nếu họ đồng ý. ' +
         'Soạn ngắn gọn từ đúng các bước đã làm (công cụ, tham số, điều cần kiểm), không bịa thêm. ' +
         'Người dùng xem và sửa trong một hộp xác nhận; chỉ khi họ bấm lưu thì hướng dẫn được lưu ở dạng NHÁP, chỉ họ thấy. ' +
-        'Không bao giờ công bố, không ghi đè hướng dẫn đã có (mã trùng bị từ chối).',
+        'Mọi thành viên lưu được nháp của mình; chỉ quản trị viên công bố. Không bao giờ công bố, không ghi đè hướng dẫn đã có (mã trùng bị từ chối).',
       inputSchema: z.object({
         ma: z
           .string()

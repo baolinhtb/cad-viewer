@@ -171,16 +171,23 @@ function rowToSummary(row) {
  * the same reason as templates: an author has to be able to try their own
  * draft, and everyone else needs a library where every entry is vouched for.
  */
-export function listSkills(db, viewerId, { includeDrafts = true } = {}) {
-  const rows = includeDrafts
-    ? db
-        .prepare(
-          `SELECT * FROM skills WHERE status = ? OR uploaded_by = ? ORDER BY skill_id`
-        )
-        .all(STATUS.PUBLISHED, viewerId ?? -1)
-    : db
-        .prepare(`SELECT * FROM skills WHERE status = ? ORDER BY skill_id`)
-        .all(STATUS.PUBLISHED)
+export function listSkills(
+  db,
+  viewerId,
+  { includeDrafts = true, allDrafts = false } = {}
+) {
+  // An admin publishes, so an admin sees every draft waiting for it.
+  const rows = allDrafts
+    ? db.prepare(`SELECT * FROM skills ORDER BY skill_id`).all()
+    : includeDrafts
+      ? db
+          .prepare(
+            `SELECT * FROM skills WHERE status = ? OR uploaded_by = ? ORDER BY skill_id`
+          )
+          .all(STATUS.PUBLISHED, viewerId ?? -1)
+      : db
+          .prepare(`SELECT * FROM skills WHERE status = ? ORDER BY skill_id`)
+          .all(STATUS.PUBLISHED)
   return rows.map(rowToSummary)
 }
 
@@ -405,20 +412,20 @@ export function updateSkill(db, userId, skillId, input) {
 }
 
 /**
- * Publishes a guide, which is the author saying they tried it.
+ * Publishes a guide into everyone's assistant — an admin's decision
+ * (standard assumption 11). Anyone may write and try a draft of their own;
+ * what reaches every member's system block is vouched for by an admin.
  *
- * Only the uploader can, for the same reason as templates: otherwise one
- * member could push another's untried instructions into everyone's assistant
- * by calling the route.
+ * @param role - The caller's role; only `admin` may publish.
  */
-export function publishSkill(db, userId, skillId) {
+export function publishSkill(db, userId, skillId, role) {
   const row = db
     .prepare(`SELECT uploaded_by FROM skills WHERE skill_id = ?`)
     .get(String(skillId ?? ''))
   if (!row) throw new SkillError(ERRORS.NOT_FOUND, { skillId })
-  if (row.uploaded_by !== userId) {
+  if (role !== 'admin') {
     throw new SkillError(ERRORS.FORBIDDEN, {
-      reason: 'Chỉ người tải lên mới công bố được hướng dẫn của mình.'
+      reason: 'Chỉ quản trị viên mới công bố được hướng dẫn.'
     })
   }
   db.prepare(
@@ -427,11 +434,31 @@ export function publishSkill(db, userId, skillId) {
   return getSkill(db, skillId)
 }
 
-export function deleteSkill(db, skillId) {
-  const result = db
-    .prepare(`DELETE FROM skills WHERE skill_id = ?`)
-    .run(String(skillId ?? ''))
-  return result.changes > 0
+/**
+ * Deletes a guide. An admin may delete any; anyone else only a draft of
+ * their own — a published guide is everyone's, and a colleague's draft is
+ * theirs. Without `viewer` (internal use) nothing is checked.
+ *
+ * @returns false when there was no such guide.
+ * @throws {SkillError} `FORBIDDEN` when the viewer may not delete it.
+ */
+export function deleteSkill(db, skillId, viewer) {
+  const id = String(skillId ?? '')
+  const row = db
+    .prepare(`SELECT uploaded_by, status FROM skills WHERE skill_id = ?`)
+    .get(id)
+  if (!row) return false
+  if (
+    viewer &&
+    viewer.role !== 'admin' &&
+    (row.uploaded_by !== viewer.id || row.status !== STATUS.DRAFT)
+  ) {
+    throw new SkillError(ERRORS.FORBIDDEN, {
+      reason:
+        'Chỉ quản trị viên xoá được hướng dẫn đã công bố hay của người khác; bạn chỉ xoá được nháp của mình.'
+    })
+  }
+  return db.prepare(`DELETE FROM skills WHERE skill_id = ?`).run(id).changes > 0
 }
 
 export { SkillError }

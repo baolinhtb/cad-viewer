@@ -135,7 +135,7 @@ for (const dir of readdirSync(SKILLS, { withFileTypes: true }).filter(d =>
     ]
     const { skill } = uploadSkill(db, 1, { files })
     assert.equal(skill.skillId, dir.name)
-    publishSkill(db, 1, dir.name)
+    publishSkill(db, 1, dir.name, 'admin')
     assert.match(buildStandardsBlock(db).text, new RegExp(`\\n- ${dir.name}: `))
   })
 }

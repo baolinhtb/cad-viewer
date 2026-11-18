@@ -586,7 +586,7 @@ export default {
     intro:
       'Một hướng dẫn là thư mục gồm SKILL.md, có name và description ở đầu file, và references/*.md. Trợ lý thấy mô tả của mọi hướng dẫn đã công bố ở mỗi lần gọi, và chỉ đọc thân khi yêu cầu khớp.',
     empty: 'Chưa có hướng dẫn nào.',
-    readOnly: 'Chỉ tác giả mới nạp hay công bố được hướng dẫn.',
+    readOnly: 'Đăng nhập để soạn nháp hướng dẫn; chỉ quản trị viên công bố.',
     upload: 'Nạp thư mục hướng dẫn…',
     uploadFiles: 'hoặc chọn các file .md…',
     uploading: 'Đang nạp…',

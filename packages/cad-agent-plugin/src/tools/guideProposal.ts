@@ -138,7 +138,7 @@ export async function proposeGuide(
     return {
       ok: true,
       status: 'ready',
-      message: `Đã lưu nháp "${skill.skillId}" — chỉ người dùng thấy, trợ lý của người khác chưa dùng. Muốn dùng chung thì người dùng tự thử rồi công bố trong Thư viện hướng dẫn; trợ lý không công bố.`,
+      message: `Đã lưu nháp "${skill.skillId}" — chỉ người dùng thấy, trợ lý của người khác chưa dùng. Muốn dùng chung thì người dùng tự thử rồi nhờ quản trị viên công bố trong Thư viện hướng dẫn; trợ lý không công bố.`,
       data: { daLuu: true, maHuongDan: skill.skillId, trangThai: skill.status }
     }
   } catch (cause) {
