@@ -449,6 +449,14 @@ export interface DossierModel {
   }
 }
 
+/**
+ * Label mode of a dossier created now (standard assumption 10): symbol and
+ * measurement, "B Mố = 7700". The parameter's own default stays `ky_hieu`,
+ * because it is also what a run stored before the parameter existed means —
+ * those runs must regenerate exactly as they were drawn.
+ */
+export const DOSSIER_NEW_LABEL_MODE = 'ca_hai'
+
 export function dossierDefaults(): AcTpParamValues {
   return Object.fromEntries(DOSSIER_PARAMS.map(p => [p.key, p.default!]))
 }

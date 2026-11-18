@@ -105,37 +105,69 @@ const across = (left: number): Line[] => [
   [left + 7700, d => d.bBe / 2]
 ]
 
+/**
+ * Front elevation across the bridge: the footing lines, plus the road edges
+ * (B Mặt đường 3764–10764), which belong to bMatDuong — not to the footing
+ * width or the pile diameter that the lines either side of them follow.
+ */
+const frontAcross = (left: number): Line[] =>
+  [
+    ...across(left),
+    [left + 350, () => 0] as Line,
+    [left + 7350, () => 0] as Line
+  ].sort((a, b) => a[0] - b[0])
+
+/**
+ * Plan across the bridge: the footing lines, plus the inner faces of the
+ * wings (W(t) 500 inside each footing edge), which follow the footing edge
+ * so the wing keeps its thickness tCanh whatever the pile diameter.
+ */
+const planAcross = (left: number): Line[] =>
+  [
+    ...across(left),
+    [left + 500, (d: Delta) => -d.bBe / 2] as Line,
+    [left + 7200, (d: Delta) => d.bBe / 2] as Line
+  ].sort((a, b) => a[0] - b[0])
+
+/**
+ * Along the bridge (standard assumption 9): a thicker stem (tThan) widens the
+ * seat N, not the head wall T. The head wall (T 500) sits at the stem back and
+ * moves with it, and the wing — measured as LC from the head wall's front
+ * face — moves with it too, as the take-off (BTKL) measures it.
+ */
+
 /** SUB-010 — front elevation, sections A–A and B–B, plans. */
 const SUB_010: View[] = [
   {
     name: 'Mặt chính',
     box: { x0: 0, y0: 12000, x1: 13500, y1: 26000 },
-    x: across(3414),
+    x: frontAcross(3414),
     y: heights(20015)
   },
   {
     name: 'Mặt bằng mố',
     box: { x0: 0, y0: 0, x1: 13500, y1: 12000 },
-    x: across(3414),
+    x: planAcross(3414),
     y: [
       [1446, () => 0],
       [3446, d => d.muiBe],
-      // Back of the head wall: the stem front plus a fixed 1000.
-      [4446, d => d.muiBe],
+      // Front of the head wall: the stem back less a fixed T 500.
+      [4446, d => d.muiBe + d.tThan],
       [4946, d => d.muiBe + d.tThan],
       [7446, d => d.lBe],
-      [10946, d => d.muiBe + d.lCanh]
+      [10946, d => d.muiBe + d.tThan + d.lCanh]
     ]
   },
   {
-    // B1 · B(TT) · B2 from the left; the head wall (N 1000) at the stem back.
+    // B1 · B(TT) · B2 from the left; the head wall (T 500) at the stem back,
+    // the seat N (tThan − 500) in front of it.
     name: 'Mặt cắt A–A',
     box: { x0: 13500, y0: 12000, x1: 25000, y1: 26000 },
     x: [
       [15732, () => 0],
       [16932, d => d.D],
       [18232, d => d.lBe - d.muiBe - d.tThan],
-      [18732, d => d.lBe - d.muiBe],
+      [18732, d => d.lBe - d.muiBe - d.tThan],
       [19732, d => d.lBe - d.muiBe],
       [20532, d => d.lBe - d.D],
       [21732, d => d.lBe]
@@ -161,11 +193,11 @@ const SUB_010: View[] = [
       [26367, () => 0],
       [27567, d => d.D],
       [28367, d => d.muiBe],
-      [29367, d => d.muiBe],
+      [29367, d => d.muiBe + d.tThan],
       [29867, d => d.muiBe + d.tThan],
       [31167, d => d.lBe - d.D],
       [32367, d => d.lBe],
-      [35867, d => d.muiBe + d.lCanh]
+      [35867, d => d.muiBe + d.tThan + d.lCanh]
     ],
     y: heights(20073)
   }
@@ -181,11 +213,11 @@ const SUB_020: View[] = [
     name: 'Mặt cắt C–C',
     box: { x0: 0, y0: 0, x1: 14000, y1: 16000 },
     x: [
-      [2222, d => -d.muiBe - d.lCanh],
+      [2222, d => -d.muiBe - d.tThan - d.lCanh],
       [5722, d => -d.lBe],
       [6922, d => -d.lBe + d.D],
       [8222, d => -d.muiBe - d.tThan],
-      [8722, d => -d.muiBe],
+      [8722, d => -d.muiBe - d.tThan],
       [9722, d => -d.muiBe],
       [10522, d => -d.D],
       [11722, () => 0]

@@ -252,9 +252,27 @@ describe('dossier tools against a real database', () => {
       ).toBe('source')
   })
 
-  test('dimension labels switch to measured values without losing anything', async () => {
+  test('a new dossier labels its dimensions with numbers (standard assumption 10)', async () => {
     const db = database()
     await runDossierTool('tao_ho_so_mo', {}, db)
+    expect(listRuns(db)[0].values.nhanKichThuoc).toBe('ca_hai')
+    const texts = entitiesOfRun(db, 'r1')
+      .filter(e => e.dxfTypeName === 'DIMENSION')
+      .map(e => (e as unknown as { dimensionText?: string }).dimensionText)
+    expect(texts).toContain('B Mố = 7700')
+    expect(texts).not.toContain('B Mố')
+    // A run stored before the parameter existed reads as the source's symbols.
+    expect(buildDossierModel({}).values.nhanKichThuoc).toBe('ky_hieu')
+  })
+
+  test('dimension labels switch to measured values without losing anything', async () => {
+    const db = database()
+    // As a dossier drawn with the source's symbols.
+    await runDossierTool(
+      'tao_ho_so_mo',
+      { thong_so: { nhanKichThuoc: 'ky_hieu' } },
+      db
+    )
     const before = entitiesOfRun(db, 'r1').length
     const dimTexts = () =>
       entitiesOfRun(db, 'r1')

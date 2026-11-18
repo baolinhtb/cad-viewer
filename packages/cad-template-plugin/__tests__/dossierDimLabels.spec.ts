@@ -1,3 +1,4 @@
+import { acTpBtklMo } from '../src/btkl/mo'
 import { DOSSIER_DIM_SYMBOLS } from '../src/dossier/dimSymbols'
 import {
   buildDossierModel,
@@ -51,26 +52,6 @@ const VARIANTS: Values[] = [
   }
 ]
 
-/**
- * Where the stretch grid does not follow the parameters today (found by these
- * tests, left to a grid fix — see pr-b.md):
- * - the road width stretches with bBe (and D) though bMatDuong is its own
- *   parameter;
- * - a new pile diameter moves the wing lines in plan;
- * - a thicker stem (tThan) is drawn as a thicker head wall T, the seat N and
- *   the wing slope B4 unchanged — the take-off (BTKL) assumes the opposite.
- */
-const GRID_GAPS: [string, (c: Values) => boolean][] = [
-  ['B Mặt đường', c => 'bBe' in c || 'D' in c],
-  ['W(t)', c => 'D' in c],
-  ['B Mố - 2 W(t)', c => 'D' in c],
-  ['T', c => 'tThan' in c],
-  ['N', c => 'tThan' in c],
-  ['B4', c => 'tThan' in c]
-]
-const gap = (symbol: string, change: Values) =>
-  GRID_GAPS.some(([s, when]) => s === symbol && when(change))
-
 /** Symbols whose measurement is off what their parameters say. */
 function mismatches(change: Values) {
   const values = { ...dossierDefaults(), ...change }
@@ -96,18 +77,41 @@ function mismatches(change: Values) {
 describe('dimension symbols measure their parameters', () => {
   test.each([{}, ...VARIANTS])('%j', change => {
     const { wrong, checked } = mismatches(change)
-    expect(wrong.filter(w => !gap(w.symbol, change)).map(w => w.text)).toEqual(
-      []
-    )
+    // Every symbol, every variant: the grid follows the parameters — road
+    // width, wings and the seat N fixed (standard assumption 9).
+    expect(wrong.map(w => w.text)).toEqual([])
     // Every symbol of the table occurs on the general sheets.
     expect([...checked].sort()).toEqual(Object.keys(DOSSIER_DIM_SYMBOLS).sort())
   })
 
-  // Pinned so that a grid fix shows up here: remove the gap when it passes.
-  test.failing.each([VARIANTS[1], VARIANTS[2], VARIANTS[4]])(
-    'known grid gap still open: %j',
-    change => expect(mismatches(change).wrong).toEqual([])
-  )
+  // The three gaps the first version of this file pinned with test.failing.
+  test('road width, wings and the seat follow their own parameters', () => {
+    const at = (change: Values, symbol: string) =>
+      dims(change)
+        .filter(d => d.text === symbol)
+        .map(d => measured(d))
+    // Within the source's drawing accuracy (it draws T 501 in one place).
+    const near = (values: number[], want: number) =>
+      values.length > 0 && values.every(v => Math.abs(v - want) <= 5)
+    expect(
+      near(at({ bBe: 8500, bThan: 8500, aCocNgang: 6100 }, 'B Mặt đường'), 7000)
+    ).toBe(true)
+    expect(
+      near(at({ D: 1500, aCocNgang: 4700, aCocDoc: 3000 }, 'W(t)'), 500)
+    ).toBe(true)
+    expect(near(at({ tThan: 1800 }, 'T'), 500)).toBe(true)
+    expect(near(at({ tThan: 1800 }, 'N'), 1300)).toBe(true)
+    expect(near(at({ tThan: 1800 }, 'B4'), 3800)).toBe(true)
+    // The take-off measures the same wing: its 1:1 slope run is the drawn B4,
+    // and its ear walls use the drawn seat N.
+    const btkl = acTpBtklMo({ tThan: 1800 })
+    expect(btkl.items.find(i => i.key === 'canh')!.dienGiai).toContain(
+      'phần vát 1:1 dài 3,8'
+    )
+    expect(btkl.items.find(i => i.key === 'tai')!.dienGiai).toContain(
+      'N = tThan − 0,5 = 1,3'
+    )
+  })
 })
 
 describe('nhanKichThuoc', () => {

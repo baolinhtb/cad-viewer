@@ -13,6 +13,7 @@ import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
   buildDossierModel,
   DOSSIER_ID,
+  DOSSIER_NEW_LABEL_MODE,
   DOSSIER_PARAMS,
   DOSSIER_VERSIONS
 } from './model'
@@ -138,7 +139,12 @@ export async function runDossierTool(
       throw new Error(`Không có công cụ hồ sơ "${name}".`)
     const db = database ?? AcApDocManager.instance.curDocument.database
     if (name === 'tao_ho_so_mo') {
-      const model = buildDossierModel(suppliedValues(input.thong_so))
+      // New dossiers label with numbers unless asked otherwise; runs stored
+      // without the key keep the source's symbols (standard assumption 10).
+      const model = buildDossierModel({
+        nhanKichThuoc: DOSSIER_NEW_LABEL_MODE,
+        ...suppliedValues(input.thong_so)
+      })
       const errors = model.issues.filter(i => i.level === 'error')
       if (errors.length)
         return {
