@@ -603,6 +603,18 @@ export default {
     statusDraft: 'Nháp',
     statusPublished: 'Đã công bố',
     files: '{count} file',
-    refresh: 'Tải lại'
+    refresh: 'Tải lại',
+    compose: 'Soạn hướng dẫn mới',
+    edit: 'Sửa',
+    fieldId: 'Mã (name)',
+    fieldIdHint: 'slug không dấu, ví dụ mo-cau-doi-chieu-cao',
+    fieldTitle: 'Tiêu đề',
+    fieldDescription: 'Mô tả (một dòng)',
+    fieldDescriptionHint:
+      'Khi nào trợ lý nên dùng hướng dẫn này. Nằm trong mọi lần gọi, nên ngắn gọn.',
+    fieldBody: 'Nội dung (Markdown)',
+    saveDraft: 'Lưu nháp',
+    cancel: 'Huỷ',
+    saved: 'Đã lưu {id} ở trạng thái nháp. Thử xong thì công bố.'
   }
 }

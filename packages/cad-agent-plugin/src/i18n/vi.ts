@@ -78,5 +78,13 @@ export const agentVi = {
   agentModeCompactHint:
     'Gọn — rẻ nhất. Trợ lý làm tối đa 3 bước rồi dừng, không lặp lại để tự kiểm.',
   outputTruncated:
-    'Câu trả lời bị cắt vì chạm giới hạn độ dài, nên có thể thiếu một phần hình. Hãy yêu cầu từng phần nhỏ hơn.'
+    'Câu trả lời bị cắt vì chạm giới hạn độ dài, nên có thể thiếu một phần hình. Hãy yêu cầu từng phần nhỏ hơn.',
+  guideProposalTitle: 'Đề xuất hướng dẫn cho trợ lý',
+  guideProposalNote: 'Chỉ lưu khi bạn bấm Lưu nháp — là nháp của riêng bạn, chỉ bạn thấy. Muốn dùng chung thì công bố sau trong Thư viện hướng dẫn.',
+  guideFieldId: 'Mã',
+  guideFieldTitle: 'Tiêu đề',
+  guideFieldDescription: 'Khi nào dùng (một dòng)',
+  guideFieldBody: 'Nội dung (Markdown)',
+  guideSaveDraft: 'Lưu nháp',
+  guideDecline: 'Không lưu'
 } as const

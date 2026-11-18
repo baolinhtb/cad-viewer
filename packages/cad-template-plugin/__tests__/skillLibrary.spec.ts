@@ -1,11 +1,15 @@
 import {
   type AcApSkillFetch,
+  type AcApSkill,
   AcApSkillLibraryError,
+  composeSkillMarkdown,
   deleteSkill,
   listSkills,
   packSkillFolder,
   publishSkill,
   readSkill,
+  saveSkillDraft,
+  splitSkillMarkdown,
   uploadSkillFiles
 } from '../src/skillLibrary'
 
@@ -198,5 +202,78 @@ describe('packing what the file picker returns', () => {
     expect(() => packSkillFolder([{ name: 'a.md', content: 'a' }])).toThrow(
       /Thiếu SKILL\.md/
     )
+  })
+})
+
+describe('writing a guide in the editor', () => {
+  const draft = {
+    skillId: 'mo-cau-sua-chieu-cao',
+    title: 'Đổi chiều cao bệ mố',
+    description:
+      'Khi người dùng đổi hBe:\n gọi sua_ho_so_mo, rồi cap_nhat_btkl.',
+    body: '1. Đọc hồ sơ bằng kiem_tra_ho_so.\n2. Gọi sua_ho_so_mo.'
+  }
+
+  test('the form becomes the SKILL.md the server parses, and back', () => {
+    const text = composeSkillMarkdown(draft)
+    // Frontmatter between two --- lines, one key per line, quoted; the title
+    // as the first heading, where the server reads it.
+    expect(text.split('\n').slice(0, 5)).toEqual([
+      '---',
+      'name: mo-cau-sua-chieu-cao',
+      'description: "Khi người dùng đổi hBe: gọi sua_ho_so_mo, rồi cap_nhat_btkl."',
+      '---',
+      '# Đổi chiều cao bệ mố'
+    ])
+    expect(splitSkillMarkdown(text)).toEqual({
+      ...draft,
+      description:
+        'Khi người dùng đổi hBe: gọi sua_ho_so_mo, rồi cap_nhat_btkl.'
+    })
+  })
+
+  test('a hand-written guide splits without losing its body', () => {
+    const text = '---\nname: x\ndescription: d\n---\nKhông có tiêu đề.\n'
+    expect(splitSkillMarkdown(text)).toEqual({
+      skillId: 'x',
+      title: '',
+      description: 'd',
+      body: 'Không có tiêu đề.'
+    })
+  })
+
+  test('a new guide is POSTed; an edit is PUT with its references kept', async () => {
+    const created = fetchOf({
+      'POST /api/skills': { skill: { skillId: draft.skillId }, changed: true }
+    })
+    expect(
+      (await saveSkillDraft(draft, undefined, created.fetchImpl)).changed
+    ).toBe(true)
+    expect(created.calls[0].init?.method).toBe('POST')
+
+    const existing = {
+      skillId: 'mo-cau-sua-chieu-cao',
+      files: [
+        { path: 'SKILL.md', content: 'cũ' },
+        { path: 'references/tham-so.md', content: '# Tham số' }
+      ]
+    } as AcApSkill
+    const edited = fetchOf({
+      'PUT /api/skills/mo-cau-sua-chieu-cao': {
+        skill: existing,
+        changed: true
+      }
+    })
+    await saveSkillDraft(draft, existing, edited.fetchImpl)
+    const sent = JSON.parse(String(edited.calls[0].init?.body)).files
+    expect(sent.map((f: { path: string }) => f.path)).toEqual([
+      'SKILL.md',
+      'references/tham-so.md'
+    ])
+    expect(sent[0].content).toBe(composeSkillMarkdown(draft))
+    // Never a publish: saving is a draft, publishing a separate step.
+    expect(
+      [...created.calls, ...edited.calls].some(c => c.url.endsWith('/publish'))
+    ).toBe(false)
   })
 })

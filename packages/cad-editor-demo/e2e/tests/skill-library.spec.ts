@@ -76,7 +76,10 @@ function serveLibrary(
       const [id, action] = pathname
         .replace(/^.*\/api\/skills\/?/, '')
         .split('/')
-      const body = method === 'POST' && !id ? request.postDataJSON() : undefined
+      const body =
+        (method === 'POST' && !id) || method === 'PUT'
+          ? request.postDataJSON()
+          : undefined
       requests.push({ method, path: pathname, body })
 
       if (method === 'GET' && !id) {
@@ -100,8 +103,9 @@ function serveLibrary(
         }
         const guide: StoredGuide = {
           skillId: name,
-          title: 'Dựng mố cầu',
-          description: 'Dựng và sửa mố cầu theo tham số.',
+          title: /^# (.+)$/m.exec(main.content)?.[1] ?? name,
+          description:
+            /^description:\s*"?(.*?)"?$/m.exec(main.content)?.[1] ?? '',
           paths: files.map(file => file.path),
           contentHash: 'h1',
           status: 'draft',
@@ -123,6 +127,20 @@ function serveLibrary(
         )
       }
       if (method === 'GET' && !action) return json(route, { skill: guide })
+      if (method === 'PUT' && !action) {
+        // An edit replaces the files and sends the guide back to draft.
+        const files = (body as { files: { path: string; content: string }[] })
+          .files
+        const main = files.find(file => file.path === 'SKILL.md')!
+        Object.assign(guide, {
+          files,
+          paths: files.map(file => file.path),
+          title: /^# (.+)$/m.exec(main.content)?.[1] ?? guide.title,
+          status: 'draft',
+          verifiedAt: null
+        })
+        return json(route, { skill: guide, changed: true })
+      }
       if (method === 'POST' && action === 'publish') {
         guide.status = 'published'
         guide.verifiedAt = '2026-09-03 10:05:00'
@@ -299,4 +317,79 @@ test('a refused upload shows the reason, and the library is left as it was', asy
   await expect(page.getByTestId('skill-error')).toContainText('Thiếu SKILL.md')
   expect(library.requests.filter(r => r.method === 'POST')).toHaveLength(0)
   await expect(panel.locator('[data-skill="mo-cau"]')).toBeVisible()
+})
+
+test('an author writes a guide in the editor and edits it, always as a draft', async ({
+  page
+}) => {
+  const library = serveLibrary(page, 'author', [PUBLISHED])
+  await library.install()
+  const { panel } = await openGuideTab(page)
+
+  // A new guide from the form: no YAML typed by hand.
+  await page.getByTestId('skill-compose').click()
+  const editor = page.getByTestId('skill-editor')
+  await editor
+    .getByTestId('skill-field-id')
+    .locator('input')
+    .fill('mo-cau-doi-chieu-cao')
+  await editor
+    .getByTestId('skill-field-title')
+    .locator('input')
+    .fill('Đổi chiều cao bệ mố')
+  await editor
+    .getByTestId('skill-field-description')
+    .locator('textarea')
+    .fill('Khi người dùng đổi hBe của hồ sơ mố.')
+  await editor
+    .getByTestId('skill-field-body')
+    .locator('textarea')
+    .fill('1. Gọi sua_ho_so_mo.\n2. Gọi cap_nhat_btkl.')
+  await page.getByTestId('skill-save').click()
+  await expect(page.getByTestId('skill-note')).toContainText(
+    /Saved mo-cau-doi-chieu-cao as a draft|Đã lưu mo-cau-doi-chieu-cao ở trạng thái nháp/
+  )
+  const created = library.requests.find(
+    r => r.method === 'POST' && r.path.endsWith('/api/skills')
+  )
+  const sent = (created?.body as { files: { content: string }[] }).files[0]
+  expect(sent.content).toMatch(
+    /^---\nname: mo-cau-doi-chieu-cao\ndescription: "Khi người dùng đổi hBe của hồ sơ mố\."\n---\n# Đổi chiều cao bệ mố\n/
+  )
+  const item = panel.locator('[data-skill="mo-cau-doi-chieu-cao"]')
+  await expect(item.locator('.ml-skill-lib__status')).toHaveText(/Draft|Nháp/)
+
+  // Editing a published guide: the id is fixed, references are kept, and
+  // the guide goes back to draft until it is published again.
+  const published = panel.locator('[data-skill="mo-cau"]')
+  await published.getByTestId('skill-edit-mo-cau').click()
+  await expect(
+    editor.getByTestId('skill-field-id').locator('input')
+  ).toBeDisabled()
+  await expect(
+    editor.getByTestId('skill-field-title').locator('input')
+  ).toHaveValue('Dựng mố cầu')
+  await editor
+    .getByTestId('skill-field-body')
+    .locator('textarea')
+    .fill('Gọi ghep_bo_phan, rồi kiểm tra lan can hai bên.')
+  await page.getByTestId('skill-save').click()
+  const put = library.requests.find(r => r.method === 'PUT')
+  expect(put?.path).toMatch(/\/api\/skills\/mo-cau$/)
+  expect(
+    (put?.body as { files: { path: string }[] }).files.map(f => f.path)
+  ).toEqual(['SKILL.md', 'references/tham-so.md'])
+  await expect(published.locator('.ml-skill-lib__status')).toHaveText(
+    /Draft|Nháp/
+  )
+  // Saving never publishes.
+  expect(library.requests.some(r => r.path.endsWith('/publish'))).toBe(false)
+})
+
+test('a member has no editor', async ({ page }) => {
+  const library = serveLibrary(page, 'member', [PUBLISHED])
+  await library.install()
+  await openGuideTab(page)
+  await expect(page.getByTestId('skill-compose')).toHaveCount(0)
+  await expect(page.getByTestId('skill-edit-mo-cau')).toHaveCount(0)
 })

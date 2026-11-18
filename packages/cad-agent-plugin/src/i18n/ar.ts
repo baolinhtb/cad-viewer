@@ -5,6 +5,15 @@ export const agentAr = {
   tab: 'الوكيل',
   title: 'وكيل CAD',
 
+  guideProposalTitle: 'دليل مقترح للمساعد',
+  guideProposalNote: 'لا يُحفظ إلا إذا ضغطت حفظ المسودة — كمسودتك الخاصة المرئية لك وحدك. انشره لاحقًا من مكتبة الأدلة.',
+  guideFieldId: 'المعرّف',
+  guideFieldTitle: 'العنوان',
+  guideFieldDescription: 'متى يُستخدم (سطر واحد)',
+  guideFieldBody: 'المحتوى (Markdown)',
+  guideSaveDraft: 'حفظ المسودة',
+  guideDecline: 'عدم الحفظ',
+
   settings: 'الإعدادات',
   clear: 'محادثة جديدة',
   close: 'إغلاق',

@@ -372,6 +372,39 @@ export function uploadSkill(db, userId, input) {
 }
 
 /**
+ * Replaces the files of an existing guide — the editor's "save draft".
+ *
+ * Unlike an upload, this never creates: the guide must exist, belong to the
+ * caller, and the `name` in the new frontmatter must still be its id — a
+ * rename through an edit would leave the old guide behind under a name the
+ * author thinks is gone. Changed content goes back to draft, as an upload
+ * does: what was published is not what is being saved.
+ *
+ * @returns `{ skill, changed }`.
+ */
+export function updateSkill(db, userId, skillId, input) {
+  const id = String(skillId ?? '')
+  const existing = db
+    .prepare(`SELECT uploaded_by FROM skills WHERE skill_id = ?`)
+    .get(id)
+  if (!existing) throw new SkillError(ERRORS.NOT_FOUND, { skillId: id })
+  if (existing.uploaded_by !== userId) {
+    throw new SkillError(ERRORS.FORBIDDEN, {
+      skillId: id,
+      reason: 'Chỉ người tải lên mới sửa được hướng dẫn của mình.'
+    })
+  }
+  const parsed = assertUploadInput(input)
+  if (parsed.skillId !== id) {
+    throw new SkillError(ERRORS.INVALID, {
+      field: 'name',
+      reason: `name trong frontmatter là "${parsed.skillId}", khác mã hướng dẫn "${id}". Đổi tên thì tạo hướng dẫn mới rồi xoá bản cũ.`
+    })
+  }
+  return uploadSkill(db, userId, input)
+}
+
+/**
  * Publishes a guide, which is the author saying they tried it.
  *
  * Only the uploader can, for the same reason as templates: otherwise one

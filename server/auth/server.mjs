@@ -64,6 +64,7 @@ import {
   MAX_SKILL_BYTES,
   publishSkill,
   SkillError,
+  updateSkill,
   uploadSkill
 } from './skills.mjs'
 
@@ -621,6 +622,16 @@ const server = createServer(async (req, res) => {
         try {
           const result = uploadSkill(db, user.id, body)
           json(res, result.changed ? 201 : 200, result)
+        } catch (error) {
+          failSkill(error)
+        }
+        return
+      }
+
+      if (req.method === 'PUT' && skillId && !action) {
+        const body = await readBody(req, MAX_SKILL_BYTES + 64 * 1024)
+        try {
+          json(res, 200, updateSkill(db, user.id, skillId, body))
         } catch (error) {
           failSkill(error)
         }

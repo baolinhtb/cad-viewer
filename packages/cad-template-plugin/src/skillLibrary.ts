@@ -255,3 +255,95 @@ export function packSkillFolder(picked: AcApPickedFile[]): {
 
   return { files, ignored }
 }
+
+/** The fields a guide is written from in the editor. */
+export interface AcApSkillDraft {
+  /** ASCII slug, the guide's id (`name` in the frontmatter). */
+  skillId: string
+  /** First heading of the body; the library lists the guide by it. */
+  title: string
+  /** One line the assistant matches requests against. */
+  description: string
+  /** Markdown after the heading. */
+  body: string
+}
+
+/**
+ * `SKILL.md` from the editor's fields, so nobody types YAML: the frontmatter
+ * the server parses (`name`, `description` on one line, quoted), then the
+ * title as the first heading — which is where the server reads it from.
+ */
+export function composeSkillMarkdown(draft: AcApSkillDraft): string {
+  const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim()
+  const description = oneLine(draft.description)
+  return [
+    '---',
+    `name: ${draft.skillId.trim()}`,
+    `description: "${description}"`,
+    '---',
+    `# ${oneLine(draft.title)}`,
+    '',
+    draft.body.trim(),
+    ''
+  ].join('\n')
+}
+
+/**
+ * The editor's fields from a stored `SKILL.md` — the inverse of
+ * {@link composeSkillMarkdown}, tolerant of guides written by hand: a
+ * missing heading leaves the title empty and the body whole.
+ */
+export function splitSkillMarkdown(text: string): AcApSkillDraft {
+  const source = text.replace(/^\uFEFF/, '')
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(source)
+  const header = match?.[1] ?? ''
+  let rest = (match?.[2] ?? source).replace(/^\s*\n/, '')
+  const field = (key: string) => {
+    const found = new RegExp(`^${key}:\\s*(.*)$`, 'm').exec(header)?.[1] ?? ''
+    const value = found.trim()
+    return /^(["']).*\1$/.test(value) ? value.slice(1, -1) : value
+  }
+  let title = ''
+  const heading = /^#\s+(.+)\r?\n?/.exec(rest)
+  if (heading) {
+    title = heading[1].trim()
+    rest = rest.slice(heading[0].length)
+  }
+  return {
+    skillId: field('name'),
+    title,
+    description: field('description'),
+    body: rest.replace(/^\s*\n/, '').trimEnd()
+  }
+}
+
+/**
+ * Saves a guide written in the editor, always as a draft: `PUT` replaces the
+ * files of an existing guide (its references are kept by sending them back),
+ * `POST` creates one. Publishing stays a separate, deliberate step.
+ *
+ * @param existing - The guide being edited, or `undefined` for a new one.
+ */
+export async function saveSkillDraft(
+  draft: AcApSkillDraft,
+  existing?: AcApSkill,
+  fetchImpl: AcApSkillFetch = defaultFetch(),
+  baseUrl = DEFAULT_BASE
+): Promise<{ skill: AcApSkill; changed: boolean }> {
+  const files: AcApSkillFile[] = [
+    { path: MAIN_FILE, content: composeSkillMarkdown(draft) },
+    ...(existing?.files.filter(file => file.path !== MAIN_FILE) ?? [])
+  ]
+  if (!existing) return uploadSkillFiles(files, fetchImpl, baseUrl)
+  const body = await call(
+    fetchImpl,
+    `${baseUrl}/${encodeURIComponent(existing.skillId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files })
+    },
+    'Không lưu được hướng dẫn'
+  )
+  return { skill: body.skill as AcApSkill, changed: body.changed === true }
+}

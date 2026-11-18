@@ -604,6 +604,18 @@ export default {
     statusDraft: 'Draft',
     statusPublished: 'Published',
     files: '{count} files',
-    refresh: 'Refresh'
+    refresh: 'Reload',
+    compose: 'Write a new guide',
+    edit: 'Edit',
+    fieldId: 'Id (name)',
+    fieldIdHint: 'ASCII slug, e.g. abutment-change-height',
+    fieldTitle: 'Title',
+    fieldDescription: 'Description (one line)',
+    fieldDescriptionHint:
+      'When the assistant should use this guide. It is sent with every call, so keep it short.',
+    fieldBody: 'Content (Markdown)',
+    saveDraft: 'Save draft',
+    cancel: 'Cancel',
+    saved: 'Saved {id} as a draft. Publish it once you have tried it.'
   }
 }

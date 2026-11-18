@@ -77,5 +77,13 @@ export const agentCs = {
   agentModeCompactHint:
     'Úsporný — nejlevnější. Asistent provede nejvýše 3 kroky a skončí; neopakuje se, aby se zkontroloval.',
   outputTruncated:
-    'Odpověď byla oříznuta limitem délky, část výkresu proto může chybět. Vyžádejte si menší část.'
+    'Odpověď byla oříznuta limitem délky, část výkresu proto může chybět. Vyžádejte si menší část.',
+  guideProposalTitle: 'Navržený návod pro asistenta',
+  guideProposalNote: 'Uloží se jen po stisku Uložit koncept — jako váš koncept, viditelný jen vám. Zveřejnit ho můžete později v knihovně návodů.',
+  guideFieldId: 'Id',
+  guideFieldTitle: 'Název',
+  guideFieldDescription: 'Kdy použít (jeden řádek)',
+  guideFieldBody: 'Obsah (Markdown)',
+  guideSaveDraft: 'Uložit koncept',
+  guideDecline: 'Neukládat'
 } as const

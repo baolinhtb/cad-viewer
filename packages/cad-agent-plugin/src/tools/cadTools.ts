@@ -24,6 +24,7 @@ import { tool } from 'ai'
 import { z } from 'zod/v4'
 
 import { cadActionExecutor } from './CadActionExecutor'
+import { proposeGuide } from './guideProposal'
 import {
   createCadScriptTools,
   type CreateCadScriptToolsOptions
@@ -412,6 +413,47 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
           )
       }),
       execute: async input => readGuide(input.ten, input.tep)
+    }),
+    // Experience into a guide — proposed, never imposed: the person edits
+    // and confirms in a card, it is saved as their own draft, and only they
+    // can publish it from the guide library.
+    de_xuat_huong_dan: tool({
+      description:
+        'Đề xuất lưu cách làm vừa thành công thành một hướng dẫn cho trợ lý. ' +
+        'Dùng khi người dùng muốn ghi lại kinh nghiệm, hoặc sau một phiên thành công có từ 3 bước công cụ trở lên — khi đó HỎI người dùng trước, chỉ gọi nếu họ đồng ý. ' +
+        'Soạn ngắn gọn từ đúng các bước đã làm (công cụ, tham số, điều cần kiểm), không bịa thêm. ' +
+        'Người dùng xem và sửa trong một hộp xác nhận; chỉ khi họ bấm lưu thì hướng dẫn được lưu ở dạng NHÁP, chỉ họ thấy. ' +
+        'Không bao giờ công bố, không ghi đè hướng dẫn đã có (mã trùng bị từ chối).',
+      inputSchema: z.object({
+        ma: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9_-]*$/)
+          .describe(
+            'Mã hướng dẫn, slug ASCII không dấu, ví dụ "mo-cau-doi-chieu-cao-be".'
+          ),
+        tieu_de: z.string().min(1).max(120).describe('Tiêu đề ngắn.'),
+        mo_ta: z
+          .string()
+          .min(1)
+          .max(400)
+          .describe(
+            'Một câu: khi nào trợ lý nên dùng hướng dẫn này (nằm trong mọi lần gọi, nên ngắn).'
+          ),
+        noi_dung: z
+          .string()
+          .min(1)
+          .max(20000)
+          .describe(
+            'Thân hướng dẫn bằng Markdown: các bước, công cụ, kiểm tra.'
+          )
+      }),
+      execute: async input =>
+        proposeGuide({
+          skillId: input.ma,
+          title: input.tieu_de,
+          description: input.mo_ta,
+          body: input.noi_dung
+        })
     }),
     // Reference before geometry: nearly every dimension in a bridge or road
     // drawing is already decided by a standard, and a number the model
