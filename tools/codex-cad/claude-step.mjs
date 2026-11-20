@@ -110,7 +110,7 @@ export const CLAUDE_STEP_SCHEMA = claudeStepSchema()
 const PROTOCOL = `
 # Giao thức cầu nối (bắt buộc)
 Bạn là MỘT bước suy luận của trợ lý CAD chạy trong trình duyệt. Bạn không chạy công cụ: trình duyệt chạy công cụ bạn chọn và gửi tool_result ở lượt sau.
-- Danh sách công cụ (JSON) và lịch sử hội thoại (văn bản) nằm trong tin nhắn người dùng. Lịch sử là BIÊN BẢN: "#n GỌI <công cụ> <input>" là công cụ bạn đã chọn, "#n KẾT QUẢ" là kết quả trình duyệt trả về. Tiếp tục từ cuối lịch sử; không lặp lại công cụ đã có kết quả.
+- Danh sách công cụ (JSON) nằm ở mục "Công cụ có sẵn" của system prompt; lịch sử hội thoại (văn bản) nằm trong tin nhắn người dùng. Lịch sử là BIÊN BẢN: "#n GỌI <công cụ> <input>" là công cụ bạn đã chọn, "#n KẾT QUẢ" là kết quả trình duyệt trả về. Tiếp tục từ cuối lịch sử; không lặp lại công cụ đã có kết quả. Kết quả cũ có thể được rút gọn ("… rút gọn"): cần chi tiết thì đọc lại bằng công cụ, đừng đoán.
 - Trả lời đúng structured output { "text": chuỗi, "tool": null | { "name": tên công cụ, "input": đối tượng } }.
 - Cần công cụ: chọn đúng MỘT công cụ có trong danh sách, "input" khớp input_schema của nó; "text" là câu ngắn nói việc sắp làm (có thể rỗng).
 - Xong việc hoặc cần hỏi người dùng: "tool" = null, "text" là câu trả lời.
@@ -122,6 +122,92 @@ Bạn là MỘT bước suy luận của trợ lý CAD chạy trong trình duy�
   cụ trong danh sách đều dùng được. Gặp lỗi này thì sửa định dạng và GIỮ NGUYÊN
   công cụ đã chọn; không đổi sang công cụ khác và không nói với người dùng rằng
   công cụ không dùng được.`
+
+/**
+ * Tool calls that mark a conversation as abutment-dossier work. In that
+ * context `chay_template` is never the right tool: it refuses `ho_so_mo_m1`
+ * (2dff03be) and the dossier tools cover the rest — yet its template catalogue
+ * is 13 KB, a quarter of every step's tool list.
+ */
+const DOSSIER_TOOLS = new Set([
+  'tao_ho_so_mo',
+  'sua_ho_so_mo',
+  'kiem_tra_ho_so',
+  'xuat_ho_so_mo',
+  'tao_btkl',
+  'cap_nhat_btkl',
+  'xuat_btkl'
+])
+const DOSSIER_WORDS = /hồ sơ mố|ho_so_mo|bộ hồ sơ|btkl|bóc tách khối lượng/i
+
+/** Text the user typed, and the tools the conversation has called. */
+function conversationFacts(messages = []) {
+  const said = []
+  const called = new Set()
+  for (const message of messages) {
+    const content = Array.isArray(message?.content)
+      ? message.content
+      : [{ type: 'text', text: String(message?.content ?? '') }]
+    for (const block of content) {
+      if (block?.type === 'tool_use') called.add(block.name)
+      else if (message?.role === 'user' && block?.type === 'text')
+        said.push(block.text ?? '')
+    }
+  }
+  return { said: said.join('\n'), called }
+}
+
+/**
+ * The tools this step offers the model: the browser's list, minus what the
+ * conversation cannot use, with schema noise removed.
+ *
+ * - `$schema` is dropped from every input schema (it says nothing to a model);
+ * - `chay_template` is dropped in an abutment-dossier conversation (a dossier
+ *   tool already called, or the user speaking of "hồ sơ mố"/BTKL), unless the
+ *   conversation has already called it — then it stays, so an earlier choice
+ *   is never invalidated. `CAD_AGENT_TRIM_TOOLS=0` keeps the full list.
+ *
+ * Decided from the whole conversation, so the list — and with it the cached
+ * system prompt — changes at most once in a session.
+ */
+export function selectTools(tools = [], messages = [], env = process.env) {
+  const { said, called } = conversationFacts(messages)
+  const dossier =
+    [...called].some(name => DOSSIER_TOOLS.has(name)) ||
+    DOSSIER_WORDS.test(said)
+  const trim =
+    env.CAD_AGENT_TRIM_TOOLS !== '0' && dossier && !called.has('chay_template')
+  return tools
+    .filter(t => !(trim && t.name === 'chay_template'))
+    .map(t => {
+      const { $schema: _schema, ...schema } = t.input_schema ?? {
+        type: 'object'
+      }
+      return {
+        name: t.name,
+        description: t.description ?? '',
+        input_schema: schema
+      }
+    })
+}
+
+/**
+ * The system prompt of a step: the browser's own, then the tool list, then the
+ * protocol. The tool list used to travel in the user message, rebuilt every
+ * step after an ever-changing history, so nothing of the ~50k-token prefix
+ * could be cached (cache_read was 0 on every row of ai_calls). In the system
+ * prompt it is fixed for the session, and the CLI caches it.
+ */
+export function claudeSystem(body, tools) {
+  const client =
+    typeof body.system === 'string'
+      ? body.system
+      : (body.system ?? []).map(block => block?.text ?? '').join('\n')
+  return (
+    `${client}\n\n# Công cụ có sẵn (JSON, cố định trong phiên)\n` +
+    `${JSON.stringify(tools)}\n${PROTOCOL}`
+  )
+}
 
 const PROXY_KEYS = [
   'HTTP_PROXY',
@@ -203,6 +289,11 @@ export function claudeArgs({ system, systemFile, model, maxTurns, toolNames }) {
   ]
 }
 
+/** Tool results kept whole at the end of the history. */
+export const KEEP_RESULTS = 4
+/** Characters kept of an older tool result. */
+export const MAX_OLD_RESULT = 400
+
 /** How a message role is announced in the rendered history. */
 const ROLE_LABEL = { user: 'NGƯỜI DÙNG', assistant: 'TRỢ LÝ' }
 
@@ -222,10 +313,31 @@ const ROLE_LABEL = { user: 'NGƯỜI DÙNG', assistant: 'TRỢ LÝ' }
  * Images stay Anthropic blocks: `onImage` takes one and returns its number,
  * which the text refers to.
  */
-export function renderHistory(messages, onImage) {
+export function renderHistory(
+  messages,
+  onImage,
+  {
+    keepResults = KEEP_RESULTS,
+    maxOldResult = MAX_OLD_RESULT,
+    stats = { shortened: 0 }
+  } = {}
+) {
   const numberOf = new Map()
   const lines = []
   let calls = 0
+  // Results older than the last `keepResults` are cut to their first
+  // `maxOldResult` characters and lose their screenshots: a context step or a
+  // script listing from ten steps ago is history, not working data, and was
+  // adding ~6.5k tokens per step (phase 1, a2).
+  const results = []
+  for (const message of messages)
+    if (Array.isArray(message?.content))
+      for (const block of message.content)
+        if (block?.type === 'tool_result') results.push(block)
+  const old = new Set(
+    results.slice(0, Math.max(0, results.length - keepResults))
+  )
+
   const plain = block => {
     if (typeof block === 'string') return block
     if (block?.type === 'text') return block.text ?? ''
@@ -249,9 +361,23 @@ export function renderHistory(messages, onImage) {
         )
       } else if (block?.type === 'tool_result') {
         const number = numberOf.get(block.tool_use_id)
-        const body = Array.isArray(block.content)
-          ? block.content.map(plain).join('\n')
-          : plain(block.content ?? '')
+        const isOld = old.has(block)
+        const parts = Array.isArray(block.content)
+          ? block.content
+          : [block.content ?? '']
+        const dropped = isOld
+          ? parts.filter(part => part?.type === 'image').length
+          : 0
+        let body = parts
+          .filter(part => !(isOld && part?.type === 'image'))
+          .map(plain)
+          .join('\n')
+        if (isOld && body.length > maxOldResult) {
+          stats.shortened += 1
+          body = `${body.slice(0, maxOldResult)}… (rút gọn, ${body.length} ký tự)`
+        }
+        // Said outside the cut, so the model knows a picture existed.
+        if (dropped) body += ` [${dropped} ảnh cũ đã bỏ]`
         lines.push(
           `#${number ?? '?'} KẾT QUẢ${block.is_error ? ' (LỖI)' : ''}: ${body}`
         )
@@ -265,28 +391,27 @@ export function renderHistory(messages, onImage) {
 }
 
 /**
- * The single stream-json user message: the tool list as JSON, the history as
- * text, images kept as Anthropic base64 blocks after it (referenced by number).
+ * The single stream-json user message: the history as text, images kept as
+ * Anthropic base64 blocks after it (referenced by number). The tool list is in
+ * the system prompt ({@link claudeSystem}).
  */
-export function claudeInput(body, retryNote) {
+export function claudeInput(body, retryNote, stats) {
   const images = []
-  const history = renderHistory(body.messages, block => {
-    const source = block.source
-    if (
-      source?.type !== 'base64' ||
-      !/^image\/(png|jpeg|webp|gif)$/.test(source.media_type)
-    )
-      throw new Error('Cầu nối Claude chỉ nhận ảnh đính kèm dạng base64.')
-    images.push({ type: 'image', source })
-    return images.length
-  })
-  const tools = (body.tools ?? []).map(t => ({
-    name: t.name,
-    description: t.description ?? '',
-    input_schema: t.input_schema ?? { type: 'object' }
-  }))
+  const history = renderHistory(
+    body.messages,
+    block => {
+      const source = block.source
+      if (
+        source?.type !== 'base64' ||
+        !/^image\/(png|jpeg|webp|gif)$/.test(source.media_type)
+      )
+        throw new Error('Cầu nối Claude chỉ nhận ảnh đính kèm dạng base64.')
+      images.push({ type: 'image', source })
+      return images.length
+    },
+    { stats }
+  )
   const text =
-    `Công cụ có sẵn (JSON):\n${JSON.stringify(tools)}\n\n` +
     'Lịch sử hội thoại (biên bản, không phải cách gọi công cụ: ' +
     '"#n GỌI <công cụ> <input JSON>" là công cụ bạn đã chọn ở bước trước, ' +
     '"#n KẾT QUẢ" là kết quả trình duyệt trả về' +
@@ -642,13 +767,9 @@ export async function claudeMessage(
   )
     throw new Error('Thiếu messages hoặc tools không hợp lệ.')
   if (signal?.aborted) throw new Error('Yêu cầu đã bị hủy.')
-  const toolNames = tools.map(t => t.name)
-  const system =
-    (typeof body.system === 'string'
-      ? body.system
-      : (body.system ?? []).map(block => block?.text ?? '').join('\n')) +
-    '\n' +
-    PROTOCOL
+  const offered = selectTools(tools, body.messages, env)
+  const toolNames = offered.map(t => t.name)
+  const system = claudeSystem(body, offered)
   const command = env.CLAUDE_COMMAND || 'claude'
   const timeoutMs = Number(env.CAD_AGENT_CLAUDE_TIMEOUT_MS) || 600000
   const directory = await mkdtemp(path.join(os.tmpdir(), 'cad-claude-step-'))
@@ -666,11 +787,20 @@ export async function claudeMessage(
       toolNames
     })
     const childEnv = claudeEnv(env)
-    const usage = { input_tokens: 0, output_tokens: 0 }
+    // Cache reads and writes are reported apart, as the Messages API does:
+    // summed into input_tokens they made the cost table's cache column read 0
+    // whatever the CLI actually cached.
+    const usage = {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0
+    }
     const steps = []
     let retryNote
     for (let attempt = 0; attempt < 2; attempt++) {
       const started = Date.now()
+      const historyStats = { shortened: 0 }
       let run
       try {
         run = await runOnce({
@@ -679,7 +809,7 @@ export async function claudeMessage(
           args,
           env: childEnv,
           cwd: directory,
-          input: claudeInput(body, retryNote),
+          input: claudeInput(body, retryNote, historyStats),
           signal,
           timeoutMs
         })
@@ -694,10 +824,11 @@ export async function claudeMessage(
         throw error
       }
       const { result, trace } = run
-      usage.input_tokens +=
-        (result.usage?.input_tokens ?? 0) +
-        (result.usage?.cache_creation_input_tokens ?? 0) +
-        (result.usage?.cache_read_input_tokens ?? 0)
+      usage.input_tokens += result.usage?.input_tokens ?? 0
+      usage.cache_creation_input_tokens +=
+        result.usage?.cache_creation_input_tokens ?? 0
+      usage.cache_read_input_tokens +=
+        result.usage?.cache_read_input_tokens ?? 0
       usage.output_tokens += result.usage?.output_tokens ?? 0
       const answer = readStepAnswer(result, toolNames)
       const refused = refusedTools(trace, toolNames)
@@ -710,6 +841,7 @@ export async function claudeMessage(
           ? { tu_choi: tracedNames(trace, toolNames) }
           : {}),
         dap_an: answer.error ? answer.code : 'ok',
+        ...(historyStats.shortened ? { rut_gon: historyStats.shortened } : {}),
         ...(answer.tool ? { chon: answer.tool.name } : {})
       }
       steps.push(step)
@@ -752,6 +884,9 @@ export async function claudeMessage(
       logStep(log, {
         luot: steps.length,
         ket_qua: abandoned ? 'ok_du_da_bo_cong_cu' : 'ok',
+        ...(offered.length < tools.length
+          ? { cong_cu_gui: offered.length, cong_cu_trinh_duyet: tools.length }
+          : {}),
         cong_cu: answer.tool ? answer.tool.name : null,
         buoc: steps,
         tong: usage
