@@ -30,6 +30,7 @@ import {
 } from '@mlightcad/cad-template-sdk'
 
 import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
+import { acTpDimensionText, type AcTpDimLabelMode } from './dimSymbols'
 import { sheetStretch } from './grid030'
 import type { DossierModel } from './model'
 import { dossierDefaults, REFERENCE_ID } from './model'
@@ -343,7 +344,13 @@ function sub020Tables(
   paper: LayoutPrimitive[],
   v: DossierModel['values'],
   tenMo: string
-): { paper?: LayoutPrimitive[]; error?: string } {
+): {
+  paper?: LayoutPrimitive[]
+  error?: string
+  /** Each table key (EL1.L, H2A…) with its value as written in the table. */
+  values: Map<string, string>
+} {
+  const values = new Map<string, string>()
   const stretch = sheetStretch('SUB-010', v)
   const content = LAYOUT.sheets.find(x => x.id === 'SUB-010')?.content ?? []
   const deltas = new Map<string, number>()
@@ -400,12 +407,14 @@ function sub020Tables(
         if ('error' in stretch) text = '–'
         else if (deltas.has(key))
           text = (Number(text) + deltas.get(key)!).toFixed(decimals)
+        if (!('error' in stretch) && !values.has(key)) values.set(key, text)
       }
       out.push({ ...p, text })
     }
   }
   return {
     paper: out,
+    values,
     ...('error' in stretch ? { error: stretch.error } : {})
   }
 }
@@ -714,6 +723,16 @@ export function buildScene030(
     v.thep === 'mau' &&
     v.thepF3 !== 'D25' &&
     v.thepW16 !== 'D14'
+  const labelMode = (v.nhanKichThuoc ?? 'ky_hieu') as AcTpDimLabelMode
+  // Elevation values, as the SUB-020 table computes them (datum included).
+  const elevations =
+    labelMode === 'ky_hieu'
+      ? new Map<string, string>()
+      : sub020Tables(
+          LAYOUT.sheets.find(x => x.id === 'SUB-020')?.paper ?? [],
+          v,
+          tenMo
+        ).values
 
   const sheets: DossierSheet[] = LAYOUT.sheets.map((ls, index) => {
     const s: DossierSheet = {
@@ -793,7 +812,7 @@ export function buildScene030(
           )
         else
           for (const raw of ls.content) {
-            const c = steel ? relabelSteel(raw) : raw
+            const c = steel ? relabelSteel(raw) : relabelGeneral(raw)
             const at = centreOf(c)
             const [sx, sy] = layout.shifts[stretch.viewOf(at)] ?? [0, 0]
             // A block moves as a whole, by how far its drawn centre moves;
@@ -999,6 +1018,37 @@ export function buildScene030(
             }
           : {})
       }
+    }
+
+    /**
+     * General-arrangement content: the abutment's name follows `tenMo`, and
+     * the dimension symbols and elevation tags follow `nhanKichThuoc`.
+     */
+    function relabelGeneral(p: LayoutPrimitive): LayoutPrimitive {
+      if (p.kind === 'dimension') {
+        const text = acTpDimensionText(p.text, labelMode)
+        if (text === p.text) return p
+        const { text: _symbol, ...rest } = p
+        return text === undefined ? rest : { ...rest, text }
+      }
+      if (p.kind === 'text' && p.text !== undefined) {
+        const text = relabel(p.text)
+        return text === p.text ? p : { ...p, text }
+      }
+      if (p.kind === 'insert' && p.attributes && labelMode !== 'ky_hieu')
+        return {
+          ...p,
+          attributes: Object.fromEntries(
+            Object.entries(p.attributes).map(([k, a]) => {
+              const tag = typeof a === 'string' ? a : a.value
+              const value = elevations.get(tag)
+              if (k !== 'ELEV' || value === undefined) return [k, a]
+              const shown = labelMode === 'so_do' ? value : `${tag} = ${value}`
+              return [k, typeof a === 'string' ? shown : { ...a, value: shown }]
+            })
+          )
+        }
+      return p
     }
 
     function relabelTitle(text: string) {

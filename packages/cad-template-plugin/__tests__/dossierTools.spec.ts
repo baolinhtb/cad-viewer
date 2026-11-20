@@ -252,6 +252,48 @@ describe('dossier tools against a real database', () => {
       ).toBe('source')
   })
 
+  test('a new dossier labels its dimensions with numbers (standard assumption 10)', async () => {
+    const db = database()
+    await runDossierTool('tao_ho_so_mo', {}, db)
+    expect(listRuns(db)[0].values.nhanKichThuoc).toBe('ca_hai')
+    const texts = entitiesOfRun(db, 'r1')
+      .filter(e => e.dxfTypeName === 'DIMENSION')
+      .map(e => (e as unknown as { dimensionText?: string }).dimensionText)
+    expect(texts).toContain('B Mố = 7700')
+    expect(texts).not.toContain('B Mố')
+    // A run stored before the parameter existed reads as the source's symbols.
+    expect(buildDossierModel({}).values.nhanKichThuoc).toBe('ky_hieu')
+  })
+
+  test('dimension labels switch to measured values without losing anything', async () => {
+    const db = database()
+    // As a dossier drawn with the source's symbols.
+    await runDossierTool(
+      'tao_ho_so_mo',
+      { thong_so: { nhanKichThuoc: 'ky_hieu' } },
+      db
+    )
+    const before = entitiesOfRun(db, 'r1').length
+    const dimTexts = () =>
+      entitiesOfRun(db, 'r1')
+        .filter(e => e.dxfTypeName === 'DIMENSION')
+        .map(e => (e as unknown as { dimensionText?: string }).dimensionText)
+    const symbols = dimTexts().filter(t => t === 'B Mố').length
+    expect(symbols).toBeGreaterThan(0)
+    const result = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { nhanKichThuoc: 'ca_hai' } },
+      db
+    )
+    expect(result.ok).toBe(true)
+    expect(listRuns(db)[0].values.nhanKichThuoc).toBe('ca_hai')
+    // Same dossier, steel and tables included; only the labels changed.
+    expect(entitiesOfRun(db, 'r1')).toHaveLength(before)
+    expect(dimTexts().filter(t => t === 'B Mố')).toHaveLength(0)
+    // The draw context substitutes <> with the measurement: the number shows.
+    expect(dimTexts().filter(t => t === 'B Mố = 7700')).toHaveLength(symbols)
+  })
+
   test('label and placement edits preserve every handle, manual text and native geometry through undo/redo', async () => {
     const db = database()
     await runDossierTool('tao_ho_so_mo', {}, db)
