@@ -13,6 +13,7 @@ import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
   buildDossierModel,
   DOSSIER_ID,
+  DOSSIER_NEW_LABEL_MODE,
   DOSSIER_PARAMS,
   DOSSIER_VERSIONS
 } from './model'
@@ -32,7 +33,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_ho_so_mo',
     description:
-      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Bộ sinh 0.3.0: 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Kích thước co giãn được: hBe, hLot, lBe, muiBe, tThan, hThan, hDau, lCanh, D và bBe (kèm bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D vì bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ); caoDoDayBe chỉ đổi cao độ. Đổi số/bố trí cọc, tCanh, dốc… bị từ chối. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì các tờ đó ghi chưa có phương án thép. Hồ sơ bản nháp; không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Bộ sinh 0.3.0: 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Kích thước co giãn được: hBe, hLot, lBe, muiBe, tThan, hThan, hDau, lCanh, D và bBe (kèm bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D vì bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ); caoDoDayBe chỉ đổi cao độ. Đổi số/bố trí cọc, tCanh, dốc… bị từ chối. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì tờ thép giữ hình M1 kèm cảnh báo chưa cập nhật, SUB-100 thêm bảng khối lượng theo thông số. Hồ sơ bản nháp; không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
       paramDescription,
     input_schema: {
       type: 'object',
@@ -43,10 +44,18 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Tờ thép và bảng thống kê chuyển thành ghi chú chưa có phương án khi đổi hình học (báo trong canhBao). Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối dùng execute_cad_script trên đúng đối tượng; không dùng tao_ho_so_mo thay thế hồ sơ.',
+      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối dùng execute_cad_script trên đúng đối tượng; không dùng tao_ho_so_mo thay thế hồ sơ.',
     input_schema: {
       type: 'object',
-      properties: { ma_lan_chay: { type: 'string' }, thong_so: parameters },
+      properties: {
+        ma_lan_chay: { type: 'string' },
+        thong_so: parameters,
+        xac_nhan_bo_doi_tuong: {
+          type: 'boolean',
+          description:
+            'Chỉ đặt true sau khi người dùng đồng ý với số đối tượng sẽ bị bỏ mà lần gọi trước đã báo.'
+        }
+      },
       required: ['ma_lan_chay', 'thong_so'],
       additionalProperties: false
     }
@@ -130,7 +139,12 @@ export async function runDossierTool(
       throw new Error(`Không có công cụ hồ sơ "${name}".`)
     const db = database ?? AcApDocManager.instance.curDocument.database
     if (name === 'tao_ho_so_mo') {
-      const model = buildDossierModel(suppliedValues(input.thong_so))
+      // New dossiers label with numbers unless asked otherwise; runs stored
+      // without the key keep the source's symbols (standard assumption 10).
+      const model = buildDossierModel({
+        nhanKichThuoc: DOSSIER_NEW_LABEL_MODE,
+        ...suppliedValues(input.thong_so)
+      })
       const errors = model.issues.filter(i => i.level === 'error')
       if (errors.length)
         return {
@@ -187,7 +201,9 @@ export async function runDossierTool(
         )
       )
         throw new Error(`Tên ${renamed} đã thuộc hồ sơ khác; chưa sửa gì.`)
-      const result = await editTemplateRun(runId, changes, db)
+      const result = await editTemplateRun(runId, changes, db, {
+        confirmLoss: input.xac_nhan_bo_doi_tuong === true
+      })
       if (result.errors.length) throw new Error(result.errors.join('\n'))
       if (!database) await refreshDossierView()
       return summary(result.values, runId, {

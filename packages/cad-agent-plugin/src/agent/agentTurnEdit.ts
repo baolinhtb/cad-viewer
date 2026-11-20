@@ -1,6 +1,7 @@
 import {
   AcApDocManager,
-  acapRunMarkedEdits
+  acapRunMarkedEdits,
+  acapRunOwnUndoMark
 } from '@mlightcad/cad-simple-viewer'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
@@ -103,4 +104,30 @@ export async function withTurnUndoMark<T>(
   }
 
   return await acapRunMarkedEdits(db, buildTurnUndoLabel(userRequest), fn)
+}
+
+/**
+ * Runs one script of a turn as its own undo step, named after its intent.
+ *
+ * The turn mark above gathers everything else; a script is split out of it
+ * (see `acapRunOwnUndoMark`) so a turn of many scripts can be taken back one
+ * script at a time — the case of 17/11/2026, where only "undo the whole turn"
+ * could bring back the lan can a late script had erased.
+ *
+ * @param intent - The script's `intent`, if it gave one.
+ * @param run - The script.
+ * @returns Whatever `run` returns.
+ */
+export async function withScriptUndoStep<T>(
+  intent: string | undefined,
+  run: () => Promise<T>
+): Promise<T> {
+  const db = resolveActiveDatabase()
+  if (!db) return await run()
+  const label = buildTurnUndoLabel(
+    intent
+      ? `${agentT('scriptUndoLabel')}: ${intent}`
+      : agentT('scriptUndoLabel')
+  )
+  return await acapRunOwnUndoMark(db, label, run)
 }

@@ -5,7 +5,8 @@ import {
   acapNotifyUndoStackChanged,
   acapRunDatabaseEdit,
   acapRunGroupedEdit,
-  acapRunMarkedEdits
+  acapRunMarkedEdits,
+  acapRunOwnUndoMark
 } from '../src/util/AcApDatabaseEdit'
 
 jest.mock('../src/editor/global/eventBus', () => ({
@@ -304,6 +305,41 @@ describe('AcApDatabaseEdit', () => {
       // turn closed, not after.
       expect(seenMidTurn).toBe(12)
       expect(entityCount(db)).toBe(12)
+    })
+
+    test('a script inside a turn is its own named undo step', async () => {
+      const db = createRealDatabase()
+      const tm = db.transactionManager
+      const draw = (y: number) =>
+        acapRunDatabaseEdit(db, 'Agent: draw_line', () => {
+          db.tables.blockTable.modelSpace.appendEntity(line(y))
+        })
+
+      await acapRunMarkedEdits(db, 'sửa hồ sơ mố', async () => {
+        draw(0)
+        await acapRunOwnUndoMark(db, 'Script: xoá lan can', async () => {
+          draw(1)
+          await Promise.resolve()
+          draw(2)
+        })
+        // A script that changes nothing leaves no step of its own.
+        await acapRunOwnUndoMark(db, 'Script: đọc', async () => {})
+        draw(3)
+      })
+
+      // Three records: the turn before the script, the script, the turn after.
+      expect(entityCount(db)).toBe(4)
+      expect(tm.undo()).toBe(true)
+      expect(entityCount(db)).toBe(3)
+      expect(tm.undo()).toBe(true)
+      expect(entityCount(db)).toBe(1)
+      expect(tm.undo()).toBe(true)
+      expect(entityCount(db)).toBe(0)
+      expect(tm.canUndo()).toBe(false)
+      // Outside a turn it is simply one marked step.
+      await acapRunOwnUndoMark(db, 'Script', async () => draw(5))
+      expect(tm.undo()).toBe(true)
+      expect(entityCount(db)).toBe(0)
     })
 
     test('the same twelve edits still leave one record and one notification', async () => {

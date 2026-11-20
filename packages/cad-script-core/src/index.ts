@@ -29,9 +29,11 @@ export {
   type MeasureReport
 } from './script/createCadMeasure'
 export {
+  CadScriptAuditTracker,
   createCadScriptHost,
   type CadEditTransaction,
   type CadScriptEffects,
+  type CadScriptEntityGuard,
   type CadScriptLimits,
   type CadScriptPreviewRequest
 } from './script/createCadScriptHost'
@@ -44,6 +46,7 @@ export { toEntitySnapshot, type EntitySnapshot } from './script/entitySnapshot'
 export {
   executeCadScript,
   MAX_SCRIPT_RESULT_CHARS,
+  type CadScriptInput,
   type CadScriptRunOptions
 } from './script/executeCadScript'
 export { instrumentCadScript } from './script/instrumentCadScript'
@@ -83,5 +86,6 @@ export {
   type Point2dInput,
   type ToolResult,
   type ToolResultImage,
+  type CadScriptAudit,
   type ToolResultSavedFile
 } from './tools/types'

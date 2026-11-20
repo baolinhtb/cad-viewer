@@ -410,7 +410,7 @@ const lower = value => String(value ?? '').toLowerCase()
  */
 export function planStandardsV10(db) {
   const hasColumn = db
-    .prepare(`PRAGMA table_info(standard_layers)`)
+    .prepare('PRAGMA table_info(standard_layers)')
     .all()
     .some(column => column.name === 'legacy_of')
   const layerRows = db
@@ -420,7 +420,7 @@ export function planStandardsV10(db) {
     .all()
   const layers = new Map(layerRows.map(row => [lower(row.name), row]))
   const termRows = db
-    .prepare(`SELECT role, label, aliases, layer FROM standard_terms`)
+    .prepare('SELECT role, label, aliases, layer FROM standard_terms')
     .all()
   const terms = new Map(termRows.map(row => [row.role, row]))
 
@@ -570,10 +570,10 @@ export function applyStandardsV10(db, plan) {
   try {
     if (plan.addColumn) {
       const has = db
-        .prepare(`PRAGMA table_info(standard_layers)`)
+        .prepare('PRAGMA table_info(standard_layers)')
         .all()
         .some(column => column.name === 'legacy_of')
-      if (!has) db.exec(`ALTER TABLE standard_layers ADD COLUMN legacy_of TEXT`)
+      if (!has) db.exec('ALTER TABLE standard_layers ADD COLUMN legacy_of TEXT')
     }
 
     const insertLayer = db.prepare(
@@ -755,7 +755,7 @@ const MIGRATIONS = [
        VALUES (?, ?, ?)`
     )
     const layer = db.prepare(
-      `INSERT OR IGNORE INTO standard_layers (name, meaning) VALUES (?, ?)`
+      'INSERT OR IGNORE INTO standard_layers (name, meaning) VALUES (?, ?)'
     )
     for (const [role, seed] of Object.entries(SEED_STANDARDS_V3)) {
       term.run(role, seed.label, JSON.stringify(seed.aliases ?? []))
@@ -774,9 +774,9 @@ const MIGRATIONS = [
   // The flag is dropped rather than left behind. Two sources of truth for a
   // privilege check is how one of them ends up stale and consulted.
   db => {
-    db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'`)
-    db.exec(`UPDATE users SET role = 'admin' WHERE is_admin = 1`)
-    db.exec(`ALTER TABLE users DROP COLUMN is_admin`)
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'")
+    db.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+    db.exec('ALTER TABLE users DROP COLUMN is_admin')
   },
 
   // v5 — the template library.
@@ -831,9 +831,9 @@ const MIGRATIONS = [
   // layer it belongs on, and forcing a layer at creation would make people
   // invent one.
   db => {
-    db.exec(`ALTER TABLE standard_terms ADD COLUMN layer TEXT`)
+    db.exec('ALTER TABLE standard_terms ADD COLUMN layer TEXT')
     const setLayer = db.prepare(
-      `UPDATE standard_terms SET layer = ? WHERE role = ? AND layer IS NULL`
+      'UPDATE standard_terms SET layer = ? WHERE role = ? AND layer IS NULL'
     )
     for (const [role, seed] of Object.entries(SEED_STANDARDS_V3)) {
       setLayer.run(seed.layer, role)
@@ -925,6 +925,44 @@ const MIGRATIONS = [
   // plan without writing, for checking against a copy of production first.
   db => {
     applyStandardsV10(db, planStandardsV10(db))
+  },
+
+  // v11 — what each `execute_cad_script` did.
+  //
+  // On 17/11/2026 a lan can went missing after sixteen scripts in a row and
+  // nothing on the server could say which one removed it: `ai_calls` holds
+  // counts, the bridge log holds tool names. One row per script run keeps the
+  // script itself (the tool input, capped) and what the browser reported it
+  // did — counts, layers and template runs touched — never geometry, and
+  // never the model's text or any credential.
+  //
+  // Additive: a new table, nothing existing is altered.
+  db => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ai_script_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id INTEGER REFERENCES ai_calls(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        drawing_id TEXT,
+        tool_use_id TEXT NOT NULL,
+        intent TEXT,
+        code TEXT NOT NULL,
+        code_chars INTEGER NOT NULL,
+        allow_erase INTEGER NOT NULL DEFAULT 0,
+        success INTEGER,
+        error_code TEXT,
+        erased INTEGER,
+        modified INTEGER,
+        created INTEGER,
+        blocked_erase INTEGER,
+        layers TEXT,
+        runs TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (user_id, tool_use_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_ai_script_runs_drawing
+        ON ai_script_runs(drawing_id, created_at);
+    `)
   }
 ]
 

@@ -72,6 +72,7 @@ export const agentVi = {
   unsavedSettings: 'Lưu thiết lập trước khi gửi tin nhắn.',
   missingApiKey: 'Cấu hình API key trong thiết lập trước khi gửi tin nhắn.',
   turnUndoLabelFallback: 'Lệnh AI',
+  scriptUndoLabel: 'Script AI',
   providerProxy: 'Máy chủ của hệ thống (khuyến nghị)',
   toolFailed: 'công cụ chạy lỗi, chưa rõ kết quả',
   agentModeCompact: 'Gọn',

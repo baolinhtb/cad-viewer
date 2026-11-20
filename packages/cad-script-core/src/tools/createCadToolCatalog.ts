@@ -1,7 +1,11 @@
+import type { AcDbEntity } from '@mlightcad/data-model'
 import { z } from 'zod'
 
 import type { CadScriptLimits } from '../script/createCadScriptHost'
-import { executeCadScript } from '../script/executeCadScript'
+import {
+  type CadScriptInput,
+  executeCadScript
+} from '../script/executeCadScript'
 import { CAD_SCRIPT_API_SUMMARY } from '../script/scriptApi'
 import type { CadSession } from '../session/CadSession'
 import type { CadToolDefinition } from './types'
@@ -21,6 +25,11 @@ export interface CadToolCatalogOptions {
    * MCP and batch runners should raise these for large drawings.
    */
   scriptLimits?: Partial<CadScriptLimits>
+  /**
+   * Names the template run an entity belongs to; see
+   * `CadScriptRunOptions.entityOwner`. Without it nothing is guarded.
+   */
+  entityOwner?: (entity: AcDbEntity) => string | undefined
 }
 
 /**
@@ -73,13 +82,20 @@ Verify geometry only with cad.measure (check / report). ${reason}`
           .optional()
           .describe(
             'Optional short label for the tool result. Never send intent alone — code is required. Prefer emitting code before intent.'
+          ),
+        choPhepXoaHoSo: z
+          .boolean()
+          .optional()
+          .describe(
+            'Set true ONLY when the user explicitly asked to delete entities that belong to a template run (dossier sheets, generated parts). Otherwise tx.erase refuses them.'
           )
       }),
       execute: (input: unknown) => {
-        const args = input as { code: string; intent?: string }
+        const args = input as CadScriptInput
         return executeCadScript(args, session, {
           fulfillPreviews: allowPreviewCapture,
-          limits: scriptLimits
+          limits: scriptLimits,
+          entityOwner: options.entityOwner
         })
       }
     }

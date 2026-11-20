@@ -17,9 +17,13 @@
 export {
   type CadEditTransaction,
   type CadMeasureApi,
+  type CadScriptAudit,
+  CadScriptAuditTracker,
   type CadScriptDxfSaveOptions,
   type CadScriptDxfSaveRequest,
   type CadScriptEffects,
+  type CadScriptEntityGuard,
+  type CadScriptInput,
   type CadScriptLimits,
   type CadScriptPreviewRequest,
   type CadScriptRunOptions,

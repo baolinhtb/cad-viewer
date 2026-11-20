@@ -91,6 +91,7 @@ export const BTKL_TOOLS: readonly AcApToolSchema[] = [
 const MO_LABEL_KEYS = new Set([
   'x',
   'y',
+  'nhanKichThuoc',
   'caoDoDayBe',
   'tenMo',
   'congTrinh',

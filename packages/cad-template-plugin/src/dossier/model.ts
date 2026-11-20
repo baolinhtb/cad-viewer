@@ -378,6 +378,19 @@ const PARAMS: readonly AcTpParamSpec[] = [
     group: 'Đối chiếu'
   },
   {
+    key: 'nhanKichThuoc',
+    label: 'Chữ trên kích thước và cao độ',
+    type: 'choice',
+    default: 'ky_hieu',
+    choices: [
+      { value: 'ky_hieu', label: 'Ký hiệu như bản gốc (B Mố, HB, EL…)' },
+      { value: 'so_do', label: 'Số đo theo thông số' },
+      { value: 'ca_hai', label: 'Ký hiệu = số đo' }
+    ],
+    group: 'Trình bày',
+    hint: 'Bản gốc ghi ký hiệu thay cho số trên kích thước và mốc cao độ; so_do/ca_hai cho hiện số đo, đổi theo thông số. Không đổi hình học.'
+  },
+  {
     key: 'x',
     label: 'Gốc bộ tờ X',
     type: 'number',
@@ -435,6 +448,14 @@ export interface DossierModel {
     pileConcrete: number | null
   }
 }
+
+/**
+ * Label mode of a dossier created now (standard assumption 10): symbol and
+ * measurement, "B Mố = 7700". The parameter's own default stays `ky_hieu`,
+ * because it is also what a run stored before the parameter existed means —
+ * those runs must regenerate exactly as they were drawn.
+ */
+export const DOSSIER_NEW_LABEL_MODE = 'ca_hai'
 
 export function dossierDefaults(): AcTpParamValues {
   return Object.fromEntries(DOSSIER_PARAMS.map(p => [p.key, p.default!]))

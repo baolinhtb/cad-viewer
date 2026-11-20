@@ -183,17 +183,19 @@ describe('bố cục 0.3.0', () => {
     expect(texts.some(t => /mặt cắt/i.test(t))).toBe(true)
   })
 
-  test('kích thước khác bản gốc: tờ chưa có lưới không mượn hình gốc, ghi rõ', () => {
+  test('kích thước khác bản gốc: tờ thép giữ hình M1 và ghi rõ chưa cập nhật', () => {
     const changed = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     expect(changed.detailMode).toBe('parametric')
-    for (const s of changed.sheets.slice(2))
-      expect(s.primitives.some(p => p.sourceHandle)).toBe(false)
-    expect(
-      changed.sheets[2].primitives.some(
-        p =>
-          p.kind === 'text' && /CHƯA (DỰNG HÌNH|CÓ PHƯƠNG ÁN THÉP)/.test(p.text)
-      )
-    ).toBe(true)
+    for (const s of changed.sheets.slice(2, 5)) {
+      expect(s.primitives.some(p => p.sourceHandle)).toBe(true)
+      expect(
+        s.primitives.some(
+          p =>
+            p.kind === 'text' &&
+            p.text === 'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+        )
+      ).toBe(true)
+    }
   })
 })
 
@@ -456,11 +458,24 @@ describe('SUB-070 (thép 1/3) dựng bằng đối tượng thật', () => {
     }
   })
 
-  test('kích thước khác bản gốc: không kéo giãn thép, ghi rõ trên tờ', () => {
+  test('kích thước khác bản gốc: giữ thép M1 đúng như mẫu, không kéo giãn, ghi rõ', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
-    expect(own(tall)).toHaveLength(0)
+    // Exactly the M1 steel, point for point: not stretched to the new size.
+    expect(own(tall)).toEqual(own(scene))
     expect(
       tall.sheets[2].primitives.some(
+        p =>
+          p.kind === 'text' &&
+          p.text === 'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      )
+    ).toBe(true)
+  })
+
+  test('đổi cấu tạo thép (F3 D25): vẫn không vẽ thép, ghi chưa có phương án', () => {
+    const d25 = buildDossierScene(buildDossierModel({ thepF3: 'D25' }), V)
+    expect(own(d25)).toHaveLength(0)
+    expect(
+      d25.sheets[2].primitives.some(
         p => p.kind === 'text' && /CHƯA CÓ PHƯƠNG ÁN THÉP/.test(p.text)
       )
     ).toBe(true)
@@ -507,15 +522,15 @@ describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối t
     }
   })
 
-  test('kích thước khác bản gốc: không kéo giãn thép tường cánh', () => {
+  test('kích thước khác bản gốc: không kéo giãn thép tường cánh, giữ M1 có cảnh báo', () => {
     const longer = buildDossierScene(buildDossierModel({ lCanh: 7000 }), V)
     for (const id of ['SUB-080', 'SUB-090']) {
-      expect(own(longer, id)).toHaveLength(0)
+      expect(own(longer, id)).toEqual(own(scene, id))
       expect(
         longer.sheets
           .find(x => x.id === id)!
           .primitives.some(
-            p => p.kind === 'text' && /CHƯA CÓ PHƯƠNG ÁN THÉP/.test(p.text)
+            p => p.kind === 'text' && /^THÉP THEO M1 GỐC/.test(p.text)
           )
       ).toBe(true)
     }
@@ -565,10 +580,36 @@ describe('SUB-100: bảng thống kê và khối lượng vẽ bằng nét và c
     expect(own.some(e => e.dxfTypeName === 'OLE2FRAME')).toBe(false)
   })
 
-  test('kích thước khác bản gốc: không đưa số liệu M1 lên, ghi rõ', () => {
+  test('kích thước khác bản gốc: bảng M1 giữ nguyên có cảnh báo, thêm bảng khối lượng theo thông số', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
-    expect(texts(tall)).not.toContain('14058.319')
+    expect(texts(tall)).toContain('14058.319')
     expect(texts(tall)).toContain(
+      'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+    )
+    // The take-off of the current parameters: footing 7,7 × 6 × 2,5 − piles.
+    expect(texts(tall)).toContain(
+      'BẢNG KHỐI LƯỢNG M1 THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)'
+    )
+    expect(texts(tall)).toContain('114,821')
+    expect(texts(tall)).toContain('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
+    // Kept clear of the M1 tables and the title block: lower left only.
+    const added = sub100(tall).primitives.filter(
+      p => p.partId === 'ghi_chu_btkl_SUB-100'
+    )
+    expect(added.length).toBeGreaterThan(60)
+    for (const p of added)
+      if (p.kind === 'text' && !p.text.startsWith('BẢNG THỐNG KÊ'))
+        expect([p.text, p.at[0] < 20000 && p.at[1] < 10500]).toEqual([
+          p.text,
+          true
+        ])
+    // Not on the source sheet.
+    expect(texts(scene)).not.toContain(
+      'BẢNG KHỐI LƯỢNG M1 THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)'
+    )
+    // Without steel there is no M1 table to keep.
+    const none = buildDossierScene(buildDossierModel({ thep: 'khong' }), V)
+    expect(texts(none)).toContain(
       'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG'
     )
     // Bảng hình dạng thanh (chú giải) vẫn giữ.

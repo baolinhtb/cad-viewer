@@ -10,7 +10,7 @@ import {
 } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
-import { acapEditDossierRun } from './dossier/edit'
+import { type AcApDossierEditOptions, acapEditDossierRun } from './dossier/edit'
 import { DOSSIER_ID } from './dossier/model'
 import { toDrawingPlacement } from './placement'
 import { entitiesOfRun, listRuns } from './runIdentity'
@@ -66,13 +66,14 @@ export interface AcApRunEditResult {
 export async function editTemplateRun(
   runId: string,
   changes: AcTpParamValues,
-  database?: AcDbDatabase
+  database?: AcDbDatabase,
+  options: AcApDossierEditOptions = {}
 ): Promise<AcApRunEditResult> {
   const db = database ?? AcApDocManager.instance.curDocument.database
   // Everything drawn — including scratch databases used to check for hand
   // edits — gets ids from the right drawing (see acTpWithWorkingDatabase).
   return acTpWithWorkingDatabase(db, () =>
-    editRunIn(runId, changes, db, database)
+    editRunIn(runId, changes, db, database, options)
   )
 }
 
@@ -80,7 +81,8 @@ async function editRunIn(
   runId: string,
   changes: AcTpParamValues,
   db: AcDbDatabase,
-  database?: AcDbDatabase
+  database?: AcDbDatabase,
+  options: AcApDossierEditOptions = {}
 ): Promise<AcApRunEditResult> {
   const run = listRuns(db).find(candidate => candidate.id === runId)
   if (!run) {
@@ -126,7 +128,7 @@ async function editRunIn(
   // Both dossier tools and the legacy generic edit tool reach this guard.
   // A dimension edit must never downgrade detailed source CAD to a schematic.
   if (run.templateId === DOSSIER_ID) {
-    const result = await acapEditDossierRun(db, run, values)
+    const result = await acapEditDossierRun(db, run, values, options)
     if (!database && !result.errors.length)
       await AcApDocManager.instance.regen()
     return result

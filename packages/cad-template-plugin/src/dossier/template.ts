@@ -3,6 +3,7 @@ import type { AcTpTemplate } from '@mlightcad/cad-template-sdk'
 import {
   buildDossierModel,
   DOSSIER_ID,
+  DOSSIER_NEW_LABEL_MODE,
   DOSSIER_PARAMS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS
@@ -22,7 +23,16 @@ function dossierTemplate(version: string): AcTpTemplate {
       description:
         'Một mô hình sinh mặt chính, A–A/B–B/C–C, mặt bằng mố/cọc, cao độ, ba tờ thép tham chiếu và thống kê. Thép chỉ áp dụng tại hình học mẫu. Chưa phát hành thi công.'
     },
-    params: DOSSIER_PARAMS,
+    // A dossier started from the dialog is a new one: numbers on its
+    // dimensions by default (DOSSIER_NEW_LABEL_MODE).
+    params:
+      version === DOSSIER_VERSION
+        ? DOSSIER_PARAMS.map(p =>
+            p.key === 'nhanKichThuoc'
+              ? { ...p, default: DOSSIER_NEW_LABEL_MODE }
+              : p
+          )
+        : DOSSIER_PARAMS,
     placement: 'world',
     validate(values) {
       const model = buildDossierModel(values)

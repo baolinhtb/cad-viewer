@@ -71,6 +71,7 @@ export const agentCs = {
   unsavedSettings: 'Před odesíláním zpráv uložte nastavení.',
   missingApiKey: 'Před odesíláním zpráv nastavte v nastavení API klíč.',
   turnUndoLabelFallback: 'Příkaz AI',
+  scriptUndoLabel: 'Skript AI',
   providerProxy: 'Toto nasazení (doporučeno)',
   toolFailed: 'nástroj selhal; výsledek není známý',
   agentModeCompact: 'Úsporný',
