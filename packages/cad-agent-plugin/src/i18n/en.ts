@@ -77,5 +77,13 @@ export const agentEn = {
   agentModeCompactHint:
     'Compact — cheapest. The assistant works in at most 3 steps and stops; it does not loop to check itself.',
   outputTruncated:
-    'The answer was cut off by the output limit, so part of the drawing may be missing. Ask for a smaller piece at a time.'
+    'The answer was cut off by the output limit, so part of the drawing may be missing. Ask for a smaller piece at a time.',
+  guideProposalTitle: 'Proposed assistant guide',
+  guideProposalNote: 'Saved only if you press Save draft — as your own draft, visible to you alone. Publish it later from the guide library.',
+  guideFieldId: 'Id',
+  guideFieldTitle: 'Title',
+  guideFieldDescription: 'When to use (one line)',
+  guideFieldBody: 'Content (Markdown)',
+  guideSaveDraft: 'Save draft',
+  guideDecline: 'Don\'t save'
 } as const

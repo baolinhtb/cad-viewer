@@ -586,7 +586,7 @@ export default {
     intro:
       'Một hướng dẫn là thư mục gồm SKILL.md, có name và description ở đầu file, và references/*.md. Trợ lý thấy mô tả của mọi hướng dẫn đã công bố ở mỗi lần gọi, và chỉ đọc thân khi yêu cầu khớp.',
     empty: 'Chưa có hướng dẫn nào.',
-    readOnly: 'Chỉ tác giả mới nạp hay công bố được hướng dẫn.',
+    readOnly: 'Đăng nhập để soạn nháp hướng dẫn; chỉ quản trị viên công bố.',
     upload: 'Nạp thư mục hướng dẫn…',
     uploadFiles: 'hoặc chọn các file .md…',
     uploading: 'Đang nạp…',
@@ -603,6 +603,18 @@ export default {
     statusDraft: 'Nháp',
     statusPublished: 'Đã công bố',
     files: '{count} file',
-    refresh: 'Tải lại'
+    refresh: 'Tải lại',
+    compose: 'Soạn hướng dẫn mới',
+    edit: 'Sửa',
+    fieldId: 'Mã (name)',
+    fieldIdHint: 'slug không dấu, ví dụ mo-cau-doi-chieu-cao',
+    fieldTitle: 'Tiêu đề',
+    fieldDescription: 'Mô tả (một dòng)',
+    fieldDescriptionHint:
+      'Khi nào trợ lý nên dùng hướng dẫn này. Nằm trong mọi lần gọi, nên ngắn gọn.',
+    fieldBody: 'Nội dung (Markdown)',
+    saveDraft: 'Lưu nháp',
+    cancel: 'Huỷ',
+    saved: 'Đã lưu {id} ở trạng thái nháp. Thử xong thì công bố.'
   }
 }

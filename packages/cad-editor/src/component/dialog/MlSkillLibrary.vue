@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import {
   type AcApSkill,
+  type AcApSkillDraft,
   type AcApSkillSummary,
   deleteSkill,
   listSkills,
   packSkillFolder,
   publishSkill,
   readSkill,
+  saveSkillDraft,
+  splitSkillMarkdown,
   uploadSkillFiles
 } from '@mlightcad/cad-template-plugin'
 // Imported explicitly, like every other dialog here: an unresolved
 // `<el-button>` renders nothing and warns only in development.
-import { ElAlert, ElButton } from 'element-plus'
+import { ElAlert, ElButton, ElInput } from 'element-plus'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -24,8 +27,12 @@ import { useI18n } from 'vue-i18n'
  * controls that would be refused anyway.
  */
 const props = defineProps<{
-  /** Whether this member holds the author role. */
+  /** Whether this person may write drafts — any signed-in member. */
   canEdit: boolean
+  /** Whether this person may publish (and delete any guide) — admins only (standard assumption 11). */
+  canPublish?: boolean
+  /** The signed-in member's id: one's own guides are editable. */
+  userId?: number | null
   /** True while the panel is the one on screen; the list loads on that edge. */
   active: boolean
 }>()
@@ -174,6 +181,64 @@ const mainText = (skill: AcApSkill) =>
 
 const referencePaths = (skill: AcApSkillSummary) =>
   skill.paths.filter(path => path !== 'SKILL.md')
+
+/**
+ * The guide being written in the panel: a new one, or an existing one whose
+ * SKILL.md was split back into fields. The frontmatter is generated from the
+ * fields on save, so nobody has to type YAML; saving is always a draft.
+ */
+const editing = ref<{ draft: AcApSkillDraft; existing?: AcApSkill } | null>(
+  null
+)
+const saving = ref(false)
+
+function compose() {
+  confirming.value = ''
+  note.value = ''
+  error.value = ''
+  editing.value = {
+    draft: { skillId: '', title: '', description: '', body: '' }
+  }
+}
+
+async function edit(skillId: string) {
+  confirming.value = ''
+  busy.value = skillId
+  error.value = ''
+  try {
+    const existing = await readSkill(skillId)
+    editing.value = { draft: splitSkillMarkdown(mainText(existing)), existing }
+    // The id is the guide's; a hand-written SKILL.md may spell it otherwise.
+    editing.value.draft.skillId = skillId
+  } catch (cause) {
+    error.value = messageOf(cause)
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function saveDraft() {
+  if (!editing.value) return
+  saving.value = true
+  note.value = ''
+  error.value = ''
+  try {
+    const { skill, changed } = await saveSkillDraft(
+      editing.value.draft,
+      editing.value.existing
+    )
+    note.value = changed
+      ? t('dialog.skillLibrary.saved', { id: skill.skillId })
+      : t('dialog.skillLibrary.unchanged', { id: skill.skillId })
+    delete opened.value[skill.skillId]
+    editing.value = null
+    await refresh()
+  } catch (cause) {
+    error.value = messageOf(cause)
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -209,7 +274,17 @@ const referencePaths = (skill: AcApSkillSummary) =>
           {{ t('dialog.skillLibrary.uploadFiles') }}
         </label>
       </template>
-      <span v-else class="ml-skill-lib__readonly">
+      <el-button
+        v-if="canEdit"
+        size="small"
+        type="primary"
+        plain
+        data-testid="skill-compose"
+        @click="compose"
+      >
+        {{ t('dialog.skillLibrary.compose') }}
+      </el-button>
+      <span v-if="!canEdit" class="ml-skill-lib__readonly">
         {{ t('dialog.skillLibrary.readOnly') }}
       </span>
       <el-button size="small" :loading="loading" @click="refresh">
@@ -229,6 +304,66 @@ const referencePaths = (skill: AcApSkillSummary) =>
     >
       {{ error }}
     </el-alert>
+
+    <form
+      v-if="editing"
+      class="ml-skill-lib__editor"
+      data-testid="skill-editor"
+      @submit.prevent="saveDraft"
+    >
+      <label class="ml-skill-lib__field">
+        <span>{{ t('dialog.skillLibrary.fieldId') }}</span>
+        <el-input
+          v-model="editing.draft.skillId"
+          size="small"
+          :disabled="!!editing.existing"
+          :placeholder="t('dialog.skillLibrary.fieldIdHint')"
+          data-testid="skill-field-id"
+        />
+      </label>
+      <label class="ml-skill-lib__field">
+        <span>{{ t('dialog.skillLibrary.fieldTitle') }}</span>
+        <el-input
+          v-model="editing.draft.title"
+          size="small"
+          data-testid="skill-field-title"
+        />
+      </label>
+      <label class="ml-skill-lib__field">
+        <span>{{ t('dialog.skillLibrary.fieldDescription') }}</span>
+        <el-input
+          v-model="editing.draft.description"
+          type="textarea"
+          :rows="2"
+          :placeholder="t('dialog.skillLibrary.fieldDescriptionHint')"
+          data-testid="skill-field-description"
+        />
+      </label>
+      <label class="ml-skill-lib__field">
+        <span>{{ t('dialog.skillLibrary.fieldBody') }}</span>
+        <el-input
+          v-model="editing.draft.body"
+          type="textarea"
+          :rows="10"
+          class="ml-skill-lib__markdown"
+          data-testid="skill-field-body"
+        />
+      </label>
+      <div class="ml-skill-lib__actions">
+        <el-button
+          size="small"
+          type="primary"
+          native-type="submit"
+          :loading="saving"
+          data-testid="skill-save"
+        >
+          {{ t('dialog.skillLibrary.saveDraft') }}
+        </el-button>
+        <el-button size="small" @click="editing = null">
+          {{ t('dialog.skillLibrary.cancel') }}
+        </el-button>
+      </div>
+    </form>
 
     <p v-if="!loading && !skills.length" class="ml-skill-lib__empty">
       {{ t('dialog.skillLibrary.empty') }}
@@ -272,7 +407,16 @@ const referencePaths = (skill: AcApSkillSummary) =>
             }}
           </el-button>
           <el-button
-            v-if="canEdit && skill.status !== 'published'"
+            v-if="canEdit && skill.uploadedBy === userId"
+            size="small"
+            :loading="busy === skill.skillId"
+            :data-testid="`skill-edit-${skill.skillId}`"
+            @click="edit(skill.skillId)"
+          >
+            {{ t('dialog.skillLibrary.edit') }}
+          </el-button>
+          <el-button
+            v-if="canPublish && skill.status !== 'published'"
             size="small"
             type="primary"
             :loading="busy === skill.skillId"
@@ -281,7 +425,12 @@ const referencePaths = (skill: AcApSkillSummary) =>
             {{ t('dialog.skillLibrary.publish') }}
           </el-button>
           <el-button
-            v-if="canEdit"
+            v-if="
+              canPublish ||
+              (canEdit &&
+                skill.uploadedBy === userId &&
+                skill.status !== 'published')
+            "
             size="small"
             type="danger"
             plain
@@ -452,5 +601,30 @@ const referencePaths = (skill: AcApSkillSummary) =>
 
 .ml-skill-lib__refs {
   margin: var(--cv-space-2) 0 0;
+}
+
+.ml-skill-lib__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cv-space-2);
+  margin-top: var(--cv-space-3);
+  padding: var(--cv-space-3);
+  border: 1px solid var(--cv-border-hairline);
+  border-radius: var(--cv-radius-lg);
+  background: var(--cv-surface-panel);
+}
+
+.ml-skill-lib__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cv-space-1);
+  font-size: 12px;
+  color: var(--cv-ink-secondary);
+}
+
+/* The guide body is markdown the assistant reads verbatim. */
+.ml-skill-lib__markdown :deep(textarea) {
+  font-family: var(--cv-font-mono);
+  font-size: 12px;
 }
 </style>

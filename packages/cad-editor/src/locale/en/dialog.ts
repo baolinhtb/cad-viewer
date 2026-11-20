@@ -587,7 +587,7 @@ export default {
     intro:
       'A guide is a folder holding SKILL.md, with name and description in its header, and references/*.md. The assistant sees the description of every published guide on each call and reads the body only when a request matches it.',
     empty: 'No guides yet.',
-    readOnly: 'Only authors can upload or publish guides.',
+    readOnly: 'Sign in to draft guides; only an admin publishes them.',
     upload: 'Upload guide folder…',
     uploadFiles: 'or pick .md files…',
     uploading: 'Uploading…',
@@ -604,6 +604,18 @@ export default {
     statusDraft: 'Draft',
     statusPublished: 'Published',
     files: '{count} files',
-    refresh: 'Refresh'
+    refresh: 'Reload',
+    compose: 'Write a new guide',
+    edit: 'Edit',
+    fieldId: 'Id (name)',
+    fieldIdHint: 'ASCII slug, e.g. abutment-change-height',
+    fieldTitle: 'Title',
+    fieldDescription: 'Description (one line)',
+    fieldDescriptionHint:
+      'When the assistant should use this guide. It is sent with every call, so keep it short.',
+    fieldBody: 'Content (Markdown)',
+    saveDraft: 'Save draft',
+    cancel: 'Cancel',
+    saved: 'Saved {id} as a draft. Publish it once you have tried it.'
   }
 }

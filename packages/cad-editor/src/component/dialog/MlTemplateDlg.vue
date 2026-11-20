@@ -141,6 +141,9 @@ const previewOf = (item: AcTpTemplate): AcApTemplatePreview => {
  * regardless, which is where the actual boundary lives.
  */
 const canUpload = ref(false)
+/** Guides: any signed-in member drafts, an admin publishes. */
+const meId = ref<number | null>(null)
+const isAdmin = ref(false)
 const uploading = ref(false)
 const uploadNote = ref('')
 const uploadError = ref('')
@@ -149,8 +152,10 @@ const checkRole = async () => {
   try {
     const response = await fetch('/api/auth/me', { credentials: 'same-origin' })
     if (!response.ok) return
-    const me = (await response.json()) as { role?: string }
+    const me = (await response.json()) as { id?: number; role?: string }
     canUpload.value = me.role === 'author' || me.role === 'admin'
+    meId.value = typeof me.id === 'number' ? me.id : null
+    isAdmin.value = me.role === 'admin'
   } catch {
     canUpload.value = false
   }
@@ -321,7 +326,9 @@ async function generate() {
 
     <MlSkillLibrary
       v-if="tab === 'skills'"
-      :can-edit="canUpload"
+      :can-edit="meId !== null"
+      :can-publish="isAdmin"
+      :user-id="meId"
       :active="visible && tab === 'skills'"
     />
 

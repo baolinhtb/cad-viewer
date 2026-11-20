@@ -16,6 +16,7 @@ import {
   publishSkill,
   skillFile,
   STATUS,
+  updateSkill,
   uploadSkill
 } from './skills.mjs'
 
@@ -255,7 +256,7 @@ test('limits: file count, total bytes, description length', () => {
 test('re-uploading identical content changes nothing, not even a published status', () => {
   const db = freshDb()
   upload(db)
-  publishSkill(db, 1, 'mo-cau')
+  publishSkill(db, 1, 'mo-cau', 'admin')
   const { skill, changed } = upload(db)
   assert.equal(changed, false)
   assert.equal(skill.status, STATUS.PUBLISHED)
@@ -264,7 +265,7 @@ test('re-uploading identical content changes nothing, not even a published statu
 test('re-uploading changed content replaces the guide and sends it back to draft', () => {
   const db = freshDb()
   const first = upload(db).skill
-  publishSkill(db, 1, 'mo-cau')
+  publishSkill(db, 1, 'mo-cau', 'admin')
 
   const { skill, changed } = upload(db, {
     files: [{ path: 'SKILL.md', content: MAIN + '\n\nThêm một đoạn.' }]
@@ -284,12 +285,13 @@ test('a guide belongs to whoever uploaded it', () => {
     codeOf(() => upload(db, { userId: 2 })),
     ERRORS.FORBIDDEN
   )
+  // Publishing is an admin's, whoever wrote the guide (assumption 11).
   assert.equal(
-    codeOf(() => publishSkill(db, 2, 'mo-cau')),
+    codeOf(() => publishSkill(db, 1, 'mo-cau', 'author')),
     ERRORS.FORBIDDEN
   )
   assert.equal(
-    codeOf(() => publishSkill(db, 1, 'khong-co')),
+    codeOf(() => publishSkill(db, 1, 'khong-co', 'admin')),
     ERRORS.NOT_FOUND
   )
 })
@@ -320,7 +322,7 @@ test('drafts are listed for their author only; published guides for everyone', (
     userId: 2,
     main: '---\nname: tru-cau\ndescription: Trụ cầu.\n---\nThân.'
   })
-  publishSkill(db, 2, 'tru-cau')
+  publishSkill(db, 2, 'tru-cau', 'admin')
 
   assert.deepEqual(
     listSkills(db, 1).map(s => s.skillId),
@@ -345,7 +347,7 @@ test('drafts are listed for their author only; published guides for everyone', (
 test('publishing records when, and getSkill returns the files', () => {
   const db = freshDb()
   upload(db)
-  const published = publishSkill(db, 1, 'mo-cau')
+  const published = publishSkill(db, 1, 'mo-cau', 'admin')
   assert.equal(published.status, STATUS.PUBLISHED)
   assert.ok(published.verifiedAt)
   assert.equal(getSkill(db, 'mo-cau').files.length, 2)
@@ -358,4 +360,119 @@ test('deleting reports whether there was anything to delete', () => {
   assert.equal(deleteSkill(db, 'mo-cau'), true)
   assert.equal(deleteSkill(db, 'mo-cau'), false)
   assert.equal(getSkill(db, 'mo-cau'), undefined)
+})
+
+// --- Editing in place (PUT /api/skills/:id) ---
+
+test('an edit replaces the files of the caller’s own guide and sends it back to draft', () => {
+  const db = freshDb()
+  upload(db)
+  publishSkill(db, 1, 'mo-cau', 'admin')
+  const edited = MAIN.replace('Đọc', 'Luôn đọc')
+  const result = updateSkill(db, 1, 'mo-cau', {
+    files: [{ path: 'SKILL.md', content: edited }]
+  })
+  assert.equal(result.changed, true)
+  assert.equal(result.skill.status, STATUS.DRAFT)
+  assert.equal(result.skill.verifiedAt, null)
+  // The edit is the whole guide: a reference not sent again is gone.
+  assert.deepEqual(result.skill.paths, ['SKILL.md'])
+  assert.match(
+    skillFile(getSkill(db, 'mo-cau'), 'SKILL.md').content,
+    /Luôn đọc/
+  )
+  // Saving the same text again changes nothing.
+  assert.equal(
+    updateSkill(db, 1, 'mo-cau', {
+      files: [{ path: 'SKILL.md', content: edited }]
+    }).changed,
+    false
+  )
+})
+
+test('an edit never creates, never renames, and never touches a colleague’s guide', () => {
+  const db = freshDb()
+  upload(db)
+  const files = main => ({ files: [{ path: 'SKILL.md', content: main }] })
+  assert.equal(
+    codeOf(() => updateSkill(db, 1, 'khong-co', files(MAIN))),
+    ERRORS.NOT_FOUND
+  )
+  assert.equal(
+    codeOf(() => updateSkill(db, 2, 'mo-cau', files(MAIN))),
+    ERRORS.FORBIDDEN
+  )
+  const renamed = MAIN.replace('name: mo-cau', 'name: mo-cau-moi')
+  assert.equal(
+    codeOf(() => updateSkill(db, 1, 'mo-cau', files(renamed))),
+    ERRORS.INVALID
+  )
+  assert.match(
+    reasonOf(() => updateSkill(db, 1, 'mo-cau', files(renamed))),
+    /khác mã hướng dẫn "mo-cau"/
+  )
+  assert.equal(getSkill(db, 'mo-cau-moi'), undefined)
+})
+
+// --- Standard assumption 11: members draft, admins publish ---
+
+test('a member writes and edits their own draft; only an admin publishes it', () => {
+  const db = freshDb()
+  db.prepare(
+    `INSERT INTO users (id, email, name, pass_hash, salt, role)
+     VALUES (3, 'tv@x.vn', 'Thành viên', 'h', 's', 'member'),
+            (4, 'qt@x.vn', 'Quản trị', 'h', 's', 'admin')`
+  ).run()
+  upload(db, { userId: 3 })
+  assert.equal(getSkill(db, 'mo-cau').status, STATUS.DRAFT)
+  assert.equal(
+    updateSkill(db, 3, 'mo-cau', {
+      files: [{ path: 'SKILL.md', content: MAIN.replace('Đọc', 'Luôn đọc') }]
+    }).changed,
+    true
+  )
+  for (const role of ['member', 'author'])
+    assert.equal(
+      codeOf(() => publishSkill(db, 3, 'mo-cau', role)),
+      ERRORS.FORBIDDEN
+    )
+  assert.match(
+    reasonOf(() => publishSkill(db, 3, 'mo-cau', 'member')),
+    /quản trị viên/
+  )
+  // The admin sees the draft waiting, and publishes it.
+  assert.deepEqual(
+    listSkills(db, 4, { allDrafts: true }).map(s => s.skillId),
+    ['mo-cau']
+  )
+  assert.deepEqual(
+    listSkills(db, 1).map(s => s.skillId),
+    []
+  )
+  assert.equal(publishSkill(db, 4, 'mo-cau', 'admin').status, STATUS.PUBLISHED)
+})
+
+test('deleting: an admin anything, anyone else only a draft of their own', () => {
+  const db = freshDb()
+  db.prepare(
+    `INSERT INTO users (id, email, name, pass_hash, salt, role)
+     VALUES (3, 'tv@x.vn', 'Thành viên', 'h', 's', 'member')`
+  ).run()
+  upload(db, { userId: 3 })
+  const member = { id: 3, role: 'member' }
+  const other = { id: 2, role: 'author' }
+  assert.equal(
+    codeOf(() => deleteSkill(db, 'mo-cau', other)),
+    ERRORS.FORBIDDEN
+  )
+  publishSkill(db, 1, 'mo-cau', 'admin')
+  // Published: no longer the member's alone.
+  assert.equal(
+    codeOf(() => deleteSkill(db, 'mo-cau', member)),
+    ERRORS.FORBIDDEN
+  )
+  assert.equal(deleteSkill(db, 'mo-cau', { id: 9, role: 'admin' }), true)
+  upload(db, { userId: 3 })
+  assert.equal(deleteSkill(db, 'mo-cau', member), true)
+  assert.equal(deleteSkill(db, 'mo-cau', member), false)
 })

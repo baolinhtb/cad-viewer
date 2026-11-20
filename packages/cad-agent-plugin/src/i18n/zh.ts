@@ -72,5 +72,13 @@ export const agentZh = {
   agentModeCompactHint:
     '精简 —— 最省。助手最多执行 3 步就停止，不会反复自检。',
   outputTruncated:
-    '回复因长度上限被截断，图纸可能缺失一部分。请分成更小的部分逐步请求。'
+    '回复因长度上限被截断，图纸可能缺失一部分。请分成更小的部分逐步请求。',
+  guideProposalTitle: '建议的助手指南',
+  guideProposalNote: '只有点击“保存草稿”才会保存——作为您自己的草稿，仅您可见。之后可在指南库中发布。',
+  guideFieldId: '标识',
+  guideFieldTitle: '标题',
+  guideFieldDescription: '何时使用（一行）',
+  guideFieldBody: '内容（Markdown）',
+  guideSaveDraft: '保存草稿',
+  guideDecline: '不保存'
 } as const

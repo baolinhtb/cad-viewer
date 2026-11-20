@@ -64,6 +64,7 @@ import {
   MAX_SKILL_BYTES,
   publishSkill,
   SkillError,
+  updateSkill,
   uploadSkill
 } from './skills.mjs'
 
@@ -583,7 +584,11 @@ const server = createServer(async (req, res) => {
       }
 
       if (req.method === 'GET' && !skillId) {
-        json(res, 200, { skills: listSkills(db, user.id) })
+        json(res, 200, {
+          skills: listSkills(db, user.id, {
+            allDrafts: user.role === ROLES.ADMIN
+          })
+        })
         return
       }
 
@@ -594,7 +599,9 @@ const server = createServer(async (req, res) => {
         // guide by that name exists.
         if (
           !skill ||
-          (skill.status !== 'published' && skill.uploadedBy !== user.id)
+          (skill.status !== 'published' &&
+            skill.uploadedBy !== user.id &&
+            user.role !== ROLES.ADMIN)
         ) {
           json(res, 404, {
             error: 'Không tìm thấy hướng dẫn.',
@@ -606,15 +613,10 @@ const server = createServer(async (req, res) => {
         return
       }
 
-      // Everything below writes. Checked here on the server: a client that
-      // hides the upload button is not a permission, it is a suggestion.
-      if (!hasRoleAtLeast(user.role, ROLES.AUTHOR)) {
-        json(res, 403, {
-          error: 'Chỉ tác giả mới nạp được hướng dẫn.',
-          code: SKILL_ERRORS.FORBIDDEN
-        })
-        return
-      }
+      // Everything below writes. Any signed-in member may write and try
+      // drafts of their own; publishing — what reaches every member's
+      // assistant — is an admin's (standard assumption 11). Checked here on
+      // the server: a hidden button is a suggestion, not a permission.
 
       if (req.method === 'POST' && !skillId) {
         const body = await readBody(req, MAX_SKILL_BYTES + 64 * 1024)
@@ -627,9 +629,21 @@ const server = createServer(async (req, res) => {
         return
       }
 
+      if (req.method === 'PUT' && skillId && !action) {
+        const body = await readBody(req, MAX_SKILL_BYTES + 64 * 1024)
+        try {
+          json(res, 200, updateSkill(db, user.id, skillId, body))
+        } catch (error) {
+          failSkill(error)
+        }
+        return
+      }
+
       if (req.method === 'POST' && skillId && action === 'publish') {
         try {
-          json(res, 200, { skill: publishSkill(db, user.id, skillId) })
+          json(res, 200, {
+            skill: publishSkill(db, user.id, skillId, user.role)
+          })
         } catch (error) {
           failSkill(error)
         }
@@ -637,7 +651,14 @@ const server = createServer(async (req, res) => {
       }
 
       if (req.method === 'DELETE' && skillId && !action) {
-        if (!deleteSkill(db, skillId)) {
+        let deleted
+        try {
+          deleted = deleteSkill(db, skillId, user)
+        } catch (error) {
+          failSkill(error)
+          return
+        }
+        if (!deleted) {
           json(res, 404, {
             error: 'Không tìm thấy hướng dẫn.',
             code: SKILL_ERRORS.NOT_FOUND

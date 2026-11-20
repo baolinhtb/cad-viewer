@@ -79,5 +79,13 @@ export const agentTr = {
   agentModeCompactHint:
     'Kısa — en ucuzu. Asistan en fazla 3 adımda çalışır ve durur; kendini denetlemek için döngüye girmez.',
   outputTruncated:
-    'Yanıt uzunluk sınırı nedeniyle kesildi, çizimin bir kısmı eksik olabilir. Daha küçük parçalar hâlinde isteyin.'
+    'Yanıt uzunluk sınırı nedeniyle kesildi, çizimin bir kısmı eksik olabilir. Daha küçük parçalar hâlinde isteyin.',
+  guideProposalTitle: 'Önerilen asistan kılavuzu',
+  guideProposalNote: 'Yalnızca Taslağı kaydet\'e basarsanız kaydedilir — yalnızca sizin görebileceğiniz kendi taslağınız olarak. Daha sonra kılavuz kitaplığından yayımlayın.',
+  guideFieldId: 'Kimlik',
+  guideFieldTitle: 'Başlık',
+  guideFieldDescription: 'Ne zaman kullanılır (tek satır)',
+  guideFieldBody: 'İçerik (Markdown)',
+  guideSaveDraft: 'Taslağı kaydet',
+  guideDecline: 'Kaydetme'
 } as const

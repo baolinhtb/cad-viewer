@@ -29,6 +29,7 @@ import {
 } from '../storage/modelCatalog'
 import { areLlmSettingsEqual } from '../storage/settingsEquality'
 import { formatChatError } from './formatChatError'
+import GuideProposalCard from './GuideProposalCard.vue'
 import { createAgentChatOptions, useAgentChatRef } from './useAgentChat'
 
 /** Image file part on a {@link UIMessage} from the AI SDK. */
@@ -633,6 +634,8 @@ function isVerificationMessage(message: UIMessage): boolean {
         </div>
       </div>
     </div>
+
+    <GuideProposalCard />
 
     <div class="cad-agent-panel-input">
       <div v-if="pendingImages.length" class="cad-agent-attachments">
