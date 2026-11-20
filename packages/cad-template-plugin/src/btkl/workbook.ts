@@ -184,9 +184,11 @@ function steelSheet(result: AcTpBtklResult, name: string): AcTpXlsxSheet {
   const headerRow = rows.length + 1
   rows.push(STEEL_HEAD.map(v => ({ v, s: 'header' as const })))
   if (!result.bars.length) {
+    const steel = result.items.find(i => i.key === 'thep')
     const reason =
-      result.items.find(i => i.key === 'thep')?.lyDo ??
-      result.errors.join(' · ')
+      steel && steel.khoiLuong !== null
+        ? `chưa có bố trí từng thanh cho hình học này; ${steel.hangMuc} = ${acTpBtklNumber(steel.khoiLuong)} kg (xem bảng khối lượng).`
+        : (steel?.lyDo ?? result.errors.join(' · '))
     rows.push([{ v: `Không có bảng thép: ${reason}`, s: 'cellWrap' }])
     merges.push(
       `A${rows.length}:${String.fromCharCode(64 + width)}${rows.length}`

@@ -58,7 +58,16 @@ export async function acapEditDossierRun(
   })
   const changed = Object.keys(values).filter(k => values[k] !== run.values[k])
   if (!changed.length) return result([])
-  const labelKeys = ['tenMo', 'congTrinh', 'x', 'y', ...DOSSIER_TITLE_KEYS]
+  // lCoc is not drawn (the piles are shown broken off): giving it only
+  // records the value on the run for the take-off, keeping every entity.
+  const labelKeys = [
+    'tenMo',
+    'congTrinh',
+    'x',
+    'y',
+    'lCoc',
+    ...DOSSIER_TITLE_KEYS
+  ]
   if (
     run.version === '0.1.0' &&
     changed.some(k => DOSSIER_TITLE_KEYS.includes(k))
@@ -197,8 +206,20 @@ export async function acapEditDossierRun(
         if (dx || dy)
           entity.transformBy(new AcGeMatrix3d().makeTranslation(dx, dy, 0))
         const tag = readSemanticTag(entity)!
+        // Part fields that carry a changed value (the piles' lCoc) follow it.
+        const stale = changed.filter(k => tag.params && k in tag.params)
         writeSemanticTag(entity, {
           ...tag,
+          ...(stale.length
+            ? {
+                params: {
+                  ...tag.params,
+                  ...Object.fromEntries(
+                    stale.map(k => [k, values[k] as number | string | boolean])
+                  )
+                }
+              }
+            : {}),
           run: {
             ...tag.run!,
             values: values as Record<string, number | string | boolean>

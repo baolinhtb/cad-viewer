@@ -954,7 +954,10 @@ function isSourceGeometry(v: DossierModel['values']): boolean {
         'thep',
         'thepF3',
         'thepW16',
-        'beTongLot'
+        'beTongLot',
+        // Not drawn: the elevations show the piles broken off. Like the
+        // model's steel check, a pile length is not a change of geometry.
+        'lCoc'
       ].includes(key) || v[key] === value
   )
 }

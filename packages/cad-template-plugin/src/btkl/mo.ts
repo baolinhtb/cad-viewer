@@ -49,6 +49,97 @@ const CORBEL_FACE = 300
 const S = BTKL_M1_SOURCE
 const PI = Math.PI
 
+/**
+ * Parameters each line depends on. A line is compared with — or copied from —
+ * the source table only while every parameter in its own list still has the
+ * M1 value; changing `hBe` therefore no longer refuses the ear walls or the
+ * PVC pipes. Lines that are scaled from the source (`tyLe`) are recomputed
+ * once one of their parameters changes; lines listed under `giuGoc` keep the
+ * source value until one of theirs changes, and are then refused.
+ */
+export const BTKL_MO_PHU_THUOC: Record<string, readonly string[]> = {
+  be: ['bBe', 'lBe', 'hBe', 'D', 'soCotCoc', 'soHangCoc'],
+  than: ['bThan', 'tThan', 'hThan'],
+  dinh: ['bThan', 'hDau'],
+  canh: [
+    'lBe',
+    'muiBe',
+    'tThan',
+    'lCanh',
+    'docDoc',
+    'hThan',
+    'hDau',
+    'docNgang',
+    'bMatDuong',
+    'tCanh'
+  ],
+  tai: ['tThan'],
+  // Fixed detail of the source; its size and count follow the stem width and
+  // the bearings, which the drawing does not dimension.
+  u_chong_xo: ['bThan', 'soGoi'],
+  // Scaled with the wing length and the rail height (standard assumption 2,
+  // docs/GIA-DINH-TIEU-CHUAN.md); the rail section is taken as independent
+  // of the wing thickness.
+  lan_can: ['lCanh', 'hLanCan'],
+  lot: ['bBe', 'lBe', 'phuLot', 'hLot', 'D', 'soCotCoc', 'soHangCoc'],
+  vua: ['soGoi'],
+  // Drain pipes counted across the stem width (standard assumption 3).
+  ong_pvc: ['bThan'],
+  bot_xop: ['bThan'],
+  hop_chot: ['soGoi'],
+  bt_nhua: ['bMatDuong'],
+  van_khuon: [
+    'bBe',
+    'lBe',
+    'hBe',
+    'bThan',
+    'hThan',
+    'hDau',
+    'muiBe',
+    'tThan',
+    'lCanh',
+    'docDoc',
+    'docNgang',
+    'bMatDuong',
+    'tCanh'
+  ]
+}
+const DEP = BTKL_MO_PHU_THUOC
+
+/** Asphalt layer thickness, m — the standard 7 cm (standard assumption 4). */
+export const BTKL_BT_NHUA_DAY = 0.07
+/**
+ * Asphalt length on the abutment, m: the M1 table's area over the M1 road
+ * width (118.448 m² / 7 m). The source does not dimension it.
+ */
+export const BTKL_BT_NHUA_DAI = BTKL_M1_SOURCE.btNhua / 7
+
+/** Steel groups of `bars.json` and the concrete line whose volume carries them. */
+const STEEL_GROUPS: [string, string[], string][] = [
+  ['be', ['be'], 'Bệ mố'],
+  ['than', ['than'], 'Tường thân'],
+  ['dinh', ['dau'], 'Tường đỉnh'],
+  ['canh', ['canh_trai', 'canh_phai'], 'Tường cánh (2 bên)'],
+  ['tai', ['tai'], 'Tường tai'],
+  ['lan_can', ['lan_can'], 'Lan can trên tường cánh']
+]
+
+/** M1 steel by bar group, kg, at the table's kg/m. */
+function m1SteelByGroup(): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const b of bars)
+    out[b.group] =
+      (out[b.group] ?? 0) +
+      (b.count * b.length * (b.kgPerM ?? acTpSteelKgPerM(b.diameter))) / 1000
+  return out
+}
+
+let m1Cache: AcTpBtklResult | undefined
+/** The take-off at the M1 defaults: the volumes the steel ratios refer to. */
+function m1(): AcTpBtklResult {
+  return (m1Cache ??= acTpBtklMo())
+}
+
 /** "1 234,567" — Vietnamese grouping, 3 decimals at most. */
 export function acTpBtklNumber(v: number, digits = 3): string {
   const [i, f] = (Math.round(v * 10 ** digits) / 10 ** digits)
@@ -94,28 +185,25 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   if (errors.length) return { doiTuong: name, items: [], bars: [], errors }
   const n = (k: string) => Number(v[k])
   const defaults = dossierDefaults()
-  // The source's own geometry: the condition the dossier already uses for
-  // its steel sheets, minus the steel choices themselves.
-  const sourceGeometry = Object.keys(defaults)
-    .filter(
-      k =>
-        typeof defaults[k] === 'number' &&
-        !['x', 'y', 'caoDoDayBe', 'lCoc'].includes(k)
-    )
-    .every(k => v[k] === defaults[k])
-  const changedGeometry = Object.keys(defaults).filter(
-    k =>
-      typeof defaults[k] === 'number' &&
-      !['x', 'y', 'caoDoDayBe', 'lCoc'].includes(k) &&
-      v[k] !== defaults[k]
-  )
-  const refusedGeometry = `Hình học đã khác mẫu M1 (${changedGeometry.join(', ')}); bản vẽ gốc không có đủ kích thước để tính lại dòng này.`
+  // Per line, not for the whole run: a line is the source's own while the
+  // parameters it depends on are (see BTKL_MO_PHU_THUOC).
+  const changedOf = (keys: readonly string[]) =>
+    keys.filter(k => v[k] !== defaults[k])
+  const same = (...keys: string[]) =>
+    keys.every(k => changedOf(DEP[k]).length === 0)
+  const refusedFor = (key: string) =>
+    `Đã đổi ${changedOf(DEP[key]).join(', ')} so với mẫu M1; bản vẽ gốc không có đủ kích thước để tính lại dòng này.`
 
   const items: AcTpBtklItem[] = []
   const add = (
     item: Omit<AcTpBtklItem, 'trongTong'> & { trongTong?: boolean }
-  ) => items.push({ trongTong: true, ...item })
-  const compare = (banGoc: number) => (sourceGeometry ? { banGoc } : {})
+  ) =>
+    items.push({
+      trongTong: true,
+      ...(DEP[item.key] ? { phuThuoc: [...DEP[item.key]] } : {}),
+      ...item
+    })
+  const compare = (key: string, banGoc: number) => (same(key) ? { banGoc } : {})
 
   const piles = model.piles.length
   const pileArea = (PI * n('D') ** 2) / 4
@@ -143,7 +231,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     khoiLuong: footing,
     dienGiai: `${f(n('bBe'))} × ${f(n('lBe'))} × ${f(n('hBe'))} − ${piles} × π × ${f(n('D'))}²/4 × ${f(BTKL_PILE_EMBED)} (trừ đầu cọc ngàm vào bệ)`,
     nguon: 'tham_so',
-    ...compare(S.beTong.be)
+    ...compare('be', S.beTong.be)
   })
   const stem = (n('bThan') * n('tThan') * n('hThan')) / 1e9
   add({
@@ -155,8 +243,8 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     khoiLuong: stem,
     dienGiai: `${f(n('bThan'))} × ${f(n('tThan'))} × ${f(n('hThan'))} (chiều cao tại tim = trung bình theo dốc ngang)`,
     nguon: 'tham_so',
-    ...compare(S.beTong.than),
-    flags: sourceGeometry
+    ...compare('than', S.beTong.than),
+    flags: same('than')
       ? [
           {
             code: 'lech_ban_goc_than',
@@ -176,7 +264,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     khoiLuong: head,
     dienGiai: `${f(n('bThan'))} × ${f(HEAD_WALL)} × ${f(n('hDau'))}`,
     nguon: 'tham_so',
-    ...compare(S.beTong.dinh)
+    ...compare('dinh', S.beTong.dinh)
   })
   const onFooting = n('lBe') - n('muiBe') - n('tThan')
   const run = n('lCanh') - HEAD_WALL - onFooting
@@ -186,7 +274,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   const high = wingSection(topHigh, onFooting, run, rise, n('lCanh'))
   const low = wingSection(topHigh - drop, onFooting, run, rise, n('lCanh'))
   const wingFlags: AcTpBtklFlag[] = []
-  if (sourceGeometry)
+  if (same('canh'))
     wingFlags.push({
       code: 'lech_ban_goc_canh',
       message:
@@ -216,9 +304,14 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
         : '') +
       `; cánh thấp hạ ${f(drop)} = ${n('docNgang')} % × ${f(n('bMatDuong'))}`,
     nguon: 'tham_so',
-    ...compare(S.beTong.canh),
+    ...compare('canh', S.beTong.canh),
     flags: wingFlags.length ? wingFlags : undefined
   })
+  /**
+   * A line the drawing does not dimension: the source value while the line's
+   * own parameters are M1's; afterwards `derive` (a formula, or the source
+   * value scaled) when it can, else refused with the parameters that changed.
+   */
   const fromSource = (
     key: string,
     stt: string,
@@ -226,10 +319,12 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     donVi: AcTpBtklItem['donVi'],
     value: number,
     nhom: AcTpBtklItem['nhom'] = 'be_tong',
-    hint = ''
+    hint = '',
+    derive?: { khoiLuong: number; dienGiai: string; tyLe?: boolean } | null,
+    flags?: AcTpBtklFlag[]
   ) =>
     add(
-      sourceGeometry
+      same(key)
         ? {
             key,
             stt,
@@ -239,20 +334,61 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
             khoiLuong: value,
             dienGiai: `Bảng SUB-100 bản gốc${hint}`,
             nguon: 'ban_goc',
-            banGoc: value
+            banGoc: value,
+            ...(flags ? { flags } : {})
           }
-        : {
-            key,
-            stt,
-            nhom,
-            hangMuc,
-            donVi,
-            khoiLuong: null,
-            dienGiai: '',
-            nguon: 'tu_choi',
-            lyDo: refusedGeometry
-          }
+        : derive
+          ? {
+              key,
+              stt,
+              nhom,
+              hangMuc,
+              donVi,
+              khoiLuong: derive.khoiLuong,
+              dienGiai: derive.dienGiai,
+              nguon: 'tham_so',
+              ...(derive.tyLe || flags
+                ? {
+                    flags: [
+                      ...(derive.tyLe
+                        ? [
+                            {
+                              code: 'ty_le_ban_goc',
+                              message: `Tỉ lệ từ bảng gốc M1 theo ${changedOf(DEP[key]).join(', ')}; cấu tạo giữ như mẫu — cần kỹ sư xác nhận.`
+                            }
+                          ]
+                        : []),
+                      ...(flags ?? [])
+                    ]
+                  }
+                : {})
+            }
+          : {
+              key,
+              stt,
+              nhom,
+              hangMuc,
+              donVi,
+              khoiLuong: null,
+              dienGiai: '',
+              nguon: 'tu_choi',
+              lyDo: refusedFor(key)
+            }
     )
+  /** `value × now / was`, written out with the M1 value and the ratio. */
+  const scaled = (
+    value: number,
+    now: number,
+    was: number,
+    what: string,
+    digits = 3
+  ) => ({
+    khoiLuong: (value * now) / was,
+    dienGiai: `${acTpBtklNumber(value, digits)} × ${acTpBtklNumber(now, digits)}/${acTpBtklNumber(was, digits)} (bảng gốc M1 theo tỉ lệ ${what})`,
+    tyLe: true
+  })
+  const d0 = (k: string) => Number(defaults[k])
+  const N = n('tThan') - HEAD_WALL
   fromSource(
     'tai',
     '1.5',
@@ -260,10 +396,30 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     'm3',
     S.beTong.tai,
     'be_tong',
-    ` (= 2 × ${f(EAR.t)} × ${f(EAR.h)} × N = ${f(n('tThan') - HEAD_WALL)})`
+    ` (= 2 × ${f(EAR.t)} × ${f(EAR.h)} × N = ${f(N)})`,
+    {
+      khoiLuong: (2 * EAR.t * EAR.h * N) / 1e9,
+      dienGiai: `2 × ${f(EAR.t)} × ${f(EAR.h)} × N, N = tThan − ${f(HEAD_WALL)} = ${f(N)} (cấu tạo tai như mẫu M1)`
+    }
   )
   fromSource('u_chong_xo', '1.6', 'Ụ chống xô', 'm3', S.beTong.uChongXo)
-  fromSource('lan_can', '1.7', 'Lan can trên tường cánh', 'm3', S.beTong.lanCan)
+  fromSource(
+    'lan_can',
+    '1.7',
+    'Lan can trên tường cánh',
+    'm3',
+    S.beTong.lanCan,
+    'be_tong',
+    '',
+    // Length × rail height, both relative to M1 (standard assumption 2).
+    {
+      khoiLuong:
+        (S.beTong.lanCan * n('lCanh') * n('hLanCan')) /
+        (d0('lCanh') * d0('hLanCan')),
+      dienGiai: `${acTpBtklNumber(S.beTong.lanCan)} × ${f(n('lCanh'))}/${f(d0('lCanh'))} × ${f(n('hLanCan'))}/${f(d0('hLanCan'))} (bảng gốc M1 theo tỉ lệ chiều dài cánh × chiều cao lan can)`,
+      tyLe: true
+    }
+  )
   const parts = items.filter(i => i.nhom === 'be_tong' && i.stt.includes('.'))
   const refused = parts.filter(i => i.khoiLuong === null)
   const total = items[0]
@@ -273,7 +429,8 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   } else {
     total.khoiLuong = parts.reduce((s, i) => s + i.khoiLuong!, 0)
     total.dienGiai = `Cộng ${parts[0].stt}–${parts[parts.length - 1].stt}`
-    if (sourceGeometry) total.banGoc = S.beTong.tong
+    if (same('be', 'than', 'dinh', 'canh', 'tai', 'u_chong_xo', 'lan_can'))
+      total.banGoc = S.beTong.tong
   }
 
   // ---- 2. Blinding -------------------------------------------------------
@@ -289,7 +446,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     khoiLuong: (bL * lL * n('hLot') - piles * pileArea * n('hLot')) / 1e9,
     dienGiai: `(${f(bL)} × ${f(lL)} − ${piles} × π × ${f(n('D'))}²/4) × ${f(n('hLot'))} (trừ tiết diện cọc qua lớp đệm)`,
     nguon: 'tham_so',
-    ...compare(S.lot),
+    ...compare('lot', S.lot),
     flags:
       v.beTongLot === 'chua_chot'
         ? [
@@ -324,7 +481,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
           khoiLuong: null,
           dienGiai: '',
           nguon: 'tu_choi',
-          lyDo: 'Chưa có chiều dài cọc (lCoc = 0); bản gốc cũng không thống kê cọc.'
+          lyDo: `Chưa có chiều dài cọc (lCoc = 0); bản gốc M1 cũng không thống kê cọc. Nhập lCoc (mm, chiều dài một cọc theo hồ sơ địa chất) qua sua_ho_so_mo hoặc cap_nhat_btkl rồi chạy lại — không làm đổi hình vẽ; sẽ tính ${piles} × π × ${f(n('D'))}²/4 × lCoc.`
         }
   )
 
@@ -335,19 +492,55 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     'Vữa không co ngót',
     'm3',
     S.vuaKhongCoNgot,
-    'vat_tu'
+    'vat_tu',
+    '',
+    scaled(S.vuaKhongCoNgot, n('soGoi'), d0('soGoi'), 'số gối')
   )
-  fromSource('ong_pvc', '4.2', 'Ống PVC D125', 'm', S.ongPvcD125, 'vat_tu')
-  fromSource('bot_xop', '4.3', 'Chèn bọt xốp', 'm3', S.chenBotXop, 'vat_tu')
-  fromSource('hop_chot', '4.4', 'Hộp chốt', 'hộp', S.hopChot, 'vat_tu')
   fromSource(
-    'bt_nhua',
-    '4.5',
-    'Bê tông nhựa nóng 2 kg/m²',
-    'm2',
-    S.btNhua,
-    'vat_tu'
+    'ong_pvc',
+    '4.2',
+    'Ống PVC D125',
+    'm',
+    S.ongPvcD125,
+    'vat_tu',
+    '',
+    scaled(S.ongPvcD125, n('bThan') / 1000, d0('bThan') / 1000, 'bThan')
   )
+  fromSource(
+    'bot_xop',
+    '4.3',
+    'Chèn bọt xốp',
+    'm3',
+    S.chenBotXop,
+    'vat_tu',
+    '',
+    scaled(S.chenBotXop, n('bThan') / 1000, d0('bThan') / 1000, 'bThan')
+  )
+  fromSource('hop_chot', '4.4', 'Hộp chốt', 'hộp', S.hopChot, 'vat_tu', '', {
+    khoiLuong: (S.hopChot * n('soGoi')) / d0('soGoi'),
+    dienGiai: `${acTpBtklNumber(S.hopChot / d0('soGoi'))} hộp/gối × ${n('soGoi')} gối (như mẫu M1)`
+  })
+  // Asphalt (standard assumption 4): carriageway width × length on the
+  // abutment × layer thickness. The length is the M1 table's area over its
+  // road width (the source does not dimension it); the thickness is the
+  // standard 7 cm. Both flagged as assumptions.
+  const asphaltArea = (n('bMatDuong') / 1000) * BTKL_BT_NHUA_DAI
+  const asphaltFlag = {
+    code: 'bt_nhua_gia_dinh',
+    message: `Giả định: chiều dài trên mố ${acTpBtklNumber(BTKL_BT_NHUA_DAI)} m lấy từ bảng M1 (118,448 m² / 7 m), lớp dày ${acTpBtklNumber(BTKL_BT_NHUA_DAY)} m theo tiêu chuẩn — kỹ sư xác nhận theo hồ sơ thực.`
+  }
+  add({
+    key: 'bt_nhua',
+    stt: '4.5',
+    nhom: 'vat_tu',
+    hangMuc: 'Bê tông nhựa nóng 2 kg/m²',
+    donVi: 'm2',
+    khoiLuong: asphaltArea,
+    dienGiai: `${f(n('bMatDuong'))} × ${acTpBtklNumber(BTKL_BT_NHUA_DAI)} (bề rộng phần xe chạy × chiều dài trên mố); khối lượng lớp mặt ${acTpBtklNumber(asphaltArea)} × ${acTpBtklNumber(BTKL_BT_NHUA_DAY)} = ${acTpBtklNumber(asphaltArea * BTKL_BT_NHUA_DAY)} m³`,
+    nguon: 'tham_so',
+    ...compare('bt_nhua', S.btNhua),
+    flags: [asphaltFlag]
+  })
 
   // ---- 5. Formwork (B4) --------------------------------------------------
   // Contact-face rule read from the source: the four sides of the footing and
@@ -391,9 +584,9 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     dienGiai: `Cộng 5.1–5.${formFaces.length}: diện tích mặt tiếp xúc (4 mặt bên bệ; 2 mặt lớn của thân, tường đỉnh, mỗi tường cánh)`,
     nguon: 'tham_so',
     laTong: true,
-    ...compare(S.vanKhuon),
+    ...compare('van_khuon', S.vanKhuon),
     flags: [
-      ...(sourceGeometry
+      ...(same('van_khuon')
         ? [
             {
               code: 'lech_ban_goc_van_khuon',
@@ -423,7 +616,92 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
 
   // ---- 6. Steel ----------------------------------------------------------
   const barList: AcTpBtklBar[] = []
-  if (!model.referenceSteelApplicable)
+  // A changed geometry with the M1 bar layout otherwise intact: estimated
+  // from the M1 ratio kg/m³ of each member (decision d, option 2). A changed
+  // bar choice (F3 D25, W16 D14) is a new detailing, not an estimate.
+  const estimateSteel =
+    !model.referenceSteelApplicable &&
+    v.thep === 'mau' &&
+    v.thepF3 !== 'D25' &&
+    v.thepW16 !== 'D14'
+  if (estimateSteel) {
+    const kgOf = m1SteelByGroup()
+    const base = m1()
+    const volume = (list: AcTpBtklItem[], key: string) =>
+      list.find(i => i.key === key)?.khoiLuong ?? null
+    const missing = STEEL_GROUPS.filter(([key]) => volume(items, key) === null)
+    if (missing.length)
+      add({
+        key: 'thep',
+        stt: '6',
+        nhom: 'cot_thep',
+        hangMuc: 'Cốt thép',
+        donVi: 'kg',
+        khoiLuong: null,
+        dienGiai: '',
+        nguon: 'tu_choi',
+        lyDo: `Không quy đổi được thép theo hàm lượng mẫu M1: thiếu thể tích ${missing.map(m => m[2].toLowerCase()).join(', ')}.`
+      })
+    else {
+      const parts: [string, string, number, string][] = STEEL_GROUPS.map(
+        ([key, groups, label]) => {
+          const kg0 = groups.reduce((s, g) => s + (kgOf[g] ?? 0), 0)
+          const vol0 = volume(base.items, key)!
+          const vol = volume(items, key)!
+          const ratio = kg0 / vol0
+          return [
+            `thep_hl_${key}`,
+            `Thép ${label.toLowerCase()}`,
+            ratio * vol,
+            `${acTpBtklNumber(ratio, 1)} kg/m³ × ${acTpBtklNumber(vol)} m³ (M1: ${acTpBtklNumber(kg0, 1)} kg / ${acTpBtklNumber(vol0)} m³)`
+          ]
+        }
+      )
+      const goi = kgOf.goi ?? 0
+      parts.push([
+        'thep_hl_goi',
+        'Thép gối',
+        (goi * n('soGoi')) / d0('soGoi'),
+        `${acTpBtklNumber(goi / d0('soGoi'), 1)} kg/gối × ${n('soGoi')} gối (bảng M1)`
+      ])
+      parts.push([
+        'thep_hl_phu',
+        'Thép phụ',
+        kgOf.phu ?? 0,
+        'Giữ nguyên bảng M1'
+      ])
+      add({
+        key: 'thep',
+        stt: '6',
+        nhom: 'cot_thep',
+        hangMuc: 'Cốt thép (tạm tính theo hàm lượng mẫu M1)',
+        donVi: 'kg',
+        khoiLuong: parts.reduce((s, p) => s + p[2], 0),
+        dienGiai: `Cộng 6.1–6.${parts.length}: hàm lượng kg/m³ của từng cấu kiện mẫu M1 × thể tích mới`,
+        nguon: 'tham_so',
+        laTong: true,
+        flags: [
+          {
+            code: 'thep_tam_tinh_ham_luong',
+            message:
+              'Tạm tính theo hàm lượng mẫu M1 (sai số cỡ ±10–15 %), đã tính vào tổng thép; chỉ dùng cho dự toán sơ bộ, chưa có bố trí thép cho hình học này.'
+          }
+        ]
+      })
+      parts.forEach(([key, hangMuc, kg, dienGiai], k) =>
+        add({
+          key,
+          stt: `6.${k + 1}`,
+          nhom: 'cot_thep',
+          hangMuc,
+          donVi: 'kg',
+          khoiLuong: kg,
+          dienGiai,
+          nguon: 'tham_so'
+        })
+      )
+    }
+  } else if (!model.referenceSteelApplicable)
     add({
       key: 'thep',
       stt: '6',
@@ -436,7 +714,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
       lyDo:
         v.thep === 'khong'
           ? 'Hồ sơ chỉ có bố trí chung, chưa có phương án cốt thép.'
-          : 'Hình học hoặc cấu tạo thép đã khác mẫu M1: không dùng bảng thép cũ; cần phương án thép mới.'
+          : 'Cấu tạo thép đã khác mẫu M1 (F3 D25 hoặc W16 D14): không dùng bảng thép cũ; cần phương án thép mới.'
     })
   else {
     for (const b of bars) {

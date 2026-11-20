@@ -142,6 +142,39 @@ describe('dossier tools against a real database', () => {
     expect(entitiesOfRun(db, 'r1')).toHaveLength(oldCount)
   })
 
+  test('a pile length is not a geometry change: kept entities, recorded for the take-off', async () => {
+    const db = database()
+    await runDossierTool('tao_ho_so_mo', {}, db)
+    const before = entitiesOfRun(db, 'r1')
+    const ids = before.map(e => e.objectId)
+    // A hand edit: a regeneration would refuse it, a pile length must not.
+    const note = before.find(
+      e => e instanceof AcDbText && readSemanticTag(e)?.params?.sourceHandle
+    ) as AcDbText
+    note.textString = 'GHI_CHU_KY_SU'
+    const result = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { lCoc: 30000 } },
+      db
+    )
+    expect(result.ok).toBe(true)
+    expect(listRuns(db)[0].values.lCoc).toBe(30000)
+    const after = entitiesOfRun(db, 'r1')
+    expect(after.map(e => e.objectId)).toEqual(ids)
+    expect(note.textString).toBe('GHI_CHU_KY_SU')
+    const piles = after
+      .map(e => readSemanticTag(e))
+      .filter(t => t?.params && 'lCoc' in t.params)
+    expect(piles.length).toBeGreaterThan(0)
+    for (const t of piles) expect(t!.params!.lCoc).toBe(30000)
+    // Neither generator treats it as a new geometry.
+    for (const version of ['0.2.0', '0.3.0'])
+      expect(
+        buildDossierScene(buildDossierModel({ lCoc: 30000 }), version)
+          .detailMode
+      ).toBe('source')
+  })
+
   test('label and placement edits preserve every handle, manual text and native geometry through undo/redo', async () => {
     const db = database()
     await runDossierTool('tao_ho_so_mo', {}, db)
