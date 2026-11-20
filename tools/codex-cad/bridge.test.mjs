@@ -16,7 +16,8 @@ import {
   claudeMessage,
   normalizeToolName,
   readStepAnswer,
-  renderHistory
+  renderHistory,
+  selectTools
 } from './claude-step.mjs'
 
 test('a CAD tool request is returned to the browser without server execution', async () => {
@@ -227,6 +228,16 @@ test('claude: arguments, environment and stdin of one step', async () => {
   const flag = name => args[args.indexOf(name) + 1]
   assert.match(flag('--system-prompt'), /Company standards/)
   assert.match(flag('--system-prompt'), /Giao thức cầu nối/)
+  // The tool list sits in the system prompt, which the CLI can cache, between
+  // the browser's prompt and the protocol.
+  const system = flag('--system-prompt')
+  assert.ok(
+    system.indexOf('Company standards') <
+      system.indexOf('# Công cụ có sẵn (JSON, cố định trong phiên)')
+  )
+  assert.ok(
+    system.indexOf('"name":"tao_btkl"') < system.indexOf('Giao thức cầu nối')
+  )
   assert.equal(flag('--tools'), '')
   assert.equal(flag('--setting-sources'), '')
   assert.ok(args.includes('--no-session-persistence'))
@@ -248,13 +259,19 @@ test('claude: arguments, environment and stdin of one step', async () => {
   assert.match(options.cwd, /cad-claude-step-/)
   const message = firstUserMessage(calls[0])
   assert.equal(message.role, 'user')
-  assert.match(message.content[0].text, /"name":"tao_btkl"/)
+  assert.doesNotMatch(message.content[0].text, /"name":"tao_btkl"/)
   assert.match(message.content[0].text, /Lập BTKL/)
   // Final text, no tool.
   assert.equal(result.stop_reason, 'end_turn')
   assert.deepEqual(result.content, [{ type: 'text', text: 'Đã xong.' }])
   assert.equal(result.model, 'claude-opus-5-5')
-  assert.deepEqual(result.usage, { input_tokens: 103, output_tokens: 40 })
+  // Cache writes and reads stay apart, as the Messages API reports them.
+  assert.deepEqual(result.usage, {
+    input_tokens: 3,
+    output_tokens: 40,
+    cache_creation_input_tokens: 100,
+    cache_read_input_tokens: 0
+  })
 })
 
 test('claude: a tool request becomes one tool_use for the browser', async () => {
@@ -806,7 +823,12 @@ test('claude: the diagnostic line carries no prompt, no drawing and no token', a
     'tong'
   ])
   assert.equal(entry.cong_cu, 'tao_btkl')
-  assert.deepEqual(entry.tong, { input_tokens: 103, output_tokens: 40 })
+  assert.deepEqual(entry.tong, {
+    input_tokens: 3,
+    output_tokens: 40,
+    cache_creation_input_tokens: 100,
+    cache_read_input_tokens: 0
+  })
 })
 
 test('claude: the history reaches the CLI as a record, not as tool_use blocks', async () => {
@@ -874,8 +896,8 @@ test('claude: the history reaches the CLI as a record, not as tool_use blocks', 
   assert.doesNotMatch(history, /"type":"tool_use"/)
   assert.doesNotMatch(history, /"type":"tool_result"/)
   assert.doesNotMatch(history, /tool_use_id/)
-  // The tool list is still JSON, above the history.
-  assert.match(text, /^Công cụ có sẵn \(JSON\):\n\[\{"name":"tao_btkl"/)
+  // The message is the history alone; the tools are in the system prompt.
+  assert.match(text, /^Lịch sử hội thoại/)
 })
 
 test('claude: the browser tool names are the schema enum of legal answers', async () => {
@@ -939,4 +961,171 @@ test('claude: rendering history keeps images, numbers and unknown blocks', () =>
     ].join('\n')
   )
   assert.equal(seen.length, 1)
+})
+
+test('claude: in an abutment-dossier conversation chay_template is not offered', () => {
+  const tools = [
+    {
+      name: 'chay_template',
+      description: 'x'.repeat(13000),
+      input_schema: {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object'
+      }
+    },
+    { name: 'tao_ho_so_mo', input_schema: { type: 'object' } },
+    { name: 'execute_cad_script', input_schema: { type: 'object' } }
+  ]
+  const names = (messages, env = {}) =>
+    selectTools(tools, messages, env).map(t => t.name)
+  const said = text => [{ role: 'user', content: text }]
+  // The user speaks of the dossier, or a dossier tool was already called.
+  assert.deepEqual(names(said('Dựng bộ hồ sơ mố M1 theo BTC mo_2')), [
+    'tao_ho_so_mo',
+    'execute_cad_script'
+  ])
+  assert.deepEqual(
+    names([
+      ...said('đổi chiều cao bệ'),
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 't', name: 'sua_ho_so_mo', input: {} }
+        ]
+      }
+    ]),
+    ['tao_ho_so_mo', 'execute_cad_script']
+  )
+  // Anything else keeps the full list…
+  assert.deepEqual(names(said('vẽ lan can cầu')), [
+    'chay_template',
+    'tao_ho_so_mo',
+    'execute_cad_script'
+  ])
+  // …and so does a dossier conversation that already used chay_template, or
+  // a deployment that turns trimming off.
+  assert.ok(
+    names([
+      ...said('hồ sơ mố'),
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 't', name: 'chay_template', input: {} }
+        ]
+      }
+    ]).includes('chay_template')
+  )
+  assert.ok(
+    names(said('hồ sơ mố'), { CAD_AGENT_TRIM_TOOLS: '0' }).includes(
+      'chay_template'
+    )
+  )
+  // $schema says nothing to a model.
+  assert.deepEqual(selectTools(tools, said('x'), {})[0].input_schema, {
+    type: 'object'
+  })
+})
+
+test('claude: the trimmed list is also the schema enum and the system prompt', async () => {
+  const { spawn, calls } = fakeSpawn([
+    { events: [resultEvent({ text: 'ok', tool: null })] }
+  ])
+  const lines = []
+  await claudeMessage(
+    {
+      messages: [{ role: 'user', content: 'Dựng bộ hồ sơ mố M1' }],
+      tools: [
+        { name: 'chay_template', input_schema: { type: 'object' } },
+        { name: 'tao_ho_so_mo', input_schema: { type: 'object' } }
+      ]
+    },
+    { spawn, env: ENV, log: line => lines.push(line) }
+  )
+  const args = calls[0].args
+  const flag = name => args[args.indexOf(name) + 1]
+  assert.deepEqual(
+    JSON.parse(flag('--json-schema')).properties.tool.anyOf[1].properties.name
+      .enum,
+    ['tao_ho_so_mo']
+  )
+  assert.doesNotMatch(flag('--system-prompt'), /chay_template/)
+  const entry = JSON.parse(lines[0])
+  assert.equal(entry.cong_cu_gui, 1)
+  assert.equal(entry.cong_cu_trinh_duyet, 2)
+})
+
+test('claude: old tool results are cut short, the last ones kept whole', () => {
+  const long = 'a'.repeat(5000)
+  const messages = [{ role: 'user', content: 'sửa lan can' }]
+  for (let i = 1; i <= 6; i++)
+    messages.push(
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: `t${i}`,
+            name: 'execute_cad_script',
+            input: {}
+          }
+        ]
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: `t${i}`,
+            content: [
+              { type: 'text', text: `#${i}${long}` },
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/png', data: 'AA' }
+              }
+            ]
+          }
+        ]
+      }
+    )
+  const images = []
+  const stats = { shortened: 0 }
+  const text = renderHistory(messages, block => images.push(block), { stats })
+  // Two old results cut to 400 characters, their screenshots dropped…
+  assert.equal(stats.shortened, 2)
+  assert.match(text, /#1 KẾT QUẢ: #1a{398}… \(rút gọn, \d+ ký tự\)/)
+  assert.equal((text.match(/\[1 ảnh cũ đã bỏ\]/g) ?? []).length, 2)
+  // …the last four whole, with their images.
+  assert.equal(images.length, 4)
+  assert.ok(text.includes(`#6${long}`))
+  assert.ok(text.includes(`#3${long}`))
+  assert.ok(!text.includes(`#2${long}`))
+})
+
+test('claude: cache counts reach the server through the stream it proxies', () => {
+  // ai.mjs reads input and cache counts from message_start (tapUsage); with
+  // the CLI's usage no longer folded into input_tokens, the cost table's
+  // cache columns can finally say what was cached.
+  const sse = anthropicEvents({
+    id: 'msg_1',
+    type: 'message',
+    role: 'assistant',
+    model: 'claude',
+    content: [{ type: 'text', text: 'ok' }],
+    stop_reason: 'end_turn',
+    stop_sequence: null,
+    usage: {
+      input_tokens: 2100,
+      output_tokens: 40,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 48000
+    }
+  })
+  const start = JSON.parse(
+    sse
+      .split('\n')
+      .find(line => line.startsWith('data:') && line.includes('message_start'))
+      .slice(5)
+  )
+  assert.equal(start.message.usage.cache_read_input_tokens, 48000)
+  assert.equal(start.message.usage.input_tokens, 2100)
 })
