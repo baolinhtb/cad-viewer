@@ -15,7 +15,8 @@ import {
   claudeArgs,
   claudeMessage,
   normalizeToolName,
-  readStepAnswer
+  readStepAnswer,
+  renderHistory
 } from './claude-step.mjs'
 
 test('a CAD tool request is returned to the browser without server execution', async () => {
@@ -806,4 +807,136 @@ test('claude: the diagnostic line carries no prompt, no drawing and no token', a
   ])
   assert.equal(entry.cong_cu, 'tao_btkl')
   assert.deepEqual(entry.tong, { input_tokens: 103, output_tokens: 40 })
+})
+
+test('claude: the history reaches the CLI as a record, not as tool_use blocks', async () => {
+  const { spawn, calls } = fakeSpawn([
+    { events: [resultEvent({ text: 'Tiếp tục.', tool: null })] }
+  ])
+  await claudeMessage(
+    {
+      messages: [
+        { role: 'user', content: 'Lập BTKL cho mố M1' },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Tôi lập bảng.' },
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'tao_btkl',
+              input: { vi_tri: { x: 1 } }
+            }
+          ]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_1',
+              content: [{ type: 'text', text: '{"ok":true}' }]
+            }
+          ]
+        },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'tool_use', id: 'toolu_2', name: 'xuat_btkl', input: {} }
+          ]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_2',
+              is_error: true,
+              content: 'không ghi được tệp'
+            }
+          ]
+        }
+      ],
+      tools: TOOLS
+    },
+    { spawn, env: ENV }
+  )
+  const text = firstUserMessage(calls[0]).content[0].text
+  const history = text.slice(text.indexOf('Lịch sử hội thoại'))
+  // The record says what happened…
+  assert.match(history, /NGƯỜI DÙNG: Lập BTKL cho mố M1/)
+  assert.match(history, /TRỢ LÝ: Tôi lập bảng\./)
+  assert.match(history, /#1 GỌI tao_btkl \{"vi_tri":\{"x":1\}\}/)
+  assert.match(history, /#1 KẾT QUẢ: \{"ok":true\}/)
+  assert.match(history, /#2 GỌI xuat_btkl \{\}/)
+  assert.match(history, /#2 KẾT QUẢ \(LỖI\): không ghi được tệp/)
+  // …without showing the model a single native tool call to copy.
+  assert.doesNotMatch(history, /"type":"tool_use"/)
+  assert.doesNotMatch(history, /"type":"tool_result"/)
+  assert.doesNotMatch(history, /tool_use_id/)
+  // The tool list is still JSON, above the history.
+  assert.match(text, /^Công cụ có sẵn \(JSON\):\n\[\{"name":"tao_btkl"/)
+})
+
+test('claude: the browser tool names are the schema enum of legal answers', async () => {
+  const { spawn, calls } = fakeSpawn([
+    { events: [resultEvent({ text: 'ok', tool: null })] }
+  ])
+  await claudeMessage(
+    { messages: [{ role: 'user', content: 'x' }], tools: TOOLS },
+    { spawn, env: ENV }
+  )
+  const args = calls[0].args
+  const schema = JSON.parse(args[args.indexOf('--json-schema') + 1])
+  assert.deepEqual(schema.properties.tool.anyOf[1].properties.name.enum, [
+    'tao_btkl',
+    'xuat_btkl'
+  ])
+  // No tools: the name stays a free string rather than an empty enum, which
+  // no answer could satisfy.
+  assert.equal(
+    claudeArgs({ system: 's', toolNames: [] })[
+      claudeArgs({ system: 's', toolNames: [] }).indexOf('--json-schema') + 1
+    ].includes('enum'),
+    false
+  )
+})
+
+test('claude: rendering history keeps images, numbers and unknown blocks', () => {
+  const seen = []
+  const text = renderHistory(
+    [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Xem ảnh' },
+          { type: 'image', source: { data: 'x' } }
+        ]
+      },
+      {
+        role: 'assistant',
+        content: [{ type: 'thinking', thinking: 'ngẫm' }]
+      },
+      { role: 'user', content: '' },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'mất', content: 'r' }]
+      }
+    ],
+    block => {
+      seen.push(block)
+      return seen.length
+    }
+  )
+  assert.equal(
+    text,
+    [
+      'NGƯỜI DÙNG: Xem ảnh',
+      'NGƯỜI DÙNG: [Ảnh đính kèm 1]',
+      'TRỢ LÝ: {"type":"thinking","thinking":"ngẫm"}',
+      // A result whose call is not in the history still says it is one.
+      '#? KẾT QUẢ: r'
+    ].join('\n')
+  )
+  assert.equal(seen.length, 1)
 })
