@@ -34,6 +34,31 @@ export interface ToolResultImage {
 }
 
 /**
+ * What a script did to existing drawing content — counts and names only,
+ * never geometry or text, so it can be logged without copying the drawing.
+ *
+ * Only edits that committed are counted: a transaction that threw is rolled
+ * back and leaves no trace here, except in `blockedErase`.
+ */
+export interface CadScriptAudit {
+  /** Entities erased. */
+  erased: number
+  /** Distinct existing entities changed (layer, style, text, grips, move, rotate). */
+  modified: number
+  /** Entities created. */
+  created: number
+  /** Layers of the erased or changed entities, sorted. */
+  layers: string[]
+  /**
+   * Template runs whose entities were erased or changed, as the session's
+   * `entityOwner` names them (e.g. `ho_so_mo_m1 r1`), sorted.
+   */
+  runs: string[]
+  /** Entities a `tx.erase` tried to remove from a template run and was refused. */
+  blockedErase: number
+}
+
+/**
  * Outcome of a CAD tool invocation.
  *
  * Serialized back to the model as JSON. Script execution adds `data`, `log`,
@@ -64,6 +89,8 @@ export interface ToolResult {
    * Summaries only — adapters must not echo the DXF body to the model.
    */
   savedFiles?: ToolResultSavedFile[]
+  /** What a script changed in the drawing; see {@link CadScriptAudit}. */
+  audit?: CadScriptAudit
 }
 
 /**

@@ -172,7 +172,8 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
           thong_so: z.record(
             z.string(),
             z.union([z.number(), z.string(), z.boolean()])
-          )
+          ),
+          xac_nhan_bo_doi_tuong: z.boolean().optional()
         })
         .strict(),
       execute: async input => {

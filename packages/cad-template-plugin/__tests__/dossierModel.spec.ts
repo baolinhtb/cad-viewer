@@ -180,3 +180,47 @@ test('legacy gray annotation catalogue exports semantic accents', () => {
   })
   expect(svg).toContain('color="#166534"')
 })
+
+describe('0.2.0 schematic: the two rails are mirror images', () => {
+  // Both rails used to share one profile [x−250, x+250, x+150, x−100]: the
+  // right rail had its 150 mm bevel towards the road, the left one away from
+  // it (cf. fix/lan-can-quay-mat-vat-vao-tim for the parapet template).
+  test.each<Record<string, number>>([
+    {},
+    { docNgang: 0 },
+    { bMatDuong: 6000, hLanCan: 1000 }
+  ])('vertices mirror about the axis for %j', values => {
+    // A changed geometry draws the schematic in every view.
+    const scene = buildDossierScene(
+      buildDossierModel({ hBe: 2100, ...values }),
+      '0.2.0'
+    )
+    const rails = scene.sheets
+      .flatMap(s => s.primitives)
+      .filter(p => p.role === 'lan_can' && p.kind === 'path')
+    expect(rails.length).toBeGreaterThanOrEqual(2)
+    const [left, right] = rails.slice(0, 2) as Array<{
+      points: [number, number][]
+    }>
+    const axis = (left.points[0][0] + right.points[0][0]) / 2
+    // Same profile, reflected: x mirrored, heights over each base equal.
+    const relative = (pts: [number, number][], mirror: boolean) =>
+      pts.map(([x, y]) => [
+        Math.round(mirror ? axis - x : x - axis),
+        Math.round(y - pts[0][1])
+      ])
+    expect(relative(left.points, true)).toEqual(relative(right.points, false))
+    // The wider bevel (150 mm) faces the road on both sides.
+    for (const [rail, inward] of [
+      [left, 1],
+      [right, -1]
+    ] as const) {
+      const [b0, b1, t0, t1] = rail.points
+      const innerBase =
+        inward > 0 ? Math.max(b0[0], b1[0]) : Math.min(b0[0], b1[0])
+      const innerTop =
+        inward > 0 ? Math.max(t0[0], t1[0]) : Math.min(t0[0], t1[0])
+      expect(Math.abs(innerTop - innerBase)).toBe(150)
+    }
+  })
+})

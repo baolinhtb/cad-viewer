@@ -29,6 +29,7 @@ import {
   acTpDecodeVnText
 } from '@mlightcad/cad-template-sdk'
 
+import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
 import { sheetStretch } from './grid030'
 import type { DossierModel } from './model'
 import { dossierDefaults, REFERENCE_ID } from './model'
@@ -704,6 +705,15 @@ export function buildScene030(
       : String(v.congTrinh).toLocaleUpperCase('vi')
   const relabel = (text: string) =>
     text.replace(/\bM1\b/g, tenMo.toLocaleUpperCase('vi'))
+  // A changed geometry with the M1 bar layout otherwise intact: the steel
+  // sheets and the SUB-100 tables keep the M1 drawing, marked as not updated,
+  // instead of going blank (17/11/2026: −71 % of the dossier on hLot +50).
+  // A changed bar choice (F3 D25, W16 D14) is new detailing: still refused.
+  const steelAsM1 =
+    !model.referenceSteelApplicable &&
+    v.thep === 'mau' &&
+    v.thepF3 !== 'D25' &&
+    v.thepW16 !== 'D14'
 
   const sheets: DossierSheet[] = LAYOUT.sheets.map((ls, index) => {
     const s: DossierSheet = {
@@ -733,12 +743,26 @@ export function buildScene030(
         ? sheetStretch(ls.id, v)
         : // The model already says when the source steel no longer applies
           // (any geometric change; not the elevation datum or pile length).
-          !model.referenceSteelApplicable
-          ? {
-              error:
-                'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
-            }
-          : sheetStretch(ls.id, v)
+          model.referenceSteelApplicable
+          ? sheetStretch(ls.id, v)
+          : steelAsM1
+            ? // Never stretched to the new size: re-laying bars is design.
+              sheetStretch(ls.id, dossierDefaults())
+            : {
+                error:
+                  'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
+              }
+      if (steel && steelAsM1 && !('error' in stretch))
+        STEEL_AS_M1.forEach((t, i) =>
+          push({
+            ...id('ghi_chu'),
+            kind: 'text',
+            at: [x0 + 2000, y0 + ls.viewport!.h * K - 1200 - i * 500],
+            text: t,
+            height: i ? 280 : 400,
+            color: 1
+          })
+        )
       if ('error' in stretch)
         [
           steel
@@ -915,7 +939,7 @@ export function buildScene030(
     const scaled = (p: XY): XY => [p[0] * K, p[1] * K]
     // The statistics and quantity tables hold the source abutment's numbers:
     // shown only while the parameters are that abutment's, like its steel.
-    const tablesApply = model.referenceSteelApplicable
+    const tablesApply = model.referenceSteelApplicable || steelAsM1
     // SUB-020: elevation and dimension tables, recomputed (GĐ5).
     const tables =
       s.id === 'SUB-020' ? sub020Tables(ls.paper, v, tenMo) : undefined
@@ -934,6 +958,8 @@ export function buildScene030(
       )
     for (const p of tables?.paper ?? ls.paper)
       if (!p.ole || tablesApply || tables) addPaper(p, roleOf(p))
+    if (steelAsM1 && !tables && ls.paper.some(p => p.ole))
+      quantityTable(v).forEach(push)
     if (!tables && !tablesApply && ls.paper.some(p => p.ole))
       [
         'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG',
@@ -1256,4 +1282,77 @@ export function buildScene030(
       )
     }))
   }
+}
+
+/** Warning over a steel sheet drawn as M1 for a changed geometry. */
+const STEEL_AS_M1 = [
+  'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
+  'Hình thép giữ nguyên kích thước mẫu M1, không kéo giãn. Cần phương án thép mới trước khi phát hành; khối lượng thép trên BTKL là tạm tính theo hàm lượng.'
+]
+
+/**
+ * SUB-100 for a changed geometry: the M1 tables stay, marked as M1's, and
+ * the take-off of the current parameters (item d) is drawn in the free lower
+ * left of the sheet (paper x 15–195 mm, y 12–100 mm).
+ */
+function quantityTable(v: DossierModel['values']): DossierPrimitive[] {
+  const out: DossierPrimitive[] = []
+  const text = (
+    at: XY,
+    t: string,
+    height: number,
+    extra: { align?: number; color?: number } = {}
+  ) =>
+    out.push({
+      role: 'ghi_chu',
+      partId: 'ghi_chu_btkl_SUB-100',
+      kind: 'text',
+      at,
+      text: t,
+      height,
+      style: '_33_Arial',
+      ...extra
+    })
+  text(
+    [1500, 28900],
+    'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
+    250,
+    { color: 1 }
+  )
+  const result = acTpBtklMo(v)
+  const rows = result.items.filter(
+    i =>
+      i.nhom !== 'ghi_chu' &&
+      !i.key.startsWith('van_khuon_') &&
+      !(i.nhom === 'cot_thep' && i.stt.includes('.'))
+  )
+  const top = 10000
+  text(
+    [1500, top],
+    `BẢNG KHỐI LƯỢNG ${String(v.tenMo).toLocaleUpperCase('vi')} THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)`,
+    300
+  )
+  const row = 380
+  rows.forEach((item, k) => {
+    const y = top - 600 - k * row
+    const color = item.nguon === 'tu_choi' ? 1 : item.flags?.length ? 2 : 7
+    text([1500, y], item.stt, 230, { color })
+    text([2700, y], item.hangMuc, 230, { color })
+    text([14500, y], item.donVi.replace('m3', 'm³').replace('m2', 'm²'), 230, {
+      color
+    })
+    text(
+      [19500, y],
+      item.khoiLuong === null ? 'không tính' : acTpBtklNumber(item.khoiLuong),
+      230,
+      { color, align: 2 }
+    )
+  })
+  text(
+    [1500, top - 600 - rows.length * row - 200],
+    'Đỏ: không tính (thiếu dữ liệu). Vàng: có cờ — xem diễn giải trên tờ BTKL. Không dùng để thi công.',
+    200,
+    { color: 1 }
+  )
+  return out
 }

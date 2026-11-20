@@ -6,21 +6,22 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
   ...jest.requireActual('../../cad-simple-viewer/src/util/AcApDatabaseEdit')
 }))
 
+import { readSemanticTag } from '@mlightcad/cad-template-sdk'
 import {
   AcDbDatabase,
   AcDbFileType,
   AcDbLine,
   AcDbText
 } from '@mlightcad/data-model'
-import { readSemanticTag } from '@mlightcad/cad-template-sdk'
+
 import { acapRunMarkedEdits } from '../../cad-simple-viewer/src/util/AcApDatabaseEdit'
-import { runDossierTool } from '../src/dossier/tools'
 import { dossierDxf } from '../src/dossier/export'
-import { buildDossierScene } from '../src/dossier/scene'
 import { buildDossierModel } from '../src/dossier/model'
+import layout from '../src/dossier/reference/layout-mo2.json'
+import { buildDossierScene } from '../src/dossier/scene'
+import { runDossierTool } from '../src/dossier/tools'
 import { listRuns } from '../src/runIdentity'
 import { entitiesOfRun } from '../src/runIdentity'
-import layout from '../src/dossier/reference/layout-mo2.json'
 
 const database = () => {
   const db = new AcDbDatabase()
@@ -140,6 +141,82 @@ describe('dossier tools against a real database', () => {
     expect(db.transactionManager.undo()).toBe(true)
     expect(listRuns(db)).toHaveLength(1)
     expect(entitiesOfRun(db, 'r1')).toHaveLength(oldCount)
+  })
+
+  test('a geometry change keeps the steel sheets and SUB-100, marked as M1, with the current take-off', async () => {
+    // 17/11/2026: hLot +50 mm took the dossier from 2890 to 829 entities —
+    // three steel sheets and SUB-100 went blank without a word.
+    const db = database()
+    await runDossierTool('tao_ho_so_mo', {}, db)
+    const before = entitiesOfRun(db, 'r1').length
+    const result = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { hLot: 150 } },
+      db
+    )
+    expect(result.ok).toBe(true)
+    const after = entitiesOfRun(db, 'r1')
+    expect(after.length).toBeGreaterThan(before * 0.95)
+    const textsOn = (sheet: string) =>
+      after
+        .filter(
+          e =>
+            e instanceof AcDbText && readSemanticTag(e)?.params?.sheet === sheet
+        )
+        .map(e => (e as AcDbText).textString)
+    for (const sheet of ['SUB-070', 'SUB-080', 'SUB-090']) {
+      expect(textsOn(sheet)).toContain(
+        'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      )
+      expect(textsOn(sheet)).not.toContain(
+        'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY'
+      )
+    }
+    const sub100 = textsOn('SUB-100')
+    expect(sub100).toContain('TỔNG KHỐI LƯỢNG BÊ TÔNG MỐ (M3)')
+    expect(sub100).toContain(
+      'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+    )
+    expect(sub100).toContain(
+      'BẢNG KHỐI LƯỢNG M1 THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)'
+    )
+    // The blinding line follows hLot: (7,9 × 6,2 − 4 × π × 0,36) × 0,15.
+    expect(sub100).toContain('6,668')
+    expect(sub100).toContain('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
+    const data = result.data as { canhBao?: string[] }
+    expect(data.canhBao).toEqual(
+      expect.arrayContaining([
+        'SUB-070: THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      ])
+    )
+  })
+
+  test('a regeneration that drops much of the dossier asks first', async () => {
+    const db = database()
+    await runDossierTool('tao_ho_so_mo', {}, db)
+    const ids = entitiesOfRun(db, 'r1').map(e => e.objectId)
+    const refused = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { thep: 'khong' } },
+      db
+    )
+    expect(refused.ok).toBe(false)
+    expect(refused.message).toMatch(
+      /^Thao tác này sẽ bỏ \d+\/\d+ đối tượng của hồ sơ r1 \(.*SUB-070 \d+ → \d+.*\)\. Chưa sửa gì\./
+    )
+    expect(refused.message).toContain('xac_nhan_bo_doi_tuong: true')
+    expect(entitiesOfRun(db, 'r1').map(e => e.objectId)).toEqual(ids)
+    const confirmed = await runDossierTool(
+      'sua_ho_so_mo',
+      {
+        ma_lan_chay: 'r1',
+        thong_so: { thep: 'khong' },
+        xac_nhan_bo_doi_tuong: true
+      },
+      db
+    )
+    expect(confirmed.ok).toBe(true)
+    expect(entitiesOfRun(db, 'r1').length).toBeLessThan(ids.length * 0.9)
   })
 
   test('a pile length is not a geometry change: kept entities, recorded for the take-off', async () => {

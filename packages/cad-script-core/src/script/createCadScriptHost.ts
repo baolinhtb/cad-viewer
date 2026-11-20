@@ -15,7 +15,7 @@ import { runInsideScriptEdit } from '../session/editDepth'
 import { isEntityOnLockedLayer } from '../session/lockedLayer'
 import { runSessionEdit } from '../session/runSessionEdit'
 import { CadActionExecutor } from '../tools/CadActionExecutor'
-import type { Point2dInput, ToolResult } from '../tools/types'
+import type { CadScriptAudit, Point2dInput, ToolResult } from '../tools/types'
 import { createCadMeasure } from './createCadMeasure'
 import {
   type EntitySnapshot,
@@ -56,6 +56,96 @@ export interface CadScriptEffects {
   dxfSaveRequests: CadScriptDxfSaveRequest[]
 }
 
+/**
+ * How a script may treat entities that belong to something larger than
+ * themselves — a template run, in the CAD viewer.
+ *
+ * The runtime cannot know what a template run is (it depends on
+ * `@mlightcad/data-model` only), so the host names an entity's owner.
+ */
+export interface CadScriptEntityGuard {
+  /**
+   * Label of the run an entity belongs to (e.g. `ho_so_mo_m1 r1`), or
+   * `undefined` for free drawing content. `tx.erase` refuses owned entities
+   * unless {@link allowOwnedErase} is set; every change to one is recorded in
+   * {@link CadScriptAudit.runs}.
+   */
+  entityOwner?: (entity: AcDbEntity) => string | undefined
+  /** The user explicitly asked to delete part of a template run. */
+  allowOwnedErase?: boolean
+}
+
+/**
+ * Collects {@link CadScriptAudit} while a script runs. Changes are staged per
+ * `cad.edit.transaction` and kept only when the transaction commits.
+ */
+export class CadScriptAuditTracker {
+  private erased = 0
+  private modified = new Set<string>()
+  private layers = new Set<string>()
+  private runs = new Set<string>()
+  private blocked = 0
+  private saved?: [number, Set<string>, Set<string>, Set<string>]
+
+  constructor(
+    private readonly owner?: (entity: AcDbEntity) => string | undefined
+  ) {}
+
+  /** Starts staging the changes of one transaction. */
+  begin(): void {
+    this.saved = [
+      this.erased,
+      new Set(this.modified),
+      new Set(this.layers),
+      new Set(this.runs)
+    ]
+  }
+
+  /** Drops the changes staged since {@link begin} (the transaction threw). */
+  rollback(): void {
+    if (!this.saved) return
+    ;[this.erased, this.modified, this.layers, this.runs] = this.saved
+    this.saved = undefined
+  }
+
+  /** Keeps the staged changes. */
+  commit(): void {
+    this.saved = undefined
+  }
+
+  /** Records entities about to be changed. */
+  touch(entities: AcDbEntity[], erased = false): void {
+    for (const entity of entities) {
+      this.layers.add(entity.layer)
+      const run = this.owner?.(entity)
+      if (run) this.runs.add(run)
+      if (!erased) this.modified.add(entity.objectId)
+    }
+  }
+
+  /** Records `count` entities erased. */
+  erase(count: number): void {
+    this.erased += count
+  }
+
+  /** Records an erase refused by the guard. */
+  block(count: number): void {
+    this.blocked += count
+  }
+
+  /** The audit of the script so far. */
+  result(created: number): CadScriptAudit {
+    return {
+      erased: this.erased,
+      modified: this.modified.size,
+      created,
+      layers: [...this.layers].sort(),
+      runs: [...this.runs].sort(),
+      blockedErase: this.blocked
+    }
+  }
+}
+
 /** Limits enforced by `cad.__tick`. */
 export interface CadScriptLimits {
   /** Maximum tick calls before the script is stopped. */
@@ -78,12 +168,16 @@ const DEFAULT_LIMITS: CadScriptLimits = {
  * @param session - Drawing and view access.
  * @param effects - Mutable log, highlight, and created-id collectors.
  * @param limits - Tick budget. Defaults to 100000 statements or 2 seconds.
+ * @param guard - Owner lookup and erase permission for template content.
+ * @param audit - Collector for what the script changes.
  * @returns The host passed as the `cad` argument.
  */
 export function createCadScriptHost(
   session: CadSession,
   effects: CadScriptEffects,
-  limits: CadScriptLimits = DEFAULT_LIMITS
+  limits: CadScriptLimits = DEFAULT_LIMITS,
+  guard: CadScriptEntityGuard = {},
+  audit: CadScriptAuditTracker = new CadScriptAuditTracker(guard.entityOwner)
 ) {
   const executor = new CadActionExecutor(session)
   const startedAt = Date.now()
@@ -234,16 +328,23 @@ export function createCadScriptHost(
       const accessError = requireDocument(session, true)
       if (accessError) throw new Error(accessError.error ?? accessError.message)
       const db = session.getDocument()!.database
-      runInsideScriptEdit(() => {
-        runSessionEdit(session, db, label || 'Agent script', () => {
-          fn(
-            seal(
-              createTransaction(session, executor, effects),
-              CAD_EDIT_TX_METHODS
+      audit.begin()
+      try {
+        runInsideScriptEdit(() => {
+          runSessionEdit(session, db, label || 'Agent script', () => {
+            fn(
+              seal(
+                createTransaction(session, executor, effects, guard, audit),
+                CAD_EDIT_TX_METHODS
+              )
             )
-          )
+          })
         })
-      })
+      } catch (error) {
+        audit.rollback()
+        throw error
+      }
+      audit.commit()
     }
   }
 
@@ -390,8 +491,20 @@ export interface CadEditTransaction {
 function createTransaction(
   session: CadSession,
   executor: CadActionExecutor,
-  effects: CadScriptEffects
+  effects: CadScriptEffects,
+  guard: CadScriptEntityGuard,
+  audit: CadScriptAuditTracker
 ): CadEditTransaction {
+  const existing = (ids: readonly string[]): AcDbEntity[] => {
+    const db = session.getDocument()!.database
+    return ids.flatMap(id => {
+      const entity = db.tables.blockTable.getEntityById(id)
+      return entity ? [entity] : []
+    })
+  }
+  const touch = (ids: readonly string[]) => {
+    if (Array.isArray(ids)) audit.touch(existing(ids))
+  }
   const created = (result: ToolResult): string => {
     if (!result.success || !result.entityIds?.length) {
       throw new Error(result.error ?? result.message)
@@ -414,9 +527,29 @@ function createTransaction(
     drawSpline: input => created(executor.drawSpline(input)),
     drawText: input => created(executor.drawText(input)),
     erase(ids) {
-      return session.getDocument()!.entityService.eraseEntities(ids)
+      const targets = Array.isArray(ids) ? existing(ids) : []
+      const owned = guard.entityOwner
+        ? targets.filter(entity => guard.entityOwner!(entity))
+        : []
+      if (owned.length && !guard.allowOwnedErase) {
+        audit.block(owned.length)
+        const runs = [
+          ...new Set(owned.map(entity => guard.entityOwner!(entity)!))
+        ].sort()
+        // Thrown, so the whole transaction rolls back: nothing is erased.
+        throw new Error(
+          `erase_blocked_template_run: ${owned.length} of ${ids.length} entities belong to template run(s) ${runs.join(', ')}. ` +
+            'Erasing them breaks that dossier without the user noticing. Change the run with its own tool (e.g. sua_ho_so_mo), ' +
+            'or ask the user; only if they explicitly asked to delete these entities, run the script again with choPhepXoaHoSo: true.'
+        )
+      }
+      audit.touch(targets, true)
+      const count = session.getDocument()!.entityService.eraseEntities(ids)
+      audit.erase(count)
+      return count
     },
     setLayer(ids, layer) {
+      touch(ids)
       const doc = session.getDocument()!
       const known = doc.layerStore
         .getLayers()
@@ -436,6 +569,7 @@ function createTransaction(
       }
     },
     setStyle(ids, style) {
+      touch(ids)
       const { color, lineType, linetypeScale } = style
       if (
         color !== undefined &&
@@ -487,6 +621,7 @@ function createTransaction(
       }
     },
     setText(id, text) {
+      touch([id])
       if (typeof text !== 'string' || text.length > 100000)
         throw new Error('text must be a string of at most 100000 characters')
       const entity = editableEntity(id)
@@ -499,6 +634,7 @@ function createTransaction(
       else (opened as AcDbText).textString = text
     },
     moveGrips(id, indices, dx, dy) {
+      touch([id])
       if (!Number.isFinite(dx) || !Number.isFinite(dy))
         throw new Error('grip displacement must be finite')
       const entity = editableEntity(id)
@@ -519,6 +655,7 @@ function createTransaction(
       opened.subMoveGripPointsAt([...new Set(indices)], { x: dx, y: dy, z: 0 })
     },
     move(ids, dx, dy) {
+      touch(ids)
       const service = session.getDocument()!.entityService
       return service.translateEntities(service.getEntitiesByIds(ids), {
         x: dx,
@@ -527,6 +664,7 @@ function createTransaction(
       })
     },
     rotate(ids, center, angleDeg) {
+      touch(ids)
       const service = session.getDocument()!.entityService
       return service.rotateEntities(
         service.getEntitiesByIds(ids),

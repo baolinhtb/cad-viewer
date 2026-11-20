@@ -1,6 +1,8 @@
 import {
   CadActionExecutor as CoreCadActionExecutor,
   type CadScriptEffects,
+  type CadScriptEntityGuard,
+  type CadScriptInput,
   type CadScriptLimits,
   type CadScriptRunOptions,
   type CadSession,
@@ -57,7 +59,7 @@ export function createCadToolCatalog(
  * @returns A {@link ToolResult}. Write scripts that time out do not commit.
  */
 export function executeCadScript(
-  input: { code: string; intent?: string },
+  input: CadScriptInput,
   session: CadSession,
   options: CadScriptRunOptions = {}
 ): Promise<ToolResult> {
@@ -77,7 +79,13 @@ export function executeCadScript(
 export function createCadScriptHost(
   session: CadSession,
   effects: CadScriptEffects,
-  limits?: CadScriptLimits
+  limits?: CadScriptLimits,
+  guard?: CadScriptEntityGuard
 ): ReturnType<typeof coreCreateCadScriptHost> {
-  return coreCreateCadScriptHost(withViewerDefaults(session), effects, limits)
+  return coreCreateCadScriptHost(
+    withViewerDefaults(session),
+    effects,
+    limits,
+    guard
+  )
 }

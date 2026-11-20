@@ -73,6 +73,7 @@ export const agentTr = {
   missingApiKey:
     'Mesaj göndermeden önce ayarlardan bir API anahtarı yapılandırın.',
   turnUndoLabelFallback: 'Yapay zekâ komutu',
+  scriptUndoLabel: 'Yapay zekâ betiği',
   providerProxy: 'Bu kurulum (önerilir)',
   toolFailed: 'araç hata verdi; sonuç bilinmiyor',
   agentModeCompact: 'Kısa',

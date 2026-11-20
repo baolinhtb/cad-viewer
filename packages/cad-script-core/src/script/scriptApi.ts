@@ -173,7 +173,11 @@ first; grip meaning depends on entity type. Locked/missing/unsupported entities 
 invalid indices are refused. Use tx.move for moving a whole entity.
 For edits, inspect the selection/current drawing and update exact entity ids.
 Preserve existing detail: do not erase a whole drawing or recreate it from templates
-for a local change. Scope model-space edits by ownerId; block-definition edits affect
+for a local change. tx.erase refuses entities of a template run (dossier sheets, generated
+parts) and rolls the transaction back; change a run with its own tool, and pass
+choPhepXoaHoSo: true only when the user explicitly asked to delete those entities.
+The result's audit counts what was erased/changed and which runs were touched.
+Scope model-space edits by ownerId; block-definition edits affect
 all inserts. Check connected geometry, hatches and dimensions after a grip change.
 Do not replace measured dimension labels with made-up text or report a global design
 change after only editing one view. cad.file.saveDxf exports the actual edited database.

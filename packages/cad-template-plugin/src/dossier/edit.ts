@@ -39,13 +39,31 @@ const frameTexts = (sheets: DossierPrimitive[][]) =>
     primitives.flatMap(p => (p.kind === 'text' ? [p.text] : [])).sort()
   )
 
+/** Options of {@link acapEditDossierRun}. */
+export interface AcApDossierEditOptions {
+  /**
+   * The user agreed to a regeneration that leaves the dossier with far fewer
+   * entities (see {@link DOSSIER_LOSS_THRESHOLD}). Without it such an edit is
+   * refused with the numbers, so the agent can ask first.
+   */
+  confirmLoss?: boolean
+}
+
+/**
+ * A regeneration dropping more than this share of the dossier's entities
+ * (and at least {@link DOSSIER_LOSS_MIN} of them) needs `confirmLoss`.
+ */
+export const DOSSIER_LOSS_THRESHOLD = 0.1
+export const DOSSIER_LOSS_MIN = 100
+
 /** Patch dossier labels/placement without regenerating any existing geometry.
  * Geometry parameters require native, scoped edits until a detail-preserving
  * dependency model exists; replacing source linework with a schematic is refused. */
 export async function acapEditDossierRun(
   db: AcDbDatabase,
   run: ReturnType<typeof listRuns>[number],
-  values: AcTpParamValues
+  values: AcTpParamValues,
+  options: AcApDossierEditOptions = {}
 ): Promise<AcApRunEditResult> {
   const entities = entitiesOfRun(db, run.id)
   const result = (errors: string[]): AcApRunEditResult => ({
@@ -83,7 +101,7 @@ export async function acapEditDossierRun(
     changed.some(k => !labelKeys.includes(k)) &&
     run.version === DOSSIER_A3_VERSION
   )
-    return regenerateRun(db, run, values, entities, result)
+    return regenerateRun(db, run, values, entities, result, options)
   if (changed.some(k => !labelKeys.includes(k)))
     return result([
       'Giữ nguyên bản vẽ chi tiết: không xóa để dựng lại từ template/sơ đồ. Dùng execute_cad_script, đọc đối tượng hiện tại rồi sửa đúng chữ/điểm grip bằng tx.setText hoặc tx.moveGrips. Thay đổi toàn bộ kích thước hồ sơ cần xác định các hình chiếu, kích thước và cấu tạo liên quan; chưa thay đổi thông số nào.'
@@ -286,7 +304,8 @@ async function regenerateRun(
   run: ReturnType<typeof listRuns>[number],
   values: AcTpParamValues,
   entities: AcDbEntity[],
-  result: (errors: string[]) => AcApRunEditResult
+  result: (errors: string[]) => AcApRunEditResult,
+  options: AcApDossierEditOptions
 ): Promise<AcApRunEditResult> {
   if (entities.some(e => db.tables.layerTable.getAt(e.layer)?.isLocked))
     return result(['Hồ sơ có layer bị khóa; chưa sửa đối tượng nào.'])
@@ -316,6 +335,32 @@ async function regenerateRun(
     version: run.version,
     values: v as Record<string, number | string | boolean>
   })
+  const before = buildDossierScene(
+    buildDossierModel({ ...run.values }),
+    run.version
+  )
+  // Say it before doing it: on 17/11/2026 hLot +50 mm silently took the
+  // dossier from 2890 to 829 entities. Counted on the scenes, sheet by sheet.
+  const counts = (scene: DossierScene) =>
+    new Map(scene.sheets.map(s => [s.id, s.primitives.length]))
+  const was = counts(before)
+  const now = counts(after)
+  const total = (m: Map<string, number>) =>
+    [...m.values()].reduce((a, b) => a + b, 0)
+  const lost = total(was) - total(now)
+  if (
+    !options.confirmLoss &&
+    lost >= DOSSIER_LOSS_MIN &&
+    lost > total(was) * DOSSIER_LOSS_THRESHOLD
+  ) {
+    const bySheet = [...was]
+      .filter(([id, n]) => (now.get(id) ?? 0) < n)
+      .map(([id, n]) => `${id} ${n} → ${now.get(id) ?? 0}`)
+      .join(', ')
+    return result([
+      `Thao tác này sẽ bỏ ${lost}/${total(was)} đối tượng của hồ sơ ${run.id} (${bySheet}). Chưa sửa gì. Hỏi người dùng; chỉ khi họ đồng ý mới gọi lại sua_ho_so_mo với xac_nhan_bo_doi_tuong: true.`
+    ])
+  }
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
   // The scratch copy draws with its own id counter, not the drawing's.
@@ -329,7 +374,7 @@ async function regenerateRun(
         layerStyles(),
         { legacyLayers: legacyLayers() }
       ),
-      buildDossierScene(buildDossierModel({ ...run.values }), run.version)
+      before
     )
   )
   const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
@@ -363,7 +408,7 @@ async function regenerateRun(
       .filter(
         p =>
           p.kind === 'text' &&
-          /^(CHƯA|BẢNG .*CHƯA)/.test(p.text) &&
+          /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(p.text) &&
           p.role === 'ghi_chu'
       )
       .map(p => `${s.id}: ${(p as { text: string }).text}`)

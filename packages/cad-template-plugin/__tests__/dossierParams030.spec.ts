@@ -179,18 +179,21 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       DOSSIER_A3_VERSION
     )
 
-    // Steel sheets: never stretched — refused on the sheet when the geometry
-    // changed; the elevation datum alone leaves the steel as it is.
+    // Steel sheets: never stretched — when the geometry changed they keep
+    // the M1 steel, marked as not updated (they used to go blank, −71 % of
+    // the dossier); the elevation datum alone leaves the steel as it is.
     const geometric = Object.keys(change).some(k => k !== 'caoDoDayBe')
     for (const s of ['SUB-070', 'SUB-080', 'SUB-090']) {
-      expect(steelDrawn(db, runId, s) === 0).toBe(geometric)
+      expect(steelDrawn(db, runId, s)).toBeGreaterThan(0)
       expect(
-        texts(db, runId, s).includes('CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY')
+        texts(db, runId, s).includes(
+          'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+        )
       ).toBe(geometric)
     }
     expect(
       texts(db, runId, 'SUB-100').includes(
-        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG'
+        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
       )
     ).toBe(geometric)
 

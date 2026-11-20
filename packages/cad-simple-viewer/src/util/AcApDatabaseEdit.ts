@@ -29,6 +29,8 @@ export function acapNotifyUndoStackChanged(): void {
 interface AcApMarkedGroupState {
   depth: number
   edits: number
+  /** The group's undo label, to reopen it after {@link acapRunOwnUndoMark}. */
+  label: string
 }
 
 const markedGroups = new WeakMap<AcDbDatabase, AcApMarkedGroupState>()
@@ -135,7 +137,7 @@ export async function acapRunMarkedEdits<T>(
   }
 
   const tm = db.transactionManager
-  const group: AcApMarkedGroupState = { depth: 1, edits: 0 }
+  const group: AcApMarkedGroupState = { depth: 1, edits: 0, label }
   markedGroups.set(db, group)
   tm.startUndoMark(label)
 
@@ -258,5 +260,48 @@ export async function acapRunGroupedEdit(
       tm.endUndoMark()
       acapNotifyUndoStackChanged()
     }
+  }
+}
+
+/**
+ * Runs `fn` as an undo step of its own, named `label`, even inside an
+ * {@link acapRunMarkedEdits} group.
+ *
+ * An AI turn gathers every edit under one mark, so one `Ctrl+Z` takes back the
+ * whole turn. That is right for a template run, but a turn of sixteen scripts
+ * that end by erasing half a dossier left the user nothing between "keep all
+ * of it" and "lose all of it". A script run through here splits the turn: the
+ * edits made so far are closed under the turn's label, the script gets its
+ * own named mark, and the rest of the turn opens a fresh mark with the turn's
+ * label again. Marks that end up empty are dropped by the core.
+ *
+ * Outside a group this is {@link acapRunMarkedEdits}. Inside a nested group
+ * (depth > 1) or with a transaction open, splitting would cut another
+ * sequence in half, so the call joins the enclosing mark instead.
+ *
+ * @param db - Database being edited.
+ * @param label - Label of this step in the undo history.
+ * @param fn - The step. May await.
+ * @returns Whatever `fn` returns.
+ */
+export async function acapRunOwnUndoMark<T>(
+  db: AcDbDatabase,
+  label: string,
+  fn: () => T | Promise<T>
+): Promise<T> {
+  const group = openGroup(db)
+  const tm = db.transactionManager
+  if (!group) return acapRunMarkedEdits(db, label, fn)
+  if (group.depth > 1 || tm.hasTransaction()) return await fn()
+
+  tm.endUndoMark()
+  if (group.edits > 0) acapNotifyUndoStackChanged()
+  group.edits = 0
+  markedGroups.delete(db)
+  try {
+    return await acapRunMarkedEdits(db, label, fn)
+  } finally {
+    markedGroups.set(db, group)
+    tm.startUndoMark(group.label)
   }
 }

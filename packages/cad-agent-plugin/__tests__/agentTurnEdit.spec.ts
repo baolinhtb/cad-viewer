@@ -18,6 +18,10 @@ const runMarkedEdits = jest.fn(
   async <T>(_db: unknown, _label: string, fn: () => T | Promise<T>) =>
     await fn()
 )
+const runOwnUndoMark = jest.fn(
+  async <T>(_db: unknown, _label: string, fn: () => T | Promise<T>) =>
+    await fn()
+)
 
 jest.mock('@mlightcad/cad-simple-viewer', () => {
   const state = {
@@ -42,6 +46,8 @@ jest.mock('@mlightcad/cad-simple-viewer', () => {
     },
     acapRunMarkedEdits: (...args: unknown[]) =>
       (runMarkedEdits as unknown as (...a: unknown[]) => unknown)(...args),
+    acapRunOwnUndoMark: (...args: unknown[]) =>
+      (runOwnUndoMark as unknown as (...a: unknown[]) => unknown)(...args),
     // `agentT` resolves through the viewer's i18n; echoing the fallback keeps
     // the assertions about *which* key is used rather than about a translation.
     AcApI18n: {
@@ -53,6 +59,7 @@ jest.mock('@mlightcad/cad-simple-viewer', () => {
 import {
   buildTurnUndoLabel,
   MAX_TURN_UNDO_LABEL_LENGTH,
+  withScriptUndoStep,
   withTurnUndoMark
 } from '../src/agent/agentTurnEdit'
 import { agentT } from '../src/i18n'
@@ -80,6 +87,7 @@ beforeEach(() => {
   state.database = undefined
   state.docManagerUnavailable = false
   runMarkedEdits.mockClear()
+  runOwnUndoMark.mockClear()
   jest.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
@@ -185,5 +193,30 @@ describe('the label', () => {
     const loneSurrogate =
       /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
     expect(label).not.toMatch(loneSurrogate)
+  })
+})
+
+describe('a script inside a turn', () => {
+  test('gets its own undo step, named after its intent', async () => {
+    openDrawing()
+    await expect(
+      withScriptUndoStep('xoá lan can trái', async () => 7)
+    ).resolves.toBe(7)
+    expect(runOwnUndoMark).toHaveBeenCalledTimes(1)
+    const [db, label] = runOwnUndoMark.mock.calls[0] as [unknown, string]
+    expect(db).toBe(drawing)
+    expect(label).toBe(`${agentT('scriptUndoLabel')}: xoá lan can trái`)
+  })
+
+  test('without an intent the label is the plain script label', async () => {
+    openDrawing()
+    await withScriptUndoStep(undefined, async () => {})
+    expect(runOwnUndoMark.mock.calls[0][1]).toBe(agentT('scriptUndoLabel'))
+  })
+
+  test('with no drawing open the script simply runs', async () => {
+    const run = jest.fn(async () => 'ok')
+    await expect(withScriptUndoStep('x', run)).resolves.toBe('ok')
+    expect(runOwnUndoMark).not.toHaveBeenCalled()
   })
 })
