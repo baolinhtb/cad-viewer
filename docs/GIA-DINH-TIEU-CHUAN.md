@@ -26,7 +26,7 @@ Muốn đổi một giả định: sửa đúng chỗ ghi ở đây, rồi sửa
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --- |
 | Hàm lượng thép tạm tính = kg của nhóm thanh M1 / thể tích M1 **theo chính bộ công thức** (bệ 49,9; thân ≈ 58,3; tường đỉnh 118,8; cánh ≈ 152; tai 215,8; lan can 188,2 kg/m³). Thép gối × soGoi/4, thép phụ giữ nguyên. Sai số cỡ ±10–15 %. | `btkl/mo.ts:118` `STEEL_GROUPS`, `:662` `thep_hl_goi`, `:668` `thep_hl_phu` | #51 |
 | Vữa không co ngót tỉ lệ **soGoi/4** (mặc định soGoi = 4; báo cáo phase 1 ghi /3).                                                                                                                                                           | `btkl/mo.ts:497`                                                            | #51 |
-| Bọt xốp × bThan/7,7; ụ chống xô giữ số gốc, từ chối khi bThan/soGoi đổi.                                                                                                                                                                    | `btkl/mo.ts` `BTKL_MO_PHU_THUOC.bot_xop`, `u_chong_xo`                      | #51 |
+| Bọt xốp × bThan/7,7. Ụ chống xô: xem C.12.                                                                                                                                                                                                  | `btkl/mo.ts` `BTKL_MO_PHU_THUOC.bot_xop`, `u_chong_xo`                      | #51 |
 | Tường tai = 2 × 0,15 × 1,2 × (tThan − 0,5); tường đỉnh T = 500 cố định.                                                                                                                                                                     | `btkl/mo.ts:35` `HEAD_WALL`, `:39` `EAR`                                    | #51 |
 | Mỗi dòng BTKL chỉ thôi so với / lấy từ bảng gốc khi tham số **của chính dòng** đổi.                                                                                                                                                         | `btkl/mo.ts:60` `BTKL_MO_PHU_THUOC`                                         | #51 |
 | Bảng ký hiệu kích thước → tham số (25 ký hiệu). H1A/H2A/H3A… lấy xấp xỉ theo dốc ngang (dung sai 160 mm khi kiểm).                                                                                                                          | `dossier/dimSymbols.ts:33` `DOSSIER_DIM_SYMBOLS`                            | #54 |
@@ -34,7 +34,15 @@ Muốn đổi một giả định: sửa đúng chỗ ghi ở đây, rồi sửa
 | Bỏ `chay_template` khỏi danh sách gửi Claude CLI khi cuộc hội thoại là việc hồ sơ mố (trừ khi đã dùng). Tắt bằng `CAD_AGENT_TRIM_TOOLS=0`.                                                                                                  | `tools/codex-cad/claude-step.mjs:132` `DOSSIER_TOOLS`, `:179` (nhánh #53)   | #53 |
 | `de_xuat_huong_dan` luôn lưu nháp, không ghi đè mã đã có, không bao giờ công bố.                                                                                                                                                            | `packages/cad-agent-plugin/src/tools/guideProposal.ts:96` (nhánh #55)       | #55 |
 
-## C. Còn mở (chưa có giả định)
+## C. Giả định thêm ngày 21/11/2026 (PR P0 hồ sơ mố an toàn, quyết định 3)
+
+| #   | Giả định                                                                                                                                                                     | Vị trí sửa                                                              | Test                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------- |
+| 12  | Ụ chống xô = 0,304 m³ × soGoi/4: bản gốc vẽ 2 block `UCX dam I24` cùng cỡ, một ụ giữa mỗi cặp gối (0,152 m³/ụ). Không đổi theo `bThan`. Số gối lẻ có cờ `u_chong_xo_goi_le`. | `btkl/mo.ts` `BTKL_MO_PHU_THUOC.u_chong_xo`, dòng `1.6`                 | `btklMo.spec` "the bearing stops…" |
+| 13  | Một dòng con của bê tông C30 không tính được thì tổng **vẫn cộng phần có**, diễn giải «CHƯA GỒM …», cờ `tong_thieu_dong` (thay cho từ chối cả tổng).                         | `btkl/mo.ts` `acTpBtklSumInto`                                          | `btklMo.spec` "a missing line…"    |
+| 14  | `tao_ho_so_mo` từ chối, không vẽ gì, khi tờ hình chung không dựng được (trước đây vẽ tờ thông báo và báo thành công). Thông báo lưới nêu giá trị mẫu cần đưa về.             | `dossier/tools.ts` `unbuiltSheets`, `dossier/grid030.ts` `sheetStretch` | `dossierTools.spec`                |
+
+## D. Còn mở (chưa có giả định)
 
 - Ký hiệu "B Cầu", "A", "H4A" chưa gắn với tham số nào.
 - Đo ván khuôn: theo quy tắc mặt tiếp xúc của M1, vẫn chờ văn bản đo bóc/định mức (cờ `van_khuon_cho_dinh_muc`).
