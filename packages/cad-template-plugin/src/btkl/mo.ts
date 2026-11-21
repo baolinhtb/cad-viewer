@@ -74,9 +74,10 @@ export const BTKL_MO_PHU_THUOC: Record<string, readonly string[]> = {
     'tCanh'
   ],
   tai: ['tThan'],
-  // Fixed detail of the source; its size and count follow the stem width and
-  // the bearings, which the drawing does not dimension.
-  u_chong_xo: ['bThan', 'soGoi'],
+  // Fixed detail of the source: two blocks `UCX dam I24` of the same size,
+  // one between each pair of bearings. Their size does not follow the stem
+  // width; their number follows the bearings (decision 3, 21/11/2026).
+  u_chong_xo: ['soGoi'],
   // Scaled with the wing length and the rail height (standard assumption 2,
   // docs/GIA-DINH-TIEU-CHUAN.md); the rail section is taken as independent
   // of the wing thickness.
@@ -105,6 +106,35 @@ export const BTKL_MO_PHU_THUOC: Record<string, readonly string[]> = {
   ]
 }
 const DEP = BTKL_MO_PHU_THUOC
+
+/**
+ * Sums the lines `parts` into the line `total`. A line the drawing cannot
+ * give (`khoiLuong: null`) does not blank the total (decision 3, 21/11/2026,
+ * standard assumption 13): the lines that can be taken off are summed, and
+ * the total says what it leaves out — in its explanation ("CHƯA GỒM …") and
+ * in the flag `tong_thieu_dong`, which every BTKL view shows in red.
+ */
+export function acTpBtklSumInto(
+  total: AcTpBtklItem,
+  parts: readonly AcTpBtklItem[]
+): void {
+  const counted = parts.filter(i => i.khoiLuong !== null)
+  const refused = parts.filter(i => i.khoiLuong === null)
+  total.khoiLuong = counted.reduce((s, i) => s + i.khoiLuong!, 0)
+  if (!refused.length) {
+    total.dienGiai = `Cộng ${parts[0].stt}–${parts[parts.length - 1].stt}`
+    return
+  }
+  const missing = refused.map(i => `${i.stt} ${i.hangMuc.toLowerCase()}`)
+  total.dienGiai = `Cộng ${counted.map(i => i.stt).join(', ')}; CHƯA GỒM ${missing.join(', ')}`
+  total.flags = [
+    ...(total.flags ?? []),
+    {
+      code: 'tong_thieu_dong',
+      message: `Tổng chưa gồm ${missing.join(', ')}: bản vẽ không đủ kích thước để tính lại, cần kỹ sư bổ sung.`
+    }
+  ]
+}
 
 /** Asphalt layer thickness, m — the standard 7 cm (standard assumption 4). */
 export const BTKL_BT_NHUA_DAY = 0.07
@@ -402,7 +432,28 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
       dienGiai: `2 × ${f(EAR.t)} × ${f(EAR.h)} × N, N = tThan − ${f(HEAD_WALL)} = ${f(N)} (cấu tạo tai như mẫu M1)`
     }
   )
-  fromSource('u_chong_xo', '1.6', 'Ụ chống xô', 'm3', S.beTong.uChongXo)
+  // M1: 4 bearings, 2 stops (one per pair), 0,304 m³ — so 0,304 × soGoi/4.
+  fromSource(
+    'u_chong_xo',
+    '1.6',
+    'Ụ chống xô',
+    'm3',
+    S.beTong.uChongXo,
+    'be_tong',
+    '',
+    {
+      ...scaled(S.beTong.uChongXo, n('soGoi'), d0('soGoi'), 'số gối'),
+      dienGiai: `${acTpBtklNumber(S.beTong.uChongXo)} × ${n('soGoi')}/${d0('soGoi')} (bảng gốc M1: 2 ụ giữa từng cặp gối, ${acTpBtklNumber(S.beTong.uChongXo / 2)} m³/ụ; theo tỉ lệ số gối)`
+    },
+    n('soGoi') % 2
+      ? [
+          {
+            code: 'u_chong_xo_goi_le',
+            message: `Số gối lẻ (${n('soGoi')}): mẫu M1 đặt 1 ụ giữa mỗi cặp gối, số ụ cần kỹ sư chốt.`
+          }
+        ]
+      : undefined
+  )
   fromSource(
     'lan_can',
     '1.7',
@@ -421,17 +472,13 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     }
   )
   const parts = items.filter(i => i.nhom === 'be_tong' && i.stt.includes('.'))
-  const refused = parts.filter(i => i.khoiLuong === null)
   const total = items[0]
-  if (refused.length) {
-    total.nguon = 'tu_choi'
-    total.lyDo = `Thiếu ${refused.map(i => i.hangMuc.toLowerCase()).join(', ')}.`
-  } else {
-    total.khoiLuong = parts.reduce((s, i) => s + i.khoiLuong!, 0)
-    total.dienGiai = `Cộng ${parts[0].stt}–${parts[parts.length - 1].stt}`
-    if (same('be', 'than', 'dinh', 'canh', 'tai', 'u_chong_xo', 'lan_can'))
-      total.banGoc = S.beTong.tong
-  }
+  acTpBtklSumInto(total, parts)
+  if (
+    parts.every(i => i.khoiLuong !== null) &&
+    same('be', 'than', 'dinh', 'canh', 'tai', 'u_chong_xo', 'lan_can')
+  )
+    total.banGoc = S.beTong.tong
 
   // ---- 2. Blinding -------------------------------------------------------
   const bL = n('bBe') + 2 * n('phuLot')

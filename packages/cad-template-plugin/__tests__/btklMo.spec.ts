@@ -1,6 +1,8 @@
 import {
+  type AcTpBtklItem,
   acTpBtklMo,
   acTpBtklNumber,
+  acTpBtklSumInto,
   acTpSteelKgPerM,
   BTKL_M1_SOURCE as SRC
 } from '../src/btkl'
@@ -379,14 +381,18 @@ describe('BTKL mố — changed geometry', () => {
     expect(kl(g, 'vua')).toBeCloseTo(0.02, 9)
     expect(kl(g, 'hop_chot')).toBe(2)
     expect(line(g, 'hop_chot').dienGiai).toBe('1 hộp/gối × 2 gối (như mẫu M1)')
-    expect(line(g, 'u_chong_xo').nguon).toBe('tu_choi')
+    // Two stops, one per pair of bearings (standard assumption 12).
+    expect(line(g, 'u_chong_xo').nguon).toBe('tham_so')
+    expect(kl(g, 'u_chong_xo')).toBeCloseTo((0.304 * 2) / 4, 9)
     const b = acTpBtklMo({ bThan: 7000 })
     expect(kl(b, 'bot_xop')).toBeCloseTo((0.049 * 7) / 7.7, 9)
     expect(kl(b, 'ong_pvc')).toBeCloseTo((9.5 * 7) / 7.7, 9)
     expect(line(b, 'ong_pvc').dienGiai).toBe(
       '9,5 × 7/7,7 (bảng gốc M1 theo tỉ lệ bThan)'
     )
-    expect(line(b, 'u_chong_xo').lyDo).toContain('Đã đổi bThan')
+    // The stops' size does not follow the stem width.
+    expect(line(b, 'u_chong_xo').nguon).toBe('ban_goc')
+    expect(kl(b, 'u_chong_xo')).toBe(0.304)
     // The drain no longer follows the stem height.
     expect(kl(acTpBtklMo({ hThan: 5000 }), 'ong_pvc')).toBe(9.5)
   })
@@ -430,15 +436,79 @@ describe('BTKL mố — changed geometry', () => {
 
   test('several changes at once: each line names only its own parameters', () => {
     const w = acTpBtklMo({ bThan: 7000, bBe: 7000, aCocNgang: 4600 })
-    expect(line(w, 'u_chong_xo').lyDo).toBe(
-      'Đã đổi bThan so với mẫu M1; bản vẽ gốc không có đủ kích thước để tính lại dòng này.'
-    )
-    expect(line(w, 'be_tong').lyDo).toBe('Thiếu ụ chống xô.')
+    expect(line(w, 'u_chong_xo').banGoc).toBe(SRC.beTong.uChongXo)
+    expect(line(w, 'be_tong').nguon).toBe('tham_so')
+    expect(line(w, 'be_tong').flags).toBeUndefined()
     expect(kl(w, 'bot_xop')).toBeCloseTo(SRC.chenBotXop * (7 / 7.7), 9)
     expect(line(w, 'bot_xop').banGoc).toBeUndefined()
     // aCocNgang moves the piles but changes no quantity line's own inputs.
     expect(line(w, 'lot').banGoc).toBeUndefined()
     expect(line(acTpBtklMo({ aCocNgang: 4600 }), 'lot').banGoc).toBe(SRC.lot)
+  })
+
+  // Live 21/11/2026, prompt 6: bBe = bThan = 9000 left the C30 total blank
+  // because the bearing stops were refused (standard assumption 12).
+  test('the bearing stops follow the bearings, not the stem width', () => {
+    const live = acTpBtklMo({
+      bMatDuong: 8000,
+      tThan: 1200,
+      lCanh: 4000,
+      D: 1000,
+      aCocNgang: 7000,
+      aCocDoc: 4000,
+      lCoc: 25000,
+      bBe: 9000,
+      bThan: 9000
+    })
+    expect(line(live, 'u_chong_xo').khoiLuong).toBe(0.304)
+    const total = line(live, 'be_tong')
+    const parts = live.items.filter(
+      i => i.nhom === 'be_tong' && i.stt.includes('.')
+    )
+    expect(parts.every(i => i.khoiLuong !== null)).toBe(true)
+    expect(total.khoiLuong).toBeCloseTo(
+      parts.reduce((s, i) => s + i.khoiLuong!, 0),
+      9
+    )
+    expect(total.flags).toBeUndefined()
+    const six = acTpBtklMo({ soGoi: 6, aGoi: 1200 })
+    expect(kl(six, 'u_chong_xo')).toBeCloseTo((0.304 * 6) / 4, 9)
+    expect(line(six, 'u_chong_xo').dienGiai).toBe(
+      '0,304 × 6/4 (bảng gốc M1: 2 ụ giữa từng cặp gối, 0,152 m³/ụ; theo tỉ lệ số gối)'
+    )
+    expect(line(six, 'u_chong_xo').flags?.map(f => f.code)).toEqual([
+      'ty_le_ban_goc'
+    ])
+    const odd = acTpBtklMo({ soGoi: 3 })
+    expect(line(odd, 'u_chong_xo').flags?.map(f => f.code)).toEqual([
+      'ty_le_ban_goc',
+      'u_chong_xo_goi_le'
+    ])
+  })
+
+  test('a missing line does not blank the total: summed without it, flagged', () => {
+    const item = (stt: string, khoiLuong: number | null): AcTpBtklItem => ({
+      key: stt,
+      stt,
+      nhom: 'be_tong' as const,
+      hangMuc: `Dòng ${stt}`,
+      donVi: 'm3' as const,
+      khoiLuong,
+      dienGiai: '',
+      nguon: khoiLuong === null ? ('tu_choi' as const) : ('tham_so' as const),
+      trongTong: true
+    })
+    const total: AcTpBtklItem = { ...item('1', null), nguon: 'tham_so' }
+    acTpBtklSumInto(total, [item('1.1', 2), item('1.2', null), item('1.3', 3)])
+    expect(total.khoiLuong).toBe(5)
+    expect(total.nguon).toBe('tham_so')
+    expect(total.dienGiai).toBe('Cộng 1.1, 1.3; CHƯA GỒM 1.2 dòng 1.2')
+    expect(total.flags?.map(f => f.code)).toEqual(['tong_thieu_dong'])
+    const full: AcTpBtklItem = { ...item('1', null), nguon: 'tham_so' }
+    acTpBtklSumInto(full, [item('1.1', 2), item('1.2', 3)])
+    expect(full.khoiLuong).toBe(5)
+    expect(full.dienGiai).toBe('Cộng 1.1–1.2')
+    expect(full.flags).toBeUndefined()
   })
 
   test('longer wings by hand', () => {
