@@ -277,13 +277,17 @@ describe('P1/M3 acceptance', () => {
     expect(spacings(v)).toEqual([1400, 1400, 1400, 1400, 1400])
     expect(res.message).toContain('6 vị trí gối')
     expect(before.count).toBe(2967)
-    expect(after.count).toBe(2969)
+    // Every view follows (P1/M3 views): plan +2 bearings, +2 labels, +1 stop;
+    // front +2 exploded bearings (13 entities each), +1 exploded stop (5).
+    expect(after.count).toBe(2967 + 2 + 2 + 1 + 2 * 13 + 5)
     expect(after.notBuilt).toEqual([])
     expect(before.layers.filter(l => !after.layers.includes(l))).toEqual([])
     // Only the bearings and the take-off lines that follow them.
     for (const id of ['SUB-020', 'SUB-070', 'SUB-080', 'SUB-090'])
       expect(changed[id] ?? 0).toBe(0)
-    expect(changed['SUB-010']).toBe(4)
+    // Which SUB-010 entities change: dossierBearingViews.spec (bearing items
+    // only).
+    expect(changed['SUB-010']).toBeGreaterThan(0)
     // Bearing stops 0,304 → 0,456, mortar 0,04 → 0,06, the C30 total and the
     // steel total (prototype: 3 — before P0 the stops did not follow soGoi
     // and the C30 total left them out).
@@ -326,14 +330,12 @@ describe('P1/M3 acceptance', () => {
     expect(derivedMap(res.data)).toEqual({ aGoi: 1200 })
     expect(v).toMatchObject({ soGoi: 6, aGoi: 1200, bThan: 7700 })
     expect(spacings(v)).toEqual([1200, 1200, 1200, 1200, 1200])
-    expect(after.count).toBe(before.count + 2)
+    expect(after.count).toBe(before.count + 36)
     expect(after.notBuilt).toEqual([])
     expect(before.layers.filter(l => !after.layers.includes(l))).toEqual([])
     for (const id of ['SUB-020', 'SUB-070', 'SUB-080', 'SUB-090'])
       expect(changed[id] ?? 0).toBe(0)
-    // 4 source bearings at ±1000/±3000 replaced by 6 at ±600/±1800/±3000:
-    // the two outer ones land where the source's were.
-    expect(changed['SUB-010']).toBe(2)
+    expect(changed['SUB-010']).toBeGreaterThan(0)
     expect(changed['SUB-100'] ?? 0).toBeLessThanOrEqual(5)
   })
 

@@ -622,6 +622,46 @@ const DIM_VAR_KEYS: Readonly<Record<string, true>> = {
  * template produced which part of it.
  * @param roleLayers - Role → layer mapping from the standardisation layer.
  */
+/**
+ * The same direction taken in the readable half turn (−90°, 90°], radians:
+ * text at that angle reads left to right and upright, as AutoCAD keeps
+ * dimension text. `r` and the result differ by 0 or 180°.
+ */
+export function acTpReadableAngle(r: number): number {
+  const eps = 1e-9
+  let a = ((((r + Math.PI / 2) % Math.PI) + Math.PI) % Math.PI) - Math.PI / 2
+  if (a <= -Math.PI / 2 + eps) a += Math.PI
+  return Math.abs(a) < eps ? 0 : a
+}
+
+/**
+ * A single-line text turned to read upright: one at an angle outside
+ * (−90°, 90°] is turned half a turn, its horizontal alignment mirrored
+ * (left ↔ right) and its insertion point moved by its height, so it covers
+ * the same band of the drawing, now readable. Others are returned as given.
+ */
+export function acTpUprightText(t: {
+  position: AcGePoint3dLike
+  rotation: number
+  height: number
+  align: number
+}): { position: AcGePoint3dLike; rotation: number; align: number } {
+  const rotation = acTpReadableAngle(t.rotation)
+  if (Math.cos(t.rotation - rotation) > 0)
+    return { position: t.position, rotation: t.rotation, align: t.align }
+  // The old glyphs rose along −up of the new angle from the old baseline.
+  const up = { x: -Math.sin(rotation), y: Math.cos(rotation) }
+  return {
+    position: {
+      x: t.position.x - up.x * t.height,
+      y: t.position.y - up.y * t.height,
+      z: t.position.z ?? 0
+    },
+    rotation,
+    align: t.align === 0 ? 2 : t.align === 2 ? 0 : t.align
+  }
+}
+
 export function createDrawContext(
   db: AcDbDatabase,
   templateId: string,
@@ -1059,17 +1099,23 @@ export function createDrawContext(
     },
     entity: AcDbText = new AcDbText()
   ): AcDbText => {
+    const upright = acTpUprightText({
+      position: args.position,
+      rotation: ((args.rotationDeg ?? 0) * Math.PI) / 180,
+      height: args.height ?? 2.5,
+      align: args.align ?? 0
+    })
     entity.position = new AcGePoint3d(
-      args.position.x,
-      args.position.y,
-      args.position.z ?? 0
+      upright.position.x,
+      upright.position.y,
+      upright.position.z ?? 0
     )
     entity.textString = args.text
     entity.height = args.height ?? 2.5
-    entity.rotation = ((args.rotationDeg ?? 0) * Math.PI) / 180
+    entity.rotation = upright.rotation
     entity.widthFactor = args.widthFactor ?? 1
-    if (args.align) {
-      entity.horizontalMode = args.align
+    if (upright.align) {
+      entity.horizontalMode = upright.align as 0 | 1 | 2
       entity.alignmentPoint = entity.position.clone()
     }
     const style = args.style ?? TEMPLATE_TEXT_STYLE
@@ -1192,20 +1238,39 @@ export function createDrawContext(
             ? Math.abs(end.y - start.y)
             : Math.hypot(end.x - start.x, end.y - start.y)
       const value = formatDimensionText(measured, style)
+      // Rotation is what makes a rotated dimension measure an axis rather than
+      // the distance between the points. Left at zero for a skew dimension, the
+      // entity behaves as a plain aligned one, which is what `'nghieng'` means.
+      const wanted =
+        args.rotationDeg !== undefined && huong !== 'nghieng'
+          ? (args.rotationDeg * Math.PI) / 180
+          : huong === 'dung'
+            ? Math.PI / 2
+            : 0
+      // AutoCAD keeps dimension text readable: one drawn right to left
+      // (rotation 180°, as many source dimensions are) still reads left to
+      // right, upright. The data model's block writes the text at the
+      // dimension's own angle, so take the same axis in the readable half
+      // turn (−90°, 90°] and swap the ends to keep the arrowheads pointing
+      // out. The measurement is the same.
+      // A skew dimension takes its angle from the points: same rule.
+      const along =
+        huong === 'nghieng'
+          ? Math.atan2(end.y - start.y, end.x - start.x)
+          : wanted
+      const rotation = huong === 'nghieng' ? 0 : acTpReadableAngle(wanted)
+      const [first, second] =
+        Math.cos(along - acTpReadableAngle(along)) < 0
+          ? [end, start]
+          : [start, end]
       const entity = new AcDbRotatedDimension(
-        { x: start.x, y: start.y, z: start.z ?? 0 },
-        { x: end.x, y: end.y, z: end.z ?? 0 },
+        { x: first.x, y: first.y, z: first.z ?? 0 },
+        { x: second.x, y: second.y, z: second.z ?? 0 },
         dimLine,
         args.text === undefined ? value : args.text.replace(/<>/g, value),
         styleName
       )
-      // Rotation is what makes a rotated dimension measure an axis rather than
-      // the distance between the points. Left at zero for a skew dimension, the
-      // entity behaves as a plain aligned one, which is what `'nghieng'` means.
-      if (huong === 'ngang') entity.rotation = 0
-      else if (huong === 'dung') entity.rotation = Math.PI / 2
-      if (args.rotationDeg !== undefined && huong !== 'nghieng')
-        entity.rotation = (args.rotationDeg * Math.PI) / 180
+      if (huong !== 'nghieng') entity.rotation = rotation
 
       // Without this the dimension is in the drawing and invisible — see
       // {@link buildDimensionBlock}.
@@ -1472,19 +1537,24 @@ export function createDrawContext(
           attribute.styleName = style
           attribute.height = own.height ?? def.height * Math.abs(sy)
           attribute.widthFactor = own.widthFactor ?? def.widthFactor
-          attribute.rotation =
-            own.rotationDeg !== undefined
-              ? (own.rotationDeg * Math.PI) / 180
-              : def.rotation + angle
+          const upright = acTpUprightText({
+            position: own.position,
+            rotation:
+              own.rotationDeg !== undefined
+                ? (own.rotationDeg * Math.PI) / 180
+                : def.rotation + angle,
+            height: attribute.height,
+            align: own.align ?? def.horizontalMode ?? 0
+          })
+          attribute.rotation = upright.rotation
           const at = new AcGePoint3d(
-            own.position.x,
-            own.position.y,
-            own.position.z ?? 0
+            upright.position.x,
+            upright.position.y,
+            upright.position.z ?? 0
           )
           attribute.position = at
-          const align = own.align ?? def.horizontalMode
-          if (align) {
-            attribute.horizontalMode = align
+          if (upright.align) {
+            attribute.horizontalMode = upright.align
             attribute.alignmentPoint = at.clone()
           }
         } else {

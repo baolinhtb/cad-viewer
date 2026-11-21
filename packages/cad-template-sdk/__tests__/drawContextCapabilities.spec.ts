@@ -14,7 +14,11 @@ import {
   AcDbText
 } from '@mlightcad/data-model'
 
-import { createDrawContext } from '../src/AcTpDrawContext'
+import {
+  acTpReadableAngle,
+  acTpUprightText,
+  createDrawContext
+} from '../src/AcTpDrawContext'
 import { acTpDxfOut } from '../src/AcTpDxfOut'
 import { ACTP_DIM_STYLES_33, ACTP_TEXT_STYLES_33 } from '../src/AcTpStyles33'
 
@@ -722,7 +726,10 @@ describe('mũi tên và làm tròn kích thước như bản gốc', () => {
     expect(db.tables.dimStyleTable.getAt('_33_D100')!.dimdle).toBe(100)
   })
 
-  it('rotationDeg 180 của bản gốc được giữ', () => {
+  // AutoCAD đọc kích thước vẽ phải→trái (rotationDeg 180) từ trái sang
+  // phải, chữ đứng; khối dim của data-model thì xoay chữ theo góc dim. Lưu
+  // cùng trục ở góc đọc được (0), đổi hai đầu để mũi tên vẫn chỉ ra ngoài.
+  it('rotationDeg 180 của bản gốc được đưa về góc đọc được, số đo giữ', () => {
     const { ctx } = setup()
     const dim = ctx.dimension({
       role: 'net',
@@ -733,8 +740,22 @@ describe('mũi tên và làm tròn kích thước như bản gốc', () => {
       dimStyle: '_33_D100',
       rotationDeg: 180
     }) as AcDbRotatedDimension
-    expect(dim.rotation).toBeCloseTo(Math.PI)
+    expect(dim.rotation).toBeCloseTo(0)
+    expect(dim.xLine1Point.x).toBeCloseTo(0)
+    expect(dim.xLine2Point.x).toBeCloseTo(1000)
     expect(dim.dimensionText).toBe('1000')
+    const vertical = ctx.dimension({
+      role: 'net',
+      partId: 'v',
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 0, y: 800, z: 0 },
+      offset: 300,
+      huong: 'dung',
+      dimStyle: '_33_D100',
+      rotationDeg: 270
+    }) as AcDbRotatedDimension
+    expect(vertical.rotation).toBeCloseTo(Math.PI / 2)
+    expect(vertical.dimensionText).toBe('800')
   })
 })
 
@@ -793,5 +814,44 @@ describe('đường gióng dài cố định (DIMFXLON/DIMFXL)', () => {
         .map(l => Math.min(l.startPoint.y, l.endPoint.y))
     )
     expect(lowest).toBeLessThan(100)
+  })
+})
+
+describe('chữ đọc được (đứng, trái → phải)', () => {
+  const deg = (d: number) => (d * Math.PI) / 180
+  it.each([
+    [0, 0],
+    [90, 90],
+    [180, 0],
+    [270, 90],
+    [-90, 90],
+    [360, 0],
+    [135, -45],
+    [45, 45]
+  ])('%p° → %p°', (from, to) => {
+    expect(acTpReadableAngle(deg(from))).toBeCloseTo(deg(to), 9)
+  })
+  it('TEXT 180° lật nửa vòng, đổi căn trái/phải, phủ cùng dải', () => {
+    const t = acTpUprightText({
+      position: { x: 100, y: 50, z: 0 },
+      rotation: Math.PI,
+      height: 10,
+      align: 0
+    })
+    expect(t.rotation).toBeCloseTo(0)
+    expect(t.align).toBe(2)
+    expect(t.position.x).toBeCloseTo(100)
+    expect(t.position.y).toBeCloseTo(40)
+    const same = acTpUprightText({
+      position: { x: 1, y: 2, z: 0 },
+      rotation: deg(30),
+      height: 5,
+      align: 1
+    })
+    expect(same).toEqual({
+      position: { x: 1, y: 2, z: 0 },
+      rotation: deg(30),
+      align: 1
+    })
   })
 })
