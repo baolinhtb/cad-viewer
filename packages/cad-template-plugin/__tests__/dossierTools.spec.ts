@@ -231,8 +231,6 @@ describe('dossier tools against a real database', () => {
       for (const key of [
         'hLanCan',
         'tCanh',
-        'soGoi',
-        'aGoi',
         'docNgang',
         'docDoc',
         'soCotCoc',
@@ -241,6 +239,10 @@ describe('dossier tools against a real database', () => {
       ])
         expect(fixed).toContain(`${key} = `)
       expect(fixed).not.toContain('bMatDuong = ')
+      expect(fixed).not.toContain('soGoi = ')
+      expect(fixed).not.toContain('aGoi = ')
+      expect(description).toContain('Gối đổi được: soGoi, aGoi')
+      expect(description).toContain('6 gối trên thân 8700 → aGoi = 1400')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
         'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong.'

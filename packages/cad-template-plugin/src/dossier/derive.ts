@@ -13,6 +13,17 @@ export interface DossierDerived {
  * its size; a wider margin would stretch that strip.
  */
 export const DOSSIER_ROAD_MARGIN = 350
+/**
+ * Outer bearing centre to stem edge less half the 500 symbol, mm: M1 puts
+ * 4 bearings at 2000 on a 7700 stem, (7700 − 500 − 3 × 2000) / 2.
+ */
+export const DOSSIER_BEARING_MARGIN = 600
+/** Width the bearing symbol takes across the stem, mm. */
+const BEARING_SYMBOL = 500
+/** Derived bearing spacing is rounded down to this, mm. */
+const BEARING_STEP = 50
+/** Smallest bearing spacing the parameter accepts, mm. */
+const BEARING_MIN = 500
 
 /**
  * Fills in the values the source arrangement ties to the ones the user gave,
@@ -22,9 +33,13 @@ export const DOSSIER_ROAD_MARGIN = 350
  *   2 × DOSSIER_ROAD_MARGIN`, whatever margin the dossier had;
  * - `aCocNgang = bBe − 2D` when the footing width or pile diameter changes
  *   and `aCocNgang` is not given;
- * - `aCocDoc = lBe − 2D` likewise for the footing length.
+ * - `aCocDoc = lBe − 2D` likewise for the footing length;
+ * - `aGoi`, when not given and the bearings no longer fit the stem
+ *   (`(soGoi − 1) · aGoi + 500 > bThan`): spread evenly with
+ *   DOSSIER_BEARING_MARGIN at each edge, rounded down to 50 mm. Left as is
+ *   (the model then refuses) when that spacing would fall below 500.
  *
- * Bearing spacing and count are left alone. Keys the user gave are never
+ * The bearing count is never changed. Keys the user gave are never
  * overwritten; every derived value is reported in `suyRa`.
  *
  * @param base - Values the dossier has now (the defaults for a new one).
@@ -59,5 +74,22 @@ export function acapDeriveDossierValues(
     set('aCocNgang', n('bBe') - 2 * n('D'), 'cọc sát mép bệ: bBe − 2D')
   if (!has('aCocDoc') && (moved('lBe') || moved('D')))
     set('aCocDoc', n('lBe') - 2 * n('D'), 'cọc sát mép bệ: lBe − 2D')
+  const bearings = n('soGoi')
+  if (
+    !has('aGoi') &&
+    bearings > 1 &&
+    (bearings - 1) * n('aGoi') + BEARING_SYMBOL > n('bThan')
+  ) {
+    const fit =
+      (n('bThan') - BEARING_SYMBOL - 2 * DOSSIER_BEARING_MARGIN) /
+      (bearings - 1)
+    const spacing = Math.floor(fit / BEARING_STEP) * BEARING_STEP
+    if (spacing >= BEARING_MIN)
+      set(
+        'aGoi',
+        spacing,
+        `rải đều ${bearings} gối trong bThan ${n('bThan')}: (bThan − ${BEARING_SYMBOL} − 2 × ${DOSSIER_BEARING_MARGIN}) / (soGoi − 1), lề mép ${DOSSIER_BEARING_MARGIN} mm như M1, làm tròn xuống bội ${BEARING_STEP} mm`
+      )
+  }
   return { values, suyRa }
 }

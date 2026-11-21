@@ -74,7 +74,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
   ],
   "perSheet": [
     {
-      "hash": "33f88dd00524f45d",
+      "hash": "b6542e721467df89",
       "id": "SUB-010",
       "origin": [
         0,
@@ -86,12 +86,12 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
         "duong_tim": 7,
         "ghi_chu": 47,
         "ghi_chu_cao_do": 11,
-        "goi_cau": 2,
+        "goi_cau": 4,
         "khung_ban_ve": 2,
         "khung_ten": 18,
         "kich_thuoc": 89,
         "ky_hieu_mat_cat": 14,
-        "mo_cau": 127,
+        "mo_cau": 125,
         "tieu_de_ban_ve": 3,
       },
       "soPrimitive": 329,
@@ -117,7 +117,7 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       "soPrimitive": 191,
     },
     {
-      "hash": "c0e7cb334008d379",
+      "hash": "79ad7d93008dd9ef",
       "id": "SUB-070",
       "origin": [
         94000,
@@ -125,10 +125,9 @@ exports[`hồi quy 0.3.0 cảnh dựng từ tham số mặc định 1`] = `
       ],
       "roles": {
         "coc_khoan_nhoi": 4,
-        "cot_thep": 57,
+        "cot_thep": 59,
         "duong_tim": 4,
         "ghi_chu": 118,
-        "goi_cau": 2,
         "khung_ban_ve": 2,
         "khung_ten": 18,
         "kich_thuoc": 19,
