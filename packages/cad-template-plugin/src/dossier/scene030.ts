@@ -705,6 +705,27 @@ function fitInCell(
   }
 }
 
+/**
+ * The elevations of the SUB-020 table (FG, FE, EL1…EL6, m) for the values —
+ * the numbers the sheet and its elevation tags show, so what the tools say
+ * is what is drawn (P1/M5). Undefined when the sheet cannot be drawn.
+ */
+export function acapDossierElevations(
+  values: DossierModel['values']
+): Record<string, number> | undefined {
+  const t = sub020Tables(
+    LAYOUT.sheets.find(x => x.id === 'SUB-020')?.paper ?? [],
+    values,
+    String(values.tenMo)
+  )
+  if (t.error) return undefined
+  return Object.fromEntries(
+    [...t.values]
+      .filter(([k]) => /^(FG|FE|EL\d)/.test(k))
+      .map(([k, x]) => [k, Number(x)])
+  )
+}
+
 /** Every point an extracted primitive draws through (for extents). */
 function pointsOf(p: LayoutPrimitive): XY[] {
   if (p.kind === 'insert') return insertDrawnPoints(p)

@@ -58,6 +58,11 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 - Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;
   mọi hình chiếu, bảng cao độ SUB-020, thẻ cao độ và BTKL đổi theo. Báo lại
   cao độ kê gối mới.
+- **Số cao độ báo người dùng lấy từ `data.caoDo`** (`keGoiTim` EL3,
+  `keGoiTrai` EL4.L, `keGoiPhai` EL4.R, `dayBe`, `dinhBe`, `bang`): đó là
+  chính bảng SUB-020 đã vẽ, trùng thẻ cao độ. Không tự tính lại bằng công
+  thức dốc ngang — trên thân rộng hơn mẫu, số đã vẽ có thể lệch công thức
+  tới 10 mm ở mép; nếu người dùng hỏi thì nói rõ.
 
 - Hồ sơ cũ có tờ hình ghi «CHƯA DỰNG ĐƯỢC HÌNH…» (dựng trước khi có kiểm
   tra lúc tạo) bị khoá: mọi sửa kích thước bị từ chối cho tới khi đưa thông

@@ -31,6 +31,7 @@ import {
   dossierDefaults
 } from './model'
 import { buildDossierScene } from './scene'
+import { acapDossierElevations } from './scene030'
 import { abutmentDossierTemplate } from './template'
 
 const paramDescription = DOSSIER_PARAMS.map(
@@ -152,6 +153,26 @@ function suyRaOf(suyRa: DossierDerived[]): { suyRa?: DossierDerived[] } {
   return suyRa.length ? { suyRa } : {}
 }
 
+/**
+ * The elevations as the drawing shows them: the SUB-020 table, which the
+ * elevation tags repeat. One source, so the agent never quotes a number the
+ * sheet does not carry (QA P1/M4: 235,941 said, 235.931 drawn).
+ */
+function drawnElevations(model: ReturnType<typeof buildDossierModel>) {
+  const table = acapDossierElevations(model.values)
+  if (!table) return model.elevations
+  return {
+    nguon:
+      'Bảng cao độ SUB-020 (số đã vẽ, trùng thẻ cao độ). Trích đúng các số này, không tự tính lại.',
+    dayBe: table.EL6,
+    dinhBe: table.EL5,
+    keGoiTim: table.EL3,
+    keGoiTrai: table['EL4.L'],
+    keGoiPhai: table['EL4.R'],
+    bang: table
+  }
+}
+
 /** The derived values, spelt out for the agent to repeat to the user. */
 function derivedNote(suyRa: unknown): string {
   if (!Array.isArray(suyRa) || !suyRa.length) return ''
@@ -181,7 +202,7 @@ function summary(
           ? 'Bố trí trích từ CAD mẫu M1, giữ chi tiết nguồn.'
           : 'Bố trí theo thông số là sơ đồ; chi tiết cho kích thước mới chưa được thiết kế.',
       thongSo: values,
-      caoDo: model.elevations,
+      caoDo: drawnElevations(model),
       kiemTra: model.issues,
       thepApDung: model.referenceSteelApplicable,
       ...extra

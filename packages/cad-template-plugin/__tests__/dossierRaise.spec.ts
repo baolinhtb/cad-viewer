@@ -120,6 +120,16 @@ const diffs = (a: number[], b: number[]) =>
 
 jest.setTimeout(900000)
 
+/** The elevations the tools report (data.caoDo). */
+type Said = {
+  dayBe: number
+  dinhBe: number
+  keGoiTim: number
+  keGoiTrai: number
+  keGoiPhai: number
+  bang: Record<string, number>
+}
+
 describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
   test('(b) keep the footing, lengthen the stem: hThan + 300', async () => {
     const db = await dossier()
@@ -134,10 +144,10 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
     numbers.b = { before, after, diffs: d, caoDo: (res.data as Values).caoDo }
     expect(before).toHaveLength(11)
     expect(after).toHaveLength(11)
-    // Footing bottom and top stay; the seat and all above rise. Two values
-    // read off the cross-falling seat come out 0,295 and 0,299 — the grid's
-    // drawing accuracy (dimSymbols xapXi), pinned as measured.
-    expect(d).toEqual([0.3, 0.3, 0, 0, 0.3, 0.295, 0.299, 0.3, 0.3, 0.3, 0.3])
+    // Footing bottom and top stay; the seat and all above rise by exactly
+    // 0,300 — the whole cross-falling seat strip moves as one (P1/M5; at
+    // M4 its low side came out +0,295 / +0,299).
+    expect(d).toEqual([0.3, 0.3, 0, 0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
     expect(after).toContain(Number(v0.caoDoDayBe))
     expect(after).toContain(
       Math.round((Number(v0.caoDoDayBe) + Number(v0.hBe) / 1000) * 1000) / 1000
@@ -151,13 +161,11 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
     expect(c1.be).toBeCloseTo(c0.be!, 9)
     expect(c1.than! - c0.than!).toBeCloseTo((8.7 * 1.2 * 0.3) as number, 3)
     expect(c1.be_tong!).toBeGreaterThan(c0.be_tong!)
-    // The seat the tool reports: caoDoDayBe + (hBe + hThan)/1000.
-    const seat = (res.data as { caoDo: { seat: number; bottom: number } }).caoDo
-    expect(seat.bottom).toBeCloseTo(Number(v0.caoDoDayBe), 9)
-    expect(seat.seat).toBeCloseTo(
-      Number(v0.caoDoDayBe) + (Number(v0.hBe) + Number(v0.hThan) + 300) / 1000,
-      9
-    )
+    // What the tool reports is what the table shows (one source).
+    const said = (res.data as { caoDo: Said }).caoDo
+    expect(said.dayBe).toBe(Number(v0.caoDoDayBe))
+    expect(Object.values(said.bang).sort()).toEqual([...after].sort())
+    numbers.bSaid = said
     // Views: the stem dimension measures the new height, the footing's not.
     expect(DOSSIER_DIM_SYMBOLS.H1A.giaTri(v1)).toBe(Number(v0.hThan) + 300)
     expect(DOSSIER_DIM_SYMBOLS.HB.giaTri(v1)).toBe(Number(v0.hBe))
@@ -237,5 +245,54 @@ describe('the words and the question reach the agent', () => {
       expect(text).toContain(word)
     // The pier keeps its own «xà mũ».
     expect(text).toMatch(/xà mũ.{0,10}(của )?trụ/)
+  })
+})
+
+// QA P1/M4: after (b) the agent said 235,941 / 235,767 while the table read
+// 235.931 / 235.772, and (a) gave 235.777 for the same seat. Now the tools
+// quote the table, and both ways give the same seat.
+describe('one source of elevations: the drawn table', () => {
+  test('(a) and (b) give the same seat; the tools say the drawn numbers', async () => {
+    const seats: Said[] = []
+    for (const way of ['a', 'b']) {
+      const db = await dossier()
+      const v0 = { ...listRuns(db)[0].values } as Values
+      const created = (
+        await runDossierTool(
+          'kiem_tra_ho_so',
+          { ma_lan_chay: listRuns(db)[0].id },
+          db
+        )
+      ).data as { caoDo: Said }
+      // Before any raise (M4 measurements): 235.631 / 235.477 / 235.554.
+      expect(created.caoDo).toMatchObject({
+        keGoiTrai: 235.631,
+        keGoiPhai: 235.477,
+        keGoiTim: 235.554
+      })
+      const res = await edit(
+        db,
+        way === 'a'
+          ? {
+              caoDoDayBe:
+                Math.round((Number(v0.caoDoDayBe) + 0.3) * 1000) / 1000
+            }
+          : { hThan: Number(v0.hThan) + 300 }
+      )
+      const said = (res.data as { caoDo: Said }).caoDo
+      const drawn = table(db)
+      for (const k of ['keGoiTrai', 'keGoiPhai', 'keGoiTim'] as const)
+        expect(drawn).toContain(said[k])
+      expect(tags(db).join('\n')).toContain(String(said.keGoiTim))
+      seats.push(said)
+    }
+    numbers.seats = seats
+    for (const k of ['keGoiTrai', 'keGoiPhai', 'keGoiTim'] as const)
+      expect(seats[1][k]).toBe(seats[0][k])
+    expect(seats[0]).toMatchObject({
+      keGoiTrai: 235.931,
+      keGoiPhai: 235.777,
+      keGoiTim: 235.854
+    })
   })
 })
