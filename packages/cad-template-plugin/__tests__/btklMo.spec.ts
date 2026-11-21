@@ -474,16 +474,28 @@ describe('BTKL mố — changed geometry', () => {
     const six = acTpBtklMo({ soGoi: 6, aGoi: 1200 })
     expect(kl(six, 'u_chong_xo')).toBeCloseTo((0.304 * 6) / 4, 9)
     expect(line(six, 'u_chong_xo').dienGiai).toBe(
-      '0,304 × 6/4 (bảng gốc M1: 2 ụ giữa từng cặp gối, 0,152 m³/ụ; theo tỉ lệ số gối)'
+      '0,152 × 3 ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, 0,152 m³/ụ; ⌊6/2⌋ = 3 ụ)'
     )
+    // aGoi 1200 leaves 640 mm between bearings: the stop is drawn narrower,
+    // its volume stays M1's (decision 22/11/2026), flagged.
     expect(line(six, 'u_chong_xo').flags?.map(f => f.code)).toEqual([
-      'ty_le_ban_goc'
+      'ty_le_ban_goc',
+      'u_chong_xo_thu_hep'
     ])
-    const odd = acTpBtklMo({ soGoi: 3 })
+    expect(
+      line(acTpBtklMo({ soGoi: 2, aGoi: 2000 }), 'u_chong_xo').flags?.map(
+        f => f.code
+      )
+    ).toEqual(['ty_le_ban_goc'])
+    // An odd count: the stops the dossier draws, ⌊soGoi/2⌋, not 2,5 of them.
+    const odd = acTpBtklMo({ soGoi: 5, aGoi: 1500 })
+    expect(kl(odd, 'u_chong_xo')).toBeCloseTo(0.152 * 2, 9)
     expect(line(odd, 'u_chong_xo').flags?.map(f => f.code)).toEqual([
       'ty_le_ban_goc',
-      'u_chong_xo_goi_le'
+      'u_chong_xo_goi_le',
+      'u_chong_xo_thu_hep'
     ])
+    expect(kl(acTpBtklMo({ soGoi: 3 }), 'u_chong_xo')).toBeCloseTo(0.152, 9)
   })
 
   test('a missing line does not blank the total: summed without it, flagged', () => {

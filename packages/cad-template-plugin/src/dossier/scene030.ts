@@ -33,7 +33,13 @@ import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
 import { acTpDimensionText, type AcTpDimLabelMode } from './dimSymbols'
 import { sheetStretch } from './grid030'
 import type { DossierModel } from './model'
-import { dossierDefaults, REFERENCE_ID } from './model'
+import {
+  DOSSIER_BEARING_WIDTH,
+  DOSSIER_STOP_WIDTH,
+  dossierDefaults,
+  dossierStopOffsets,
+  REFERENCE_ID
+} from './model'
 import layout from './reference/layout-mo2.json'
 import reference from './reference/reinforcement.json'
 import type { DossierPrimitive, DossierScene, DossierSheet, XY } from './scene'
@@ -268,48 +274,194 @@ function insertDrawnPoints(p: LayoutPrimitive): XY[] {
   })
 }
 
-/** Bearing block of the source front elevation, one insert per bearing. */
+/** Bearing block of the source plan (drawn there only, in absolute
+ * coordinates: its insertion point says nothing about its place). */
 const BEARING_BLOCK = 'Goi I24'
-type ArrayedPrimitive = LayoutPrimitive & {
-  acrossFromCentre?: { centre: number; offset: number }
-}
+/** Bearing stop block of the source plan. */
+const STOP_BLOCK = 'UCX dam I24'
+/**
+ * Heights of the source front elevation's bearing seat strip, source mm: its
+ * bearings and stops are exploded lines, not blocks, at the plan bearings'
+ * x (both views share the bridge axis).
+ */
+const FRONT_STRIP = { y0: 19800, y1: 20800 }
+/** Dimension the source writes over its outer bearings (front elevation). */
+const BEARING_DIM_TEXT = '@B(G)'
+/** Bearing labels of the plan, G1 on the right. */
+const BEARING_LABEL = /^G\d+$/
+/**
+ * A primitive placed at a true distance across the bridge from the bearing
+ * centre line (source x `fromCentre`): the grid moves that line, not the
+ * distances, so a bearing array keeps its spacing whatever the width does.
+ */
+type ArrayedPrimitive = LayoutPrimitive & { fromCentre?: number }
 
 /**
- * The view's content with its bearings placed from the model: `soGoi`
- * copies of the source bearing insert at `model.bearings` about the source's
- * own bearing centre line, in place of the source's four. The source
- * arrangement (4 at 2000) is returned untouched, so the default drawing
- * stays the source drawing entity for entity. The bearing stops
- * (`UCX dam I24`) keep their source place.
+ * The view's content with every bearing-related item placed from the model
+ * (`model.bearings`, `model.stops`), in place of the source's four bearings:
+ *
+ * - plan: `soGoi` copies of the `Goi I24` insert, labels `G1`…`Gn` (G1 on the
+ *   right, as the source), one `UCX dam I24` stop per pair;
+ * - front elevation: `soGoi` copies of the exploded bearing (13 lines and a
+ *   polyline), the exploded stops (box and two bars) per pair, all following
+ *   the seat's cross fall; the `@B(G)` dimension over the outer bearings.
+ *
+ * Stops narrower than the source (`model.stops.width` < 1000) are scaled
+ * across the bridge about their centre. Returned untouched when the grid is
+ * the identity (the source parameters), so the source drawing stays exact.
  */
 function arrayedBearings(
   content: LayoutPrimitive[],
-  model: DossierModel
+  model: DossierModel,
+  keepSource: boolean
 ): LayoutPrimitive[] {
-  const source = content.filter(
+  if (keepSource) return content
+  const plan = content.filter(
     p => p.kind === 'insert' && p.block === BEARING_BLOCK
   )
-  if (!source.length) return content
-  const d = dossierDefaults()
-  if (
-    Number(model.values.soGoi) === Number(d.soGoi) &&
-    Number(model.values.aGoi) === Number(d.aGoi)
+  if (!plan.length) return content
+  const X = plan.map(p => centreOf(p)[0]).sort((a, b) => a - b)
+  const centre = (X[0] + X[X.length - 1]) / 2
+  const sourceStops = dossierStopOffsets(X.map(x => x - centre)).map(
+    o => centre + o
   )
-    return content
-  const xs = source.map(p => centreOf(p)[0])
-  const centre = (Math.min(...xs) + Math.max(...xs)) / 2
-  const template = source[0]
-  const at0 = centreOf(template)[0]
-  const placed = model.bearings.map(
-    (offset, i): ArrayedPrimitive => ({
-      ...template,
-      handle: `${template.handle}#${i + 1}`,
-      at: [template.at![0] + centre + offset - at0, template.at![1]],
-      acrossFromCentre: { centre, offset }
+  const inStrip = (p: LayoutPrimitive, x: number, half: number) =>
+    p.kind === 'path' &&
+    !!p.points?.length &&
+    p.points.every(
+      q =>
+        Math.abs(q[0] - x) <= half &&
+        q[1] > FRONT_STRIP.y0 &&
+        q[1] < FRONT_STRIP.y1
+    )
+  const frontBearings = X.map(x =>
+    content.filter(
+      p =>
+        p.color === 8 &&
+        (p.src === 'OUTLINE' || p.src === '0') &&
+        inStrip(p, x, DOSSIER_BEARING_WIDTH / 2 + 10)
+    )
+  )
+  const frontStops = sourceStops.map(x =>
+    content.filter(
+      p =>
+        p.src === '0' &&
+        (p.color === 7 || p.color === 4) &&
+        inStrip(p, x, DOSSIER_STOP_WIDTH / 2 + 20)
+    )
+  )
+  const planStops = content.filter(
+    p => p.kind === 'insert' && p.block === STOP_BLOCK
+  )
+  const labels = content
+    .filter(p => p.kind === 'text' && BEARING_LABEL.test(p.text ?? ''))
+    .sort((a, b) => a.at![0] - b.at![0])
+  const dims = content.filter(
+    p => p.kind === 'dimension' && p.text === BEARING_DIM_TEXT
+  )
+  const replaced = new Set<LayoutPrimitive>([
+    ...plan,
+    ...frontBearings.flat(),
+    ...frontStops.flat(),
+    ...planStops,
+    ...labels,
+    ...dims
+  ])
+  // The seat falls across the bridge: its bearings step up with x.
+  const bottom = (cluster: LayoutPrimitive[]) =>
+    Math.min(...cluster.flatMap(p => p.points!.map(q => q[1])))
+  const slope =
+    (bottom(frontBearings[X.length - 1]) - bottom(frontBearings[0])) /
+    (X[X.length - 1] - X[0])
+  const copy = (
+    p: LayoutPrimitive,
+    tag: string,
+    extra: Partial<LayoutPrimitive>
+  ): ArrayedPrimitive => ({
+    ...p,
+    handle: `${p.handle}#${tag}`,
+    ...extra,
+    fromCentre: centre
+  })
+  const placed: ArrayedPrimitive[] = []
+  const targets = model.bearings.map(o => centre + o)
+  targets.forEach((x, i) => {
+    const t = plan[0]
+    placed.push(
+      copy(t, `${i + 1}`, {
+        at: [t.at![0] + x - centreOf(t)[0], t.at![1]]
+      })
+    )
+    const dx = x - X[0]
+    for (const p of frontBearings[0])
+      placed.push(
+        copy(p, `${i + 1}`, {
+          points: p.points!.map(q => [q[0] + dx, q[1] + slope * dx] as XY)
+        })
+      )
+  })
+  // Labels G1… from the right, at the source's place under each bearing.
+  if (labels.length) {
+    const near = (x: number) =>
+      X.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a))
+    const offsets = labels.map(l => l.at![0] - near(l.at![0])).sort()
+    const offset = offsets[Math.floor(offsets.length / 2)]
+    const t = labels[0]
+    ;[...targets]
+      .sort((a, b) => b - a)
+      .forEach((x, i) =>
+        placed.push(
+          copy(t, `${i + 1}`, {
+            text: `G${i + 1}`,
+            at: [x + offset, t.at![1]]
+          })
+        )
+      )
+  }
+  const f = model.stops.width / DOSSIER_STOP_WIDTH
+  if (f > 0)
+    model.stops.offsets.forEach((o, j) => {
+      const x = centre + o
+      const t = planStops[0]
+      if (t) {
+        const c = centreOf(t)[0]
+        placed.push(
+          copy(t, `${j + 1}`, {
+            at: [x - (c - t.at![0]) * f, t.at![1]],
+            scale: [t.scale![0] * f, t.scale![1]]
+          })
+        )
+      }
+      const from = sourceStops[0]
+      for (const p of frontStops[0] ?? [])
+        placed.push(
+          copy(p, `${j + 1}`, {
+            points: p.points!.map(
+              q => [x + (q[0] - from) * f, q[1] + slope * (x - from)] as XY
+            )
+          })
+        )
     })
-  )
-  const first = content.indexOf(source[0])
-  const rest = content.filter(p => !source.includes(p))
+  for (const t of dims) {
+    const right = Math.max(...targets)
+    const left = Math.min(...targets)
+    // The source measures right to left, from the tops of the outer bearings.
+    const [ra, la] =
+      t.start![0] > t.end![0] ? [t.start!, t.end!] : [t.end!, t.start!]
+    const rNew: XY = [right, ra[1] + slope * (right - ra[0])]
+    const lNew: XY = [left, la[1] + slope * (left - la[0])]
+    const [start, end] = t.start![0] > t.end![0] ? [rNew, lNew] : [lNew, rNew]
+    placed.push(
+      copy(t, '1', {
+        start,
+        end,
+        dimLine: [end[0], t.dimLine![1]],
+        ...(t.textAt ? { textAt: [centre, t.textAt[1]] as XY } : {})
+      })
+    )
+  }
+  const first = content.findIndex(p => replaced.has(p))
+  const rest = content.filter(p => !replaced.has(p))
   return [...rest.slice(0, first), ...placed, ...rest.slice(first)]
 }
 
@@ -858,7 +1010,7 @@ export function buildScene030(
         else
           for (const raw of steel
             ? ls.content
-            : arrayedBearings(ls.content, model)) {
+            : arrayedBearings(ls.content, model, stretch.identity)) {
             const c = steel ? relabelSteel(raw) : relabelGeneral(raw)
             const at = centreOf(c)
             const [sx, sy] = layout.shifts[stretch.viewOf(at)] ?? [0, 0]
@@ -866,23 +1018,20 @@ export function buildScene030(
             // everything else is stretched point by point.
             const [mx, my] = stretch.map(at, at)
             const move: XY = [mx - at[0], my - at[1]]
-            // A re-placed bearing sits at its true offset from the centre
-            // line, whatever the grid does to the width around it.
-            const placed = (raw as ArrayedPrimitive).acrossFromCentre
-            if (placed)
-              move[0] =
-                stretch.map([placed.centre, at[1]], at)[0] +
-                placed.offset -
-                at[0]
+            // A re-placed bearing item keeps its true distance from the
+            // bearing centre line, whatever the grid does to the width.
+            const fc = (raw as ArrayedPrimitive).fromCentre
+            const across = (q: XY) =>
+              fc === undefined
+                ? stretch.map(q, at)[0]
+                : stretch.map([fc, q[1]], at)[0] + q[0] - fc
+            if (fc !== undefined) move[0] = across(at) - at[0]
             addPaper(
               c,
               contentRole(c),
               c.kind === 'insert'
                 ? q => [x0 + q[0] + move[0] + sx, y0 + q[1] + move[1] + sy]
-                : q => {
-                    const [x, y] = stretch.map(q, at)
-                    return [x0 + x + sx, y0 + y + sy]
-                  },
+                : q => [x0 + across(q) + sx, y0 + stretch.map(q, at)[1] + sy],
               1,
               {
                 sourceHandle: c.handle,

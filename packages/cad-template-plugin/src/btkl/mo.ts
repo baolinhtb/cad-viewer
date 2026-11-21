@@ -19,7 +19,11 @@
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
-import { buildDossierModel, dossierDefaults } from '../dossier/model'
+import {
+  buildDossierModel,
+  DOSSIER_STOP_WIDTH,
+  dossierDefaults
+} from '../dossier/model'
 import bars from '../dossier/reference/bars.json'
 import { acTpSteelKgPerM, BTKL_M1_SOURCE } from './sourceM1'
 import type {
@@ -432,7 +436,11 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
       dienGiai: `2 × ${f(EAR.t)} × ${f(EAR.h)} × N, N = tThan − ${f(HEAD_WALL)} = ${f(N)} (cấu tạo tai như mẫu M1)`
     }
   )
-  // M1: 4 bearings, 2 stops (one per pair), 0,304 m³ — so 0,304 × soGoi/4.
+  // M1: 4 bearings, 2 stops (one per pair), 0,304 m³ — 0,152 m³ a stop,
+  // ⌊soGoi / 2⌋ stops, the number the dossier draws (dossierStopOffsets).
+  const perStop = S.beTong.uChongXo / 2
+  const stopFlags = (f: AcTpBtklFlag[]) => (f.length ? f : undefined)
+  const stops = model.stops.offsets.length
   fromSource(
     'u_chong_xo',
     '1.6',
@@ -442,17 +450,28 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     'be_tong',
     '',
     {
-      ...scaled(S.beTong.uChongXo, n('soGoi'), d0('soGoi'), 'số gối'),
-      dienGiai: `${acTpBtklNumber(S.beTong.uChongXo)} × ${n('soGoi')}/${d0('soGoi')} (bảng gốc M1: 2 ụ giữa từng cặp gối, ${acTpBtklNumber(S.beTong.uChongXo / 2)} m³/ụ; theo tỉ lệ số gối)`
+      khoiLuong: perStop * stops,
+      dienGiai: `${acTpBtklNumber(perStop)} × ${stops} ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, ${acTpBtklNumber(perStop)} m³/ụ; ⌊${n('soGoi')}/2⌋ = ${stops} ụ)`,
+      tyLe: true
     },
-    n('soGoi') % 2
-      ? [
-          {
-            code: 'u_chong_xo_goi_le',
-            message: `Số gối lẻ (${n('soGoi')}): mẫu M1 đặt 1 ụ giữa mỗi cặp gối, số ụ cần kỹ sư chốt.`
-          }
-        ]
-      : undefined
+    stopFlags([
+      ...(n('soGoi') % 2
+        ? [
+            {
+              code: 'u_chong_xo_goi_le',
+              message: `Số gối lẻ (${n('soGoi')}): ${stops} ụ trên các cặp gối từ ngoài vào, gối giữa không có cặp; số ụ cần kỹ sư chốt.`
+            }
+          ]
+        : []),
+      ...(model.stops.width < DOSSIER_STOP_WIDTH
+        ? [
+            {
+              code: 'u_chong_xo_thu_hep',
+              message: `Ụ vẽ hẹp ${model.stops.width} mm để lọt khe giữa hai gối cách ${n('aGoi')} mm; khối lượng vẫn theo ụ M1 ${acTpBtklNumber(perStop)} m³/ụ.`
+            }
+          ]
+        : [])
+    ])
   )
   fromSource(
     'lan_can',

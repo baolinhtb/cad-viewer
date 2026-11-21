@@ -137,11 +137,13 @@ describe('nhanKichThuoc', () => {
   test.each(VARIANTS)(
     'no dimension changes length and keeps its old text: %j',
     change => {
-      const before = new Map(base.map(d => [d.sourceHandle, d]))
+      // Bearing items re-placed from the model carry `<source handle>#n`.
+      const source = (h?: string) => h?.split('#')[0]
+      const before = new Map(base.map(d => [source(d.sourceHandle), d]))
       for (const mode of ['so_do', 'ca_hai']) {
         let moved = 0
         for (const d of dims({ ...change, nhanKichThuoc: mode })) {
-          const was = before.get(d.sourceHandle)!
+          const was = before.get(source(d.sourceHandle))!
           if (Math.abs(measured(d) - measured(was)) < 1) continue
           moved += 1
           // Measured by the CAD: no override, or the override embeds <>.

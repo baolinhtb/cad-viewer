@@ -429,10 +429,60 @@ export interface DossierPoint {
   x: number
   y: number
 }
+/** Drawn width of the source bearing `Goi I24` across the bridge, mm. */
+export const DOSSIER_BEARING_WIDTH = 560
+/** Drawn width of the source bearing stop `UCX dam I24`, mm. */
+export const DOSSIER_STOP_WIDTH = 1000
+/**
+ * Least gap kept between a stop and each bearing beside it when the stop
+ * has to be drawn narrower than the source to fit, mm (M1 has 220).
+ */
+export const DOSSIER_STOP_CLEARANCE = 100
+/** Narrower than this a stop is not drawn at all, mm. */
+const STOP_MIN_WIDTH = 100
+
+/**
+ * Where the bearing stops go: one at the middle of each pair of bearings,
+ * ⌊soGoi / 2⌋ of them, pairs taken from the outside in on alternate sides —
+ * (1–2) on the right, (n−1, n) on the left, then (3–4)… — so M1's 4
+ * bearings give its two stops and an odd count leaves the middle bearing
+ * alone. Offsets from the bearing centre line, like `bearings`.
+ */
+export function dossierStopOffsets(bearings: readonly number[]): number[] {
+  const right = [...bearings].sort((a, b) => b - a)
+  const out: number[] = []
+  let lo = 0
+  let hi = right.length - 1
+  for (let k = 0; k < Math.floor(right.length / 2); k++)
+    if (k % 2 === 0) {
+      out.push((right[lo] + right[lo + 1]) / 2)
+      lo += 2
+    } else {
+      out.push((right[hi] + right[hi - 1]) / 2)
+      hi -= 2
+    }
+  return out.sort((a, b) => a - b)
+}
+
+/**
+ * Width a stop is drawn at between bearings `aGoi` apart: the source's 1000
+ * while it fits, otherwise narrowed to keep DOSSIER_STOP_CLEARANCE to each
+ * bearing; 0 (not drawn) when even that leaves less than 100 mm.
+ */
+export function dossierStopWidth(aGoi: number): number {
+  const room = aGoi - DOSSIER_BEARING_WIDTH - 2 * DOSSIER_STOP_CLEARANCE
+  return Math.max(
+    0,
+    Math.min(DOSSIER_STOP_WIDTH, room >= STOP_MIN_WIDTH ? room : 0)
+  )
+}
+
 export interface DossierModel {
   values: AcTpParamValues
   piles: DossierPoint[]
   bearings: number[]
+  /** Bearing stops: offsets from the bearing centre line and drawn width. */
+  stops: { offsets: number[]; width: number }
   elevations: {
     bottom: number
     footing: number
@@ -519,6 +569,7 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
       values,
       piles: [],
       bearings: [],
+      stops: { offsets: [], width: 0 },
       elevations: {
         bottom: 0,
         footing: 0,
@@ -658,13 +709,24 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
     'warning',
     'Chi tiết neo, nối, cốt thép cọc, gối và bản quá độ chưa đủ dữ liệu để phát hành thi công; các tờ giữ trạng thái bản nháp.'
   )
+  const bearings = Array.from(
+    { length: n('soGoi') },
+    (_, i) => (i - (n('soGoi') - 1) / 2) * n('aGoi')
+  )
+  const stopWidth = dossierStopWidth(n('aGoi'))
+  if (n('soGoi') >= 2 && stopWidth < DOSSIER_STOP_WIDTH)
+    issue(
+      'u_chong_xo_thu_hep',
+      'warning',
+      stopWidth
+        ? `Ụ chống xô vẽ hẹp ${stopWidth} mm (mẫu M1 ${DOSSIER_STOP_WIDTH}) để lọt khe giữa hai gối cách ${n('aGoi')} mm, chừa ${DOSSIER_STOP_CLEARANCE} mm mỗi bên; khối lượng vẫn tính theo ụ M1 — cần kỹ sư chốt cấu tạo ụ.`
+        : `Gối cách ${n('aGoi')} mm không còn chỗ vẽ ụ chống xô; khối lượng vẫn tính theo ụ M1 — cần kỹ sư chốt cấu tạo ụ.`
+    )
   return {
     values,
     piles,
-    bearings: Array.from(
-      { length: n('soGoi') },
-      (_, i) => (i - (n('soGoi') - 1) / 2) * n('aGoi')
-    ),
+    bearings,
+    stops: { offsets: dossierStopOffsets(bearings), width: stopWidth },
     elevations: {
       bottom,
       footing,

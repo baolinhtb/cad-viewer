@@ -61,7 +61,7 @@
    "id": "SUB-070",
    "gen": "SUB-070",
    "S_kiem": 0.9678030303030303,
-   "S_chu": 1,
+   "S_chu": 0.9058823529411765,
    "S_dim": 1,
    "detail": {
     "entities": {
@@ -71,7 +71,7 @@
     "texts": {
      "orig": 85,
      "gen": 85,
-     "matched": 85,
+     "matched": 77,
      "sameString": 85,
      "medianOffset": [
       0,
