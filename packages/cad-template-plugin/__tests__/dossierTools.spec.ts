@@ -147,34 +147,39 @@ describe('dossier tools against a real database', () => {
 
   // Live 21/11/2026, prompt 1: a road width of 8 m was "created" with the
   // general sheets showing only "CHƯA DỰNG ĐƯỢC…", and every later edit of
-  // that dossier was refused. Creating now refuses and draws nothing.
+  // that dossier was refused. A value still outside the grid (tCanh) now
+  // refuses and draws nothing; the road width itself is in the grid since
+  // P1/M2 (dossierBMatDuong.spec.ts).
   test('a create the generator cannot draw is refused and draws nothing', async () => {
     const db = database()
     for (const thong_so of [
-      { tenMo: 'QA-TEST-MO-A1', bMatDuong: 8000, tThan: 1200, lCanh: 4000 },
-      { tenMo: 'QA-TEST-MO-X1', tCanh: 600 }
+      { tenMo: 'QA-TEST-MO-X1', tCanh: 600 },
+      { tenMo: 'QA-TEST-MO-X2', bMatDuong: 8000, tCanh: 600 }
     ]) {
       const result = await runDossierTool('tao_ho_so_mo', { thong_so }, db)
       expect(result.ok).toBe(false)
       expect(result.status).toBe('refused')
       expect(result.message).toContain('Chưa dựng hồ sơ, không vẽ gì')
       expect(result.message).toContain('SUB-010')
-      const key = Object.keys(thong_so).find(k =>
-        ['bMatDuong', 'tCanh'].includes(k)
-      )!
       // Names the parameter and the value that would draw.
-      expect(result.message).toContain(
-        `${key} = ${key === 'tCanh' ? 500 : 7000}`
-      )
+      expect(result.message).toContain('tCanh = 500')
+      expect(result.message).not.toContain('bMatDuong = 7000')
     }
     expect(entities(db)).toHaveLength(0)
     expect(listRuns(db)).toHaveLength(0)
-    // The same values inside the grid still create.
+    // The live prompt itself now creates.
     expect(
       (
         await runDossierTool(
           'tao_ho_so_mo',
-          { thong_so: { tenMo: 'QA-TEST-MO-C1', tThan: 1200, lCanh: 4000 } },
+          {
+            thong_so: {
+              tenMo: 'QA-TEST-MO-A1',
+              bMatDuong: 8000,
+              tThan: 1200,
+              lCanh: 4000
+            }
+          },
           db
         )
       ).ok
@@ -224,7 +229,6 @@ describe('dossier tools against a real database', () => {
     for (const description of [create.description, edit.description]) {
       const fixed = description.split('CHƯA đổi được')[1] ?? ''
       for (const key of [
-        'bMatDuong',
         'hLanCan',
         'tCanh',
         'soGoi',
@@ -236,10 +240,13 @@ describe('dossier tools against a real database', () => {
         'phuLot'
       ])
         expect(fixed).toContain(`${key} = `)
+      expect(fixed).not.toContain('bMatDuong = ')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
-        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D.'
+        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong.'
       )
+      expect(description).toContain('bBe = bThan = bMatDuong + 2 × 350')
+      expect(description).toContain('data.suyRa')
     }
   })
 
