@@ -38,6 +38,27 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 | Hình chiếu tràn khung A3 sau khi dời                                                                                                  | **Từ chối**, nêu hình chiếu và lượng tràn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Bất kỳ thay đổi hình học nào                                                                                                          | Tờ thép SUB-070/080/090 giữ hình thép M1 **không kéo giãn**, ghi «THÉP THEO M1 GỐC, CHƯA CẬP NHẬT»; SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số — phải nói rõ hồ sơ chưa có thép cho kích thước mới                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
+**Nâng cao độ: xà mũ mố, bệ kê gối, đỉnh thân, đỉnh mố**
+
+- Từ vựng trên **mố** (khác «xà mũ» của **trụ**, thuộc hướng dẫn `tru-cau`):
+  - «xà mũ mố», «bệ kê gối», «đỉnh thân» → cao độ kê gối
+    `seat = caoDoDayBe + hBe + hThan` (`caoDoDayBe` tính m, `hBe`/`hThan`
+    tính mm: `seat = caoDoDayBe + (hBe + hThan)/1000`);
+  - «đỉnh tường đỉnh», «đỉnh mố» → `seat + hDau`.
+- Người dùng muốn **nâng (hạ) cao độ** một trong các chỗ trên thêm Δ mà chưa
+  nói cách: **bắt buộc hỏi đúng một câu, hai lựa chọn**, không tự chọn, không
+  mặc định:
+  - (a) **nâng cả mố** → `caoDoDayBe += Δ` (m): mọi cao độ dời cùng Δ, kể cả
+    đáy/đỉnh bệ; hình không đổi (hThan, hBe giữ), khối lượng không đổi;
+  - (b) **giữ móng, kéo dài thân** → `hThan += Δ` (mm): đáy và đỉnh bệ giữ
+    nguyên; bệ kê gối và mọi cao độ phía trên tăng Δ; thân cao hơn, khối
+    lượng thân tăng.
+- Ví dụ câu hỏi: «Nâng xà mũ mố thêm 0,3 m theo cách nào: (a) nâng cả mố
+  (đáy bệ cũng lên 0,3 m) hay (b) giữ móng, kéo dài thân thêm 300 mm?»
+- Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;
+  mọi hình chiếu, bảng cao độ SUB-020, thẻ cao độ và BTKL đổi theo. Báo lại
+  cao độ kê gối mới.
+
 - Hồ sơ cũ có tờ hình ghi «CHƯA DỰNG ĐƯỢC HÌNH…» (dựng trước khi có kiểm
   tra lúc tạo) bị khoá: mọi sửa kích thước bị từ chối cho tới khi đưa thông
   số ngoài lưới về giá trị mẫu **trong cùng lần gọi** `sua_ho_so_mo`, ví dụ

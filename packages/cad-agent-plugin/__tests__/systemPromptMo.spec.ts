@@ -28,4 +28,22 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('`bTai = 600`')
     expect(skill).toContain('`tCanh = 600` vẫn bị')
   })
+
+  // Plan P0–P1 2.3, decision 5: raising the seat is asked, never guessed.
+  test('abutment seat vocabulary, distinct from the pier, and the (a)/(b) question', () => {
+    for (const word of [
+      '«xà mũ mố», «bệ kê gối» and «đỉnh thân» mean the bearing seat',
+      'seat = caoDoDayBe + hBe + hThan',
+      '«đỉnh tường đỉnh» and «đỉnh mố» mean seat + hDau',
+      '«xà mũ» (`tru-cau`)',
+      'always ask exactly one question with two choices and never pick one yourself',
+      '(a) nâng cả mố — caoDoDayBe += Δ',
+      '(b) giữ móng, kéo dài thân — hThan += Δ'
+    ])
+      expect(prompt).toContain(word)
+    // The pier flow is untouched.
+    expect(prompt).toContain(
+      'Bridge piers (trụ cầu, xà mũ, thân trụ, bệ trụ, trụ T1…) are covered by the guide'
+    )
+  })
 })

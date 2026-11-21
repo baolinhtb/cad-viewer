@@ -56,6 +56,14 @@ const limits =
   `Chỉ đổi chữ: ${[...DOSSIER_FREE_KEYS].join(', ')}. ` +
   `CHƯA đổi được, phải giữ giá trị mẫu (khác mẫu thì bị từ chối, không dựng): ${fixedKeys.join(', ')}. ` +
   'Người dùng yêu cầu giá trị khác cho các thông số này thì nói rõ chưa làm được trước khi gọi, không tự thay bằng thông số khác.'
+/**
+ * Words for the abutment's elevations and the question a raise needs
+ * (plan P0–P1 section 2.3, decision 5): both ways are in the grid, the
+ * user chooses.
+ */
+const raise =
+  'Từ vựng mố (khác «xà mũ» của trụ): «xà mũ mố», «bệ kê gối», «đỉnh thân» = cao độ kê gối seat = caoDoDayBe + hBe + hThan (caoDoDayBe m, hBe/hThan mm); «đỉnh tường đỉnh», «đỉnh mố» = seat + hDau. ' +
+  'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó.'
 const parameters = {
   type: 'object',
   description: `Thông số thiết kế. Đổi m/cm sang mm trước khi gọi; caoDoDayBe là m, dốc là %. Không tự suy số liệu chưa có.\n${paramDescription}`,
@@ -68,6 +76,8 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
       'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Bộ sinh 0.3.0: 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Thông số ngoài giới hạn dưới đây thì công cụ từ chối và không vẽ gì. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì tờ thép giữ hình M1 kèm cảnh báo chưa cập nhật, SUB-100 thêm bảng khối lượng theo thông số. Hồ sơ bản nháp; không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
       limits +
       '\n' +
+      raise +
+      '\n' +
       paramDescription,
     input_schema: {
       type: 'object',
@@ -79,7 +89,9 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
     name: 'sua_ho_so_mo',
     description:
       'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối dùng execute_cad_script trên đúng đối tượng; không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
-      limits,
+      limits +
+      '\n' +
+      raise,
     input_schema: {
       type: 'object',
       properties: {
