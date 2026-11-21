@@ -146,7 +146,16 @@ const SUB_010: View[] = [
     name: 'Mặt chính',
     box: { x0: 0, y0: 12000, x1: 13500, y1: 26000 },
     x: frontAcross(3414),
-    y: heights(20015)
+    y: [
+      ...heights(20015).slice(0, 3),
+      // The seat falls across the bridge (19916 at its low end, 20080 at
+      // its high end), about the stem top line 20015. A line just below its
+      // low end moves with the stem top too, so the whole seat strip —
+      // bearings, stops, elevation tags EL3/EL4 — rises as one with hThan,
+      // instead of its low side rising by 0,983 Δ (P1/M5).
+      [19900, d => d.hBe + d.hThan] as Line,
+      ...heights(20015).slice(3)
+    ]
   },
   {
     name: 'Mặt bằng mố',
