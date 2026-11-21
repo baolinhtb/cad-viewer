@@ -3,12 +3,16 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import {
   acTpWithWorkingDatabaseSync,
   createDrawContext,
+  formatDimensionText,
   readSemanticTag,
   writeSemanticTag
 } from '@mlightcad/cad-template-sdk'
 import {
+  AcDbAlignedDimension,
+  AcDbBlockReference,
   AcDbDatabase,
   AcDbEntity,
+  AcDbMText,
   AcDbText,
   AcGeMatrix3d
 } from '@mlightcad/data-model'
@@ -97,12 +101,21 @@ export async function acapEditDossierRun(
           ', '
         )}. Dựng hồ sơ mới (phiên bản hiện hành) để có khung tên; chưa sửa gì.`
     ])
+  // 0.3.0 (plan P0–P1 2.7): the elevation datum and the label mode only
+  // change what texts, dimension texts and elevation tags say — patched in
+  // place too, keeping every handle, when nothing else moves.
+  const a3 = run.version === DOSSIER_A3_VERSION
+  const wording = changed.some(k => WORDING_KEYS.includes(k))
+  const patchable = a3 ? [...labelKeys, ...WORDING_KEYS] : labelKeys
+  const regenerate = () =>
+    regenerateRun(db, run, values, entities, result, options)
   if (
-    changed.some(k => !labelKeys.includes(k)) &&
-    run.version === DOSSIER_A3_VERSION
+    a3 &&
+    (changed.some(k => !patchable.includes(k)) ||
+      (wording && (changed.includes('x') || changed.includes('y'))))
   )
-    return regenerateRun(db, run, values, entities, result, options)
-  if (changed.some(k => !labelKeys.includes(k)))
+    return regenerate()
+  if (changed.some(k => !patchable.includes(k)))
     return result([
       'Giữ nguyên bản vẽ chi tiết: không xóa để dựng lại từ template/sơ đồ. Dùng execute_cad_script, đọc đối tượng hiện tại rồi sửa đúng chữ/điểm grip bằng tx.setText hoặc tx.moveGrips. Thay đổi toàn bộ kích thước hồ sơ cần xác định các hình chiếu, kích thước và cấu tạo liên quan; chưa thay đổi thông số nào.'
     ])
@@ -120,6 +133,10 @@ export async function acapEditDossierRun(
     string,
     { old: string; next: string; expected: number }
   >()
+  // Dimension texts and block attributes, by sheet and source handle.
+  const dimPatches = new Map<string, { old?: string; next?: string }>()
+  const attrPatches = new Map<string, { old: string; next: string }>()
+  let moved = false
   // A frame whose structure is unchanged (same lines, same number of text
   // lines) is patched in place like any other label, keeping every handle.
   // Only a frame that changes shape — a blank cell filled in, a title that
@@ -144,6 +161,31 @@ export async function acapEditDossierRun(
     for (let i = 0; i < oldPrimitives.length; i++) {
       const a = oldPrimitives[i],
         b = nextPrimitives[i]
+      if (wording) {
+        if (JSON.stringify(bare(a)) !== JSON.stringify(bare(b))) moved = true
+        if (
+          a.kind === 'dimension' &&
+          b.kind === 'dimension' &&
+          a.text !== b.text
+        ) {
+          if (!a.sourceHandle) moved = true
+          dimPatches.set(JSON.stringify([old.id, a.sourceHandle]), {
+            old: a.text,
+            next: b.text
+          })
+        }
+        if (a.kind === 'insert' && b.kind === 'insert')
+          for (const tag of Object.keys(a.attributes)) {
+            const was = attributeValue(a.attributes[tag])
+            const now = attributeValue(b.attributes[tag])
+            if (was === now) continue
+            if (!a.sourceHandle) moved = true
+            attrPatches.set(JSON.stringify([old.id, a.sourceHandle, tag]), {
+              old: was,
+              next: now
+            })
+          }
+      }
       if (a.kind !== 'text' || b.kind !== 'text' || a.text === b.text) continue
       const key = JSON.stringify([old.id, a.partId, a.text])
       const prior = replacements.get(key)
@@ -158,7 +200,46 @@ export async function acapEditDossierRun(
       })
     }
   }
+  // Something besides wording moved: not a label edit after all.
+  if (moved) return a3 ? regenerate() : result(['Cấu trúc hồ sơ đã khác mẫu.'])
   const patches = new Map<string, string>()
+  const dimTexts = new Map<string, { old: string; next: string }>()
+  const attrTexts = new Map<
+    string,
+    { tag: string; old: string; next: string }
+  >()
+  const handled = new Set<string>()
+  for (const e of entities) {
+    const tag = readSemanticTag(e)
+    const sheet = tag?.params?.sheet
+    const source = tag?.params?.sourceHandle
+    const dim = dimPatches.get(JSON.stringify([sheet, source]))
+    if (dim && e instanceof AcDbAlignedDimension) {
+      const measured = dimensionValue(db, e)
+      const resolve = (t?: string) =>
+        t === undefined ? measured : t.replace(/<>/g, measured)
+      // The text the run drew, or the drawing was edited by hand.
+      if (e.dimensionText !== resolve(dim.old))
+        return result([HAND_EDITED_LABEL])
+      dimTexts.set(e.objectId, {
+        old: e.dimensionText,
+        next: resolve(dim.next)
+      })
+      handled.add(JSON.stringify([sheet, source]))
+    }
+    if (e instanceof AcDbBlockReference)
+      for (const a of e.attributeIterator()) {
+        const key = JSON.stringify([sheet, source, a.tag])
+        const attr = attrPatches.get(key)
+        if (!attr) continue
+        if (a.textString !== attr.old) return result([HAND_EDITED_LABEL])
+        attrTexts.set(a.objectId, { tag: a.tag, ...attr })
+        handled.add(key)
+      }
+  }
+  // Every planned patch found its entity, exactly as drawn.
+  if ([...dimPatches.keys(), ...attrPatches.keys()].some(k => !handled.has(k)))
+    return result([HAND_EDITED_LABEL])
   for (const [key, replacement] of replacements) {
     const found = entities.filter(e => {
       const tag = readSemanticTag(e)
@@ -221,6 +302,15 @@ export async function acapEditDossierRun(
         const text = patches.get(entity.objectId)
         if (text !== undefined && entity instanceof AcDbText)
           entity.textString = text
+        const dim = dimTexts.get(entity.objectId)
+        if (dim && entity instanceof AcDbAlignedDimension)
+          patchDimensionText(db, entity, dim.old, dim.next)
+        if (entity instanceof AcDbBlockReference)
+          for (const a of entity.attributeIterator()) {
+            const attr = attrTexts.get(a.objectId)
+            if (attr)
+              (db.openEntityForWrite(a) as AcDbText).textString = attr.next
+          }
         if (dx || dy)
           entity.transformBy(new AcGeMatrix3d().makeTranslation(dx, dy, 0))
         const tag = readSemanticTag(entity)!
@@ -274,6 +364,64 @@ export async function acapEditDossierRun(
     removed,
     entityCount: entities.length - removed + drawn
   }
+}
+
+/** Parameters that only change wording on a 0.3.0 dossier (plan 2.7). */
+const WORDING_KEYS = ['caoDoDayBe', 'nhanKichThuoc']
+const HAND_EDITED_LABEL =
+  'Có chữ, kích thước hoặc thẻ cao độ đã sửa tay hoặc bị xóa; giữ nguyên bản vẽ, chưa sửa gì. Dùng tx.setText với đúng đối tượng hiện tại.'
+
+const attributeValue = (a: string | { value: string } | undefined) =>
+  a === undefined ? '' : typeof a === 'string' ? a : a.value
+
+/** A primitive without its wording: what must not change in a label edit. */
+function bare(p: DossierPrimitive): unknown {
+  if (p.kind === 'text') return { ...p, text: '' }
+  if (p.kind === 'dimension') return { ...p, text: '' }
+  if (p.kind === 'insert')
+    return {
+      ...p,
+      attributes: Object.fromEntries(
+        Object.entries(p.attributes).map(([k, a]) => [
+          k,
+          typeof a === 'string' ? '' : { ...a, value: '' }
+        ])
+      )
+    }
+  return p
+}
+
+/**
+ * The measurement a dimension shows, formatted by its style — as the draw
+ * context wrote it (along the dimension's axis).
+ */
+function dimensionValue(db: AcDbDatabase, d: AcDbAlignedDimension): string {
+  const a = d.xLine1Point
+  const b = d.xLine2Point
+  const along = Math.abs(
+    (b.x - a.x) * Math.cos(d.rotation) + (b.y - a.y) * Math.sin(d.rotation)
+  )
+  const style = db.tables.dimStyleTable.getAt(d.dimensionStyleName ?? '')
+  return style ? formatDimensionText(along, style) : String(Math.round(along))
+}
+
+/**
+ * A dimension's text replaced where it is drawn: the override and the text
+ * of its block, which the data model built from it — nothing else moves.
+ */
+function patchDimensionText(
+  db: AcDbDatabase,
+  d: AcDbAlignedDimension,
+  old: string,
+  next: string
+) {
+  d.dimensionText = next
+  const block = d.dimBlockId
+    ? db.tables.blockTable.getAt(d.dimBlockId)
+    : undefined
+  for (const e of block?.newIterator() ?? [])
+    if (e instanceof AcDbMText && e.contents === old)
+      (db.openEntityForWrite(e) as AcDbMText).contents = next
 }
 
 /** What a drawn entity looks like, for telling generated from hand-edited. */
