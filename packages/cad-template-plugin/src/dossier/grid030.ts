@@ -50,7 +50,7 @@ interface View {
 }
 
 /** Parameters the grid follows. */
-const STRETCH = [
+export const DOSSIER_STRETCH_KEYS = [
   'bBe',
   'lBe',
   'hBe',
@@ -67,7 +67,7 @@ const STRETCH = [
  * Parameters the drawing does not depend on (labels, tables, elevations
  * written as text, material choices, sheet position).
  */
-const FREE = new Set([
+export const DOSSIER_FREE_KEYS: ReadonlySet<string> = new Set([
   'tenMo',
   'congTrinh',
   'duAn',
@@ -293,7 +293,7 @@ export function sheetStretch(
   const changed = Object.keys(defaults).filter(
     k => values[k] !== undefined && values[k] !== defaults[k]
   )
-  const geometric = changed.filter(k => !FREE.has(k))
+  const geometric = changed.filter(k => !DOSSIER_FREE_KEYS.has(k))
   if (!geometric.length)
     return {
       identity: true,
@@ -306,11 +306,13 @@ export function sheetStretch(
   if (!views) return { error: `Tờ ${id} chưa có lưới co giãn ở bộ sinh 0.3.0.` }
   const n = (k: string) => Number(values[k])
   const unsupported = geometric.filter(
-    k => !(STRETCH as readonly string[]).includes(k) && !DERIVED.has(k)
+    k =>
+      !(DOSSIER_STRETCH_KEYS as readonly string[]).includes(k) &&
+      !DOSSIER_DERIVED_KEYS.has(k)
   )
   if (unsupported.length)
     return {
-      error: `Bộ sinh 0.3.0 chưa dựng được khi đổi ${unsupported.join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn).`
+      error: `Bộ sinh 0.3.0 chưa dựng được khi đổi ${unsupported.join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn). Để dựng lại được, đưa về giá trị mẫu: ${unsupported.map(k => `${k} = ${defaults[k]}`).join(', ')}.`
     }
   // Values the source draws as one line with another.
   if (n('bThan') !== n('bBe'))
@@ -325,7 +327,7 @@ export function sheetStretch(
       error: `Bản gốc đặt cọc sát mép bệ: aCocNgang = bBe − 2D (${n('bBe') - 2 * n('D')}), aCocDoc = lBe − 2D (${n('lBe') - 2 * n('D')}); giá trị khác chưa dựng được.`
     }
   const d = Object.fromEntries(
-    STRETCH.map(k => [k, n(k) - Number(defaults[k])])
+    DOSSIER_STRETCH_KEYS.map(k => [k, n(k) - Number(defaults[k])])
   ) as Delta
   try {
     const maps = views.map(v => ({
@@ -360,4 +362,8 @@ export function sheetStretch(
 }
 
 /** Parameters fixed by others in the source arrangement (checked above). */
-const DERIVED = new Set(['bThan', 'aCocNgang', 'aCocDoc'])
+export const DOSSIER_DERIVED_KEYS: ReadonlySet<string> = new Set([
+  'bThan',
+  'aCocNgang',
+  'aCocDoc'
+])

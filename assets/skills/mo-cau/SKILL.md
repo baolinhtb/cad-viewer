@@ -32,10 +32,14 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 | `hBe`, `hLot`, `lBe`, `muiBe`, `tThan`, `hThan`, `hDau`, `lCanh`, `D`                                                                                   | Co giãn: hình, dim, thẻ cao độ, bảng cao độ/thông số SUB-020 đổi theo; các hình chiếu tự dời để giữ khoảng hở như bản gốc                                      |
 | `bBe`                                                                                                                                                   | Co giãn, nhưng phải đổi kèm `bThan = bBe`, `aCocNgang = bBe − 2·D`; đổi `D`/`lBe` thì kèm `aCocDoc = lBe − 2·D` (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ) |
 | `caoDoDayBe`, `lCoc`, tên, công trình, khung tên, `x`/`y`                                                                                               | Không đổi hình; cao độ trong bảng dời theo `caoDoDayBe`                                                                                                        |
-| Số/bố trí cọc (`soCotCoc`, `soHangCoc`, tim cọc khác quy tắc trên), `bThan ≠ bBe`, `phuLot`, `tCanh`, `docNgang`, `docDoc`, `bMatDuong`, `hLanCan`, gối | **Từ chối** — hồ sơ giữ nguyên, nêu lý do                                                                                                                      |
+| Số/bố trí cọc (`soCotCoc`, `soHangCoc`, tim cọc khác quy tắc trên), `bThan ≠ bBe`, `phuLot`, `tCanh`, `docNgang`, `docDoc`, `bMatDuong`, `hLanCan`, gối | **Từ chối** — tạo mới thì không vẽ gì; sửa thì hồ sơ giữ nguyên. Thông báo nêu giá trị mẫu cần đưa về. Nói với người dùng là chưa làm được **trước khi** gọi, không tự đổi sang thông số khác |
 | Hình chiếu tràn khung A3 sau khi dời                                                                                                                    | **Từ chối**, nêu hình chiếu và lượng tràn                                                                                                                      |
-| Bất kỳ thay đổi hình học nào                                                                                                                            | Tờ thép SUB-070/080/090 và bảng thống kê SUB-100 ghi **chưa có phương án thép** — tuyệt đối không kéo giãn thép hay giữ khối lượng thép cũ                     |
+| Bất kỳ thay đổi hình học nào                                                                                                                            | Tờ thép SUB-070/080/090 giữ hình thép M1 **không kéo giãn**, ghi «THÉP THEO M1 GỐC, CHƯA CẬP NHẬT»; SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số — phải nói rõ hồ sơ chưa có thép cho kích thước mới |
 
+- Hồ sơ cũ có tờ hình ghi «CHƯA DỰNG ĐƯỢC HÌNH…» (dựng trước khi có kiểm
+  tra lúc tạo) bị khoá: mọi sửa kích thước bị từ chối cho tới khi đưa thông
+  số ngoài lưới về giá trị mẫu **trong cùng lần gọi** `sua_ho_so_mo`, ví dụ
+  `{tCanh: 500, tThan: 1800}`. Hỏi người dùng trước khi đưa về.
 - Sửa: `sua_ho_so_mo` + mã lần dựng từ `mo_ta_ban_ve`; chỉ truyền phần đổi.
   Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**; có sửa tay thì công
   cụ từ chối, khi đó sửa trực tiếp bằng `execute_cad_script`. Đọc `canhBao`
@@ -71,7 +75,9 @@ Mố M1 ở thông số mặc định — đối chiếu bảng SUB-100 bản g�
 | Tường thân | 53,667 | 54,481 | tham số; cờ `lech_ban_goc_than` (chưa giải thích được) |
 | Tường đỉnh | 7,267 | 7,265 | tham số (làm tròn) |
 | Tường cánh | 27,710 | 27,661 | tham số; cờ `lech_ban_goc_canh` |
-| Tai, ụ chống xô, lan can, vật tư | như gốc | như gốc | số bản gốc khi hình học là M1; đổi hình học thì **từ chối** |
+| Tai, lan can, vật tư | như gốc | như gốc | số bản gốc khi hình học là M1; đổi tham số của dòng thì tính theo công thức/tỉ lệ có cờ, không có công thức thì **từ chối** dòng đó |
+| Ụ chống xô | 0,304 | 0,304 | 2 ụ giữa từng cặp gối: `0,304 × soGoi/4`, không đổi theo `bThan`; số gối lẻ có cờ `u_chong_xo_goi_le` |
+| Tổng bê tông C30 | 186,253 | cộng 1.1–1.7 | dòng con nào chưa tính được thì tổng vẫn cộng phần có, ghi «CHƯA GỒM …» và cờ `tong_thieu_dong` — phải nói lại với người dùng |
 | Lót C10 (trừ tiết diện cọc) | 4,446 | 4,446 | tham số; cờ C8/C10 |
 | Ván khuôn (mặt tiếp xúc lớn) | 266,6 | 267,146 | tham số; cờ lệch và cờ `van_khuon_cho_dinh_muc` |
 | Thép 69 thanh (kg/m bảng gốc) | 14 058,319 | 14 058,319 | đổi hình học thì **từ chối** |

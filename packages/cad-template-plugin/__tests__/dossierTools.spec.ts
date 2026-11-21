@@ -19,9 +19,11 @@ import { dossierDxf } from '../src/dossier/export'
 import { buildDossierModel } from '../src/dossier/model'
 import layout from '../src/dossier/reference/layout-mo2.json'
 import { buildDossierScene } from '../src/dossier/scene'
-import { runDossierTool } from '../src/dossier/tools'
+import { abutmentDossierTemplate } from '../src/dossier/template'
+import { DOSSIER_TOOLS, runDossierTool } from '../src/dossier/tools'
 import { listRuns } from '../src/runIdentity'
 import { entitiesOfRun } from '../src/runIdentity'
+import { runTemplate } from '../src/runTemplate'
 
 const database = () => {
   const db = new AcDbDatabase()
@@ -141,6 +143,104 @@ describe('dossier tools against a real database', () => {
     expect(db.transactionManager.undo()).toBe(true)
     expect(listRuns(db)).toHaveLength(1)
     expect(entitiesOfRun(db, 'r1')).toHaveLength(oldCount)
+  })
+
+  // Live 21/11/2026, prompt 1: a road width of 8 m was "created" with the
+  // general sheets showing only "CHƯA DỰNG ĐƯỢC…", and every later edit of
+  // that dossier was refused. Creating now refuses and draws nothing.
+  test('a create the generator cannot draw is refused and draws nothing', async () => {
+    const db = database()
+    for (const thong_so of [
+      { tenMo: 'QA-TEST-MO-A1', bMatDuong: 8000, tThan: 1200, lCanh: 4000 },
+      { tenMo: 'QA-TEST-MO-X1', tCanh: 600 }
+    ]) {
+      const result = await runDossierTool('tao_ho_so_mo', { thong_so }, db)
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe('refused')
+      expect(result.message).toContain('Chưa dựng hồ sơ, không vẽ gì')
+      expect(result.message).toContain('SUB-010')
+      const key = Object.keys(thong_so).find(k =>
+        ['bMatDuong', 'tCanh'].includes(k)
+      )!
+      // Names the parameter and the value that would draw.
+      expect(result.message).toContain(
+        `${key} = ${key === 'tCanh' ? 500 : 7000}`
+      )
+    }
+    expect(entities(db)).toHaveLength(0)
+    expect(listRuns(db)).toHaveLength(0)
+    // The same values inside the grid still create.
+    expect(
+      (
+        await runDossierTool(
+          'tao_ho_so_mo',
+          { thong_so: { tenMo: 'QA-TEST-MO-C1', tThan: 1200, lCanh: 4000 } },
+          db
+        )
+      ).ok
+    ).toBe(true)
+  })
+
+  test('a dossier locked by a value outside the grid says how to unlock, and unlocks', async () => {
+    const db = database()
+    // Made the way 650452a2 did: the notice sheets drawn and recorded.
+    const made = await runTemplate(
+      abutmentDossierTemplate,
+      buildDossierModel({
+        tenMo: 'QA-TEST-MO-K1',
+        nhanKichThuoc: 'ca_hai',
+        tCanh: 600
+      }).values,
+      db
+    )
+    expect(made.errors).toEqual([])
+    const locked = entitiesOfRun(db, 'r1').length
+    const blocked = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { tThan: 1800 } },
+      db
+    )
+    expect(blocked.ok).toBe(false)
+    expect(blocked.message).toContain('đưa về giá trị mẫu: tCanh = 500')
+    expect(entitiesOfRun(db, 'r1')).toHaveLength(locked)
+    const unlocked = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: { tCanh: 500, tThan: 1800 } },
+      db
+    )
+    expect(unlocked.ok).toBe(true)
+    expect(listRuns(db)[0].values).toMatchObject({ tCanh: 500, tThan: 1800 })
+    const sheets = entitiesOfRun(db, 'r1').filter(
+      e =>
+        e instanceof AcDbText && e.textString.startsWith('CHƯA DỰNG ĐƯỢC HÌNH')
+    )
+    expect(sheets).toHaveLength(0)
+    expect(entitiesOfRun(db, 'r1').length).toBeGreaterThan(locked)
+  })
+
+  test('the tool descriptions list what the generator cannot follow, from the grid', () => {
+    const create = DOSSIER_TOOLS.find(t => t.name === 'tao_ho_so_mo')!
+    const edit = DOSSIER_TOOLS.find(t => t.name === 'sua_ho_so_mo')!
+    for (const description of [create.description, edit.description]) {
+      const fixed = description.split('CHƯA đổi được')[1] ?? ''
+      for (const key of [
+        'bMatDuong',
+        'hLanCan',
+        'tCanh',
+        'soGoi',
+        'aGoi',
+        'docNgang',
+        'docDoc',
+        'soCotCoc',
+        'soHangCoc',
+        'phuLot'
+      ])
+        expect(fixed).toContain(`${key} = `)
+      expect(description).toContain('bThan = bBe')
+      expect(description).toContain(
+        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D.'
+      )
+    }
   })
 
   test('a geometry change keeps the steel sheets and SUB-100, marked as M1, with the current take-off', async () => {
