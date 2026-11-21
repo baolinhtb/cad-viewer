@@ -97,6 +97,14 @@ Mố M1 ở thông số mặc định — đối chiếu bảng SUB-100 bản g�
 ở trên; `iTrai`/`iPhai` hỗ trợ hai mái. Các giới hạn và bảng tham số sau đây
 chỉ áp dụng cách ghép cũ `mo_cau_hoan_chinh`, không áp dụng hồ sơ nhiều tờ.
 
+**Nói rõ khi dùng luồng cũ.** Mỗi khi dựng/sửa bằng template khác hồ sơ
+0.3.0 (`mo_mat_chinh`, `mo_cau_hoan_chinh`, `mo_tuong_dau`…), câu trả lời
+**phải nêu tên template và tham số đã ánh xạ**, ví dụ «đang dựng template
+`mo_mat_chinh` (một mặt chính, không phải hồ sơ 6 tờ), tường cánh dày 600 →
+`bTai = 600`». Đây là bản vẽ khác hồ sơ: không gọi nó là hồ sơ mố, không nói
+hồ sơ đã nhận thông số mà `tao_ho_so_mo` từ chối (ví dụ `tCanh = 600` vẫn bị
+hồ sơ từ chối).
+
 | Việc           | Lệnh                                                                                                                                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Dựng cả mố     | `ghep_bo_phan` với mã `mo_cau_hoan_chinh`. Một lệnh, đủ 5 cấu kiện và 2 lan can, cao độ nối nhau, dốc ngang chạy suốt từ đỉnh bệ trở lên. **Ưu tiên tuyệt đối**; đừng chạy 5 template lẻ rồi tự cộng cao độ. |
