@@ -213,7 +213,7 @@ describe('every view that draws the bearings follows soGoi/aGoi', () => {
     byX.forEach((l, i) =>
       expect(Math.abs(mid(box(l)) - planX[i])).toBeLessThan(300)
     )
-    // Stops: ⌊n/2⌋ in both views, each at the middle of a pair of
+    // Stops: floor(n/2) in both views, each at the middle of a pair of
     // neighbouring bearings, never over a bearing.
     for (const [stops, bearings] of [
       [b.planStops, b.planBearings],

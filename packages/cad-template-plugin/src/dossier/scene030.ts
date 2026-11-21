@@ -465,6 +465,38 @@ function arrayedBearings(
   return [...rest.slice(0, first), ...placed, ...rest.slice(first)]
 }
 
+/** Plan of SUB-010, source y of the footing back (where the wings start). */
+const PLAN_FOOTING_BACK = 7445.85
+/** Plan of SUB-010, source y of the wing ends. */
+const PLAN_WING_END = 10945.511
+/**
+ * Annotations the source writes inside the plan's U, between the footing
+ * back and the wing ends (B4 = 3500 at M1). The grid stretches that band
+ * with the wing length, so short wings (lCanh 4000: B4 700) crushed the
+ * title onto the dimensions and the dimensions onto each other (UI
+ * acceptance 22/11/2026). Each moves as a block instead, by the shift of
+ * the line given here:
+ *
+ * - the width dimensions (B Mố, B Mố − 2 W(t), W(t)) measure off the footing
+ *   back: they keep their offset from it, measurement unchanged;
+ * - the title and its scale follow the wing ends, but never come lower than
+ *   their source place above those dimensions.
+ */
+const PLAN_BAND: Record<string, (shift: (line: number) => number) => number> =
+  (() => {
+    const back = (shift: (line: number) => number) => shift(PLAN_FOOTING_BACK)
+    const title = (shift: (line: number) => number) =>
+      Math.max(shift(PLAN_FOOTING_BACK), shift(PLAN_WING_END))
+    return {
+      '20F0B54': back,
+      '20F0B3A': back,
+      '20F0B47': back,
+      '211BA89': back,
+      '20F0B6B': title,
+      '20EF389': title
+    }
+  })()
+
 /** `_33_` role of a source entity, by source layer and block (plan §4.2). */
 function contentRole(p: LayoutPrimitive): string {
   switch (p.kind) {
@@ -1026,12 +1058,20 @@ export function buildScene030(
                 ? stretch.map(q, at)[0]
                 : stretch.map([fc, q[1]], at)[0] + q[0] - fc
             if (fc !== undefined) move[0] = across(at) - at[0]
+            // Annotations of the plan's wing band move as a block (see
+            // PLAN_BAND): the band itself shrinks with the wings.
+            const band = steel ? undefined : PLAN_BAND[c.handle ?? '']
+            const shift = (line: number) =>
+              stretch.map([at[0], line], at)[1] - line
+            const dy = band?.(shift)
+            const down = (q: XY) =>
+              dy === undefined ? stretch.map(q, at)[1] : q[1] + dy
             addPaper(
               c,
               contentRole(c),
               c.kind === 'insert'
                 ? q => [x0 + q[0] + move[0] + sx, y0 + q[1] + move[1] + sy]
-                : q => [x0 + across(q) + sx, y0 + stretch.map(q, at)[1] + sy],
+                : q => [x0 + across(q) + sx, y0 + down(q) + sy],
               1,
               {
                 sourceHandle: c.handle,

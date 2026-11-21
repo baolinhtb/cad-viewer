@@ -443,7 +443,7 @@ const STOP_MIN_WIDTH = 100
 
 /**
  * Where the bearing stops go: one at the middle of each pair of bearings,
- * ⌊soGoi / 2⌋ of them, pairs taken from the outside in on alternate sides —
+ * floor(soGoi / 2) of them, pairs taken from the outside in on alternate sides —
  * (1–2) on the right, (n−1, n) on the left, then (3–4)… — so M1's 4
  * bearings give its two stops and an odd count leaves the middle bearing
  * alone. Offsets from the bearing centre line, like `bearings`.
