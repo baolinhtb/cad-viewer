@@ -42,7 +42,13 @@ import {
 } from './model'
 import layout from './reference/layout-mo2.json'
 import reference from './reference/reinforcement.json'
-import type { DossierPrimitive, DossierScene, DossierSheet, XY } from './scene'
+import type {
+  DossierAttribute,
+  DossierPrimitive,
+  DossierScene,
+  DossierSheet,
+  XY
+} from './scene'
 
 /** Paper millimetres → sheet units. */
 const K = 100
@@ -287,6 +293,8 @@ const STOP_BLOCK = 'UCX dam I24'
 const FRONT_STRIP = { y0: 19800, y1: 20800 }
 /** Dimension the source writes over its outer bearings (front elevation). */
 const BEARING_DIM_TEXT = '@B(G)'
+/** Gap between a front bearing's top and its label, source mm. */
+const FRONT_LABEL_GAP = 60
 /** Bearing labels of the plan, G1 on the right. */
 const BEARING_LABEL = /^G\d+$/
 /**
@@ -315,7 +323,6 @@ function arrayedBearings(
   model: DossierModel,
   keepSource: boolean
 ): LayoutPrimitive[] {
-  if (keepSource) return content
   const plan = content.filter(
     p => p.kind === 'insert' && p.block === BEARING_BLOCK
   )
@@ -359,6 +366,36 @@ function arrayedBearings(
   const dims = content.filter(
     p => p.kind === 'dimension' && p.text === BEARING_DIM_TEXT
   )
+  // The seat falls across the bridge: its bearings step up with x.
+  const bottom = (cluster: LayoutPrimitive[]) =>
+    Math.min(...cluster.flatMap(p => p.points!.map(q => q[1])))
+  const slope =
+    (bottom(frontBearings[X.length - 1]) - bottom(frontBearings[0])) /
+    (X[X.length - 1] - X[0])
+  // The front elevation has no bearing labels of its own: G1… (G1 on the
+  // right, as the plan) centred just above each bearing, where the stops —
+  // between the bearings — leave room.
+  const top = Math.max(
+    ...frontBearings[0].flatMap(p => p.points!.map(q => q[1]))
+  )
+  const frontLabels = (xs: number[]): LayoutPrimitive[] =>
+    labels.length
+      ? [...xs]
+          .sort((a, b) => b - a)
+          .map(
+            (x, i): ArrayedPrimitive => ({
+              ...labels[0],
+              handle: `${labels[0].handle}#F${i + 1}`,
+              text: `G${i + 1}`,
+              align: 1,
+              at: [x, top + slope * (x - X[0]) + FRONT_LABEL_GAP],
+              fromCentre: centre
+            })
+          )
+      : []
+  // The source parameters keep the source drawing exactly — which has no
+  // labels on its front elevation.
+  if (keepSource) return content
   const replaced = new Set<LayoutPrimitive>([
     ...plan,
     ...frontBearings.flat(),
@@ -367,12 +404,6 @@ function arrayedBearings(
     ...labels,
     ...dims
   ])
-  // The seat falls across the bridge: its bearings step up with x.
-  const bottom = (cluster: LayoutPrimitive[]) =>
-    Math.min(...cluster.flatMap(p => p.points!.map(q => q[1])))
-  const slope =
-    (bottom(frontBearings[X.length - 1]) - bottom(frontBearings[0])) /
-    (X[X.length - 1] - X[0])
   const copy = (
     p: LayoutPrimitive,
     tag: string,
@@ -400,6 +431,7 @@ function arrayedBearings(
         })
       )
   })
+  placed.push(...frontLabels(targets))
   // Labels G1… from the right, at the source's place under each bearing.
   if (labels.length) {
     const near = (x: number) =>
@@ -724,6 +756,130 @@ export function acapDossierElevations(
       .filter(([k]) => /^(FG|FE|EL\d)/.test(k))
       .map(([k, x]) => [k, Number(x)])
   )
+}
+
+type TagBox = { x0: number; y0: number; x1: number; y1: number }
+const hit = (a: TagBox, b: TagBox) =>
+  a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
+/** Box of a one-line text (generous width, see acapTextWidth). */
+function textBox(
+  at: XY,
+  text: string,
+  h: number,
+  align = 0,
+  wf = 1,
+  rotation = 0
+): TagBox {
+  const w = acapTextWidth(text.replace(/%%U/g, ''), h, wf)
+  const x0 = align === 1 ? -w / 2 : align === 2 ? -w : 0
+  if (Math.abs(Math.sin((rotation * Math.PI) / 180)) > 0.7)
+    return { x0: at[0] - h, x1: at[0], y0: at[1] + x0, y1: at[1] + x0 + w }
+  return { x0: at[0] + x0, x1: at[0] + x0 + w, y0: at[1], y1: at[1] + h }
+}
+/** Small parts (bearings, stops, their bars): what a label must not cover. */
+const PART_SIZE = 1500
+
+/**
+ * Elevation tags (cd11) whose value text sits on something — the seat strip
+ * of the front elevation is crowded with bearings and stops, and "EL3 =
+ * 235.554" is far longer than the source's "EL3" (UI acceptance P1/M4) —
+ * are moved to the nearest free place — raised and/or slid outward along
+ * the way the text runs, or on the other side of the marker (counted one
+ * text height further). Obstacles are
+ * small parts, texts, dimension texts and other tags; long lines (walls,
+ * hidden edges) are not. A tag already clear does not move.
+ */
+function placeElevationTags(primitives: DossierPrimitive[]) {
+  const obstacles: { box: TagBox; owner: DossierPrimitive }[] = []
+  for (const p of primitives) {
+    if (p.kind === 'path') {
+      const xs = p.points.map(q => q[0])
+      const ys = p.points.map(q => q[1])
+      const box = {
+        x0: Math.min(...xs),
+        x1: Math.max(...xs),
+        y0: Math.min(...ys),
+        y1: Math.max(...ys)
+      }
+      if (box.x1 - box.x0 < PART_SIZE && box.y1 - box.y0 < PART_SIZE)
+        obstacles.push({ box, owner: p })
+    } else if (p.kind === 'text')
+      obstacles.push({
+        box: textBox(
+          p.at,
+          p.text,
+          p.height,
+          p.align,
+          p.widthFactor,
+          p.rotation
+        ),
+        owner: p
+      })
+    else if (p.kind === 'dimension' && p.textAt) {
+      // Text centred on textAt along the dimension, on either side of it
+      // (its attachment depends on the style and the readable angle).
+      const w = acapTextWidth((p.text ?? '<>').replace('<>', '00000'), 150)
+      const h = 150 + 30
+      const [x, y] = p.textAt
+      obstacles.push({
+        box:
+          p.direction === 'dung'
+            ? { x0: x - h, x1: x + h, y0: y - w / 2, y1: y + w / 2 }
+            : { x0: x - w / 2, x1: x + w / 2, y0: y - h, y1: y + h },
+        owner: p
+      })
+    }
+  }
+  const tags = primitives.filter(
+    (p): p is Extract<DossierPrimitive, { kind: 'insert' }> =>
+      p.kind === 'insert' && p.block === 'cd11'
+  )
+  const boxOf = (
+    a: Extract<DossierAttribute, { at: XY }>,
+    at: XY,
+    align: number
+  ) => textBox(at, a.value, a.height ?? 150, align, a.widthFactor ?? 1)
+  // Every tag's text is an obstacle for the others, where it ends up.
+  const placedBoxes = new Map<DossierPrimitive, TagBox>()
+  for (const t of tags)
+    for (const a of Object.values(t.attributes))
+      if (typeof a !== 'string' && a.value)
+        placedBoxes.set(t, boxOf(a, a.at, a.align ?? 0))
+  for (const t of tags)
+    for (const [k, a] of Object.entries(t.attributes)) {
+      if (typeof a === 'string' || !a.value) continue
+      const h = a.height ?? 150
+      const free = (box: TagBox) =>
+        !obstacles.some(o => hit(box, o.box)) &&
+        ![...placedBoxes].some(([o, b]) => o !== t && hit(box, b))
+      const side = a.align ?? 0
+      // The other side of the marker: a right-aligned text turns left-aligned
+      // at the same point, and the reverse.
+      const other = side === 2 ? 0 : side === 0 ? 2 : 1
+      // Raised, and/or slid outward (the way the text runs from its point);
+      // the nearest free place wins, the source side before the other.
+      const candidates: { at: XY; align: number; cost: number }[] = []
+      for (const [align, penalty] of [
+        [side, 0],
+        [other, h]
+      ] as [number, number][])
+        for (let up = 0; up <= 10 * h; up += h / 2)
+          for (let out = 0; out <= 15 * h; out += h / 2) {
+            if (out && align === 1) break
+            const dx = align === 2 ? -out : out
+            candidates.push({
+              at: [a.at[0] + dx, a.at[1] + up],
+              align,
+              cost: Math.hypot(out, up) + penalty
+            })
+          }
+      candidates.sort((p, q) => p.cost - q.cost)
+      const found = candidates.find(c => free(boxOf(a, c.at, c.align)))
+      if (!found || !found.cost) continue
+      const { at, align } = found
+      t.attributes[k] = { ...a, at, align }
+      placedBoxes.set(t, boxOf(a, at, align))
+    }
 }
 
 /** Every point an extracted primitive draws through (for extents). */
@@ -1159,6 +1315,7 @@ export function buildScene030(
             )
           }
       }
+      if (!steel && !('error' in stretch)) placeElevationTags(s.primitives)
     } else if (ls.viewport && ls.model && ls.view && ls.offset) {
       const vp = ls.viewport
       const box = {

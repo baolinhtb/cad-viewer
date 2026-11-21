@@ -264,8 +264,9 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     expect(data.macDinhTuMau).not.toContain('bBe')
     expect(s.notBuilt).toEqual([])
     // Every view of the U abutment, as the source (329 entities on SUB-010).
-    expect(s.bySheet['SUB-010']).toBe(329)
-    expect(s.count).toBe(2967)
+    // + G1…G4 on the front elevation since P1/M5 (source: 329, 2967).
+    expect(s.bySheet['SUB-010']).toBe(333)
+    expect(s.count).toBe(2971)
     expect(values(db)).toMatchObject({
       bMatDuong: 8000,
       bBe: 8700,
@@ -381,7 +382,7 @@ describe('sua_ho_so_mo with a new road width', () => {
     // 2890 source entities + the M1 steel warnings and the take-off table
     // every geometry change adds (as L1 and the control dossier: 2967).
     expect(before.count).toBe(2890)
-    expect(after.count).toBe(2967)
+    expect(after.count).toBe(2971)
   })
 
   test('outside the remaining grid it still refuses honestly and says how to unlock', async () => {
@@ -421,7 +422,7 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
     expect(made.ok).toBe(true)
     expect(suyRa(made.data)).toEqual([])
     const first = snap(db)
-    expect(first.count).toBe(2967)
+    expect(first.count).toBe(2971)
     const log: unknown[] = []
     let prev = first
     for (const change of [

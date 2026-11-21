@@ -276,10 +276,11 @@ describe('P1/M3 acceptance', () => {
     expect(bearingInserts(v)).toHaveLength(6)
     expect(spacings(v)).toEqual([1400, 1400, 1400, 1400, 1400])
     expect(res.message).toContain('6 vị trí gối')
-    expect(before.count).toBe(2967)
+    // + G1…G4 / G1…G6 on the front elevation since P1/M5.
+    expect(before.count).toBe(2971)
     // Every view follows (P1/M3 views): plan +2 bearings, +2 labels, +1 stop;
     // front +2 exploded bearings (13 entities each), +1 exploded stop (5).
-    expect(after.count).toBe(2967 + 2 + 2 + 1 + 2 * 13 + 5)
+    expect(after.count).toBe(2971 + 2 + 2 + 1 + 2 * 13 + 5 + 2)
     expect(after.notBuilt).toEqual([])
     expect(before.layers.filter(l => !after.layers.includes(l))).toEqual([])
     // Only the bearings and the take-off lines that follow them.
@@ -330,7 +331,7 @@ describe('P1/M3 acceptance', () => {
     expect(derivedMap(res.data)).toEqual({ aGoi: 1200 })
     expect(v).toMatchObject({ soGoi: 6, aGoi: 1200, bThan: 7700 })
     expect(spacings(v)).toEqual([1200, 1200, 1200, 1200, 1200])
-    expect(after.count).toBe(before.count + 36)
+    expect(after.count).toBe(before.count + 38)
     expect(after.notBuilt).toEqual([])
     expect(before.layers.filter(l => !after.layers.includes(l))).toEqual([])
     for (const id of ['SUB-020', 'SUB-070', 'SUB-080', 'SUB-090'])

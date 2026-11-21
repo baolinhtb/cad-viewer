@@ -139,6 +139,8 @@ async function build(values: Values) {
   const labels = sub010
     .filter((e): e is AcDbText => e instanceof AcDbText)
     .filter(e => LABEL.test(e.textString))
+    // The plan's; the front's (P1/M5, `#F…`) have their own spec.
+    .filter(e => !String(tagOf(e).sourceHandle ?? '').includes('#F'))
   const dims = sub010.filter(
     (e): e is AcDbAlignedDimension =>
       e instanceof AcDbAlignedDimension && sourceOf(e) === BEARING_DIM
@@ -320,7 +322,8 @@ describe('6 bearings against the same abutment with 4: only the bearing items ch
     expect(bySheet(gone)['SUB-100'] ?? 0).toBeLessThanOrEqual(5)
     const layers = (es: AcDbEntity[]) => new Set(es.map(e => e.layer))
     for (const l of layers(four.all)) expect(layers(six.all).has(l)).toBe(true)
-    expect(six.all.length - four.all.length).toBe(36)
+    // 36 + G5, G6 on the front elevation (P1/M5).
+    expect(six.all.length - four.all.length).toBe(38)
   })
 
   test('the source parameters draw the source items untouched', () => {

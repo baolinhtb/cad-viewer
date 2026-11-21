@@ -14,7 +14,8 @@ import {
   AcDbEntity,
   AcDbMText,
   AcDbText,
-  AcGeMatrix3d
+  AcGeMatrix3d,
+  AcGePoint3d
 } from '@mlightcad/data-model'
 
 import type { AcApRunEditResult } from '../editRun'
@@ -26,7 +27,7 @@ import {
   DOSSIER_ID,
   DOSSIER_TITLE_KEYS
 } from './model'
-import type { DossierPrimitive, DossierScene } from './scene'
+import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
 
 /** Roles of the sheet border and title block (0.2.0 and later). */
@@ -141,7 +142,10 @@ export async function acapEditDossierRun(
   >()
   // Dimension texts and block attributes, by sheet and source handle.
   const dimPatches = new Map<string, { old?: string; next?: string }>()
-  const attrPatches = new Map<string, { old: string; next: string }>()
+  const attrPatches = new Map<
+    string,
+    { old: string; next: string; place?: { at: XY; align: number } }
+  >()
   let moved = false
   // A frame whose structure is unchanged (same lines, same number of text
   // lines) is patched in place like any other label, keeping every handle.
@@ -184,11 +188,17 @@ export async function acapEditDossierRun(
           for (const tag of Object.keys(a.attributes)) {
             const was = attributeValue(a.attributes[tag])
             const now = attributeValue(b.attributes[tag])
-            if (was === now) continue
+            // A longer value may have moved its text clear of the parts
+            // around it (placeElevationTags in scene030): move it too.
+            const from = attributePlace(a.attributes[tag])
+            const to = attributePlace(b.attributes[tag])
+            const shifted = JSON.stringify(from) !== JSON.stringify(to)
+            if (was === now && !shifted) continue
             if (!a.sourceHandle) moved = true
             attrPatches.set(JSON.stringify([old.id, a.sourceHandle, tag]), {
               old: was,
-              next: now
+              next: now,
+              ...(shifted && to ? { place: to } : {})
             })
           }
       }
@@ -216,7 +226,12 @@ export async function acapEditDossierRun(
   const dimTexts = new Map<string, { old: string; next: string }>()
   const attrTexts = new Map<
     string,
-    { tag: string; old: string; next: string }
+    {
+      tag: string
+      old: string
+      next: string
+      place?: { at: XY; align: number }
+    }
   >()
   const handled = new Set<string>()
   for (const e of entities) {
@@ -326,8 +341,15 @@ export async function acapEditDossierRun(
         if (entity instanceof AcDbBlockReference)
           for (const a of entity.attributeIterator()) {
             const attr = attrTexts.get(a.objectId)
-            if (attr)
-              (db.openEntityForWrite(a) as AcDbText).textString = attr.next
+            if (!attr) continue
+            const w = db.openEntityForWrite(a) as AcDbText
+            w.textString = attr.next
+            if (attr.place) {
+              const at = new AcGePoint3d(attr.place.at[0], attr.place.at[1], 0)
+              w.position = at
+              w.horizontalMode = attr.place.align as 0 | 1 | 2
+              if (attr.place.align) w.alignmentPoint = at.clone()
+            }
           }
         if (dx || dy)
           entity.transformBy(new AcGeMatrix3d().makeTranslation(dx, dy, 0))
@@ -391,6 +413,12 @@ const HAND_EDITED_LABEL =
 
 const attributeValue = (a: string | { value: string } | undefined) =>
   a === undefined ? '' : typeof a === 'string' ? a : a.value
+const attributePlace = (
+  a: string | { at: XY; align?: number } | undefined
+): { at: XY; align: number } | undefined =>
+  a === undefined || typeof a === 'string'
+    ? undefined
+    : { at: a.at, align: a.align ?? 0 }
 
 /** A primitive without its wording: what must not change in a label edit. */
 function bare(p: DossierPrimitive): unknown {
@@ -402,7 +430,7 @@ function bare(p: DossierPrimitive): unknown {
       attributes: Object.fromEntries(
         Object.entries(p.attributes).map(([k, a]) => [
           k,
-          typeof a === 'string' ? '' : { ...a, value: '' }
+          typeof a === 'string' ? '' : { ...a, value: '', at: [0, 0], align: 0 }
         ])
       )
     }
