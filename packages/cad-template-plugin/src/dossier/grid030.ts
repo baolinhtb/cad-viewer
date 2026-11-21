@@ -312,7 +312,8 @@ export function sheetStretch(
   const unsupported = geometric.filter(
     k =>
       !(DOSSIER_STRETCH_KEYS as readonly string[]).includes(k) &&
-      !DOSSIER_DERIVED_KEYS.has(k)
+      !DOSSIER_DERIVED_KEYS.has(k) &&
+      !DOSSIER_ARRAYED_KEYS.has(k)
   )
   if (unsupported.length)
     return {
@@ -364,6 +365,16 @@ export function sheetStretch(
     return { error: error instanceof Error ? error.message : String(error) }
   }
 }
+
+/**
+ * Parameters drawn as an array of blocks placed from the model (the
+ * bearings), not through the grid: the scene re-places them
+ * (`arrayedBearings` in scene030), the grid ignores them.
+ */
+export const DOSSIER_ARRAYED_KEYS: ReadonlySet<string> = new Set([
+  'soGoi',
+  'aGoi'
+])
 
 /** Parameters fixed by others in the source arrangement (checked above). */
 export const DOSSIER_DERIVED_KEYS: ReadonlySet<string> = new Set([

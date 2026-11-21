@@ -9,10 +9,15 @@ import { runTemplate } from '../runTemplate'
 import type { AcApToolOutcome, AcApToolSchema } from '../semanticTools'
 import { layerStyles, roleLayers } from '../templateRegistry'
 import type { DossierDerived } from './derive'
-import { acapDeriveDossierValues, DOSSIER_ROAD_MARGIN } from './derive'
+import {
+  acapDeriveDossierValues,
+  DOSSIER_BEARING_MARGIN,
+  DOSSIER_ROAD_MARGIN
+} from './derive'
 import type { DossierDownload } from './export'
 import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
+  DOSSIER_ARRAYED_KEYS,
   DOSSIER_DERIVED_KEYS,
   DOSSIER_FREE_KEYS,
   DOSSIER_STRETCH_KEYS
@@ -40,12 +45,14 @@ const fixedKeys = DOSSIER_PARAMS.filter(
   p =>
     !(DOSSIER_STRETCH_KEYS as readonly string[]).includes(p.key) &&
     !DOSSIER_FREE_KEYS.has(p.key) &&
-    !DOSSIER_DERIVED_KEYS.has(p.key)
+    !DOSSIER_DERIVED_KEYS.has(p.key) &&
+    !DOSSIER_ARRAYED_KEYS.has(p.key)
 ).map(p => `${p.key} = ${p.default}`)
 const limits =
   `Giới hạn bộ sinh 0.3.0. Co giãn được: ${DOSSIER_STRETCH_KEYS.join(', ')}. ` +
+  `Gối đổi được: ${[...DOSSIER_ARRAYED_KEYS].join(', ')} (vẽ lại đúng soGoi block gối ở mặt chính, cách đều aGoi quanh tim; ụ chống xô giữ vị trí bản gốc). ` +
   'Bắt buộc theo nhau: bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ). ' +
-  `Tự suy khi không truyền: chỉ cho bMatDuong (không cho bBe/bThan) thì bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định ${DOSSIER_ROAD_MARGIN} mm mỗi bên như M1, ví dụ mặt đường 8000 → bBe = bThan = ${8000 + 2 * DOSSIER_ROAD_MARGIN}); đổi bBe hoặc D mà không cho aCocNgang thì aCocNgang = bBe − 2D; đổi lBe hoặc D mà không cho aCocDoc thì aCocDoc = lBe − 2D. Giá trị suy ra trả về trong data.suyRa: phải báo lại cho người dùng. ` +
+  `Tự suy khi không truyền: chỉ cho bMatDuong (không cho bBe/bThan) thì bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định ${DOSSIER_ROAD_MARGIN} mm mỗi bên như M1, ví dụ mặt đường 8000 → bBe = bThan = ${8000 + 2 * DOSSIER_ROAD_MARGIN}); đổi bBe hoặc D mà không cho aCocNgang thì aCocNgang = bBe − 2D; đổi lBe hoặc D mà không cho aCocDoc thì aCocDoc = lBe − 2D; không cho aGoi mà các gối không còn lọt trong thân ((soGoi − 1) × aGoi + 500 > bThan) thì aGoi = (bThan − 500 − 2 × ${DOSSIER_BEARING_MARGIN}) / (soGoi − 1) làm tròn xuống bội 50 mm (lề mép ${DOSSIER_BEARING_MARGIN} mm như M1; ví dụ 6 gối trên thân 8700 → aGoi = 1400, trên thân 7700 → 1200). Giá trị suy ra trả về trong data.suyRa: phải báo lại cho người dùng. ` +
   `Chỉ đổi chữ: ${[...DOSSIER_FREE_KEYS].join(', ')}. ` +
   `CHƯA đổi được, phải giữ giá trị mẫu (khác mẫu thì bị từ chối, không dựng): ${fixedKeys.join(', ')}. ` +
   'Người dùng yêu cầu giá trị khác cho các thông số này thì nói rõ chưa làm được trước khi gọi, không tự thay bằng thông số khác.'

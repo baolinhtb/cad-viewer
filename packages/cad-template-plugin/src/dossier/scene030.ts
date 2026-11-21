@@ -268,6 +268,51 @@ function insertDrawnPoints(p: LayoutPrimitive): XY[] {
   })
 }
 
+/** Bearing block of the source front elevation, one insert per bearing. */
+const BEARING_BLOCK = 'Goi I24'
+type ArrayedPrimitive = LayoutPrimitive & {
+  acrossFromCentre?: { centre: number; offset: number }
+}
+
+/**
+ * The view's content with its bearings placed from the model: `soGoi`
+ * copies of the source bearing insert at `model.bearings` about the source's
+ * own bearing centre line, in place of the source's four. The source
+ * arrangement (4 at 2000) is returned untouched, so the default drawing
+ * stays the source drawing entity for entity. The bearing stops
+ * (`UCX dam I24`) keep their source place.
+ */
+function arrayedBearings(
+  content: LayoutPrimitive[],
+  model: DossierModel
+): LayoutPrimitive[] {
+  const source = content.filter(
+    p => p.kind === 'insert' && p.block === BEARING_BLOCK
+  )
+  if (!source.length) return content
+  const d = dossierDefaults()
+  if (
+    Number(model.values.soGoi) === Number(d.soGoi) &&
+    Number(model.values.aGoi) === Number(d.aGoi)
+  )
+    return content
+  const xs = source.map(p => centreOf(p)[0])
+  const centre = (Math.min(...xs) + Math.max(...xs)) / 2
+  const template = source[0]
+  const at0 = centreOf(template)[0]
+  const placed = model.bearings.map(
+    (offset, i): ArrayedPrimitive => ({
+      ...template,
+      handle: `${template.handle}#${i + 1}`,
+      at: [template.at![0] + centre + offset - at0, template.at![1]],
+      acrossFromCentre: { centre, offset }
+    })
+  )
+  const first = content.indexOf(source[0])
+  const rest = content.filter(p => !source.includes(p))
+  return [...rest.slice(0, first), ...placed, ...rest.slice(first)]
+}
+
 /** `_33_` role of a source entity, by source layer and block (plan §4.2). */
 function contentRole(p: LayoutPrimitive): string {
   switch (p.kind) {
@@ -287,7 +332,7 @@ function contentRole(p: LayoutPrimitive): string {
             'D1200-1': 'coc_khoan_nhoi',
             GA: 'ky_hieu_mat_cat',
             center1: 'duong_tim',
-            A$C6EA20CD3: 'goi_cau',
+            [BEARING_BLOCK]: 'goi_cau',
             center: 'duong_tim',
             mcnthep: 'cot_thep'
           } as Record<string, string>
@@ -811,7 +856,9 @@ export function buildScene030(
               })
           )
         else
-          for (const raw of ls.content) {
+          for (const raw of steel
+            ? ls.content
+            : arrayedBearings(ls.content, model)) {
             const c = steel ? relabelSteel(raw) : relabelGeneral(raw)
             const at = centreOf(c)
             const [sx, sy] = layout.shifts[stretch.viewOf(at)] ?? [0, 0]
@@ -819,6 +866,14 @@ export function buildScene030(
             // everything else is stretched point by point.
             const [mx, my] = stretch.map(at, at)
             const move: XY = [mx - at[0], my - at[1]]
+            // A re-placed bearing sits at its true offset from the centre
+            // line, whatever the grid does to the width around it.
+            const placed = (raw as ArrayedPrimitive).acrossFromCentre
+            if (placed)
+              move[0] =
+                stretch.map([placed.centre, at[1]], at)[0] +
+                placed.offset -
+                at[0]
             addPaper(
               c,
               contentRole(c),
