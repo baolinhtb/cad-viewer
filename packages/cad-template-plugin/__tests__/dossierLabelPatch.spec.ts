@@ -16,7 +16,7 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { readSemanticTag } from '@mlightcad/cad-template-sdk'
+import { readSemanticTag, writeSemanticTag } from '@mlightcad/cad-template-sdk'
 import {
   AcDbAlignedDimension,
   AcDbBlockReference,
@@ -248,6 +248,109 @@ describe('a hand-edited label is never overwritten', () => {
       expect(ids(db)).toEqual(before)
       expect(read(db)).toBe(edited)
     }
+  })
+})
+
+// UI acceptance P1/M5, S7: the engineer typed 228.900 over EL6 on SUB-020
+// (the cell came back as an MText). sua_ho_so_mo refused, and the agent then
+// shifted the 23 other elevations by script past the refusal. Now every way
+// the cell can differ is caught, named, and the refusal never points at
+// editing texts one by one.
+describe('S7: a hand-edited elevation cell, however it was edited', () => {
+  const el6 = (db: AcDbDatabase) =>
+    entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbText =>
+        e instanceof AcDbText &&
+        sheetOf(e) === 'SUB-020' &&
+        e.textString === '228.837'
+    )!
+  /** The EL6 Text replaced by an MText reading 228.900, at its place. */
+  const asMText = (keepTag: boolean) => (db: AcDbDatabase) => {
+    const old = el6(db)
+    const m = new AcDbMText()
+    m.location = { x: old.position.x, y: old.position.y, z: 0 }
+    m.contents = '228.900'
+    m.height = old.height
+    if (keepTag) writeSemanticTag(m, readSemanticTag(old)!)
+    db.tables.blockTable.modelSpace.appendEntity(m)
+    old.erase()
+  }
+  test.each([
+    [
+      'typed over (Text kept)',
+      (db: AcDbDatabase) => (el6(db).textString = '228.900'),
+      '«228.900»'
+    ],
+    ['replaced by an MText', asMText(false), '«228.900»'],
+    ['replaced by an MText carrying the run tag', asMText(true), '«228.900»'],
+    ['erased', (db: AcDbDatabase) => el6(db).erase(), 'đã bị xóa']
+  ] as [string, (db: AcDbDatabase) => void, string][])(
+    '%s: refused, named, nothing touched',
+    async (name, handEdit, said) => {
+      const db = await dossier(L1)
+      handEdit(db)
+      const before = {
+        ids: ids(db),
+        table: table(db),
+        tags: tags(db),
+        dims: dims(db).map(d => d.dimensionText)
+      }
+      const v0 = { ...listRuns(db)[0].values }
+      const res = await edit(db, {
+        caoDoDayBe: Number(v0.caoDoDayBe) + 0.3
+      })
+      numbers[`S7 ${name}`] = res.message
+      expect(res.ok).toBe(false)
+      expect(res.message).toContain('sửa tay')
+      expect(res.message).toContain('ô EL6 trên SUB-020')
+      expect(res.message).toContain(said)
+      expect(res.message).toContain('228.837')
+      expect(res.message).toContain('Chưa sửa gì')
+      expect(res.message).toMatch(/hỏi người dùng/)
+      // Never the way around the refusal.
+      expect(res.message).not.toMatch(/setText|execute_cad_script|moveGrips/)
+      expect(ids(db)).toEqual(before.ids)
+      expect(table(db)).toEqual(before.table)
+      expect(tags(db)).toEqual(before.tags)
+      expect(dims(db).map(d => d.dimensionText)).toEqual(before.dims)
+      expect(listRuns(db)[0].values).toEqual(v0)
+    }
+  )
+
+  test('a hand-edited tag or dimension is named too, and nothing moves', async () => {
+    const db = await dossier(L1)
+    const ref = entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbBlockReference =>
+        e instanceof AcDbBlockReference && e.blockName === 'cd11'
+    )!
+    const [a] = [...ref.attributeIterator()]
+    const was = a.textString
+    a.textString = 'EL? = 999'
+    dims(db)
+      .find(d => d.dimensionText === 'B Mố = 8700')!
+      .erase()
+    const before = { ids: ids(db), table: table(db), tags: tags(db) }
+    const res = await edit(db, { nhanKichThuoc: 'ky_hieu' })
+    expect(res.ok).toBe(false)
+    expect(res.message).toContain(`đang ghi «EL? = 999», bộ sinh ghi «${was}»`)
+    expect(res.message).toContain(
+      'kích thước «B Mố = <>» trên SUB-010 không còn'
+    )
+    expect(res.message).not.toMatch(/setText|execute_cad_script/)
+    expect(ids(db)).toEqual(before.ids)
+    expect(table(db)).toEqual(before.table)
+    expect(tags(db)).toEqual(before.tags)
+  })
+
+  test('a dimension change on a hand-edited dossier asks, never points at scripts', async () => {
+    const db = await dossier(L1)
+    el6(db).textString = '228.900'
+    const v0 = listRuns(db)[0].values
+    const res = await edit(db, { hThan: Number(v0.hThan) + 300 })
+    expect(res.ok).toBe(false)
+    expect(res.message).toContain('đã được sửa tay')
+    expect(res.message).toMatch(/hỏi người dùng/)
+    expect(res.message).not.toMatch(/setText|execute_cad_script/)
   })
 })
 

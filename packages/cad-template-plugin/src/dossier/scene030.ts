@@ -738,6 +738,20 @@ function fitInCell(
 }
 
 /**
+ * Every value cell of the SUB-020 tables (FG, EL6, H1A…) as written for the
+ * values, by its column name — to name a cell in a message.
+ */
+export function acapDossierTableValues(
+  values: DossierModel['values']
+): Map<string, string> {
+  return sub020Tables(
+    LAYOUT.sheets.find(x => x.id === 'SUB-020')?.paper ?? [],
+    values,
+    String(values.tenMo)
+  ).values
+}
+
+/**
  * The elevations of the SUB-020 table (FG, FE, EL1…EL6, m) for the values —
  * the numbers the sheet and its elevation tags show, so what the tools say
  * is what is drawn (P1/M5). Undefined when the sheet cannot be drawn.
