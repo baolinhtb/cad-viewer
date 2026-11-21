@@ -42,6 +42,8 @@ const VARIANTS: Values[] = [
   { hThan: 5200 },
   { lCanh: 7000 },
   { muiBe: 2300 },
+  // P1/M2: the road width with the stem and footing it derives (margin 350).
+  { bMatDuong: 8000, bBe: 8700, bThan: 8700, aCocNgang: 6300 },
   {
     hBe: 2500,
     bBe: 8500,
@@ -95,6 +97,15 @@ describe('dimension symbols measure their parameters', () => {
       values.length > 0 && values.every(v => Math.abs(v - want) <= 5)
     expect(
       near(at({ bBe: 8500, bThan: 8500, aCocNgang: 6100 }, 'B Mặt đường'), 7000)
+    ).toBe(true)
+    expect(
+      near(
+        at(
+          { bMatDuong: 8000, bBe: 8700, bThan: 8700, aCocNgang: 6300 },
+          'B Mặt đường'
+        ),
+        8000
+      )
     ).toBe(true)
     expect(
       near(at({ D: 1500, aCocNgang: 4700, aCocDoc: 3000 }, 'W(t)'), 500)

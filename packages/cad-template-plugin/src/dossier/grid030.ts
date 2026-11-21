@@ -36,7 +36,8 @@ type Delta = Record<
   | 'hThan'
   | 'hDau'
   | 'lCanh'
-  | 'D',
+  | 'D'
+  | 'bMatDuong',
   number
 >
 type Line = [source: number, shift: (d: Delta) => number]
@@ -60,7 +61,8 @@ export const DOSSIER_STRETCH_KEYS = [
   'hThan',
   'hDau',
   'lCanh',
-  'D'
+  'D',
+  'bMatDuong'
 ] as const
 
 /**
@@ -107,14 +109,16 @@ const across = (left: number): Line[] => [
 
 /**
  * Front elevation across the bridge: the footing lines, plus the road edges
- * (B Mặt đường 3764–10764), which belong to bMatDuong — not to the footing
- * width or the pile diameter that the lines either side of them follow.
+ * (B Mặt đường 3764–10764), which follow bMatDuong about the centre line —
+ * not the footing width or the pile diameter that the lines either side of
+ * them follow. The 350 mm strip outside each road edge (kerb, rail foot)
+ * therefore moves as a block when the footing keeps that margin.
  */
 const frontAcross = (left: number): Line[] =>
   [
     ...across(left),
-    [left + 350, () => 0] as Line,
-    [left + 7350, () => 0] as Line
+    [left + 350, (d: Delta) => -d.bMatDuong / 2] as Line,
+    [left + 7350, (d: Delta) => d.bMatDuong / 2] as Line
   ].sort((a, b) => a[0] - b[0])
 
 /**

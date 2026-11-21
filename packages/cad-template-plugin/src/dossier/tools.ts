@@ -8,6 +8,8 @@ import { listRuns } from '../runIdentity'
 import { runTemplate } from '../runTemplate'
 import type { AcApToolOutcome, AcApToolSchema } from '../semanticTools'
 import { layerStyles, roleLayers } from '../templateRegistry'
+import type { DossierDerived } from './derive'
+import { acapDeriveDossierValues, DOSSIER_ROAD_MARGIN } from './derive'
 import type { DossierDownload } from './export'
 import { dossierHtml, dossierSheetSvg, downloadDossierFile } from './export'
 import {
@@ -20,7 +22,8 @@ import {
   DOSSIER_ID,
   DOSSIER_NEW_LABEL_MODE,
   DOSSIER_PARAMS,
-  DOSSIER_VERSIONS
+  DOSSIER_VERSIONS,
+  dossierDefaults
 } from './model'
 import { buildDossierScene } from './scene'
 import { abutmentDossierTemplate } from './template'
@@ -42,6 +45,7 @@ const fixedKeys = DOSSIER_PARAMS.filter(
 const limits =
   `Giới hạn bộ sinh 0.3.0. Co giãn được: ${DOSSIER_STRETCH_KEYS.join(', ')}. ` +
   'Bắt buộc theo nhau: bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ). ' +
+  `Tự suy khi không truyền: chỉ cho bMatDuong (không cho bBe/bThan) thì bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định ${DOSSIER_ROAD_MARGIN} mm mỗi bên như M1, ví dụ mặt đường 8000 → bBe = bThan = ${8000 + 2 * DOSSIER_ROAD_MARGIN}); đổi bBe hoặc D mà không cho aCocNgang thì aCocNgang = bBe − 2D; đổi lBe hoặc D mà không cho aCocDoc thì aCocDoc = lBe − 2D. Giá trị suy ra trả về trong data.suyRa: phải báo lại cho người dùng. ` +
   `Chỉ đổi chữ: ${[...DOSSIER_FREE_KEYS].join(', ')}. ` +
   `CHƯA đổi được, phải giữ giá trị mẫu (khác mẫu thì bị từ chối, không dựng): ${fixedKeys.join(', ')}. ` +
   'Người dùng yêu cầu giá trị khác cho các thông số này thì nói rõ chưa làm được trước khi gọi, không tự thay bằng thông số khác.'
@@ -124,6 +128,11 @@ function suppliedValues(raw: unknown): AcTpParamValues {
   return raw as AcTpParamValues
 }
 
+/** The derived values as a data field, absent when nothing was derived. */
+function suyRaOf(suyRa: DossierDerived[]): { suyRa?: DossierDerived[] } {
+  return suyRa.length ? { suyRa } : {}
+}
+
 function summary(
   values: AcTpParamValues,
   runId: string,
@@ -165,9 +174,12 @@ export async function runDossierTool(
     if (name === 'tao_ho_so_mo') {
       // New dossiers label with numbers unless asked otherwise; runs stored
       // without the key keep the source's symbols (standard assumption 10).
+      const given = suppliedValues(input.thong_so)
+      const derived = acapDeriveDossierValues(dossierDefaults(), given)
       const model = buildDossierModel({
         nhanKichThuoc: DOSSIER_NEW_LABEL_MODE,
-        ...suppliedValues(input.thong_so)
+        ...given,
+        ...Object.fromEntries(derived.suyRa.map(d => [d.thamSo, d.giaTri]))
       })
       const errors = model.issues.filter(i => i.level === 'error')
       if (errors.length)
@@ -175,7 +187,7 @@ export async function runDossierTool(
           ok: false,
           status: 'refused',
           message: errors.map(i => i.message).join('\n'),
-          data: { kiemTra: errors }
+          data: { kiemTra: errors, ...suyRaOf(derived.suyRa) }
         }
       // No false success: a sheet whose drawing cannot follow the values
       // refuses the whole dossier — the same test sua_ho_so_mo makes.
@@ -185,7 +197,7 @@ export async function runDossierTool(
           ok: false,
           status: 'refused',
           message: `Chưa dựng hồ sơ, không vẽ gì: ${unbuilt.join(' ')}`,
-          data: { khongDungDuoc: unbuilt }
+          data: { khongDungDuoc: unbuilt, ...suyRaOf(derived.suyRa) }
         }
       const existing = listRuns(db).find(
         r =>
@@ -204,8 +216,9 @@ export async function runDossierTool(
       if (!database) await refreshDossierView()
       return summary(model.values, result.runId!, {
         soDoiTuong: result.entityCount,
+        ...suyRaOf(derived.suyRa),
         macDinhTuMau: DOSSIER_PARAMS.filter(
-          p => !(p.key in suppliedValues(input.thong_so))
+          p => !(p.key in given) && !derived.suyRa.some(d => d.thamSo === p.key)
         ).map(p => p.key)
       })
     }
@@ -235,7 +248,15 @@ export async function runDossierTool(
         )
       )
         throw new Error(`Tên ${renamed} đã thuộc hồ sơ khác; chưa sửa gì.`)
-      const result = await editTemplateRun(runId, changes, db, {
+      const derived = acapDeriveDossierValues(
+        { ...dossierDefaults(), ...run.values },
+        changes
+      )
+      const edit: AcTpParamValues = {
+        ...changes,
+        ...Object.fromEntries(derived.suyRa.map(d => [d.thamSo, d.giaTri]))
+      }
+      const result = await editTemplateRun(runId, edit, db, {
         confirmLoss: input.xac_nhan_bo_doi_tuong === true
       })
       if (result.errors.length) throw new Error(result.errors.join('\n'))
@@ -243,6 +264,7 @@ export async function runDossierTool(
       return summary(result.values, runId, {
         soDoiTuong: result.entityCount,
         soDoiTuongXoa: result.removed,
+        ...suyRaOf(derived.suyRa),
         ...(result.warnings?.length ? { canhBao: result.warnings } : {})
       })
     }

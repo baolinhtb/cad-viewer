@@ -3,6 +3,8 @@ import type {
   AcTpParamValues
 } from '@mlightcad/cad-template-sdk'
 
+import { DOSSIER_ROAD_MARGIN } from './derive'
+
 export const DOSSIER_ID = 'ho_so_mo_m1'
 /**
  * Generator version written into every run.
@@ -538,12 +540,19 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
       'error',
       'Vị trí và bề dày thân không nằm trong chiều dài bệ.'
     )
-  if (n('bMatDuong') > n('bThan') + 300)
+  // M1 keeps DOSSIER_ROAD_MARGIN between road edge and stem edge (kerb,
+  // rail foot); narrower is only a warning. The error threshold is the one
+  // the check always had, so dossiers it accepted still build.
+  const roadMargin = (n('bThan') - n('bMatDuong')) / 2
+  if (roadMargin < DOSSIER_ROAD_MARGIN) {
+    const proposed = n('bMatDuong') + 2 * DOSSIER_ROAD_MARGIN
+    const outside = n('bMatDuong') > n('bThan') + 300
     issue(
       'road_outside_wall',
-      'error',
-      'Mặt đường vượt bề rộng bố trí phía trên mố.'
+      outside ? 'error' : 'warning',
+      `${outside ? 'Mặt đường vượt bề rộng bố trí phía trên mố' : `Lề mép đường mỗi bên ${roadMargin} mm, nhỏ hơn ${DOSSIER_ROAD_MARGIN} mm của M1 (dải gờ/chân lan can bị thu hẹp)`}: bMatDuong ${n('bMatDuong')}, bThan ${n('bThan')}. Đề xuất bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} = ${proposed}.`
     )
+  }
   if (2 * n('tCanh') >= n('bThan'))
     issue('wing_overlap', 'error', 'Hai tường cánh không còn khoảng lọt lòng.')
   if (

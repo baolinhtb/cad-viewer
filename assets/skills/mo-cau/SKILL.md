@@ -27,14 +27,15 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 
 **Đổi kích thước — cái gì theo được, cái gì bị từ chối**
 
-| Thông số                                                                                                                                                | Kết quả                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hBe`, `hLot`, `lBe`, `muiBe`, `tThan`, `hThan`, `hDau`, `lCanh`, `D`                                                                                   | Co giãn: hình, dim, thẻ cao độ, bảng cao độ/thông số SUB-020 đổi theo; các hình chiếu tự dời để giữ khoảng hở như bản gốc                                      |
-| `bBe`                                                                                                                                                   | Co giãn, nhưng phải đổi kèm `bThan = bBe`, `aCocNgang = bBe − 2·D`; đổi `D`/`lBe` thì kèm `aCocDoc = lBe − 2·D` (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ) |
-| `caoDoDayBe`, `lCoc`, tên, công trình, khung tên, `x`/`y`                                                                                               | Không đổi hình; cao độ trong bảng dời theo `caoDoDayBe`                                                                                                        |
-| Số/bố trí cọc (`soCotCoc`, `soHangCoc`, tim cọc khác quy tắc trên), `bThan ≠ bBe`, `phuLot`, `tCanh`, `docNgang`, `docDoc`, `bMatDuong`, `hLanCan`, gối | **Từ chối** — tạo mới thì không vẽ gì; sửa thì hồ sơ giữ nguyên. Thông báo nêu giá trị mẫu cần đưa về. Nói với người dùng là chưa làm được **trước khi** gọi, không tự đổi sang thông số khác |
-| Hình chiếu tràn khung A3 sau khi dời                                                                                                                    | **Từ chối**, nêu hình chiếu và lượng tràn                                                                                                                      |
-| Bất kỳ thay đổi hình học nào                                                                                                                            | Tờ thép SUB-070/080/090 giữ hình thép M1 **không kéo giãn**, ghi «THÉP THEO M1 GỐC, CHƯA CẬP NHẬT»; SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số — phải nói rõ hồ sơ chưa có thép cho kích thước mới |
+| Thông số                                                                                                                                   | Kết quả                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hBe`, `hLot`, `lBe`, `muiBe`, `tThan`, `hThan`, `hDau`, `lCanh`, `D`                                                                      | Co giãn: hình, dim, thẻ cao độ, bảng cao độ/thông số SUB-020 đổi theo; các hình chiếu tự dời để giữ khoảng hở như bản gốc                                                                                                                                                                                                                                                                                                                                                                                               |
+| `bBe`                                                                                                                                      | Co giãn, nhưng phải đổi kèm `bThan = bBe`, `aCocNgang = bBe − 2·D`; đổi `D`/`lBe` thì kèm `aCocDoc = lBe − 2·D` (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ). Không truyền `aCocNgang`/`aCocDoc` thì công cụ tự suy theo quy tắc này                                                                                                                                                                                                                                                                                  |
+| `bMatDuong`                                                                                                                                | Co giãn: hai mép mặt đường ở mặt chính dời đều quanh tim. Chỉ cho `bMatDuong` (không cho `bBe`/`bThan`) thì công cụ **tự suy** `bBe = bThan = bMatDuong + 2 × 350` (lề mép đường 350 mm mỗi bên, cố định như M1 — không lấy lề khác) và `aCocNgang = bBe − 2·D`; ví dụ mặt đường 8000, D1000 → `bBe = bThan = 8700`, `aCocNgang = 6700`. Giá trị suy ra nằm trong `data.suyRa`: **phải báo lại** cho người dùng. Lề nhỏ hơn 350 thì `kiemTra` cảnh báo và nêu `bBe` đề xuất; mặt đường vượt thân quá 300 mm thì từ chối |
+| `caoDoDayBe`, `lCoc`, tên, công trình, khung tên, `x`/`y`                                                                                  | Không đổi hình; cao độ trong bảng dời theo `caoDoDayBe`                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Số/bố trí cọc (`soCotCoc`, `soHangCoc`, tim cọc khác quy tắc trên), `bThan ≠ bBe`, `phuLot`, `tCanh`, `docNgang`, `docDoc`, `hLanCan`, gối | **Từ chối** — tạo mới thì không vẽ gì; sửa thì hồ sơ giữ nguyên. Thông báo nêu giá trị mẫu cần đưa về. Nói với người dùng là chưa làm được **trước khi** gọi, không tự đổi sang thông số khác                                                                                                                                                                                                                                                                                                                           |
+| Hình chiếu tràn khung A3 sau khi dời                                                                                                       | **Từ chối**, nêu hình chiếu và lượng tràn                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Bất kỳ thay đổi hình học nào                                                                                                               | Tờ thép SUB-070/080/090 giữ hình thép M1 **không kéo giãn**, ghi «THÉP THEO M1 GỐC, CHƯA CẬP NHẬT»; SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số — phải nói rõ hồ sơ chưa có thép cho kích thước mới                                                                                                                                                                                                                                                                                           |
 
 - Hồ sơ cũ có tờ hình ghi «CHƯA DỰNG ĐƯỢC HÌNH…» (dựng trước khi có kiểm
   tra lúc tạo) bị khoá: mọi sửa kích thước bị từ chối cho tới khi đưa thông
@@ -69,18 +70,18 @@ lượng** của mố/trụ đã dựng:
 
 Mố M1 ở thông số mặc định — đối chiếu bảng SUB-100 bản gốc:
 
-| Dòng | Bản gốc | BTKL | Nguồn / cờ |
-|---|---:|---:|---|
-| Bệ (trừ đầu cọc ngàm 150 mm) | 91,721 | 91,721 | tham số |
-| Tường thân | 53,667 | 54,481 | tham số; cờ `lech_ban_goc_than` (chưa giải thích được) |
-| Tường đỉnh | 7,267 | 7,265 | tham số (làm tròn) |
-| Tường cánh | 27,710 | 27,661 | tham số; cờ `lech_ban_goc_canh` |
-| Tai, lan can, vật tư | như gốc | như gốc | số bản gốc khi hình học là M1; đổi tham số của dòng thì tính theo công thức/tỉ lệ có cờ, không có công thức thì **từ chối** dòng đó |
-| Ụ chống xô | 0,304 | 0,304 | 2 ụ giữa từng cặp gối: `0,304 × soGoi/4`, không đổi theo `bThan`; số gối lẻ có cờ `u_chong_xo_goi_le` |
-| Tổng bê tông C30 | 186,253 | cộng 1.1–1.7 | dòng con nào chưa tính được thì tổng vẫn cộng phần có, ghi «CHƯA GỒM …» và cờ `tong_thieu_dong` — phải nói lại với người dùng |
-| Lót C10 (trừ tiết diện cọc) | 4,446 | 4,446 | tham số; cờ C8/C10 |
-| Ván khuôn (mặt tiếp xúc lớn) | 266,6 | 267,146 | tham số; cờ lệch và cờ `van_khuon_cho_dinh_muc` |
-| Thép 69 thanh (kg/m bảng gốc) | 14 058,319 | 14 058,319 | đổi hình học thì **từ chối** |
+| Dòng                          |    Bản gốc |         BTKL | Nguồn / cờ                                                                                                                          |
+| ----------------------------- | ---------: | -----------: | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Bệ (trừ đầu cọc ngàm 150 mm)  |     91,721 |       91,721 | tham số                                                                                                                             |
+| Tường thân                    |     53,667 |       54,481 | tham số; cờ `lech_ban_goc_than` (chưa giải thích được)                                                                              |
+| Tường đỉnh                    |      7,267 |        7,265 | tham số (làm tròn)                                                                                                                  |
+| Tường cánh                    |     27,710 |       27,661 | tham số; cờ `lech_ban_goc_canh`                                                                                                     |
+| Tai, lan can, vật tư          |    như gốc |      như gốc | số bản gốc khi hình học là M1; đổi tham số của dòng thì tính theo công thức/tỉ lệ có cờ, không có công thức thì **từ chối** dòng đó |
+| Ụ chống xô                    |      0,304 |        0,304 | 2 ụ giữa từng cặp gối: `0,304 × soGoi/4`, không đổi theo `bThan`; số gối lẻ có cờ `u_chong_xo_goi_le`                               |
+| Tổng bê tông C30              |    186,253 | cộng 1.1–1.7 | dòng con nào chưa tính được thì tổng vẫn cộng phần có, ghi «CHƯA GỒM …» và cờ `tong_thieu_dong` — phải nói lại với người dùng       |
+| Lót C10 (trừ tiết diện cọc)   |      4,446 |        4,446 | tham số; cờ C8/C10                                                                                                                  |
+| Ván khuôn (mặt tiếp xúc lớn)  |      266,6 |      267,146 | tham số; cờ lệch và cờ `van_khuon_cho_dinh_muc`                                                                                     |
+| Thép 69 thanh (kg/m bảng gốc) | 14 058,319 |   14 058,319 | đổi hình học thì **từ chối**                                                                                                        |
 
 - Vai kê bản quá độ và vút thân–cánh có trên hình nhưng bảng gốc không tính:
   BTKL liệt kê riêng (bê tông và ván khuôn), **không cộng tổng**.
@@ -95,31 +96,31 @@ Mố M1 ở thông số mặc định — đối chiếu bảng SUB-100 bản g�
 ở trên; `iTrai`/`iPhai` hỗ trợ hai mái. Các giới hạn và bảng tham số sau đây
 chỉ áp dụng cách ghép cũ `mo_cau_hoan_chinh`, không áp dụng hồ sơ nhiều tờ.
 
-| Việc | Lệnh |
-|---|---|
-| Dựng cả mố | `ghep_bo_phan` với mã `mo_cau_hoan_chinh`. Một lệnh, đủ 5 cấu kiện và 2 lan can, cao độ nối nhau, dốc ngang chạy suốt từ đỉnh bệ trở lên. **Ưu tiên tuyệt đối**; đừng chạy 5 template lẻ rồi tự cộng cao độ. |
-| Một cấu kiện | `chay_template` với `mo_be_mong`, `mo_coc_khoan_nhoi`, `mo_tuong_than`, `mo_tuong_dau`, `tuong_phong_ho_btct`. |
-| Sửa mố đã dựng | `mo_ta_ban_ve` lấy run id, rồi `sua_lan_chay` với **chỉ** các giá trị thay đổi. Không gọi lại `ghep_bo_phan` hay `chay_template`: sẽ vẽ chồng bản thứ hai. |
-| Vị trí | `x` là tim mố, `y` là **đáy bê tông lót** (không phải đáy bệ). Bản vẽ theo lý trình thì đặt `moc_toa_do` trước. |
+| Việc           | Lệnh                                                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dựng cả mố     | `ghep_bo_phan` với mã `mo_cau_hoan_chinh`. Một lệnh, đủ 5 cấu kiện và 2 lan can, cao độ nối nhau, dốc ngang chạy suốt từ đỉnh bệ trở lên. **Ưu tiên tuyệt đối**; đừng chạy 5 template lẻ rồi tự cộng cao độ. |
+| Một cấu kiện   | `chay_template` với `mo_be_mong`, `mo_coc_khoan_nhoi`, `mo_tuong_than`, `mo_tuong_dau`, `tuong_phong_ho_btct`.                                                                                               |
+| Sửa mố đã dựng | `mo_ta_ban_ve` lấy run id, rồi `sua_lan_chay` với **chỉ** các giá trị thay đổi. Không gọi lại `ghep_bo_phan` hay `chay_template`: sẽ vẽ chồng bản thứ hai.                                                   |
+| Vị trí         | `x` là tim mố, `y` là **đáy bê tông lót** (không phải đáy bệ). Bản vẽ theo lý trình thì đặt `moc_toa_do` trước.                                                                                              |
 
 ## Tham số: lời kỹ sư → khoá template
 
-| Kỹ sư nói | Khoá | Mặc định | Ghi chú |
-|---|---|---:|---|
-| bề rộng mố, bề rộng bệ | `B` | 7700 | quyết định luôn bề rộng tường thân, tường đầu |
-| chiều cao bệ | `hBe` | 2000 | |
-| dày bê tông lót | `hLot` | 100 | lót thò mỗi bên `phuLot` = 100 |
-| chiều cao tường thân | `hThan` | 4716 | **tại tim**, đo từ đỉnh bệ; mép cao hơn tim `doDocNgang % × B/2` |
-| chiều cao tường đầu | `hDau` | 1805 | từ đáy đến mặt đỉnh ngoài |
-| vệt mép, vai kê | `bVaiKe` | 350 | bề rộng lớp phủ = `B − 2·bVaiKe`; lan can đứng trên dải này |
-| độ hạ vai kê | `hVaiKe` | 7 | không phải dày lớp phủ, hai số rất dễ lẫn |
-| dày lớp phủ, bê tông nhựa | `tLopPhu` | 70 | |
-| tường tai: dày | `bTai` | 150 | template `mo_tuong_dau` |
-| tường tai: đỉnh thấp hơn đỉnh tường đầu | `haTai` | 594 | tường tai cao 1200 tính từ đáy tường đầu |
-| chiều cao tường phòng hộ | `hLanCan` | 1090 | lan can thép đứng thêm 588 trên đó |
-| cọc khoan nhồi | `D`, `soCoc`, `khoangCach` | 1200, 2, 5300 | cự ly tim cọc = `B − 2·D` |
-| cao độ đáy bệ | `y` | | `y = cao độ đáy bệ − hLot` |
-| độ dốc ngang | `doDocNgang` | 2 (%) | xem quy ước dưới |
+| Kỹ sư nói                               | Khoá                       |      Mặc định | Ghi chú                                                          |
+| --------------------------------------- | -------------------------- | ------------: | ---------------------------------------------------------------- |
+| bề rộng mố, bề rộng bệ                  | `B`                        |          7700 | quyết định luôn bề rộng tường thân, tường đầu                    |
+| chiều cao bệ                            | `hBe`                      |          2000 |                                                                  |
+| dày bê tông lót                         | `hLot`                     |           100 | lót thò mỗi bên `phuLot` = 100                                   |
+| chiều cao tường thân                    | `hThan`                    |          4716 | **tại tim**, đo từ đỉnh bệ; mép cao hơn tim `doDocNgang % × B/2` |
+| chiều cao tường đầu                     | `hDau`                     |          1805 | từ đáy đến mặt đỉnh ngoài                                        |
+| vệt mép, vai kê                         | `bVaiKe`                   |           350 | bề rộng lớp phủ = `B − 2·bVaiKe`; lan can đứng trên dải này      |
+| độ hạ vai kê                            | `hVaiKe`                   |             7 | không phải dày lớp phủ, hai số rất dễ lẫn                        |
+| dày lớp phủ, bê tông nhựa               | `tLopPhu`                  |            70 |                                                                  |
+| tường tai: dày                          | `bTai`                     |           150 | template `mo_tuong_dau`                                          |
+| tường tai: đỉnh thấp hơn đỉnh tường đầu | `haTai`                    |           594 | tường tai cao 1200 tính từ đáy tường đầu                         |
+| chiều cao tường phòng hộ                | `hLanCan`                  |          1090 | lan can thép đứng thêm 588 trên đó                               |
+| cọc khoan nhồi                          | `D`, `soCoc`, `khoangCach` | 1200, 2, 5300 | cự ly tim cọc = `B − 2·D`                                        |
+| cao độ đáy bệ                           | `y`                        |               | `y = cao độ đáy bệ − hLot`                                       |
+| độ dốc ngang                            | `doDocNgang`               |         2 (%) | xem quy ước dưới                                                 |
 
 **Quy ước dốc.** Một trị số, đường thẳng qua tim, áp cho đỉnh bệ trở lên;
 bệ và bê tông lót luôn nằm ngang. **Dương = mép phải cao.** "Nghiêng trái",
@@ -148,15 +149,15 @@ nói rõ với người dùng thay vì xấp xỉ bằng dốc một mái.
 
 ## Kiểm TCVN ngay sau khi dựng
 
-| Kiểm | Ngưỡng | Rule |
-|---|---|---|
-| đường kính cọc khoan `D` | ≥ 750 mm **nếu hố khoan được kiểm tra bằng thủ công** — hỏi người dùng | TCVN 11823-10 đ.8.1.3 |
-| cự ly tim cọc `B − 2·D` | không có ngưỡng cấm: < 4·D (khoan **không ống vách**) phải đánh giá ảnh hưởng tương tác giữa các cọc; < 6·D phải nêu trình tự khoan trong hồ sơ | 11823-10 đ.8.1.2 |
-| mặt bên cọc → mép bệ | ≥ 300 mm; với bố trí này luôn = `D/2` ⇒ `D` ≥ 600 | 11823-10 đ.8.1.2 |
-| bề rộng `B` | ≤ 9000 mm mới khỏi cần khe phòng nứt | 11823-11 đ.6.1.6 |
-| `doDocNgang` mặt BTN | 1,5 – 2,0 % (TCVN 4054 Bảng 9) · 1,5 – 2,5 % (TCVN 13592 Bảng 12) | |
-| `doDocNgang` là siêu cao | ≥ 2 %, ≤ 8 % đường ô tô | TCVN 4054 đ.5.5.1 |
-| … đường đô thị | theo tốc độ và bán kính (i_sc 0,02 – 0,08) | TCVN 13592 Bảng 20 |
+| Kiểm                     | Ngưỡng                                                                                                                                          | Rule                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| đường kính cọc khoan `D` | ≥ 750 mm **nếu hố khoan được kiểm tra bằng thủ công** — hỏi người dùng                                                                          | TCVN 11823-10 đ.8.1.3 |
+| cự ly tim cọc `B − 2·D`  | không có ngưỡng cấm: < 4·D (khoan **không ống vách**) phải đánh giá ảnh hưởng tương tác giữa các cọc; < 6·D phải nêu trình tự khoan trong hồ sơ | 11823-10 đ.8.1.2      |
+| mặt bên cọc → mép bệ     | ≥ 300 mm; với bố trí này luôn = `D/2` ⇒ `D` ≥ 600                                                                                               | 11823-10 đ.8.1.2      |
+| bề rộng `B`              | ≤ 9000 mm mới khỏi cần khe phòng nứt                                                                                                            | 11823-11 đ.6.1.6      |
+| `doDocNgang` mặt BTN     | 1,5 – 2,0 % (TCVN 4054 Bảng 9) · 1,5 – 2,5 % (TCVN 13592 Bảng 12)                                                                               |                       |
+| `doDocNgang` là siêu cao | ≥ 2 %, ≤ 8 % đường ô tô                                                                                                                         | TCVN 4054 đ.5.5.1     |
+| … đường đô thị           | theo tốc độ và bán kính (i_sc 0,02 – 0,08)                                                                                                      | TCVN 13592 Bảng 20    |
 
 Dốc trên 2,5 % chỉ hợp lệ khi mố nằm trong đường cong có siêu cao. **Hỏi
 người dùng xác nhận trước khi dựng**, nêu hai ngưỡng trên, đừng lặng lẽ vẽ.
