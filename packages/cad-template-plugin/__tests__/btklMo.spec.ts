@@ -474,7 +474,7 @@ describe('BTKL mố — changed geometry', () => {
     const six = acTpBtklMo({ soGoi: 6, aGoi: 1200 })
     expect(kl(six, 'u_chong_xo')).toBeCloseTo((0.304 * 6) / 4, 9)
     expect(line(six, 'u_chong_xo').dienGiai).toBe(
-      '0,152 × 3 ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, 0,152 m³/ụ; ⌊6/2⌋ = 3 ụ)'
+      '0,152 × 3 ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, 0,152 m³/ụ; 6/2 = 3 ụ)'
     )
     // aGoi 1200 leaves 640 mm between bearings: the stop is drawn narrower,
     // its volume stays M1's (decision 22/11/2026), flagged.
@@ -487,7 +487,7 @@ describe('BTKL mố — changed geometry', () => {
         f => f.code
       )
     ).toEqual(['ty_le_ban_goc'])
-    // An odd count: the stops the dossier draws, ⌊soGoi/2⌋, not 2,5 of them.
+    // An odd count: the stops the dossier draws, floor(soGoi/2), not 2,5.
     const odd = acTpBtklMo({ soGoi: 5, aGoi: 1500 })
     expect(kl(odd, 'u_chong_xo')).toBeCloseTo(0.152 * 2, 9)
     expect(line(odd, 'u_chong_xo').flags?.map(f => f.code)).toEqual([
@@ -496,6 +496,9 @@ describe('BTKL mố — changed geometry', () => {
       'u_chong_xo_thu_hep'
     ])
     expect(kl(acTpBtklMo({ soGoi: 3 }), 'u_chong_xo')).toBeCloseTo(0.152, 9)
+    expect(line(odd, 'u_chong_xo').dienGiai).toBe(
+      '0,152 × 2 ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, 0,152 m³/ụ; floor(5/2) = 2 ụ)'
+    )
   })
 
   test('a missing line does not blank the total: summed without it, flagged', () => {
@@ -589,4 +592,24 @@ describe('BTKL helpers', () => {
   test('unit weight by formula', () => {
     expect(acTpSteelKgPerM(22)).toBeCloseTo(2.98628, 9)
   })
+})
+
+// The sheet's SHX font has no ⌊ ⌋: they came out as "? 6/2? = 3 ụ" on the
+// drawn take-off (UI acceptance P1/M3, 22/11/2026).
+describe('take-off text is drawable', () => {
+  test.each([2, 3, 4, 5, 6, 7, 8])(
+    '%i bearings: no glyph outside the font',
+    soGoi => {
+      const r = acTpBtklMo({ soGoi, aGoi: soGoi > 4 ? 1000 : 2000 })
+      const said = [
+        ...r.items.flatMap(i => [
+          i.dienGiai,
+          i.lyDo ?? '',
+          ...(i.flags ?? []).map(f => f.message)
+        ]),
+        ...r.errors
+      ].join('\n')
+      expect(said).not.toMatch(/[⌊⌋⌈⌉]/)
+    }
+  )
 })

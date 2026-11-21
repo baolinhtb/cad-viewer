@@ -437,7 +437,8 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     }
   )
   // M1: 4 bearings, 2 stops (one per pair), 0,304 m³ — 0,152 m³ a stop,
-  // ⌊soGoi / 2⌋ stops, the number the dossier draws (dossierStopOffsets).
+  // floor(soGoi / 2) stops, the number the dossier draws (dossierStopOffsets).
+  // ASCII only: the sheet's SHX font has no floor brackets (drawn as `?`).
   const perStop = S.beTong.uChongXo / 2
   const stopFlags = (f: AcTpBtklFlag[]) => (f.length ? f : undefined)
   const stops = model.stops.offsets.length
@@ -451,7 +452,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     '',
     {
       khoiLuong: perStop * stops,
-      dienGiai: `${acTpBtklNumber(perStop)} × ${stops} ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, ${acTpBtklNumber(perStop)} m³/ụ; ⌊${n('soGoi')}/2⌋ = ${stops} ụ)`,
+      dienGiai: `${acTpBtklNumber(perStop)} × ${stops} ụ (bảng gốc M1: 1 ụ giữa mỗi cặp gối, ${acTpBtklNumber(perStop)} m³/ụ; ${n('soGoi') % 2 ? `floor(${n('soGoi')}/2)` : `${n('soGoi')}/2`} = ${stops} ụ)`,
       tyLe: true
     },
     stopFlags([
