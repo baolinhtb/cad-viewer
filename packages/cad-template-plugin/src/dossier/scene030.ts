@@ -612,7 +612,16 @@ function sub020Tables(
   const tables = new Map<string, LayoutPrimitive[]>()
   for (const p of paper)
     if (p.ole) tables.set(p.ole, [...(tables.get(p.ole) ?? []), p])
-  const out: LayoutPrimitive[] = paper.filter(p => !p.ole)
+  // The sheet's own titles ("BẢNG CAO ĐỘ MỐ M1") carry the dossier's name,
+  // as every other title does (relabel in buildScene030).
+  const name = tenMo.toLocaleUpperCase('vi')
+  const out: LayoutPrimitive[] = paper
+    .filter(p => !p.ole)
+    .map(p =>
+      p.kind === 'text' && p.text !== undefined && /\bM1\b/.test(p.text)
+        ? { ...p, text: p.text.replace(/\bM1\b/g, name) }
+        : p
+    )
   for (const [, items] of tables) {
     const headers = items.filter(
       p => p.kind === 'text' && /\(m\)$/.test(p.text ?? '')
@@ -623,9 +632,13 @@ function sub020Tables(
         continue
       }
       let text = TABLE_TEXT[p.text ?? ''] ?? p.text ?? ''
-      if (/^M\? M1$/.test(p.text ?? ''))
-        text = `MỐ ${tenMo.toLocaleUpperCase('vi')}`
-      else if (/^-?\d+(\.\d+)?$/.test(text) && headers.length) {
+      if (/^M\? M1$/.test(p.text ?? '')) {
+        // The cell was cut for "M1": a longer name is narrowed (then made
+        // smaller) to stay inside it, clear of the FG cell on its right.
+        text = `MỐ ${name}`
+        out.push({ ...p, text, ...fitInCell(p, text, items) })
+        continue
+      } else if (/^-?\d+(\.\d+)?$/.test(text) && headers.length) {
         const header = headers.reduce((best, h) =>
           Math.abs(h.at![0] - p.at![0]) < Math.abs(best.at![0] - p.at![0])
             ? h
@@ -645,6 +658,50 @@ function sub020Tables(
     paper: out,
     values,
     ...('error' in stretch ? { error: stretch.error } : {})
+  }
+}
+
+/**
+ * Estimated width of a one-line text at height `h`, width factor `wf`: one
+ * text height a character, as the data model sizes TEXT extents. Generous on
+ * purpose — the viewer's font draws this table's capitals at about 0,82 h
+ * (UI acceptance P1/M4, «MỐ QA-M4-A1») — so a text estimated to fit does.
+ */
+export const acapTextWidth = (text: string, h: number, wf = 1) =>
+  [...text].length * h * wf
+
+/**
+ * Width factor (and, past half width, height) that keeps a left-aligned
+ * table text inside its cell: the cell ends at the first vertical rule of
+ * the table to the right of the text, across its line.
+ */
+function fitInCell(
+  p: LayoutPrimitive,
+  text: string,
+  table: LayoutPrimitive[]
+): { widthFactor?: number; height?: number } {
+  const [x, y] = p.at!
+  const h = p.height ?? 1
+  const rules = table.flatMap(q => {
+    const [a, b] = q.points ?? []
+    return q.kind === 'path' &&
+      q.points?.length === 2 &&
+      Math.abs(a[0] - b[0]) < 0.01 &&
+      a[0] > x &&
+      Math.min(a[1], b[1]) <= y &&
+      Math.max(a[1], b[1]) >= y + h / 2
+      ? [a[0]]
+      : []
+  })
+  if (!rules.length) return {}
+  // Keep the source's own left margin on the right too, within reason.
+  const room = Math.min(...rules) - x - Math.min(0.6, h * 0.4)
+  const wf = (p.widthFactor ?? 1) * Math.min(1, room / acapTextWidth(text, h))
+  if (wf >= 1) return {}
+  if (wf >= 0.5) return { widthFactor: Math.floor(wf * 100) / 100 }
+  return {
+    widthFactor: 0.5,
+    height: Math.floor((h * wf * 1000) / 0.5) / 1000
   }
 }
 

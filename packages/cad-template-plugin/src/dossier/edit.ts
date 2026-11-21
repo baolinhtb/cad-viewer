@@ -131,7 +131,13 @@ export async function acapEditDossierRun(
   const after = buildDossierScene(buildDossierModel(values), run.version)
   const replacements = new Map<
     string,
-    { old: string; next: string; expected: number }
+    {
+      old: string
+      next: string
+      expected: number
+      // A text fitted to its cell (the SUB-020 name) is narrowed with it.
+      fit?: { widthFactor: number; height: number }
+    }
   >()
   // Dimension texts and block attributes, by sheet and source handle.
   const dimPatches = new Map<string, { old?: string; next?: string }>()
@@ -196,13 +202,17 @@ export async function acapEditDossierRun(
       replacements.set(key, {
         old: a.text,
         next: b.text,
-        expected: (prior?.expected ?? 0) + 1
+        expected: (prior?.expected ?? 0) + 1,
+        ...(a.widthFactor !== b.widthFactor || a.height !== b.height
+          ? { fit: { widthFactor: b.widthFactor ?? 1, height: b.height } }
+          : {})
       })
     }
   }
   // Something besides wording moved: not a label edit after all.
   if (moved) return a3 ? regenerate() : result(['Cấu trúc hồ sơ đã khác mẫu.'])
   const patches = new Map<string, string>()
+  const fits = new Map<string, { widthFactor: number; height: number }>()
   const dimTexts = new Map<string, { old: string; next: string }>()
   const attrTexts = new Map<
     string,
@@ -252,7 +262,10 @@ export async function acapEditDossierRun(
       return result([
         'Có ghi chú đã sửa tay hoặc bị xóa; giữ nguyên bản vẽ. Dùng tx.setText với đúng đối tượng hiện tại để tránh ghi đè nội dung đã chỉnh.'
       ])
-    found.forEach(e => patches.set(e.objectId, replacement.next))
+    found.forEach(e => {
+      patches.set(e.objectId, replacement.next)
+      if (replacement.fit) fits.set(e.objectId, replacement.fit)
+    })
   }
   // The frame is generated layout, not engineering detail, so a changed frame
   // is redrawn — but only if the drawing still shows exactly the frame this
@@ -302,6 +315,11 @@ export async function acapEditDossierRun(
         const text = patches.get(entity.objectId)
         if (text !== undefined && entity instanceof AcDbText)
           entity.textString = text
+        const fit = fits.get(entity.objectId)
+        if (fit && entity instanceof AcDbText) {
+          entity.widthFactor = fit.widthFactor
+          entity.height = fit.height
+        }
         const dim = dimTexts.get(entity.objectId)
         if (dim && entity instanceof AcDbAlignedDimension)
           patchDimensionText(db, entity, dim.old, dim.next)
