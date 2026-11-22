@@ -33,6 +33,21 @@ import { readGuide } from './skillLookup'
 import { lookupTcvn } from './tcvnLookup'
 
 /**
+ * The description of a dossier tool's input field, from `DOSSIER_TOOLS`, so
+ * the schema the model sees says what the tool reads (a short Vietnamese
+ * line when the tool list does not describe it).
+ */
+function dossierFlag(toolName: string, field: string): string {
+  const schema = DOSSIER_TOOLS.find(t => t.name === toolName)?.input_schema as
+    | { properties?: Record<string, { description?: string }> }
+    | undefined
+  return (
+    schema?.properties?.[field]?.description ??
+    `Cờ ${field}: chỉ đặt true sau khi người dùng đã xác nhận; một lần gọi làm việc đó và áp thông số đổi.`
+  )
+}
+
+/**
  * The description the model reads for a semantic tool, taken from the tool
  * itself.
  *
@@ -174,7 +189,19 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
             z.string(),
             z.union([z.number(), z.string(), z.boolean()])
           ),
-          xac_nhan_bo_doi_tuong: z.boolean().optional()
+          xac_nhan_bo_doi_tuong: z.boolean().optional(),
+          // The schema the model is validated against: without these two the
+          // strict object refused the call ("invalid format") although the
+          // description and the refusals told the agent to pass them (UI
+          // acceptance 0.3.1). Described as the dossier tool describes them.
+          mo_khoa_031: z
+            .boolean()
+            .optional()
+            .describe(dossierFlag('sua_ho_so_mo', 'mo_khoa_031')),
+          dua_ve_so_bo_sinh: z
+            .boolean()
+            .optional()
+            .describe(dossierFlag('sua_ho_so_mo', 'dua_ve_so_bo_sinh'))
         })
         .strict(),
       execute: async input => {
