@@ -209,16 +209,16 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
     expect(notBuilt(db)).toEqual([])
   })
 
-  test('regression: tCanh 600 refuses; the 8 m road with 6 bearings builds', async () => {
+  test('regression: a value outside the grid refuses; the 8 m road with 6 bearings builds', async () => {
     const db = new AcDbDatabase()
     db.createDefaultData()
     const refused = await runDossierTool(
       'tao_ho_so_mo',
-      { thong_so: { tenMo: 'QA-M4-X1', tCanh: 600 } },
+      { thong_so: { tenMo: 'QA-M4-X1', phuLot: 200 } },
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('dày tường cánh = 500 mm')
+    expect(refused.message).toContain('phần lót nhô mỗi mép = 100 mm')
     const road = await runDossierTool(
       'tao_ho_so_mo',
       { thong_so: { ...L1, soGoi: 6 } },

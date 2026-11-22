@@ -380,15 +380,15 @@ describe('P1/M3 acceptance', () => {
     expect(total.khoiLuong!).toBeGreaterThan(100)
   })
 
-  test('regression: tCanh outside the grid still refuses, the 8 m road still builds', async () => {
+  test('regression: a value outside the grid still refuses, the 8 m road still builds', async () => {
     const db = database()
     const refused = await tool(
       'tao_ho_so_mo',
-      { thong_so: { tenMo: 'QA-M3-X1', soGoi: 6, tCanh: 600 } },
+      { thong_so: { tenMo: 'QA-M3-X1', soGoi: 6, phuLot: 200 } },
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('dày tường cánh = 500 mm')
+    expect(refused.message).toContain('phần lót nhô mỗi mép = 100 mm')
     expect(refused.message).not.toContain('soGoi')
     expect(all(db)).toHaveLength(0)
     const road = await tool(

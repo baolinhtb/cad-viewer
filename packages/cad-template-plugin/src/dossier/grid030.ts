@@ -42,10 +42,19 @@ type Delta = Record<
   | 'hDau'
   | 'lCanh'
   | 'D'
-  | 'bMatDuong',
+  | 'bMatDuong'
+  | 'tCanh',
   number
 >
-type Line = [source: number, shift: (d: Delta) => number]
+/**
+ * A grid line: where it is in the source, how far it moves, and — for a line
+ * a view can do without — when it is drawn at all (see {@link wingFits}).
+ */
+type Line = [
+  source: number,
+  shift: (d: Delta) => number,
+  keepIf?: (d: Delta) => boolean
+]
 
 interface View {
   name: string
@@ -67,7 +76,8 @@ export const DOSSIER_STRETCH_KEYS = [
   'hDau',
   'lCanh',
   'D',
-  'bMatDuong'
+  'bMatDuong',
+  'tCanh'
 ] as const
 
 /**
@@ -123,20 +133,40 @@ const frontAcross = (left: number): Line[] =>
   [
     ...across(left),
     [left + 350, (d: Delta) => -d.bMatDuong / 2] as Line,
-    [left + 7350, (d: Delta) => d.bMatDuong / 2] as Line
+    [left + 7350, (d: Delta) => d.bMatDuong / 2] as Line,
+    ...wingFaces(left, wingFits)
   ].sort((a, b) => a[0] - b[0])
 
 /**
+ * The inner faces of the wings (W(t) 500 inside each footing edge): tCanh
+ * inside the footing edge, whatever the pile diameter (assumption 9(b)) —
+ * the footing edge moves them by bBe, the wing thickness by tCanh (P2/M1).
+ */
+const wingFaces = (left: number, keepIf?: (d: Delta) => boolean): Line[] => [
+  [left + 500, d => -d.bBe / 2 + d.tCanh, keepIf],
+  [left + 7200, d => d.bBe / 2 - d.tCanh, keepIf]
+]
+
+/**
+ * Whether the wing's inner face stays where the source draws it in the front
+ * elevation: inside the road edge (350 from the footing edge in the source,
+ * (bBe − bMatDuong)/2 now) and outside the outer pile centre (1200, now D).
+ * A grid line cannot cross another, so when it would the front elevation
+ * leaves the wing faces out — as it did before P2/M1, which keeps every
+ * dossier that built then building — and a changed tCanh is refused
+ * ({@link sheetStretch}).
+ */
+const wingFits = (d: Delta) =>
+  500 + d.tCanh - d.bBe / 2 > 350 - d.bMatDuong / 2 &&
+  500 + d.tCanh < 1200 + d.D
+
+/**
  * Plan across the bridge: the footing lines, plus the inner faces of the
- * wings (W(t) 500 inside each footing edge), which follow the footing edge
- * so the wing keeps its thickness tCanh whatever the pile diameter.
+ * wings, so the wing is tCanh thick whatever the footing width or the pile
+ * diameter.
  */
 const planAcross = (left: number): Line[] =>
-  [
-    ...across(left),
-    [left + 500, (d: Delta) => -d.bBe / 2] as Line,
-    [left + 7200, (d: Delta) => d.bBe / 2] as Line
-  ].sort((a, b) => a[0] - b[0])
+  [...across(left), ...wingFaces(left)].sort((a, b) => a[0] - b[0])
 
 /**
  * Along the bridge (standard assumption 9): a thicker stem (tThan) widens the
@@ -351,11 +381,16 @@ export function sheetStretch(
   const d = Object.fromEntries(
     DOSSIER_STRETCH_KEYS.map(k => [k, n(k) - Number(defaults[k])])
   ) as Delta
+  if (d.tCanh !== 0 && !wingFits(d))
+    return {
+      error: `Bản gốc vẽ mặt trong tường cánh nằm giữa mép mặt đường và tim cọc ngoài cùng: dày tường cánh phải lớn hơn khoảng từ mép bệ tới mép mặt đường (${(n('bBe') - n('bMatDuong')) / 2} mm) và nhỏ hơn khoảng từ mép bệ tới tim cọc ngoài cùng (${n('D')} mm); dày tường cánh ${n('tCanh')} mm chưa dựng được.`
+    }
+  const kept = (lines: Line[]) => lines.filter(l => !l[2] || l[2](d))
   try {
     const maps = views.map(v => ({
       box: v.box,
-      fx: axis(v.x, d, v.name, 'ngang'),
-      fy: axis(v.y, d, v.name, 'đứng')
+      fx: axis(kept(v.x), d, v.name, 'ngang'),
+      fy: axis(kept(v.y), d, v.name, 'đứng')
     }))
     const index = (q: XY) =>
       Math.max(

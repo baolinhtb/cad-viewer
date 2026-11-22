@@ -422,11 +422,11 @@ describe('agent messages', () => {
     // builds with 6 bearings at 1400.
     const refused = await runDossierTool(
       'tao_ho_so_mo',
-      { thong_so: { tenMo: 'QA-V-X', tCanh: 600 } },
+      { thong_so: { tenMo: 'QA-V-X', phuLot: 200 } },
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('dày tường cánh = 500 mm')
+    expect(refused.message).toContain('phần lót nhô mỗi mép = 100 mm')
     const road = await runDossierTool(
       'tao_ho_so_mo',
       {

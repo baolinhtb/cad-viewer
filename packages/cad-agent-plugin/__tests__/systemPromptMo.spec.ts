@@ -18,7 +18,8 @@ const skill = readFileSync(
 describe('abutment (mố) guidance in the system prompt and the mo-cau skill', () => {
   // UI acceptance P1/M3 (X1): "tường cánh dày 600" on an empty drawing was
   // drawn with mo_mat_chinh bTai = 600 — right, but the answer must say it
-  // is that template and not the dossier, which still refuses tCanh 600.
+  // is that template and not the dossier. Since P2/M1 the dossier takes
+  // tCanh 600, so the skill's example of a value it refuses is phuLot.
   test('a template other than the 0.3.0 dossier is named, with its mapping', () => {
     expect(prompt).toContain(
       'name the template and the parameters you mapped the request to'
@@ -26,7 +27,8 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(prompt).toContain('bTai = 600')
     expect(skill).toContain('phải nêu tên template và tham số đã ánh xạ')
     expect(skill).toContain('`bTai = 600`')
-    expect(skill).toContain('`tCanh = 600` vẫn bị')
+    expect(skill).toContain('`phuLot = 200` vẫn bị')
+    expect(skill).not.toContain('`tCanh = 600` vẫn bị')
   })
 
   // Plan P0–P1 2.3, decision 5: raising the seat is asked, never guessed.
