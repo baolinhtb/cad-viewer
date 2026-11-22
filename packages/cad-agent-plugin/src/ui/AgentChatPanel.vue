@@ -29,6 +29,7 @@ import {
 } from '../storage/modelCatalog'
 import { areLlmSettingsEqual } from '../storage/settingsEquality'
 import { formatChatError } from './formatChatError'
+import { acapChatMessageHtml, acapJoinTextParts } from './formatChatMessage'
 import GuideProposalCard from './GuideProposalCard.vue'
 import { createAgentChatOptions, useAgentChatRef } from './useAgentChat'
 
@@ -373,13 +374,14 @@ function clearChat() {
   resetChat()
 }
 
-/** Concatenates all text parts of a UI message for display. */
+/** The text parts of a UI message, one paragraph each (formatChatMessage). */
 function partText(message: UIMessage): string {
   if (!message.parts?.length) return ''
-  return message.parts
-    .filter(part => part?.type === 'text')
-    .map(part => (part.type === 'text' ? part.text : ''))
-    .join('')
+  return acapJoinTextParts(
+    message.parts
+      .filter(part => part?.type === 'text')
+      .map(part => (part.type === 'text' ? part.text : ''))
+  )
 }
 
 /** Extracts image file parts from a UI message for inline preview. */
@@ -573,7 +575,12 @@ function isVerificationMessage(message: UIMessage): boolean {
           { 'cad-agent-msg--verification': isVerificationMessage(message) }
         ]"
       >
-        <div class="cad-agent-msg-text">{{ partText(message) }}</div>
+        <!-- Escaped first; only **bold** becomes <strong> (formatChatMessage). -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div
+          class="cad-agent-msg-text"
+          v-html="acapChatMessageHtml(partText(message))"
+        />
         <div
           v-if="imageParts(message).length"
           class="cad-agent-msg-images"

@@ -65,7 +65,7 @@ const limits =
  */
 const raise =
   'Từ vựng mố (khác «xà mũ» của trụ): «xà mũ mố», «bệ kê gối», «đỉnh thân» = cao độ kê gối seat = caoDoDayBe + hBe + hThan (caoDoDayBe m, hBe/hThan mm); «đỉnh tường đỉnh», «đỉnh mố» = seat + hDau. ' +
-  'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ — kể cả FG, FE (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên gối; khi báo kết quả (b) phải nói rõ FG, FE cũng tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó.'
+  'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ — kể cả FG, FE (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên gối; khi báo kết quả (b) phải nói rõ FG, FE cũng tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó. Nói với người dùng bằng tên tiếng Việt (cao độ đáy bệ, chiều cao thân…), khóa chỉ trong ngoặc; trước khi công cụ trả lời chỉ nói ý định, «Đã…» chỉ sau khi thành công.'
 const parameters = {
   type: 'object',
   description: `Thông số thiết kế. Đổi m/cm sang mm trước khi gọi; caoDoDayBe là m, dốc là %. Không tự suy số liệu chưa có.\n${paramDescription}`,

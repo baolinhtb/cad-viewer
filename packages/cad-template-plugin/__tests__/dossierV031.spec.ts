@@ -18,6 +18,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  acTpDxfOut,
   acTpWithWorkingDatabaseSync,
   createDrawContext,
   readSemanticTag,
@@ -305,6 +306,60 @@ describe('a 0.3.0 dossier the generator has moved on from: unlock', () => {
   })
 })
 
+/** A DXF read back as the viewer opens a file. */
+async function readDxf(dxf: string): Promise<AcDbDatabase> {
+  const db = new AcDbDatabase()
+  await db.read(
+    new TextEncoder().encode(dxf).buffer as ArrayBuffer,
+    { readOnly: false },
+    AcDbFileType.DXF
+  )
+  return db
+}
+/** Titles of SUB-020 whose letters the R14 writer garbled ("C? CAO ĐỘ"). */
+const TITLES = ['CÁC CAO ĐỘ', 'THÔNG SỐ KÍCH THƯỚC']
+/** The file carries the titles whole and the TrueType font file names. */
+function expectVietnamese(dxf: string) {
+  for (const t of TITLES) expect(dxf).toContain(t)
+  expect(dxf).toMatch(/\n\s*3\r?\n\s*arial\.ttf/)
+}
+/** The drawing shows them whole. */
+function expectTitles(db: AcDbDatabase) {
+  const shown = texts(db).map(t => t.textString)
+  for (const t of TITLES) expect(shown).toContain(t)
+}
+
+// QA 0.3.1b: the fixtures opened with "C? CAO ĐỘ", "K? H THƯ?" — the
+// fixtures, not the tools: a new database is AutoCAD R14 (AC1014), and the
+// data model's R14 DXF writer garbles Vietnamese and cuts the TrueType font
+// to "arial". acTpDxfOut writes AutoCAD 2013 (UTF-8) with the full font
+// names; a patch made in the drawing itself leaves the titles whole.
+describe('fixture files: written as acTpDxfOut, not the R14 writer', () => {
+  test('the R14 writer loses the titles and the fonts; acTpDxfOut keeps both', async () => {
+    const db = dossierAs('0.3.1', L1)
+    expectTitles(db)
+    const r14 = db.dxfOut() as string
+    expect(TITLES.some(t => r14.includes(t))).toBe(false)
+    expect(r14).not.toMatch(/arial\.ttf/)
+    const lost = texts(await readDxf(r14)).map(t => t.textString)
+    expect(lost).not.toContain('CÁC CAO ĐỘ')
+    const kept = acTpDxfOut(db) as string
+    expectVietnamese(kept)
+    expect(kept).toContain('AC1027')
+    expectTitles(await readDxf(kept))
+  })
+
+  test('a patch in the drawing itself leaves the titles whole', async () => {
+    const db = dossierAs('0.3.1', L1)
+    const res = await edit(db, {
+      caoDoDayBe:
+        Math.round((Number(run(db).values.caoDoDayBe) + 0.3) * 1000) / 1000
+    })
+    expect(res.ok).toBe(true)
+    expectTitles(db)
+  })
+})
+
 /**
  * The UI fixtures: an old dossier saved as DXF (the run tag rides in the
  * XData) and read back, as the viewer opens a file, still refuses and then
@@ -317,15 +372,12 @@ describe('UI fixtures: old dossiers as DXF files', () => {
   ] as [string, Values, (s: DossierScene) => void, Values][])(
     '%s',
     async (file, stored, age, drawn) => {
-      const dxf = dossierAs('0.3.0', stored, age, drawn).dxfOut() as string
+      const dxf = acTpDxfOut(dossierAs('0.3.0', stored, age, drawn)) as string
       if (OUT) writeFileSync(join(OUT, file), dxf)
-      const db = new AcDbDatabase()
-      await db.read(
-        new TextEncoder().encode(dxf).buffer as ArrayBuffer,
-        { readOnly: false },
-        AcDbFileType.DXF
-      )
+      expectVietnamese(dxf)
+      const db = await readDxf(dxf)
       expect(run(db)).toMatchObject({ id: 'r1', version: '0.3.0' })
+      expectTitles(db)
       const v0 = run(db).values
       const refused = await edit(db, { hThan: Number(v0.hThan) + 300 })
       expect(refused.ok).toBe(false)
@@ -337,6 +389,7 @@ describe('UI fixtures: old dossiers as DXF files', () => {
       )
       expect(unlocked.ok).toBe(true)
       expect(run(db).version).toBe('0.3.1')
+      expectTitles(db)
     }
   )
 })
@@ -380,19 +433,16 @@ describe('UI fixtures: QA-031-A1 with a hand-edited EL6', () => {
       (await runDossierTool('tao_ho_so_mo', { thong_so: QA031 }, made)).ok
     ).toBe(true)
     handEdit(made)
-    const dxf = made.dxfOut() as string
+    const dxf = acTpDxfOut(made) as string
     if (OUT) {
       mkdirSync(OUT, { recursive: true })
       writeFileSync(join(OUT, file), dxf)
     }
-    const db = new AcDbDatabase()
-    await db.read(
-      new TextEncoder().encode(dxf).buffer as ArrayBuffer,
-      { readOnly: false },
-      AcDbFileType.DXF
-    )
+    expectVietnamese(dxf)
+    const db = await readDxf(dxf)
     expect(run(db)).toMatchObject({ id: 'r1', version: '0.3.1' })
     expect(run(db).values.tenMo).toBe('QA-031-A1')
+    expectTitles(db)
     return db
   }
   const cell = (db: AcDbDatabase, value: string) =>

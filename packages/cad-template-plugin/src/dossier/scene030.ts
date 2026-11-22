@@ -798,6 +798,33 @@ function textBox(
     return { x0: at[0] - h, x1: at[0], y0: at[1] + x0, y1: at[1] + x0 + w }
   return { x0: at[0] + x0, x1: at[0] + x0 + w, y0: at[1], y1: at[1] + h }
 }
+/** Linetypes of dashed and hidden edges. */
+const DASHED_LINE = /DASH|HIDDEN/i
+
+/** Whether the segment a–b passes through the box (Liang–Barsky). */
+function crosses(a: XY, b: XY, r: TagBox): boolean {
+  let t0 = 0
+  let t1 = 1
+  const dx = b[0] - a[0]
+  const dy = b[1] - a[1]
+  for (const [p, q] of [
+    [-dx, a[0] - r.x0],
+    [dx, r.x1 - a[0]],
+    [-dy, a[1] - r.y0],
+    [dy, r.y1 - a[1]]
+  ]) {
+    if (p === 0) {
+      if (q < 0) return false
+      continue
+    }
+    const t = q / p
+    if (p < 0) t0 = Math.max(t0, t)
+    else t1 = Math.min(t1, t)
+    if (t0 > t1) return false
+  }
+  return true
+}
+
 /** Small parts (bearings, stops, their bars): what a label must not cover. */
 const PART_SIZE = 1500
 
@@ -813,7 +840,15 @@ const PART_SIZE = 1500
  */
 function placeElevationTags(primitives: DossierPrimitive[]) {
   const obstacles: { box: TagBox; owner: DossierPrimitive }[] = []
+  // Dashed and hidden lines, however long: drawn through a value they make
+  // it unreadable (QA 0.3.1b, V7: Hide_01 across "EL3 = 235.854"). Checked
+  // segment by segment, not by their extents. Centre lines are not: the
+  // bridge axis runs through the whole view and labels cross it.
+  const dashes: [XY, XY][] = []
   for (const p of primitives) {
+    if (p.kind === 'path' && DASHED_LINE.test(p.lineType ?? ''))
+      for (let i = 1; i < p.points.length; i++)
+        dashes.push([p.points[i - 1], p.points[i]])
     if (p.kind === 'path') {
       const xs = p.points.map(q => q[0])
       const ys = p.points.map(q => q[1])
@@ -873,6 +908,7 @@ function placeElevationTags(primitives: DossierPrimitive[]) {
       const h = a.height ?? 150
       const free = (box: TagBox) =>
         !obstacles.some(o => hit(box, o.box)) &&
+        !dashes.some(([a, b]) => crosses(a, b, box)) &&
         ![...placedBoxes].some(([o, b]) => o !== t && hit(box, b))
       const side = a.align ?? 0
       // The other side of the marker: a right-aligned text turns left-aligned
