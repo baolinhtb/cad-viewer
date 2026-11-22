@@ -882,6 +882,36 @@ const PLAN_BAND: Record<string, (shift: (line: number) => number) => number> =
     }
   })()
 
+/**
+ * The cross-fall notes of the front elevation (layer `ddo`, above the road):
+ * `IN1%%%` (20EF3B3) and `IN2%%%` (211B630), which AutoCAD shows as «IN1%»
+ * and «IN2%». At the source's cross fall (2 %) both stay as drawn; at any
+ * other `docNgang` both say it, in the source's form (P2-M5, UI acceptance
+ * P2-M4: the elevations moved to 3 % but the note still read IN2%). The
+ * source's IN1 beside IN2 on a one-way fall is kept only at 2 %. The wing
+ * notes `ID%%%` (20F050D, 2111646) carry no number — a symbol — and stay.
+ */
+const SLOPE_LABELS = new Set(['20EF3B3', '211B630'])
+/** The cross fall the source drawing is drawn at (and the default), %. */
+const SOURCE_CROSS_FALL = 2
+
+/**
+ * The text of a front-elevation cross-fall note for `docNgang` (%), or
+ * undefined for any other text. `2.8` reads `IN2.8%%%`, `-2` `IN-2%%%`,
+ * `0` `IN0%%%` — the drawing's own decimal point, as its elevations.
+ */
+export function acapSlopeLabel(
+  handle: string | undefined,
+  text: string,
+  docNgang: number
+): string | undefined {
+  if (!SLOPE_LABELS.has(handle ?? '') || !Number.isFinite(docNgang))
+    return undefined
+  if (docNgang === SOURCE_CROSS_FALL) return text
+  const shown = String(Math.round(docNgang * 1000) / 1000).replace(/^-0$/, '0')
+  return `IN${shown}%%%`
+}
+
 /** `_33_` role of a source entity, by source layer and block (plan §4.2). */
 function contentRole(p: LayoutPrimitive): string {
   switch (p.kind) {
@@ -1958,7 +1988,8 @@ export function buildScene030(
         return text === undefined ? rest : { ...rest, text }
       }
       if (p.kind === 'text' && p.text !== undefined) {
-        const text = relabel(p.text)
+        const text =
+          acapSlopeLabel(p.handle, p.text, n('docNgang')) ?? relabel(p.text)
         return text === p.text ? p : { ...p, text }
       }
       if (p.kind === 'insert' && p.attributes && labelMode !== 'ky_hieu')

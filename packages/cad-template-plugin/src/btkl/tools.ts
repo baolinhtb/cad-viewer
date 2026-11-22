@@ -276,6 +276,60 @@ export function acapDownloadBtklFile(file: AcApBtklDownload): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
+/** A volume as the user reads it: three decimals at most, decimal comma. */
+const vi = (v: number | null | undefined) =>
+  v === null || v === undefined
+    ? '–'
+    : String(Math.round(v * 1000) / 1000).replace('.', ',')
+
+/**
+ * After an abutment dossier changed (`sua_ho_so_mo`), every take-off already
+ * in the drawing is refreshed the way `cap_nhat_btkl` does it — same run id,
+ * same place — so the sheet never shows the old quantities (UI acceptance
+ * P2-M4: 4 → 6 piles left the sheet at 78,54 m³ until it was rebuilt by
+ * hand). A take-off whose objects did not change is left alone, and none is
+ * created when the drawing has none. Returns what to tell the user, naming
+ * the new numbers of the edited abutment (`moRunId`).
+ */
+export async function acapRefreshBtklAfterEdit(
+  moRunId: string,
+  database?: AcDbDatabase
+): Promise<string[]> {
+  const db = database ?? AcApDocManager.instance.curDocument.database
+  const notes: string[] = []
+  for (const run of listRuns(db).filter(
+    r => r.templateId === BTKL_TEMPLATE_ID
+  )) {
+    const out = await runBtklTool(
+      'cap_nhat_btkl',
+      { ma_lan_chay: run.id },
+      database
+    )
+    if (!out.ok) {
+      notes.push(
+        `Tờ BTKL ${run.id} chưa tự cập nhật được (${out.message}); số trên tờ BTKL là số cũ — chạy cap_nhat_btkl.`
+      )
+      continue
+    }
+    // Already matching the drawing: nothing was redrawn.
+    if (!(out.data as { truoc?: unknown } | undefined)?.truoc) continue
+    const now = listRuns(db).find(r => r.id === run.id)
+    const { objects } = btklObjectsFromValues(now?.values ?? {})
+    const mine = objects.find(o => o.ma === moRunId)
+    const result = mine ? acTpBtklOfObject(mine) : undefined
+    const kl = (key: string) =>
+      result?.items.find(i => i.key === key)?.khoiLuong
+    notes.push(
+      `Đã tự cập nhật tờ BTKL ${run.id} theo hồ sơ mới (cùng chỗ, như cap_nhat_btkl; sửa tay trên tờ BTKL nếu có được thay bằng số tính)${
+        result
+          ? `: ${mine!.ten} — cọc ${vi(kl('coc'))} m³, bệ ${vi(kl('be'))} m³, bê tông C30 ${vi(kl('be_tong'))} m³`
+          : ''
+      }.`
+    )
+  }
+  return notes
+}
+
 /** Runs one BTKL tool; refusals come back as `ok: false` with the reason. */
 export async function runBtklTool(
   name: string,

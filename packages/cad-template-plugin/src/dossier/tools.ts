@@ -3,6 +3,7 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import { acTpDxfOut } from '@mlightcad/cad-template-sdk'
 import type { AcDbDatabase } from '@mlightcad/data-model'
 
+import { acapRefreshBtklAfterEdit } from '../btkl/tools'
 import { editTemplateRun } from '../editRun'
 import { listRuns } from '../runIdentity'
 import { runTemplate } from '../runTemplate'
@@ -95,7 +96,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ A3 0.3.0/0.3.1): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (bThan khác bBe, hình tràn khung A3, tim cọc phạm lề 300 mm hoặc chồng cọc…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Hồ sơ 0.3.0 (bộ sinh trước M2–M5b) mà bản vẽ không còn khớp bộ sinh 0.3.1: từ chối, không đụng gì, thông báo nêu đường mở khóa — giải thích cho người dùng, hỏi xác nhận dựng lại theo 0.3.1 từ đúng thông số đã lưu (mất chữ/hình vẽ thêm và số sửa tay), đồng ý thì gọi lại MỘT lần với cùng thông số và mo_khoa_031: true; không lách bằng script, không dùng tao_ho_so_mo thay thế. Hồ sơ 0.3.0 khớp thì sửa bình thường và thành 0.3.1. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng MỘT lần (đưa về số bộ sinh rồi làm tiếp / giữ số đã sửa / hủy); chọn đưa về số bộ sinh thì gọi lại MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true — công cụ tự viết lại các chỗ đó và áp thay đổi; không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
+      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ A3 0.3.0/0.3.1): dựng lại theo lưới co giãn, chỉ vẽ lại vùng mà thông số làm đổi (so theo vùng với bản dựng từ thông số đã ghi): đối tượng người dùng thêm và nét bộ sinh dời/xóa tay ngoài vùng đó được giữ (báo trong canhBao); sửa tay trong vùng đổi, chữ nhãn đã sửa số, hoặc bố trí chung không theo được (bThan khác bBe, hình tràn khung A3, tim cọc phạm lề 300 mm hoặc chồng cọc…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. Bản vẽ đã có tờ BTKL thì sau khi sửa thành công công cụ tự cập nhật tờ BTKL đó (cùng mã, cùng chỗ, như cap_nhat_btkl; không lập tờ mới) và canhBao nêu số mới — báo lại số đó. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Hồ sơ 0.3.0 (bộ sinh trước M2–M5b) mà bản vẽ không còn khớp bộ sinh 0.3.1: từ chối, không đụng gì, thông báo nêu đường mở khóa — giải thích cho người dùng, hỏi xác nhận dựng lại theo 0.3.1 từ đúng thông số đã lưu (mất chữ/hình vẽ thêm và số sửa tay), đồng ý thì gọi lại MỘT lần với cùng thông số và mo_khoa_031: true; không lách bằng script, không dùng tao_ho_so_mo thay thế. Hồ sơ 0.3.0 khớp thì sửa bình thường và thành 0.3.1. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng MỘT lần (đưa về số bộ sinh rồi làm tiếp / giữ số đã sửa / hủy); chọn đưa về số bộ sinh thì gọi lại MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true — công cụ tự viết lại các chỗ đó và áp thay đổi; không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
       limits +
       '\n' +
       raise,
@@ -208,7 +209,7 @@ function summary(
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
-    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.`,
+    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${Array.isArray(extra.btkl) ? ` ${extra.btkl.join(' ')}` : ''}`,
     data: {
       maLanChay: runId,
       trangThaiHoSo: 'draft',
@@ -327,12 +328,16 @@ export async function runDossierTool(
         unlock031: input.mo_khoa_031 === true
       })
       if (result.errors.length) throw new Error(result.errors.join('\n'))
+      // An existing take-off follows the dossier (P2-M5 b).
+      const btkl = await acapRefreshBtklAfterEdit(runId, database)
+      const warnings = [...(result.warnings ?? []), ...btkl]
       if (!database) await refreshDossierView()
       return summary(result.values, runId, {
         soDoiTuong: result.entityCount,
         soDoiTuongXoa: result.removed,
         ...suyRaOf(derived.suyRa),
-        ...(result.warnings?.length ? { canhBao: result.warnings } : {})
+        ...(warnings.length ? { canhBao: warnings } : {}),
+        ...(btkl.length ? { btkl } : {})
       })
     }
     if (name === 'kiem_tra_ho_so') return summary({ ...run.values }, runId)

@@ -207,7 +207,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
   // answer after a refusal is one or two sentences.
   test('a refusal: the whole answer is one or two sentences', () => {
     expect(prompt).toContain(
-      '**After a refusal the whole answer is one or two sentences:** «chưa sửa, bản vẽ giữ nguyên» with the short reason in that same sentence, then at most that one hint sentence — no paragraph of explanation, no list of ways, no «Nếu cần… thì…», no «Một cách khác là…» beyond the one hint, no question.'
+      '**After a refusal the whole answer is one or two sentences:** counted from the tool\'s answer — an intention «Tôi sẽ…» written before the call is allowed and does not count — «chưa sửa, bản vẽ giữ nguyên» with the short reason in that same sentence, then at most that one hint sentence — no paragraph of explanation, no list of ways, no «Nếu cần… thì…», no «Một cách khác là…» beyond the one hint, no question.'
     )
     // The earlier rule stays, the new one follows it.
     expect(
@@ -244,5 +244,34 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
   test('the slopes: in the stretch rows, said in Vietnamese', () => {
     expect(skill).toMatch(/\| `docNgang`, `docDoc` +\| Co giãn \(từ P2-M3\)/)
     expect(skill).toContain('«dốc ngang», «dốc đỉnh cánh»')
+  })
+
+  // P2-M5 (c), UI P2-M4 C5b: «Tôi sẽ sửa hồ sơ… 7600 mm.» before the tool,
+  // then two sentences of refusal, was counted as three. The intention
+  // before the call is allowed; what follows the refusal is 1–2 sentences.
+  test('a refusal after an intention: the intention does not count', () => {
+    expect(prompt).toContain(
+      'counted from the tool\'s answer — an intention «Tôi sẽ…» written before the call is allowed and does not count'
+    )
+    expect(skill).toContain(
+      'tính phần viết sau khi\n  công cụ trả lời; câu ý định «Tôi sẽ…» viết trước khi gọi công cụ không\n  tính vào đó (được giữ)'
+    )
+    // Still no question and at most one hint after the refusal.
+    expect(prompt).toContain('then at most that one hint sentence')
+    expect(prompt).toContain('no question.')
+  })
+
+  // P2-M5: hand edits compared by the region the change redraws; an existing
+  // take-off follows the dossier.
+  test('hand edits outside the changed region are kept; the take-off follows', () => {
+    expect(prompt).toContain(
+      'objects the user added and generated lines moved by hand outside that region are kept (said in canhBao), a hand edit inside it is refused'
+    )
+    expect(prompt).not.toContain('but only when the drawing has no hand edits')
+    expect(prompt).toContain('sua_ho_so_mo refreshes it itself')
+    expect(skill).toContain('**Sửa tay: so theo vùng đổi (từ P2-M5).**')
+    expect(skill).toContain('*ngoài vùng mà lần sửa vẽ lại*')
+    expect(skill).toContain('*trong vùng đổi*')
+    expect(skill).toContain('tự cập nhật\n  tờ BTKL (cùng mã, cùng chỗ)')
   })
 })

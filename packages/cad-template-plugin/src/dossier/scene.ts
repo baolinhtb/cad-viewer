@@ -4,6 +4,7 @@ import type {
   AcTpDrawContext
 } from '@mlightcad/cad-template-sdk'
 import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
+import type { AcDbEntity } from '@mlightcad/data-model'
 
 import type { DossierModel } from './model'
 import {
@@ -970,7 +971,8 @@ function isSourceGeometry(v: DossierModel['values']): boolean {
 
 export function drawDossierScene(
   ctx: AcTpDrawContext,
-  scene: DossierScene
+  scene: DossierScene,
+  onDrawn?: (sheet: string, index: number, drawn: AcDbEntity[]) => void
 ): void {
   const fields: Record<string, string[]> = {
     mo_be: ['bBe', 'lBe', 'hBe'],
@@ -996,7 +998,9 @@ export function drawDossierScene(
   })
   for (const block of scene.blocks ?? []) ctx.defineBlock(block)
   for (const s of scene.sheets)
-    for (const op of s.primitives) {
+    for (let index = 0; index < s.primitives.length; index++) {
+      const op = s.primitives[index]
+      const mark = ctx.drawn.length
       const tag = {
         role: op.role,
         partId: op.partId,
@@ -1133,5 +1137,8 @@ export function drawDossierScene(
           ...(op.textAt ? { textPosition: point(s, op.textAt) } : {}),
           ...(op.rotation !== undefined ? { rotationDeg: op.rotation } : {})
         })
+      // Which entities each primitive drew: to tell, entity by entity, what
+      // a parameter change redraws (P2-M5).
+      onDrawn?.(s.id, index, ctx.drawn.slice(mark))
     }
 }
