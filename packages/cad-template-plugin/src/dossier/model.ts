@@ -524,6 +524,44 @@ export interface DossierModel {
  */
 export const DOSSIER_NEW_LABEL_MODE = 'ca_hai'
 
+/**
+ * How a parameter is named to the user: short spoken names where the dialog
+ * label is long, otherwise the label without its bracketed note, lower-case.
+ * Tool messages are often repeated word for word by the agent, so they name
+ * parameters this way, never by key (QA P1/M6).
+ */
+const SPOKEN: Record<string, string> = {
+  bThan: 'bề rộng thân',
+  tThan: 'dày tường thân',
+  lBe: 'chiều dài bệ',
+  hThan: 'chiều cao thân',
+  hDau: 'chiều cao tường đỉnh',
+  muiBe: 'khoảng mép bệ tới mặt trước thân',
+  phuLot: 'phần lót nhô mỗi mép',
+  docNgang: 'dốc ngang',
+  docDoc: 'dốc đỉnh cánh',
+  lCanh: 'chiều dài tường cánh',
+  hLanCan: 'chiều cao lan can',
+  lCoc: 'chiều dài cọc',
+  soGoi: 'số gối',
+  aGoi: 'tim gối'
+}
+export function dossierParamLabel(key: string): string {
+  if (SPOKEN[key]) return SPOKEN[key]
+  const label = DOSSIER_PARAMS.find(p => p.key === key)?.label
+  if (!label) return key
+  const plain = label
+    .replace(/\s*\(.*\)\s*/g, ' ')
+    .split(',')[0]
+    .trim()
+  return plain.charAt(0).toLocaleLowerCase('vi') + plain.slice(1)
+}
+/** A parameter and its value as the user reads it: «dày tường cánh = 500 mm». */
+export function dossierParamValue(key: string, value: unknown): string {
+  const unit = DOSSIER_PARAMS.find(p => p.key === key)?.unit
+  return `${dossierParamLabel(key)} = ${String(value)}${unit ? ` ${unit}` : ''}`
+}
+
 export function dossierDefaults(): AcTpParamValues {
   return Object.fromEntries(DOSSIER_PARAMS.map(p => [p.key, p.default!]))
 }
@@ -616,7 +654,7 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
     issue(
       'road_outside_wall',
       outside ? 'error' : 'warning',
-      `${outside ? 'Mặt đường vượt bề rộng bố trí phía trên mố' : `Lề mép đường mỗi bên ${roadMargin} mm, nhỏ hơn ${DOSSIER_ROAD_MARGIN} mm của M1 (dải gờ/chân lan can bị thu hẹp)`}: bMatDuong ${n('bMatDuong')}, bThan ${n('bThan')}. Đề xuất bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} = ${proposed}.`
+      `${outside ? 'Mặt đường vượt bề rộng bố trí phía trên mố' : `Lề mép đường mỗi bên ${roadMargin} mm, nhỏ hơn ${DOSSIER_ROAD_MARGIN} mm của M1 (dải gờ/chân lan can bị thu hẹp)`}: bề rộng mặt đường ${n('bMatDuong')} mm, bề rộng thân ${n('bThan')} mm. Đề xuất bề rộng bệ = bề rộng thân = bề rộng mặt đường + 2 × ${DOSSIER_ROAD_MARGIN} = ${proposed} mm.`
     )
   }
   if (2 * n('tCanh') >= n('bThan'))

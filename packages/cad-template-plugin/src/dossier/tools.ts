@@ -29,7 +29,8 @@ import {
   DOSSIER_PARAMS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
-  dossierDefaults
+  dossierDefaults,
+  dossierParamValue
 } from './model'
 import { buildDossierScene } from './scene'
 import { acapDossierElevations } from './scene030'
@@ -65,7 +66,7 @@ const limits =
  */
 const raise =
   'Từ vựng mố (khác «xà mũ» của trụ): «xà mũ mố», «bệ kê gối», «đỉnh thân» = cao độ kê gối seat = caoDoDayBe + hBe + hThan (caoDoDayBe m, hBe/hThan mm); «đỉnh tường đỉnh», «đỉnh mố» = seat + hDau. ' +
-  'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ — kể cả FG, FE (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên gối; khi báo kết quả (b) phải nói rõ FG, FE cũng tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó. Nói với người dùng bằng tên tiếng Việt (cao độ đáy bệ, chiều cao thân…), khóa chỉ trong ngoặc; trước khi công cụ trả lời chỉ nói ý định, «Đã…» chỉ sau khi thành công.'
+  'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ — kể cả FG, FE (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên gối; khi báo kết quả (b) phải nói rõ FG, FE cũng tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó. Nói với người dùng chỉ bằng tên tiếng Việt (cao độ đáy bệ, chiều cao thân…), không nói khóa nội bộ (kể cả trong ngoặc) hay tên công cụ, cờ — chúng chỉ dùng khi gọi công cụ; trước khi công cụ trả lời chỉ nói ý định, «Đã…» chỉ sau khi thành công.'
 const parameters = {
   type: 'object',
   description: `Thông số thiết kế. Đổi m/cm sang mm trước khi gọi; caoDoDayBe là m, dốc là %. Không tự suy số liệu chưa có.\n${paramDescription}`,
@@ -188,7 +189,7 @@ function drawnElevations(model: ReturnType<typeof buildDossierModel>) {
 function derivedNote(suyRa: unknown): string {
   if (!Array.isArray(suyRa) || !suyRa.length) return ''
   const list = (suyRa as DossierDerived[])
-    .map(d => `${d.thamSo} = ${d.giaTri}`)
+    .map(d => dossierParamValue(d.thamSo, d.giaTri))
     .join(', ')
   return `Đã tự suy (phải báo lại người dùng): ${list}. `
 }
@@ -203,7 +204,7 @@ function summary(
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
-    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc. ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc lCoc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.`,
+    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc. ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.`,
     data: {
       maLanChay: runId,
       trangThaiHoSo: 'draft',

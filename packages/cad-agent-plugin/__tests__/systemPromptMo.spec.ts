@@ -116,13 +116,45 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'Text written before a tool call is an intention',
       'never word it as done',
       'when it refused, say that nothing was changed',
-      'Speak Vietnamese names, not parameter keys.',
-      '«cao độ đáy bệ», «chiều cao thân»',
-      'never in place of the name'
+      'Speak Vietnamese names, not parameter keys, and never name a tool or a flag.',
+      '«cao độ đáy bệ», «chiều cao thân»'
     ])
       expect(prompt).toContain(word)
     // The (a)/(b) question itself is worded with the names.
     expect(prompt).not.toContain('(a) nâng cả mố — caoDoDayBe += Δ')
-    expect(prompt).toContain('parameter caoDoDayBe')
+  })
+
+  // QA M6: "(bMatDuong)", "(hThan 4717 → 5017 mm)", "tham số hThan",
+  // "(aCocNgang = bBe − 2D)", "Tôi sẽ gọi sua_ho_so_mo…", "mo_khoa_031: true"
+  // in what the user read. Keys and tool names are for the calls only.
+  test('no key, tool or flag name in what the user reads', () => {
+    for (const word of [
+      'No parameter key in what the user reads — not alone, not in brackets, not as «tham số hThan», not in a formula',
+      '«tim cọc ngang = bề rộng bệ − 2 × đường kính cọc», not aCocNgang = bBe − 2D',
+      'No tool or flag name either — not «Tôi sẽ gọi sua_ho_so_mo», not cap_nhat_btkl, not mo_khoa_031: true',
+      'are for making the calls only; never repeat them to the user',
+      '«Tôi sẽ mở khóa hồ sơ và kéo dài thân…»'
+    ])
+      expect(prompt).toContain(word)
+    // The old permission is gone.
+    expect(prompt).not.toContain('may follow in brackets')
+    expect(prompt).not.toContain('parameter caoDoDayBe')
+    expect(prompt).not.toContain('«Đang gọi công cụ để…»')
+    for (const word of [
+      '**Không** nói khóa nội bộ',
+      'kể cả trong ngoặc',
+      '**Không** nói tên',
+      'chỉ để gọi công'
+    ])
+      expect(skill).toContain(word)
+    expect(skill).not.toContain('chỉ\n  để trong ngoặc khi cần đối chiếu')
+    // The calls are still taught with their keys and flags.
+    for (const word of [
+      'in the call: caoDoDayBe',
+      'in the call: hThan',
+      'dua_ve_so_bo_sinh: true',
+      'mo_khoa_031: true'
+    ])
+      expect(prompt).toContain(word)
   })
 })

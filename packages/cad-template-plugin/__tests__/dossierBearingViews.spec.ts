@@ -409,7 +409,7 @@ describe('agent messages', () => {
       '6 vị trí gối cách nhau 1200 mm (3 ụ chống xô)'
     )
     expect(six.message).toContain(
-      'Đã tự suy (phải báo lại người dùng): aGoi = 1200'
+      'Đã tự suy (phải báo lại người dùng): tim gối = 1200 mm'
     )
     const piles = await runDossierTool(
       'sua_ho_so_mo',
@@ -426,7 +426,7 @@ describe('agent messages', () => {
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('tCanh = 500')
+    expect(refused.message).toContain('dày tường cánh = 500 mm')
     const road = await runDossierTool(
       'tao_ho_so_mo',
       {

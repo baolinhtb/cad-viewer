@@ -257,9 +257,11 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
       buildDossierScene(buildDossierModel(values), V)
         .sheets[0].primitives.flatMap(p => (p.kind === 'text' ? [p.text] : []))
         .join(' | ')
-    expect(texts({ tCanh: 600 })).toMatch(/đổi tCanh/)
-    expect(texts({ bBe: 8500 })).toMatch(/bThan = bBe/)
-    expect(texts({ bBe: 8500, bThan: 8500 })).toMatch(/aCocNgang = bBe − 2D/)
+    expect(texts({ tCanh: 600 })).toMatch(/đổi dày tường cánh/)
+    expect(texts({ bBe: 8500 })).toMatch(/bề rộng thân = bề rộng bệ/)
+    expect(texts({ bBe: 8500, bThan: 8500 })).toMatch(
+      /tim cọc ngang = bề rộng bệ − 2 × đường kính cọc/
+    )
     expect(texts({ bBe: 8500, bThan: 8500, aCocNgang: 6100 })).not.toMatch(
       /CHƯA DỰNG/
     )

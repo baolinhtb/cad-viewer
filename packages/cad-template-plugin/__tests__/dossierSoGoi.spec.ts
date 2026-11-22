@@ -388,7 +388,7 @@ describe('P1/M3 acceptance', () => {
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('tCanh = 500')
+    expect(refused.message).toContain('dày tường cánh = 500 mm')
     expect(refused.message).not.toContain('soGoi')
     expect(all(db)).toHaveLength(0)
     const road = await tool(

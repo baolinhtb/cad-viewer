@@ -26,7 +26,11 @@
   color: #e8e8e8;
   border-left: 1px solid #3a3a3a;
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
-  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    sans-serif;
   font-size: 13px;
 }
 
@@ -536,6 +540,26 @@
 .cad-agent-msg-text {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* GFM tables in agent messages (formatChatMessage). */
+.cad-agent-msg-table {
+  border-collapse: collapse;
+  margin: 4px 0;
+  font-size: 13px;
+  white-space: normal;
+}
+
+.cad-agent-msg-table th,
+.cad-agent-msg-table td {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  padding: 2px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cad-agent-msg-table th {
+  font-weight: 600;
 }
 
 .cad-agent-msg-image-wrap {

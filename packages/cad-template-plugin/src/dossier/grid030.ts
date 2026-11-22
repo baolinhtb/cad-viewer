@@ -21,7 +21,12 @@
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
-import { DOSSIER_VERSION,dossierDefaults } from './model'
+import {
+  DOSSIER_VERSION,
+  dossierDefaults,
+  dossierParamLabel,
+  dossierParamValue
+} from './model'
 
 type XY = [number, number]
 
@@ -329,19 +334,19 @@ export function sheetStretch(
   )
   if (unsupported.length)
     return {
-      error: `Bộ sinh ${DOSSIER_VERSION} chưa dựng được khi đổi ${unsupported.join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn). Để dựng lại được, đưa về giá trị mẫu: ${unsupported.map(k => `${k} = ${defaults[k]}`).join(', ')}.`
+      error: `Bộ sinh ${DOSSIER_VERSION} chưa dựng được khi đổi ${unsupported.map(dossierParamLabel).join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn). Để dựng lại được, đưa về giá trị mẫu: ${unsupported.map(k => dossierParamValue(k, defaults[k])).join(', ')}.`
     }
   // Values the source draws as one line with another.
   if (n('bThan') !== n('bBe'))
     return {
-      error: `Bản gốc vẽ thân rộng bằng bệ (bThan = bBe); bThan ${n('bThan')} ≠ bBe ${n('bBe')} chưa dựng được.`
+      error: `Bản gốc vẽ thân rộng bằng bệ (bề rộng thân = bề rộng bệ); bề rộng thân ${n('bThan')} mm ≠ bề rộng bệ ${n('bBe')} mm chưa dựng được.`
     }
   if (
     n('aCocNgang') !== n('bBe') - 2 * n('D') ||
     n('aCocDoc') !== n('lBe') - 2 * n('D')
   )
     return {
-      error: `Bản gốc đặt cọc sát mép bệ: aCocNgang = bBe − 2D (${n('bBe') - 2 * n('D')}), aCocDoc = lBe − 2D (${n('lBe') - 2 * n('D')}); giá trị khác chưa dựng được.`
+      error: `Bản gốc đặt cọc sát mép bệ: tim cọc ngang = bề rộng bệ − 2 × đường kính cọc (${n('bBe') - 2 * n('D')} mm), tim cọc dọc = chiều dài bệ − 2 × đường kính cọc (${n('lBe') - 2 * n('D')} mm); giá trị khác chưa dựng được.`
     }
   const d = Object.fromEntries(
     DOSSIER_STRETCH_KEYS.map(k => [k, n(k) - Number(defaults[k])])
