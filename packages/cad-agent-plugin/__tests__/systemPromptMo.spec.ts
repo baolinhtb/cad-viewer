@@ -201,6 +201,46 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('không phải TCVN')
   })
 
+  // P2-M4 (UI P2-M3 step 1): «dày tường cánh 300 mm» was refused without
+  // a question, but in three paragraphs (~5 sentences): an explanation,
+  // «Nếu cần tường cánh mỏng thì chọn…», «Một cách khác là…». The whole
+  // answer after a refusal is one or two sentences.
+  test('a refusal: the whole answer is one or two sentences', () => {
+    expect(prompt).toContain(
+      '**After a refusal the whole answer is one or two sentences:** «chưa sửa, bản vẽ giữ nguyên» with the short reason in that same sentence, then at most that one hint sentence — no paragraph of explanation, no list of ways, no «Nếu cần… thì…», no «Một cách khác là…» beyond the one hint, no question.'
+    )
+    // The earlier rule stays, the new one follows it.
+    expect(
+      prompt.indexOf('whole answer is one or two sentences')
+    ).toBeGreaterThan(
+      prompt.indexOf('after a refusal add at most one short sentence of hint')
+    )
+    expect(skill).toContain('**cả câu trả lời chỉ 1–2 câu**')
+    expect(skill).toContain('không thêm đoạn giải')
+    expect(skill).toContain('không liệt kê nhiều hướng')
+    expect(skill).toContain(
+      '«Chưa sửa: dày tường cánh 300 mm nhỏ hơn khoảng cho phép, bản vẽ giữ nguyên.\n  Dày tường cánh cần từ 351 đến 999 mm.»'
+    )
+  })
+
+  // P2-M4: piles are an array, like the bearings.
+  test('the piles: an array in the stretch rows, said in Vietnamese', () => {
+    expect(skill).toMatch(
+      /\| `soCotCoc`, `soHangCoc`, `aCocNgang`, `aCocDoc` +\| Co giãn \(mảng, từ P2-M4\)/
+    )
+    expect(skill).toContain(
+      '«số cọc mỗi hàng», «số hàng cọc», «tim cọc ngang», «tim cọc dọc»'
+    )
+    expect(skill).toContain('3 cọc mỗi hàng → tim cọc ngang 3350')
+    expect(skill).not.toMatch(/\| Số\/bố trí cọc/)
+    expect(prompt).toContain(
+      'the pile count, rows and spacing are drawn as an array, like the bearings'
+    )
+    expect(prompt).not.toContain('pile count/layout')
+    expect(prompt).not.toContain('đổi số/bố trí cọc thì bị từ chối')
+    expect(prompt).toContain('«số cọc mỗi hàng», «số hàng cọc»')
+  })
+
   test('the slopes: in the stretch rows, said in Vietnamese', () => {
     expect(skill).toMatch(/\| `docNgang`, `docDoc` +\| Co giãn \(từ P2-M3\)/)
     expect(skill).toContain('«dốc ngang», «dốc đỉnh cánh»')
