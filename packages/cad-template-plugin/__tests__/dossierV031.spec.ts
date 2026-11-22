@@ -139,8 +139,11 @@ const beforeM5 = (scene: DossierScene) => {
       }
   }
 }
-/** Locked before M2: the general sheets showed the "cannot draw" notice. */
-const LOCKED = { ...L1, tCanh: 600 }
+/**
+ * Locked before M2: the general sheets showed the "cannot draw" notice. A
+ * value still outside the grid (tCanh was, until P2/M1).
+ */
+const LOCKED = { ...L1, phuLot: 200 }
 
 jest.setTimeout(900000)
 

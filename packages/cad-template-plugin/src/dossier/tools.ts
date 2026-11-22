@@ -54,6 +54,7 @@ const fixedKeys = DOSSIER_PARAMS.filter(
 const limits =
   `Giới hạn bộ sinh ${DOSSIER_VERSION}. Co giãn được: ${DOSSIER_STRETCH_KEYS.join(', ')}. ` +
   `Gối đổi được: ${[...DOSSIER_ARRAYED_KEYS].join(', ')} (vẽ lại đúng soGoi block gối ở mặt chính, cách đều aGoi quanh tim; ụ chống xô giữ vị trí bản gốc). ` +
+  'tCanh (dày tường cánh) phải lọt giữa mép mặt đường và tim cọc ngoài cùng: (bBe − bMatDuong)/2 < tCanh < D, và 2 × tCanh < bThan; ngoài khoảng đó bị từ chối. ' +
   'Bắt buộc theo nhau: bThan = bBe, aCocNgang = bBe − 2D, aCocDoc = lBe − 2D (bản gốc vẽ thân rộng bằng bệ, cọc sát mép bệ). ' +
   `Tự suy khi không truyền: chỉ cho bMatDuong (không cho bBe/bThan) thì bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định ${DOSSIER_ROAD_MARGIN} mm mỗi bên như M1, ví dụ mặt đường 8000 → bBe = bThan = ${8000 + 2 * DOSSIER_ROAD_MARGIN}); đổi bBe hoặc D mà không cho aCocNgang thì aCocNgang = bBe − 2D; đổi lBe hoặc D mà không cho aCocDoc thì aCocDoc = lBe − 2D; không cho aGoi mà các gối không còn lọt trong thân ((soGoi − 1) × aGoi + 500 > bThan) thì aGoi = (bThan − 500 − 2 × ${DOSSIER_BEARING_MARGIN}) / (soGoi − 1) làm tròn xuống bội 50 mm (lề mép ${DOSSIER_BEARING_MARGIN} mm như M1; ví dụ 6 gối trên thân 8700 → aGoi = 1400, trên thân 7700 → 1200). Giá trị suy ra trả về trong data.suyRa: phải báo lại cho người dùng. ` +
   `Chỉ đổi chữ: ${[...DOSSIER_FREE_KEYS].join(', ')}. ` +

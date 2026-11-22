@@ -391,11 +391,12 @@ describe('sua_ho_so_mo with a new road width', () => {
     const before = snap(db)
     const res = await tool(
       'sua_ho_so_mo',
-      { ma_lan_chay: runId(db), thong_so: { bMatDuong: 8000, tCanh: 600 } },
+      { ma_lan_chay: runId(db), thong_so: { bMatDuong: 8000, phuLot: 200 } },
       db
     )
     expect(res.ok).toBe(false)
-    expect(res.message).toContain('dày tường cánh = 500 mm')
+    // tCanh is in the grid since P2/M1 (dossierTCanh.spec.ts).
+    expect(res.message).toContain('phần lót nhô mỗi mép = 100 mm')
     expect(snap(db).keys).toEqual(before.keys)
     expect(values(db).bMatDuong).toBe(7000)
   })

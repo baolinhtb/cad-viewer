@@ -147,14 +147,14 @@ describe('dossier tools against a real database', () => {
 
   // Live 21/11/2026, prompt 1: a road width of 8 m was "created" with the
   // general sheets showing only "CHƯA DỰNG ĐƯỢC…", and every later edit of
-  // that dossier was refused. A value still outside the grid (tCanh) now
-  // refuses and draws nothing; the road width itself is in the grid since
+  // that dossier was refused. A value still outside the grid (phuLot; tCanh
+  // until P2/M1, dossierTCanh.spec.ts) now refuses and draws nothing; the road width itself is in the grid since
   // P1/M2 (dossierBMatDuong.spec.ts).
   test('a create the generator cannot draw is refused and draws nothing', async () => {
     const db = database()
     for (const thong_so of [
-      { tenMo: 'QA-TEST-MO-X1', tCanh: 600 },
-      { tenMo: 'QA-TEST-MO-X2', bMatDuong: 8000, tCanh: 600 }
+      { tenMo: 'QA-TEST-MO-X1', phuLot: 200 },
+      { tenMo: 'QA-TEST-MO-X2', bMatDuong: 8000, phuLot: 200 }
     ]) {
       const result = await runDossierTool('tao_ho_so_mo', { thong_so }, db)
       expect(result.ok).toBe(false)
@@ -162,11 +162,10 @@ describe('dossier tools against a real database', () => {
       expect(result.message).toContain('Chưa dựng hồ sơ, không vẽ gì')
       expect(result.message).toContain('SUB-010')
       // Names the parameter and the value that would draw.
-      expect(result.message).toContain('dày tường cánh = 500 mm')
+      expect(result.message).toContain('phần lót nhô mỗi mép = 100 mm')
       expect(result.message).not.toContain('bMatDuong = 7000')
       // Named as the user reads it, never by key (QA P1/M6).
-      expect(result.message).not.toMatch(/tCanh|bMatDuong/)
-      expect(result.message).toContain('dày tường cánh')
+      expect(result.message).not.toMatch(/phuLot|bMatDuong/)
     }
     expect(entities(db)).toHaveLength(0)
     expect(listRuns(db)).toHaveLength(0)
@@ -197,7 +196,7 @@ describe('dossier tools against a real database', () => {
       buildDossierModel({
         tenMo: 'QA-TEST-MO-K1',
         nhanKichThuoc: 'ca_hai',
-        tCanh: 600
+        phuLot: 200
       }).values,
       db
     )
@@ -210,16 +209,16 @@ describe('dossier tools against a real database', () => {
     )
     expect(blocked.ok).toBe(false)
     expect(blocked.message).toContain(
-      'đưa về giá trị mẫu: dày tường cánh = 500 mm'
+      'đưa về giá trị mẫu: phần lót nhô mỗi mép = 100 mm'
     )
     expect(entitiesOfRun(db, 'r1')).toHaveLength(locked)
     const unlocked = await runDossierTool(
       'sua_ho_so_mo',
-      { ma_lan_chay: 'r1', thong_so: { tCanh: 500, tThan: 1800 } },
+      { ma_lan_chay: 'r1', thong_so: { phuLot: 100, tThan: 1800 } },
       db
     )
     expect(unlocked.ok).toBe(true)
-    expect(listRuns(db)[0].values).toMatchObject({ tCanh: 500, tThan: 1800 })
+    expect(listRuns(db)[0].values).toMatchObject({ phuLot: 100, tThan: 1800 })
     const sheets = entitiesOfRun(db, 'r1').filter(
       e =>
         e instanceof AcDbText && e.textString.startsWith('CHƯA DỰNG ĐƯỢC HÌNH')
@@ -235,7 +234,6 @@ describe('dossier tools against a real database', () => {
       const fixed = description.split('CHƯA đổi được')[1] ?? ''
       for (const key of [
         'hLanCan',
-        'tCanh',
         'docNgang',
         'docDoc',
         'soCotCoc',
@@ -244,6 +242,8 @@ describe('dossier tools against a real database', () => {
       ])
         expect(fixed).toContain(`${key} = `)
       expect(fixed).not.toContain('bMatDuong = ')
+      // In the grid since P2/M1.
+      expect(fixed).not.toContain('tCanh = ')
       expect(fixed).not.toContain('soGoi = ')
       expect(fixed).not.toContain('aGoi = ')
       expect(description).toContain('Gối đổi được: soGoi, aGoi')
@@ -259,7 +259,7 @@ describe('dossier tools against a real database', () => {
       expect(description).toContain('6 gối trên thân 8700 → aGoi = 1400')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
-        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong.'
+        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong, tCanh.'
       )
       expect(description).toContain('bBe = bThan = bMatDuong + 2 × 350')
       expect(description).toContain('data.suyRa')

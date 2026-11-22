@@ -257,7 +257,7 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
       buildDossierScene(buildDossierModel(values), V)
         .sheets[0].primitives.flatMap(p => (p.kind === 'text' ? [p.text] : []))
         .join(' | ')
-    expect(texts({ tCanh: 600 })).toMatch(/đổi dày tường cánh/)
+    expect(texts({ phuLot: 200 })).toMatch(/đổi phần lót nhô mỗi mép/)
     expect(texts({ bBe: 8500 })).toMatch(/bề rộng thân = bề rộng bệ/)
     expect(texts({ bBe: 8500, bThan: 8500 })).toMatch(
       /tim cọc ngang = bề rộng bệ − 2 × đường kính cọc/
@@ -701,7 +701,7 @@ describe('GĐ5: bảng cao độ và bảng thông số SUB-020 theo tham số',
   })
 
   test('thông số lưới không theo được: không đưa số sai lên, ghi rõ', () => {
-    const s = buildDossierScene(buildDossierModel({ tCanh: 600 }), V)
+    const s = buildDossierScene(buildDossierModel({ phuLot: 200 }), V)
     const t = tableTexts(s)
     expect(t).toContain(
       'BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY'
