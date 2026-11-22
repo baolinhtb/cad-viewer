@@ -29,6 +29,7 @@ import {
 } from './model'
 import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
+import { acapDossierTableValues } from './scene030'
 
 /** Roles of the sheet border and title block (0.2.0 and later). */
 const FRAME_ROLES = new Set(['khung_ban_ve', 'khung_ten'])
@@ -118,7 +119,7 @@ export async function acapEditDossierRun(
     return regenerate()
   if (changed.some(k => !patchable.includes(k)))
     return result([
-      'Giữ nguyên bản vẽ chi tiết: không xóa để dựng lại từ template/sơ đồ. Dùng execute_cad_script, đọc đối tượng hiện tại rồi sửa đúng chữ/điểm grip bằng tx.setText hoặc tx.moveGrips. Thay đổi toàn bộ kích thước hồ sơ cần xác định các hình chiếu, kích thước và cấu tạo liên quan; chưa thay đổi thông số nào.'
+      `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}: công cụ chưa đổi được ${changed.filter(k => !patchable.includes(k)).join(', ')} cho phiên bản này, và không xóa để dựng lại từ template/sơ đồ. Chưa thay đổi gì. Báo người dùng và hỏi hướng xử lý.`
     ])
 
   // Plan label changes before opening the transaction. An edited label must
@@ -138,6 +139,8 @@ export async function acapEditDossierRun(
       expected: number
       // A text fitted to its cell (the SUB-020 name) is narrowed with it.
       fit?: { widthFactor: number; height: number }
+      // Where the run drew it (sheet, point, height): to say what is there.
+      places: { sheet: string; at: XY; height: number }[]
     }
   >()
   // Dimension texts and block attributes, by sheet and source handle.
@@ -166,7 +169,7 @@ export async function acapEditDossierRun(
     const old = before.sheets[s]
     if (oldPrimitives.length !== nextPrimitives.length)
       return result([
-        'Cấu trúc hồ sơ đã khác mẫu; giữ nguyên chi tiết và sửa trực tiếp các đối tượng.'
+        'Cấu trúc hồ sơ đã khác mẫu; chưa sửa gì. Báo người dùng và hỏi hướng xử lý.'
       ])
     for (let i = 0; i < oldPrimitives.length; i++) {
       const a = oldPrimitives[i],
@@ -213,6 +216,15 @@ export async function acapEditDossierRun(
         old: a.text,
         next: b.text,
         expected: (prior?.expected ?? 0) + 1,
+        places: [
+          ...(prior?.places ?? []),
+          // Drawn at the sheet's origin plus the primitive's point.
+          {
+            sheet: old.id,
+            at: [old.origin[0] + a.at[0], old.origin[1] + a.at[1]] as XY,
+            height: a.height
+          }
+        ],
         ...(a.widthFactor !== b.widthFactor || a.height !== b.height
           ? { fit: { widthFactor: b.widthFactor ?? 1, height: b.height } }
           : {})
@@ -234,6 +246,8 @@ export async function acapEditDossierRun(
     }
   >()
   const handled = new Set<string>()
+  // What differs from what the run drew: named in the refusal.
+  const edited: string[] = []
   for (const e of entities) {
     const tag = readSemanticTag(e)
     const sheet = tag?.params?.sheet
@@ -244,8 +258,13 @@ export async function acapEditDossierRun(
       const resolve = (t?: string) =>
         t === undefined ? measured : t.replace(/<>/g, measured)
       // The text the run drew, or the drawing was edited by hand.
-      if (e.dimensionText !== resolve(dim.old))
-        return result([HAND_EDITED_LABEL])
+      if (e.dimensionText !== resolve(dim.old)) {
+        edited.push(
+          `kích thước trên ${sheet} đang ghi «${e.dimensionText}», bộ sinh ghi «${resolve(dim.old)}»`
+        )
+        handled.add(JSON.stringify([sheet, source]))
+        continue
+      }
       dimTexts.set(e.objectId, {
         old: e.dimensionText,
         next: resolve(dim.next)
@@ -257,14 +276,29 @@ export async function acapEditDossierRun(
         const key = JSON.stringify([sheet, source, a.tag])
         const attr = attrPatches.get(key)
         if (!attr) continue
-        if (a.textString !== attr.old) return result([HAND_EDITED_LABEL])
+        if (a.textString !== attr.old) {
+          edited.push(
+            `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», bộ sinh ghi «${attr.old}»`
+          )
+          handled.add(key)
+          continue
+        }
         attrTexts.set(a.objectId, { tag: a.tag, ...attr })
         handled.add(key)
       }
   }
   // Every planned patch found its entity, exactly as drawn.
-  if ([...dimPatches.keys(), ...attrPatches.keys()].some(k => !handled.has(k)))
-    return result([HAND_EDITED_LABEL])
+  for (const [k, d] of dimPatches)
+    if (!handled.has(k))
+      edited.push(
+        `kích thước «${d.old ?? 'số đo'}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
+      )
+  for (const [k, a] of attrPatches)
+    if (!handled.has(k))
+      edited.push(
+        `thẻ cao độ «${a.old}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
+      )
+  const cells = acapDossierTableValues({ ...run.values })
   for (const [key, replacement] of replacements) {
     const found = entities.filter(e => {
       const tag = readSemanticTag(e)
@@ -273,15 +307,26 @@ export async function acapEditDossierRun(
         JSON.stringify([tag?.params?.sheet, tag?.partId, e.textString]) === key
       )
     })
-    if (found.length !== replacement.expected)
-      return result([
-        'Có ghi chú đã sửa tay hoặc bị xóa; giữ nguyên bản vẽ. Dùng tx.setText với đúng đối tượng hiện tại để tránh ghi đè nội dung đã chỉnh.'
-      ])
+    if (found.length !== replacement.expected) {
+      // Name each place the run's text no longer is: what stands there now
+      // (a Text or an MText put in its stead), or nothing.
+      const cell = [...cells].find(([, x]) => x === replacement.old)?.[0]
+      for (const place of replacement.places) {
+        const here = found.some(e => near((e as AcDbText).position, place))
+        if (here) continue
+        const now = textAt(db, place)
+        edited.push(
+          `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
+        )
+      }
+      continue
+    }
     found.forEach(e => {
       patches.set(e.objectId, replacement.next)
       if (replacement.fit) fits.set(e.objectId, replacement.fit)
     })
   }
+  if (edited.length) return result([handEdited(run.id, edited)])
   // The frame is generated layout, not engineering detail, so a changed frame
   // is redrawn — but only if the drawing still shows exactly the frame this
   // run generated. A title block edited by hand is not overwritten.
@@ -408,8 +453,41 @@ export async function acapEditDossierRun(
 
 /** Parameters that only change wording on a 0.3.0 dossier (plan 2.7). */
 const WORDING_KEYS = ['caoDoDayBe', 'nhanKichThuoc']
-const HAND_EDITED_LABEL =
-  'Có chữ, kích thước hoặc thẻ cao độ đã sửa tay hoặc bị xóa; giữ nguyên bản vẽ, chưa sửa gì. Dùng tx.setText với đúng đối tượng hiện tại.'
+/**
+ * The refusal when a label the change would rewrite was edited by hand. It
+ * names what differs and asks — it never points at editing the texts one by
+ * one, which on 22/11/2026 led the agent to shift 23 elevations by script
+ * past the refusal, leaving the dossier out of step with its drawing.
+ */
+function handEdited(runId: string, edited: string[]): string {
+  const shown = edited.slice(0, 6).join('; ')
+  const more = edited.length > 6 ? ` và ${edited.length - 6} chỗ khác` : ''
+  return (
+    `Hồ sơ ${runId} có chữ đã sửa tay: ${shown}${more}. Chưa sửa gì: bản vẽ và thông số hồ sơ giữ nguyên. ` +
+    'Dừng lại, báo đúng các chỗ này và hỏi người dùng chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi gọi lại sua_ho_so_mo; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
+    'Không tự sửa từng chữ cao độ hay kích thước của hồ sơ bằng script để đi tiếp.'
+  )
+}
+
+/** Same place: within half a text height. */
+const near = (p: { x: number; y: number }, place: { at: XY; height: number }) =>
+  Math.hypot(p.x - place.at[0], p.y - place.at[1]) <= place.height / 2
+
+/**
+ * The text standing at a place of a sheet now, whatever entity holds it — a
+ * Text, or an MText put there instead — or undefined when there is none.
+ */
+function textAt(
+  db: AcDbDatabase,
+  place: { at: XY; height: number }
+): string | undefined {
+  for (const e of db.tables.blockTable.modelSpace.newIterator()) {
+    if (e instanceof AcDbText && near(e.position, place)) return e.textString
+    if (e instanceof AcDbMText && near(e.location, place))
+      return e.contents.replace(/\\[A-Za-z][^;]*;|[{}]/g, '').trim()
+  }
+  return undefined
+}
 
 const attributeValue = (a: string | { value: string } | undefined) =>
   a === undefined ? '' : typeof a === 'string' ? a : a.value
@@ -577,7 +655,7 @@ async function regenerateRun(
     const missing = expected.filter(k => !actual.includes(k)).length
     const extra = actual.filter(k => !expected.includes(k)).length
     return result([
-      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa. Sửa trực tiếp bằng execute_cad_script.`
+      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại. Không tự sửa từng chữ cao độ hay kích thước bằng script để đi tiếp.`
     ])
   }
   let removed = 0
