@@ -232,8 +232,15 @@ describe('dossier tools against a real database', () => {
     const edit = DOSSIER_TOOLS.find(t => t.name === 'sua_ho_so_mo')!
     for (const description of [create.description, edit.description]) {
       const fixed = description.split('CHƯA đổi được')[1] ?? ''
-      for (const key of ['soCotCoc', 'soHangCoc', 'phuLot'])
-        expect(fixed).toContain(`${key} = `)
+      expect(fixed).toContain('phuLot = ')
+      // Pile count and spacing: an array since P2-M4, like the bearings.
+      for (const key of ['soCotCoc', 'soHangCoc', 'aCocNgang', 'aCocDoc'])
+        expect(fixed).not.toContain(`${key} = `)
+      expect(description).toContain(
+        'Cọc đổi được: soCotCoc, soHangCoc, aCocNgang, aCocDoc'
+      )
+      expect(description).toContain('bệ 8700, D1000, 3 cọc mỗi hàng → 3350')
+      expect(description).not.toContain('aCocNgang = bBe − 2D, aCocDoc')
       expect(fixed).not.toContain('bMatDuong = ')
       // In the grid since P2/M1.
       expect(fixed).not.toContain('tCanh = ')

@@ -259,8 +259,11 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
         .join(' | ')
     expect(texts({ phuLot: 200 })).toMatch(/đổi phần lót nhô mỗi mép/)
     expect(texts({ bBe: 8500 })).toMatch(/bề rộng thân = bề rộng bệ/)
-    expect(texts({ bBe: 8500, bThan: 8500 })).toMatch(
-      /tim cọc ngang = bề rộng bệ − 2 × đường kính cọc/
+    // P2-M4: piles not flush with the edges are drawn (an array), no
+    // longer refused; a wing face past the outer pile centre still is.
+    expect(texts({ bBe: 8500, bThan: 8500 })).not.toMatch(/CHƯA DỰNG/)
+    expect(texts({ D: 600, aCocNgang: 6500, tCanh: 700 })).toMatch(
+      /nhỏ hơn khoảng từ mép bệ tới tim cọc ngoài cùng \(600 mm\)/
     )
     expect(texts({ bBe: 8500, bThan: 8500, aCocNgang: 6100 })).not.toMatch(
       /CHƯA DỰNG/

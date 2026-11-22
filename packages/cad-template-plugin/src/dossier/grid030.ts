@@ -15,9 +15,10 @@
  * The lines were read from the source's own dimensions (B Mố, B Bệ, B1, B2,
  * B(TT), N, HB, H1A, H1B, LC, D Cọc).
  *
- * What the grid cannot follow is refused with the reason, never drawn wrong:
- * a change of topology (piles, bearings), of a value the drawing does not
- * show apart (stem width ≠ footing width), or one that would fold the grid.
+ * Bearings and piles are arrays the scene places from the model (count and
+ * spacing), not grid lines. What the grid cannot follow is refused with the
+ * reason, never drawn wrong: a value the drawing does not show apart (stem
+ * width ≠ footing width), or one that would fold the grid.
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
@@ -46,7 +47,13 @@ type Delta = Record<
   | 'tCanh'
   | 'hLanCan'
   | 'docNgang'
-  | 'docDoc',
+  | 'docDoc'
+  /**
+   * Footing edge to the outer pile centre across the bridge, change from the
+   * source's 1200 (P2-M4): `d.D` while the piles sit flush with the edges as
+   * the source draws them, otherwise where the pile array really puts them.
+   */
+  | 'eNgang',
   number
 >
 /**
@@ -169,12 +176,16 @@ const railTops = (pin: number, tops: number[]): Line[] => [
   [pin, d => d.hBe + d.hThan + d.hDau],
   ...tops.map((y): Line => [y, d => d.hBe + d.hThan + d.hDau + d.hLanCan])
 ]
-/** Across the bridge: footing edges, inner pile edges, centre line. */
+/**
+ * Across the bridge: footing edges, outer pile centres, centre line. The
+ * pile lines follow the outer pile centres of the array (`eNgang`, P2-M4):
+ * at D from the edges while the piles are flush with them, as the source.
+ */
 const across = (left: number): Line[] => [
   [left, d => -d.bBe / 2],
-  [left + 1200, d => -d.bBe / 2 + d.D],
+  [left + 1200, d => -d.bBe / 2 + d.eNgang],
   [left + 3850, () => 0],
-  [left + 6500, d => d.bBe / 2 - d.D],
+  [left + 6500, d => d.bBe / 2 - d.eNgang],
   [left + 7700, d => d.bBe / 2]
 ]
 
@@ -214,7 +225,7 @@ const wingFaces = (left: number, keepIf?: (d: Delta) => boolean): Line[] => [
  */
 const wingFits = (d: Delta) =>
   500 + d.tCanh - d.bBe / 2 > 350 - d.bMatDuong / 2 &&
-  500 + d.tCanh < 1200 + d.D
+  500 + d.tCanh < 1200 + d.eNgang
 
 /**
  * Plan across the bridge: the footing lines, plus the inner faces of the
@@ -476,19 +487,22 @@ export function sheetStretch(
     return {
       error: `Bản gốc vẽ thân rộng bằng bệ (bề rộng thân = bề rộng bệ); bề rộng thân ${n('bThan')} mm ≠ bề rộng bệ ${n('bBe')} mm chưa dựng được.`
     }
-  if (
-    n('aCocNgang') !== n('bBe') - 2 * n('D') ||
-    n('aCocDoc') !== n('lBe') - 2 * n('D')
-  )
+  // The piles are an array placed from the model (arrayedPiles in
+  // scene030): any count and spacing the model accepts (edge clearance 300,
+  // no overlap) is drawn, not only the source's flush 2 × 2 (P2-M4).
+  const outer = dossierOuterPileEdge(values)
+  const d = {
+    ...Object.fromEntries(
+      DOSSIER_STRETCH_KEYS.map(k => [k, n(k) - Number(defaults[k])])
+    ),
+    eNgang: outer - dossierOuterPileEdge(defaults)
+  } as Delta
+  // The plan always draws the wing faces: they must stay outside the outer
+  // pile centre line. The front leaves them out when they cross the road
+  // edge at the source thickness (dossiers built before P2/M1).
+  if ((d.tCanh !== 0 && !wingFits(d)) || 500 + d.tCanh >= 1200 + d.eNgang)
     return {
-      error: `Bản gốc đặt cọc sát mép bệ: tim cọc ngang = bề rộng bệ − 2 × đường kính cọc (${n('bBe') - 2 * n('D')} mm), tim cọc dọc = chiều dài bệ − 2 × đường kính cọc (${n('lBe') - 2 * n('D')} mm); giá trị khác chưa dựng được.`
-    }
-  const d = Object.fromEntries(
-    DOSSIER_STRETCH_KEYS.map(k => [k, n(k) - Number(defaults[k])])
-  ) as Delta
-  if (d.tCanh !== 0 && !wingFits(d))
-    return {
-      error: `Bản gốc vẽ mặt trong tường cánh nằm giữa mép mặt đường và tim cọc ngoài cùng: dày tường cánh phải lớn hơn khoảng từ mép bệ tới mép mặt đường (${(n('bBe') - n('bMatDuong')) / 2} mm) và nhỏ hơn khoảng từ mép bệ tới tim cọc ngoài cùng (${n('D')} mm); dày tường cánh ${n('tCanh')} mm chưa dựng được.`
+      error: `Bản gốc vẽ mặt trong tường cánh nằm giữa mép mặt đường và tim cọc ngoài cùng: dày tường cánh phải lớn hơn khoảng từ mép bệ tới mép mặt đường (${(n('bBe') - n('bMatDuong')) / 2} mm) và nhỏ hơn khoảng từ mép bệ tới tim cọc ngoài cùng (${outer} mm); dày tường cánh ${n('tCanh')} mm chưa dựng được.`
     }
   const kept = (lines: Line[]) => lines.filter(l => !l[2] || l[2](d))
   try {
@@ -531,18 +545,37 @@ export function sheetStretch(
 }
 
 /**
- * Parameters drawn as an array of blocks placed from the model (the
- * bearings), not through the grid: the scene re-places them
- * (`arrayedBearings` in scene030), the grid ignores them.
+ * Footing edge to the outer pile centre across the bridge, mm: where the
+ * pile array puts it, `(bBe − (soCotCoc − 1) · aCocNgang) / 2` (D for the
+ * source's flush piles). A single pile per row has no outer pile near the
+ * wings: the source's D stands, so the wing limit stays the source's.
+ */
+export function dossierOuterPileEdge(values: AcTpParamValues): number {
+  const n = (k: string) => Number(values[k])
+  return n('soCotCoc') > 1
+    ? (n('bBe') - (n('soCotCoc') - 1) * n('aCocNgang')) / 2
+    : n('D')
+}
+
+/** Bearing count and spacing, drawn as an array (`arrayedBearings`). */
+export const DOSSIER_BEARING_KEYS: readonly string[] = ['soGoi', 'aGoi']
+/** Pile count and spacing both ways, drawn as an array (`arrayedPiles`). */
+export const DOSSIER_PILE_KEYS: readonly string[] = [
+  'soCotCoc',
+  'soHangCoc',
+  'aCocNgang',
+  'aCocDoc'
+]
+/**
+ * Parameters drawn as arrays of blocks placed from the model (bearings,
+ * piles), not through the grid: the scene re-places them (`arrayedBearings`,
+ * `arrayedPiles` in scene030), the grid ignores them — except the outer
+ * pile centre across, which bounds the wing thickness ({@link wingFits}).
  */
 export const DOSSIER_ARRAYED_KEYS: ReadonlySet<string> = new Set([
-  'soGoi',
-  'aGoi'
+  ...DOSSIER_BEARING_KEYS,
+  ...DOSSIER_PILE_KEYS
 ])
 
 /** Parameters fixed by others in the source arrangement (checked above). */
-export const DOSSIER_DERIVED_KEYS: ReadonlySet<string> = new Set([
-  'bThan',
-  'aCocNgang',
-  'aCocDoc'
-])
+export const DOSSIER_DERIVED_KEYS: ReadonlySet<string> = new Set(['bThan'])
