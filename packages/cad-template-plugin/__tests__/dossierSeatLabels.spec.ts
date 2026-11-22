@@ -23,7 +23,9 @@ import {
   AcDbBlockReference,
   AcDbDatabase,
   AcDbEntity,
+  AcDbLine,
   AcDbMText,
+  AcDbPolyline,
   AcDbText
 } from '@mlightcad/data-model'
 
@@ -221,5 +223,179 @@ describe('the source drawing keeps its tags where they were', () => {
     // the three keep their relative layout exactly.
     expect(at.EL3[1] - at['EL4.R'][1]).toBeCloseTo(20160.287 - 20095.497, 3)
     expect(at['EL4.L'][0] - at.EL3[0]).toBeCloseTo(12237.89 - 7704.112, 3)
+  })
+})
+
+/**
+ * QA 0.3.1b, V7: the live QA-031-A1, (b) hThan +300, then 6 bearings — the
+ * tags EL4.R / EL3 had a dashed hidden edge (Hide_01) drawn through them.
+ * Dashed and hidden lines are obstacles now; the tags keep the generator's
+ * colour and layer, as a dossier made at once with the same values.
+ */
+describe('tags clear of dashed lines, styled as generated', () => {
+  /** Every dashed or hidden segment of the front elevation sheet. */
+  function dashed(db: AcDbDatabase): [number[], number[]][] {
+    const out: [number[], number[]][] = []
+    for (const e of entitiesOfRun(db, 'r1')) {
+      if (sheetOf(e) !== 'SUB-010' || !/DASH|HIDDEN/i.test(e.lineType)) continue
+      if (e instanceof AcDbLine)
+        out.push([
+          [e.startPoint.x, e.startPoint.y],
+          [e.endPoint.x, e.endPoint.y]
+        ])
+      if (e instanceof AcDbPolyline)
+        for (let i = 1; i < e.numberOfVertices; i++) {
+          const a = e.getPoint2dAt(i - 1)
+          const b = e.getPoint2dAt(i)
+          out.push([
+            [a.x, a.y],
+            [b.x, b.y]
+          ])
+        }
+    }
+    return out
+  }
+  const cuts = (seg: [number[], number[]], r: Box) => {
+    for (let k = 0; k <= 200; k++) {
+      const t = k / 200
+      const x = seg[0][0] + (seg[1][0] - seg[0][0]) * t
+      const y = seg[0][1] + (seg[1][1] - seg[0][1]) * t
+      if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) return true
+    }
+    return false
+  }
+  /** Tag attributes of the front elevation, by their tag name (EL3, FG…). */
+  const front = (db: AcDbDatabase) =>
+    new Map(
+      entitiesOfRun(db, 'r1')
+        .filter(
+          (e): e is AcDbBlockReference =>
+            e instanceof AcDbBlockReference &&
+            e.blockName === 'cd11' &&
+            sheetOf(e) === 'SUB-010'
+        )
+        .flatMap(e =>
+          [...e.attributeIterator()].map(
+            a => [a.textString.split(' ')[0], { ref: e, a }] as const
+          )
+        )
+    )
+
+  test('8 m road, (b) hThan +300, then 6 bearings, as the QA did', async () => {
+    const db = await dossier({ ...ROAD_8M, tenMo: 'QA-031-A1' })
+    const v0 = listRuns(db)[0].values
+    expect((await edit(db, { hThan: Number(v0.hThan) + 300 })).ok).toBe(true)
+    expect((await edit(db, { soGoi: 6 })).ok).toBe(true)
+    const v = listRuns(db)[0].values
+    expect(v).toMatchObject({ hThan: 5017, soGoi: 6, aGoi: 1400 })
+
+    const lines = dashed(db)
+    expect(lines.length).toBeGreaterThan(10)
+    const tags = front(db)
+    for (const name of ['EL3', 'EL4.R', 'EL4.L', 'FG', 'FE']) {
+      const { a } = tags.get(name)!
+      const b = box(a)
+      expect([name, lines.filter(seg => cuts(seg, b)).length]).toEqual([
+        name,
+        0
+      ])
+    }
+    // The numbers after (b), unchanged by the bearings.
+    const shown = [...tags.values()].map(t => t.a.textString)
+    for (const want of [
+      'EL3 = 235.854',
+      'EL4.L = 235.931',
+      'EL4.R = 235.777',
+      'FG = 237.791',
+      'FE = 237.741',
+      'EL6 = 228.837'
+    ])
+      expect(shown).toContain(want)
+    // As a dossier made at once with the same values: colour, layer, place.
+    const fresh = await dossier({
+      ...ROAD_8M,
+      tenMo: 'QA-031-A1',
+      hThan: 5017,
+      soGoi: 6
+    })
+    const again = front(fresh)
+    for (const name of ['EL3', 'EL4.R', 'EL4.L', 'FG', 'FE']) {
+      const x = tags.get(name)!
+      const y = again.get(name)!
+      expect([
+        name,
+        x.a.color.colorIndex,
+        x.a.layer,
+        x.ref.color.colorIndex,
+        x.ref.layer,
+        x.a.textString,
+        Math.round(x.a.position.x),
+        Math.round(x.a.position.y)
+      ]).toEqual([
+        name,
+        y.a.color.colorIndex,
+        y.a.layer,
+        y.ref.color.colorIndex,
+        y.ref.layer,
+        y.a.textString,
+        Math.round(y.a.position.x),
+        Math.round(y.a.position.y)
+      ])
+    }
+    // Bearings and stops as before: G1…G6, three stops.
+    const s = seat(db)
+    expect(s.groups).toHaveLength(6)
+    expect(s.labels.map(l => l.textString).sort()).toEqual([
+      'G1',
+      'G2',
+      'G3',
+      'G4',
+      'G5',
+      'G6'
+    ])
+    expect(
+      new Set(s.stops.map(e => String(tagOf(e).sourceHandle).split('#')[1]))
+        .size
+    ).toBe(3)
+  })
+
+  test('patched in place afterwards ((a) +0,3), the tags still match a fresh dossier', async () => {
+    const db = await dossier({ ...ROAD_8M, tenMo: 'QA-031-A1' })
+    const v0 = listRuns(db)[0].values
+    await edit(db, { hThan: Number(v0.hThan) + 300 })
+    await edit(db, { soGoi: 6 })
+    const ids = entitiesOfRun(db, 'r1').map(e => e.objectId)
+    const datum = Math.round((Number(v0.caoDoDayBe) + 0.3) * 1000) / 1000
+    expect((await edit(db, { caoDoDayBe: datum })).ok).toBe(true)
+    // In place: the same entities.
+    expect(entitiesOfRun(db, 'r1').map(e => e.objectId)).toEqual(ids)
+    const fresh = await dossier({
+      ...ROAD_8M,
+      tenMo: 'QA-031-A1',
+      hThan: 5017,
+      soGoi: 6,
+      caoDoDayBe: datum
+    })
+    const tags = front(db)
+    const again = front(fresh)
+    const lines = dashed(db)
+    for (const name of ['EL3', 'EL4.R', 'EL4.L', 'FG', 'FE', 'EL6']) {
+      const x = tags.get(name)!
+      const y = again.get(name)!
+      const look = (t: typeof x) => [
+        t.a.textString,
+        t.a.color.colorIndex,
+        t.a.layer,
+        t.a.styleName,
+        t.ref.color.colorIndex,
+        t.ref.layer
+      ]
+      expect([name, ...look(x)]).toEqual([name, ...look(y)])
+      expect([name, lines.filter(seg => cuts(seg, box(x.a))).length]).toEqual([
+        name,
+        0
+      ])
+    }
+    expect(tags.get('EL6')!.a.textString).toBe('EL6 = 229.137')
   })
 })
