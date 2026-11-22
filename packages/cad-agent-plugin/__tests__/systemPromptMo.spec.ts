@@ -159,4 +159,20 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     ])
       expect(prompt).toContain(word)
   })
+
+  // P2-M1b (finding B): a refused change got two proposals and «Bạn muốn
+  // chọn hướng nào?» though the user had asked for none.
+  test('a refusal: one short hint at most, no closing question of options', () => {
+    expect(prompt).toContain(
+      'one short hint at what would fit is fine, but do not end with a question offering options'
+    )
+    expect(skill).toContain('được thêm **một** gợi ý ngắn')
+    expect(skill).toContain('không kết bằng câu hỏi chọn phương án')
+  })
+
+  test('the take-off: the wing is line 1.4, line 1.7 is the rail', () => {
+    expect(skill).toContain('bê tông **tường cánh** là mục 1.4')
+    expect(skill).toContain('mục 1.7 là **lan can trên tường cánh**')
+    expect(skill).toContain('không gọi 1.7 là tường cánh')
+  })
 })

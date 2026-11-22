@@ -28,7 +28,11 @@ import {
   btklMetaFromValues,
   btklObjectsFromValues
 } from '../src/btkl'
-import { type AcApBtklDownload, runBtklTool } from '../src/btkl/tools'
+import {
+  type AcApBtklDownload,
+  BTKL_TOOLS,
+  runBtklTool
+} from '../src/btkl/tools'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
 import { registerLibrary } from './helpers/libraryTemplate'
@@ -59,6 +63,22 @@ const tong = (outcome: { data?: unknown }) =>
   (outcome.data as { tong: Tong[] }).tong
 
 beforeAll(() => registerLibrary('tru_mat_chinh.js', 'tru_mat_ben.js'))
+
+// P2-M1b: after a wing-thickness change the agent called line 1.7 (the rail)
+// the wing and said it ignored the thickness.
+describe('BTKL tool descriptions tell the wing from the rail', () => {
+  test.each(['tao_btkl', 'cap_nhat_btkl'])('%s', name => {
+    const description = BTKL_TOOLS.find(t => t.name === name)!.description
+    expect(description).toContain(
+      'bê tông tường cánh là mục 1.4, nhân dày tường cánh'
+    )
+    expect(description).toContain(
+      'mục 1.7 là lan can trên tường cánh, theo chiều dài cánh × chiều cao lan can, không theo dày tường cánh'
+    )
+    expect(description).toContain('ván khuôn tường cánh (5.4) là hai mặt lớn')
+    expect(description).toContain('mục 1.7 là lan can, không phải tường cánh')
+  })
+})
 
 describe('BTKL tools — abutment M1', () => {
   test('create, refresh after a dimension change, undo, export', async () => {

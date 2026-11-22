@@ -360,4 +360,84 @@ describe('the take-off follows the wing thickness', () => {
     expect(kl({ tCanh: 400 }, 'canh') / kl({}, 'canh')).toBeCloseTo(0.8, 9)
     expect(kl({ tCanh: 600 }, 'lan_can')).toBe(kl({}, 'lan_can'))
   })
+
+  /**
+   * P2-M1b: absolute numbers, as QA read them on the live take-off after
+   * «Đổi dày tường cánh thành 400 mm» on QA-P2-M1 (total C30 180,916). The
+   * agent called line 1.7 the wing and said it ignored the thickness: 1.7 is
+   * the rail on the wing (length × rail height, assumption 2); the wing
+   * concrete is 1.4, and its formwork 5.4 is the two large faces.
+   */
+  const row = (v: Values, stt: string) =>
+    acTpBtklMo(v).items.find(i => i.stt === stt)!
+  const TAKE_OFF: [string, Values, number, number, number, number, number][] = [
+    // set, values, 1.4 wing, 1.7 rail, 1 total C30, 5 formwork, 5.4 wing form
+    [
+      'L1',
+      { ...L1_DERIVED, tCanh: 500 },
+      19.7043,
+      3.21415,
+      184.857,
+      252.527,
+      78.8172
+    ],
+    [
+      'L1',
+      { ...L1_DERIVED, tCanh: 400 },
+      15.76344,
+      3.21415,
+      180.916,
+      252.527,
+      78.8172
+    ],
+    [
+      'L1',
+      { ...L1_DERIVED, tCanh: 600 },
+      23.64516,
+      3.21415,
+      188.798,
+      252.527,
+      78.8172
+    ],
+    ['M1', { tCanh: 500 }, 27.661, 5.223, 187.016, 267.146, 110.644],
+    ['M1', { tCanh: 400 }, 22.1288, 5.223, 181.484, 267.146, 110.644],
+    ['M1', { tCanh: 600 }, 33.1932, 5.223, 192.548, 267.146, 110.644]
+  ]
+  test.each(TAKE_OFF)(
+    '%s, tCanh %j: 1.4 wing, 1.7 rail, total C30 and formwork pinned',
+    (_set, v, wingM3, railM3, totalC30, formM2, wingFormM2) => {
+      const wing = row(v, '1.4')
+      expect(wing.hangMuc).toContain('Tường cánh')
+      expect(wing.khoiLuong!).toBeCloseTo(wingM3, 3)
+      const rail = row(v, '1.7')
+      expect(rail.hangMuc).toContain('Lan can')
+      expect(rail.khoiLuong!).toBeCloseTo(railM3, 4)
+      const total = row(v, '1')
+      expect(total.hangMuc).toContain('C30')
+      expect(total.khoiLuong!).toBeCloseTo(totalC30, 2)
+      expect(row(v, '5').khoiLuong!).toBeCloseTo(formM2, 2)
+      const wingForm = row(v, '5.4')
+      expect(wingForm.hangMuc).toMatch(/cánh/i)
+      expect(wingForm.khoiLuong!).toBeCloseTo(wingFormM2, 3)
+    }
+  )
+
+  test.each([L1_DERIVED, {}] as Values[])(
+    'only the wing line moves with tCanh: rail, formwork 5 and 5.4 stay (%#)',
+    base => {
+      const at = (tCanh: number) => acTpBtklMo({ ...base, tCanh })
+      for (const tCanh of [400, 600]) {
+        const a = at(500)
+        const b = at(tCanh)
+        for (const stt of ['1.7', '5', '5.4'])
+          expect(b.items.find(i => i.stt === stt)!.khoiLuong).toBe(
+            a.items.find(i => i.stt === stt)!.khoiLuong
+          )
+        // The C30 total moves by the wing line alone.
+        const d = (r: typeof a, stt: string) =>
+          r.items.find(i => i.stt === stt)!.khoiLuong!
+        expect(d(b, '1') - d(a, '1')).toBeCloseTo(d(b, '1.4') - d(a, '1.4'), 9)
+      }
+    }
+  )
 })
