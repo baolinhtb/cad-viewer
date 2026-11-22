@@ -131,13 +131,18 @@ describe('BTKL tools — abutment M1', () => {
       'BTKL r2 đã khớp bản vẽ; không có gì thay đổi, không sửa bản vẽ.'
     )
 
-    // Change the footing height through the dossier tool, then refresh.
+    // Change the footing height through the dossier tool: since P2-M5 the
+    // take-off follows by itself (same run, same place), and says so.
     const edited = await runDossierTool(
       'sua_ho_so_mo',
       { ma_lan_chay: 'r1', thong_so: { hBe: 2500 } },
       db
     )
     expect(edited.ok).toBe(true)
+    expect(
+      ((edited.data as { canhBao?: string[] }).canhBao ?? []).join(' ')
+    ).toContain(`Đã tự cập nhật tờ BTKL ${runId}`)
+    // Nothing left to refresh by hand.
     const refreshed = await runBtklTool(
       'cap_nhat_btkl',
       { ma_lan_chay: runId },
@@ -165,13 +170,13 @@ describe('BTKL tools — abutment M1', () => {
         expect.stringMatching(/^6 \[thep_tam_tinh_ham_luong\]/)
       ])
     )
-    expect((refreshed.data as { truoc: Tong[] }).truoc[0].beTongM3).toBe(
-      187.016
-    )
+    expect(refreshed.message).toContain('đã khớp bản vẽ')
+    expect(tong(same)[0].beTongM3).toBe(187.016)
     expect(texts(db, runId)).toContain('114,821')
     expect(texts(db, runId)).not.toContain('91,721')
 
-    // Undo the refresh: the sheet is the M1 one again; the dossier edit stays.
+    // Undo the refresh (its own step after the dossier edit): the sheet is
+    // the M1 one again; the dossier edit stays.
     expect(db.transactionManager.undo()).toBe(true)
     expect(texts(db, runId)).toContain('91,721')
     expect(texts(db, runId)).not.toContain('114,821')

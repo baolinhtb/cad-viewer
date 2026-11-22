@@ -8,6 +8,7 @@ import {
   writeSemanticTag
 } from '@mlightcad/cad-template-sdk'
 import {
+  AcDb3PointAngularDimension,
   AcDbAlignedDimension,
   AcDbBlockReference,
   AcDbDatabase,
@@ -750,6 +751,24 @@ function patchDimensionText(
       (db.openEntityForWrite(e) as AcDbMText).contents = next
 }
 
+/**
+ * Two entity keys alike but for their extents, each within one unit
+ * (rounding on either side of .5 after a DXF round trip).
+ */
+function sameLook(a: string, b: string): boolean {
+  const pa = a.split('|')
+  const pb = b.split('|')
+  if (pa.length !== pb.length || pa[3] === pb[3]) return false
+  if (pa.some((x, i) => i !== 3 && x !== pb[i])) return false
+  const ba = pa[3].split(',').map(Number)
+  const bb = pb[3].split(',').map(Number)
+  return (
+    ba.length >= 4 &&
+    ba.length === bb.length &&
+    ba.every((v, i) => Number.isFinite(v) && Math.abs(v - bb[i]) <= 1)
+  )
+}
+
 /** What a drawn entity looks like, for telling generated from hand-edited. */
 function entityKey(e: AcDbEntity): string {
   const r = (v: number) => Math.round(v)
@@ -763,6 +782,24 @@ function entityKey(e: AcDbEntity): string {
   }
   const text = e instanceof AcDbText ? e.textString : ''
   return `${e.dxfTypeName}|${e.layer}|${e.color.colorIndex ?? ''}|${box}|${text}`
+}
+
+/**
+ * {@link entityKey} for comparing by region (P2-M5), a dimension keyed by
+ * its definition points, style and text instead of its extents: drawn into
+ * a drawing read back from a DXF file, the same dimension measures other
+ * extents than in a new database (its style's extension-line settings come
+ * from the file), and would be taken for a hand edit on the next change.
+ */
+function regionKey(e: AcDbEntity): string {
+  const r = (v: number) => Math.round(v)
+  const at = (...ps: { x: number; y: number }[]) =>
+    ps.flatMap(p => [r(p.x), r(p.y)]).join(',')
+  if (e instanceof AcDbAlignedDimension)
+    return `${e.dxfTypeName}|${e.layer}|${e.color.colorIndex ?? ''}|${at(e.xLine1Point, e.xLine2Point, e.dimLinePoint)}|${e.dimensionStyleName ?? ''}:${e.dimensionText ?? ''}`
+  if (e instanceof AcDb3PointAngularDimension)
+    return `${e.dxfTypeName}|${e.layer}|${e.color.colorIndex ?? ''}|${at(e.centerPoint, e.xLine1Point, e.xLine2Point, e.arcPoint)}|${e.dimensionStyleName ?? ''}:${e.dimensionText ?? ''}`
+  return entityKey(e)
 }
 
 /**
@@ -836,8 +873,32 @@ async function regenerateRun(
       `Thao tác này sẽ bỏ ${lost}/${total(was)} đối tượng của hồ sơ ${run.id} (${bySheet}). Chưa sửa gì. Hỏi người dùng; chỉ khi họ đồng ý mới gọi lại sua_ho_so_mo với xac_nhan_bo_doi_tuong: true.`
     ])
   }
+  // P2-M5: a primitive the change leaves exactly as it was (same sheet, same
+  // geometry and wording) is not redrawn. Matched as a multiset, sheet by
+  // sheet: what is left over on either side is what the change redraws.
+  const keptBefore = new Set<string>()
+  const keptAfter = new Set<string>()
+  for (const sheet of before.sheets) {
+    const next = after.sheets.find(s => s.id === sheet.id)
+    if (!next) continue
+    const pool = new Map<string, number[]>()
+    next.primitives.forEach((p, i) => {
+      const k = JSON.stringify(p)
+      pool.set(k, [...(pool.get(k) ?? []), i])
+    })
+    sheet.primitives.forEach((p, i) => {
+      const twin = pool.get(JSON.stringify(p))?.shift()
+      if (twin === undefined) return
+      keptBefore.add(`${sheet.id}#${i}`)
+      keptAfter.add(`${sheet.id}#${twin}`)
+    })
+  }
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
+  // What the run's values draw, split into what the change redraws and what
+  // it keeps — each entity keyed by what it looks like.
+  const redrawnKeys: string[] = []
+  const keptKeys: string[] = []
   // The scratch copy draws with its own id counter, not the drawing's.
   acTpWithWorkingDatabaseSync(scratch, () =>
     drawDossierScene(
@@ -849,59 +910,290 @@ async function regenerateRun(
         layerStyles(),
         { legacyLayers: legacyLayers() }
       ),
-      before
+      before,
+      (sheet, i, drawn) =>
+        (keptBefore.has(`${sheet}#${i}`) ? keptKeys : redrawnKeys).push(
+          ...drawn
+            .filter(e => readSemanticTag(e)?.run?.id === run.id)
+            .map(regionKey)
+        )
     )
   )
   const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
   const actual = entities.map(entityKey).sort()
-  if (
-    JSON.stringify(expected) !== JSON.stringify(actual) &&
+  const full =
     // The user chose to drop the hand edits, or to unlock an older
-    // dossier: the run is drawn again from its values.
-    !options.revertHandEdits &&
-    !options.unlock031
-  ) {
-    const missing = expected.filter(k => !actual.includes(k)).length
-    const extra = actual.filter(k => !expected.includes(k)).length
-    return result([
-      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script. Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.`
-    ])
+    // dossier: the run is drawn again from its values, as a whole.
+    options.revertHandEdits ||
+    options.unlock031 ||
+    // An older generator's drawing, or one the per-primitive split cannot
+    // account for, is only rebuilt whole — and only when untouched.
+    run.version !== DOSSIER_VERSION ||
+    redrawnKeys.length + keptKeys.length !== expected.length
+  if (full) {
+    if (
+      JSON.stringify(expected) !== JSON.stringify(actual) &&
+      !options.revertHandEdits &&
+      !options.unlock031
+    ) {
+      const missing = expected.filter(k => !actual.includes(k)).length
+      const extra = actual.filter(k => !expected.includes(k)).length
+      return result([
+        handEditedRun(
+          run.id,
+          `${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số`
+        )
+      ])
+    }
+    let removed = 0
+    let drawn = 0
+    await acapRunGroupedEdit(
+      db,
+      'Dựng lại hồ sơ theo thông số mới',
+      async () => {
+        for (const entity of entities) if (entity.erase()) removed += 1
+        const ctx = createDrawContext(
+          db,
+          DOSSIER_ID,
+          roleLayers(),
+          identity(values),
+          layerStyles(),
+          { legacyLayers: legacyLayers() }
+        )
+        drawDossierScene(ctx, after)
+        drawn = ctx.drawn.length
+      }
+    )
+    return finish(removed, drawn, [])
   }
+  // Each entity of the run: one the change redraws (erased, drawn anew), one
+  // it keeps (left where it is, whether or not it was moved by hand), or one
+  // the generator never drew there — moved, edited or copied by hand: kept.
+  const pool = (keys: string[]) => {
+    const m = new Map<string, number>()
+    for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1)
+    return m
+  }
+  const take = (m: Map<string, number>, k: string) => {
+    const left = m.get(k) ?? 0
+    if (left) m.set(k, left - 1)
+    return left > 0
+  }
+  const toRedraw = pool(redrawnKeys)
+  const toKeep = pool(keptKeys)
+  const erase: AcDbEntity[] = []
+  const keep: AcDbEntity[] = []
+  const extra: AcDbEntity[] = []
+  const odd: AcDbEntity[] = []
+  for (const e of entities) {
+    const k = regionKey(e)
+    if (take(toRedraw, k)) erase.push(e)
+    else if (take(toKeep, k)) keep.push(e)
+    else odd.push(e)
+  }
+  // Read back from a DXF file, a box on a .5 boundary rounds the other way:
+  // the same entity, one unit off — not a hand edit.
+  for (const e of odd) {
+    const k = regionKey(e)
+    const twin = (m: Map<string, number>) =>
+      [...m].find(([c, n]) => n > 0 && sameLook(c, k))?.[0]
+    const r = twin(toRedraw)
+    const kk = r === undefined ? twin(toKeep) : undefined
+    if (r !== undefined && take(toRedraw, r)) erase.push(e)
+    else if (kk !== undefined && take(toKeep, kk)) keep.push(e)
+    else extra.push(e)
+  }
+  const sum = (m: Map<string, number>) =>
+    [...m.values()].reduce((a, b) => a + b, 0)
+  const redrawnSet = new Set(redrawnKeys)
+  // Gone from where the generator drew it and the change would redraw it —
+  // or could be (the same look among what is redrawn): a hand edit in the
+  // region of the change. Refused, as before P2-M5.
+  const inRegion =
+    sum(toRedraw) +
+    [...toKeep].filter(([k, n]) => n > 0 && redrawnSet.has(k)).length
+  // A generated text now reading another value in its place is an edited
+  // label: never kept silently under a change (the label rule), wherever it is.
+  const labels: string[] = []
+  for (const [k, n] of toKeep) {
+    if (!n || !k.startsWith('TEXT|')) continue
+    const box = k.split('|')[3]?.split(',').map(Number)
+    if (!box || box.length !== 4) continue
+    const said = k.slice(k.lastIndexOf('|') + 1)
+    // Read back from a file, a text may key differently and say the same.
+    const edited = extra.find(e => {
+      if (!(e instanceof AcDbText || e instanceof AcDbMText)) return false
+      if (sameLabel(plainOf(e), said)) return false
+      const p = positionOf(e)
+      return (
+        p.x >= box[0] - 1 &&
+        p.x <= box[2] + 1 &&
+        p.y >= box[1] - 1 &&
+        p.y <= box[3] + 1
+      )
+    })
+    if (edited)
+      labels.push(
+        `chữ trên ${String(readSemanticTag(edited)?.params?.sheet ?? '')} đang là «${plainOf(edited)}», bộ sinh ghi «${said}»`
+      )
+  }
+  if (inRegion || labels.length)
+    return result([
+      handEditedRun(
+        run.id,
+        [
+          ...(inRegion
+            ? [
+                `${inRegion} đối tượng bộ sinh đã dời, sửa hoặc xóa trong vùng mà lần sửa này vẽ lại`
+              ]
+            : []),
+          ...labels.slice(0, 6)
+        ].join('; ')
+      )
+    ])
+  const changed = Object.keys(values).filter(k => values[k] !== run.values[k])
   let removed = 0
   let drawn = 0
-  await acapRunGroupedEdit(db, 'Dựng lại hồ sơ theo thông số mới', async () => {
-    for (const entity of entities) if (entity.erase()) removed += 1
-    const ctx = createDrawContext(
-      db,
-      DOSSIER_ID,
-      roleLayers(),
-      identity(values),
-      layerStyles(),
-      { legacyLayers: legacyLayers() }
-    )
-    drawDossierScene(ctx, after)
-    drawn = ctx.drawn.length
-  })
-  // Sheets that could not follow the values say so on the sheet; the tool
-  // reports them too.
-  const warnings = after.sheets.flatMap(s =>
-    s.primitives
-      .filter(
-        p =>
-          p.kind === 'text' &&
-          /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(p.text) &&
-          p.role === 'ghi_chu'
+  let added: AcDbEntity[] = []
+  await acapRunGroupedEdit(
+    db,
+    'Sửa hồ sơ theo thông số mới, giữ phần không đổi',
+    async () => {
+      for (const entity of erase) if (entity.erase()) removed += 1
+      // What stays carries the new values, as if drawn with them.
+      for (const original of [...keep, ...extra]) {
+        const entity = db.openEntityForWrite(original)!
+        const tag = readSemanticTag(entity)!
+        const stale = changed.filter(k => tag.params && k in tag.params)
+        writeSemanticTag(entity, {
+          ...tag,
+          ...(stale.length
+            ? {
+                params: {
+                  ...tag.params,
+                  ...Object.fromEntries(
+                    stale.map(k => [k, values[k] as number | string | boolean])
+                  )
+                }
+              }
+            : {}),
+          run: {
+            ...tag.run!,
+            version: DOSSIER_VERSION,
+            values: values as Record<string, number | string | boolean>
+          }
+        })
+      }
+      const ctx = createDrawContext(
+        db,
+        DOSSIER_ID,
+        roleLayers(),
+        identity(values),
+        layerStyles(),
+        { legacyLayers: legacyLayers() }
       )
-      .map(p => `${s.id}: ${(p as { text: string }).text}`)
+      drawDossierScene(ctx, {
+        ...after,
+        sheets: after.sheets.map(sheet => ({
+          ...sheet,
+          primitives: sheet.primitives.filter(
+            (_, i) => !keptAfter.has(`${sheet.id}#${i}`)
+          )
+        }))
+      })
+      drawn = ctx.drawn.length
+      added = [...ctx.drawn]
+    }
   )
-  if (acapIsA3Version(run.version) && run.version !== DOSSIER_VERSION)
-    warnings.push(upgraded(run.version))
-  return {
-    ...result([]),
-    removed,
-    entityCount: drawn,
-    ...(warnings.length ? { warnings } : {})
+  const notes: string[] = []
+  const handMoved = sum(toKeep)
+  if (handMoved || extra.length)
+    notes.push(
+      `Giữ nguyên phần đã sửa tay ngoài vùng đổi (${handMoved ? `${handMoved} đối tượng bộ sinh đã dời/xóa` : ''}${handMoved && extra.length ? ', ' : ''}${extra.length ? `${extra.length} đối tượng ở chỗ mới hoặc thêm` : ''}); chỉ vẽ lại phần thông số làm đổi.`
+    )
+  const crowded = userEntitiesOver(db, added)
+  if (crowded)
+    notes.push(
+      `${crowded} đối tượng người dùng thêm (không thuộc hồ sơ) nằm chồng lên phần vừa vẽ lại; giữ nguyên, không xóa — nhờ người dùng xem lại chỗ đó.`
+    )
+  return finish(removed, entities.length - removed + drawn, notes)
+
+  function finish(
+    removed: number,
+    entityCount: number,
+    notes: string[]
+  ): AcApRunEditResult {
+    // Sheets that could not follow the values say so on the sheet; the tool
+    // reports them too.
+    const warnings = after.sheets.flatMap(s =>
+      s.primitives
+        .filter(
+          p =>
+            p.kind === 'text' &&
+            /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(p.text) &&
+            p.role === 'ghi_chu'
+        )
+        .map(p => `${s.id}: ${(p as { text: string }).text}`)
+    )
+    warnings.push(...notes)
+    if (acapIsA3Version(run.version) && run.version !== DOSSIER_VERSION)
+      warnings.push(upgraded(run.version))
+    return {
+      ...result([]),
+      removed,
+      entityCount,
+      ...(warnings.length ? { warnings } : {})
+    }
   }
+}
+
+/**
+ * Entities drawn by the user, outside every run, whose extents overlap what
+ * was just drawn (frame lines aside): kept, but worth a look.
+ */
+function userEntitiesOver(db: AcDbDatabase, drawn: AcDbEntity[]): number {
+  const boxes = drawn
+    .filter(e => !FRAME_ROLES.has(readSemanticTag(e)?.role ?? ''))
+    .flatMap(e => {
+      const b = extentsOf(e)
+      return b ? [b] : []
+    })
+  if (!boxes.length) return 0
+  let count = 0
+  for (const e of db.tables.blockTable.modelSpace.newIterator()) {
+    if (readSemanticTag(e)?.run) continue
+    const b = extentsOf(e)
+    if (
+      b &&
+      boxes.some(
+        o => b[0] <= o[2] && b[2] >= o[0] && b[1] <= o[3] && b[3] >= o[1]
+      )
+    )
+      count += 1
+  }
+  return count
+}
+
+function extentsOf(
+  e: AcDbEntity
+): [number, number, number, number] | undefined {
+  try {
+    const b = e.geometricExtents
+    return Number.isFinite(b.min.x)
+      ? [b.min.x, b.min.y, b.max.x, b.max.y]
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The refusal when the change would redraw what was edited by hand: nothing
+ * changes, the user is asked once (keep, put back with dua_ve_so_bo_sinh,
+ * cancel). Outside that region hand edits are kept (P2-M5).
+ */
+function handEditedRun(runId: string, what: string): string {
+  return `Hồ sơ ${runId} đã được sửa tay (${what}); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script. Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.`
 }
 
 const upgraded = (version: string) =>

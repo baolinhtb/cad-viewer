@@ -48,10 +48,18 @@ const all = (db: AcDbDatabase) => [
   ...db.tables.blockTable.modelSpace.newIterator()
 ]
 /** The elevations of the SUB-020 table, in drawing order (m). */
+// Cell by cell, in reading order: since P2-M5 an edit keeps the cells it
+// does not change and draws the others anew, so drawing order is not cell
+// order.
 const table = (db: AcDbDatabase) =>
   all(db)
     .filter(
       (e): e is AcDbText => e instanceof AcDbText && sheetOf(e) === 'SUB-020'
+    )
+    .sort(
+      (a, b) =>
+        Math.round(b.position.y) - Math.round(a.position.y) ||
+        a.position.x - b.position.x
     )
     .map(e => Number(e.textString.replace(',', '.')))
     .filter(n => Number.isFinite(n) && n > 200 && n < 300)
