@@ -237,6 +237,40 @@ export function describeDrawing(): AcApToolOutcome {
 
   const tieuDe = readTitles(db)
   const digest = readDrawingDigest(db)
+/**
+ * The runs as the user reads them: each with its run id and generator
+ * version, and the abutment's name when it has one — «1 lần sửa r1 (hồ sơ mố
+ * QA-M6-P1, bộ sinh 0.3.1)».
+ *
+ * The model repeats this sentence. It used to read `r1 (ho_so_mo_m1)`: the
+ * template id is an internal key the prompt forbids saying, so the model
+ * dropped the whole phrase and with it the run id and the version (QA P1/M6
+ * R3). The template id stays in `data.lanChay` for calls.
+ */
+function runsSentence(
+  runs: readonly {
+    ma: string
+    phienBan: string
+    thongSo: Readonly<Record<string, number | string | boolean>>
+  }[]
+): string {
+  if (!runs.length) return ''
+  const detail = (r: (typeof runs)[number]) => {
+    const tenMo = r.thongSo?.tenMo
+    const bits = [
+      ...(tenMo !== undefined && String(tenMo).trim()
+        ? [`hồ sơ mố ${String(tenMo).trim()}`]
+        : []),
+      ...(r.phienBan ? [`bộ sinh ${r.phienBan}`] : [])
+    ]
+    return bits.length ? ` (${bits.join(', ')})` : ''
+  }
+  if (runs.length === 1) return `, 1 lần sửa ${runs[0].ma}${detail(runs[0])}`
+  return `, ${runs.length} lần sửa: ${runs
+    .map(r => `mã ${r.ma}${detail(r)}`)
+    .join('; ')}`
+}
+
   if (digest.status !== 'tagged') {
     const verdict = canEditSemantically(db, digest)
     return {
@@ -270,13 +304,7 @@ export function describeDrawing(): AcApToolOutcome {
   return {
     ok: true,
     status: 'ready',
-    message:
-      `Bản vẽ có ${digest.parts.length} bộ phận` +
-      (lanChay.length
-        ? `, ${lanChay.length} lần chạy template sửa được: ${lanChay
-            .map(r => `${r.ma} (${r.template})`)
-            .join(', ')}.`
-        : '.'),
+    message: `Bản vẽ có ${digest.parts.length} bộ phận${runsSentence(lanChay)}.`,
     data: {
       templateIds: digest.templateIds,
       parts: digest.parts.map(forModel),
