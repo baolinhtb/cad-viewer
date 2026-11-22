@@ -11,7 +11,8 @@
  * - stem and head wall: the seat and the head-wall top follow the cross fall
  *   linearly, so the centre heights are the mean heights;
  * - wings: from the stem back face to the wing end; on the footing, then a
- *   1:1 underside to a 1500 end, the top rising with the long fall. The
+ *   1:1 underside to the end the drawing shows (1500 at the source slopes,
+ *   see {@link acTpBtklWingEnds}), the top rising with the long fall. The
  *   lower wing sits `docNgang · bMatDuong` lower, except on the flat footing;
  * - formwork (B4): contact faces — the footing's four sides and the two large
  *   faces of the stem, head wall and each wing; the corbel and haunches are
@@ -19,6 +20,7 @@
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
+import { sheetStretch } from '../dossier/grid030'
 import {
   buildDossierModel,
   DOSSIER_STOP_WIDTH,
@@ -38,8 +40,50 @@ import type {
 export const BTKL_PILE_EMBED = 150
 /** Head-wall thickness T, mm (fixed in the source and the 0.3.0 generator). */
 const HEAD_WALL = 500
-/** Wing end height above the 1:1 underside, mm (source B–B). */
+/** Wing end height above the 1:1 underside, mm (source B–B and C–C). */
 const WING_END = 1500
+/**
+ * The wing end dimensions of the drawing (source points, sheet-local): B–B
+ * (SUB-010, left of the route, `20F02C3`) and C–C (SUB-020, right of the
+ * route, `2111631`), top then the end of the 1:1 underside.
+ */
+const WING_END_DIMS: Record<
+  'left' | 'right',
+  { sheet: string; top: [number, number]; foot: [number, number] }
+> = {
+  left: {
+    sheet: 'SUB-010',
+    top: [35866.886, 22072.841],
+    foot: [35866.886, 20572.841]
+  },
+  right: {
+    sheet: 'SUB-020',
+    top: [2221.749, 12085.621],
+    foot: [2221.749, 10585.621]
+  }
+}
+
+/**
+ * The wing end height the drawing shows, mm, left and right of the route
+ * (P2-M6): the source 1500 plus what the slopes add between the end's top
+ * and the end of its 1:1 underside — the cross fall lifts the high wing's
+ * top and lowers the low one's, the wing top slope (docDoc) lifts both; the
+ * underside keeps its place. The heights (hThan, hDau) and the rail do not
+ * change it: 1500, as the take-off always measured. The source 1500 when a
+ * sheet cannot follow the values (the line is refused elsewhere then).
+ */
+export function acTpBtklWingEnds(values: AcTpParamValues): {
+  left: number
+  right: number
+} {
+  const end = (side: 'left' | 'right') => {
+    const d = WING_END_DIMS[side]
+    const s = sheetStretch(d.sheet, values)
+    if ('error' in s || s.identity || !s.rise) return WING_END
+    return WING_END + s.rise(d.top, d.top) - s.rise(d.foot, d.foot)
+  }
+  return { left: end('left'), right: end('right') }
+}
 /** Ear walls: thickness × height, mm, along the seat N (source front view). */
 const EAR = { t: 150, h: 1200 }
 /** Approach-slab corbel section, m² (A–A: 300 × 300 with a 300 haunch). */
@@ -192,7 +236,8 @@ function wingSection(
   onFooting: number,
   run: number,
   rise: number,
-  lCanh: number
+  lCanh: number,
+  wingEnd: number = WING_END
 ) {
   // top: wing top over the footing top at the head-wall face; positions
   // along the wing from that face (mm).
@@ -201,8 +246,8 @@ function wingSection(
   const s1 = s0 + onFooting
   const footingPart = ((at(s0) + at(s1)) / 2) * onFooting
   if (run <= 0) return { area: footingPart / 1e6, step: null }
-  const step = at(lCanh) - run - WING_END
-  const slopePart = ((at(s1) - step + WING_END) / 2) * run
+  const step = at(lCanh) - run - wingEnd
+  const slopePart = ((at(s1) - step + wingEnd) / 2) * run
   return { area: (footingPart + slopePart) / 1e6, step }
 }
 
@@ -306,8 +351,21 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   const rise = n('docDoc') / 100
   const topHigh = n('hThan') + n('hDau')
   const drop = (Math.abs(n('docNgang')) / 100) * n('bMatDuong')
-  const high = wingSection(topHigh, onFooting, run, rise, n('lCanh'))
-  const low = wingSection(topHigh - drop, onFooting, run, rise, n('lCanh'))
+  // The wing end heights as drawn (P2-M6), no longer a fixed 1500: the high
+  // wing is left of the route for a positive cross fall.
+  const ends = acTpBtklWingEnds(v)
+  const [endHigh, endLow] =
+    n('docNgang') >= 0 ? [ends.left, ends.right] : [ends.right, ends.left]
+  const sourceEnds = [endHigh, endLow].every(e => Math.abs(e - WING_END) < 1e-6)
+  const high = wingSection(topHigh, onFooting, run, rise, n('lCanh'), endHigh)
+  const low = wingSection(
+    topHigh - drop,
+    onFooting,
+    run,
+    rise,
+    n('lCanh'),
+    endLow
+  )
   const wingFlags: AcTpBtklFlag[] = []
   if (same('canh'))
     wingFlags.push({
@@ -335,7 +393,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
       `${f(n('tCanh'))} × (${acTpBtklNumber(high.area)} + ${acTpBtklNumber(low.area)}); ` +
       `mỗi tiết diện = phần trên bệ dài ${f(onFooting)}` +
       (run > 0
-        ? ` + phần vát 1:1 dài ${f(run)}, đầu cánh ${f(WING_END)}, H4 ${f(high.step!)} / ${f(low.step!)}`
+        ? ` + phần vát 1:1 dài ${f(run)}, đầu cánh ${sourceEnds ? f(WING_END) : `${f(endHigh)} / ${f(endLow)} (theo hình)`}, H4 ${f(high.step!)} / ${f(low.step!)}`
         : '') +
       `; cánh thấp hạ ${f(drop)} = ${n('docNgang')} % × ${f(n('bMatDuong'))}`,
     nguon: 'tham_so',

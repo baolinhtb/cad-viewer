@@ -277,10 +277,11 @@ describe('P1/M3 acceptance', () => {
     expect(spacings(v)).toEqual([1400, 1400, 1400, 1400, 1400])
     expect(res.message).toContain('6 vị trí gối')
     // + G1…G4 / G1…G6 on the front elevation since P1/M5.
-    expect(before.count).toBe(2971)
+    // P2-M6: L1 2×2 front stubs are two inserts (+1 vs the source pair).
+    expect(before.count).toBe(2972)
     // Every view follows (P1/M3 views): plan +2 bearings, +2 labels, +1 stop;
     // front +2 exploded bearings (13 entities each), +1 exploded stop (5).
-    expect(after.count).toBe(2971 + 2 + 2 + 1 + 2 * 13 + 5 + 2)
+    expect(after.count).toBe(2972 + 2 + 2 + 1 + 2 * 13 + 5 + 2)
     expect(after.notBuilt).toEqual([])
     expect(before.layers.filter(l => !after.layers.includes(l))).toEqual([])
     // Only the bearings and the take-off lines that follow them.

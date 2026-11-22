@@ -92,9 +92,18 @@ export const SEMANTIC_TOOLS: AcApToolSchema[] = [
           enum: ['xem', 'dat', 'goi', 'luu', 'the_gioi'],
           description: 'Việc cần làm.'
         },
-        x: { type: 'number', description: 'Hoành độ gốc mới, khi hanh_dong="dat".' },
-        y: { type: 'number', description: 'Tung độ gốc mới, khi hanh_dong="dat".' },
-        ten: { type: 'string', description: 'Tên mốc, khi hanh_dong="goi" hoặc "luu".' }
+        x: {
+          type: 'number',
+          description: 'Hoành độ gốc mới, khi hanh_dong="dat".'
+        },
+        y: {
+          type: 'number',
+          description: 'Tung độ gốc mới, khi hanh_dong="dat".'
+        },
+        ten: {
+          type: 'string',
+          description: 'Tên mốc, khi hanh_dong="goi" hoặc "luu".'
+        }
       },
       required: ['hanh_dong'],
       additionalProperties: false
@@ -151,7 +160,6 @@ export const SEMANTIC_TOOLS: AcApToolSchema[] = [
     }
   }
 ]
-
 
 /**
  * Declared apart from the three query tools because it writes.
@@ -237,39 +245,39 @@ export function describeDrawing(): AcApToolOutcome {
 
   const tieuDe = readTitles(db)
   const digest = readDrawingDigest(db)
-/**
- * The runs as the user reads them: each with its run id and generator
- * version, and the abutment's name when it has one — «1 lần sửa r1 (hồ sơ mố
- * QA-M6-P1, bộ sinh 0.3.1)».
- *
- * The model repeats this sentence. It used to read `r1 (ho_so_mo_m1)`: the
- * template id is an internal key the prompt forbids saying, so the model
- * dropped the whole phrase and with it the run id and the version (QA P1/M6
- * R3). The template id stays in `data.lanChay` for calls.
- */
-function runsSentence(
-  runs: readonly {
-    ma: string
-    phienBan: string
-    thongSo: Readonly<Record<string, number | string | boolean>>
-  }[]
-): string {
-  if (!runs.length) return ''
-  const detail = (r: (typeof runs)[number]) => {
-    const tenMo = r.thongSo?.tenMo
-    const bits = [
-      ...(tenMo !== undefined && String(tenMo).trim()
-        ? [`hồ sơ mố ${String(tenMo).trim()}`]
-        : []),
-      ...(r.phienBan ? [`bộ sinh ${r.phienBan}`] : [])
-    ]
-    return bits.length ? ` (${bits.join(', ')})` : ''
+  /**
+   * The runs as the user reads them: each with its run id and generator
+   * version, and the abutment's name when it has one — «1 lần sửa r1 (hồ sơ mố
+   * QA-M6-P1, phiên bản 0.3.1)».
+   *
+   * The model repeats this sentence. It used to read `r1 (ho_so_mo_m1)`: the
+   * template id is an internal key the prompt forbids saying, so the model
+   * dropped the whole phrase and with it the run id and the version (QA P1/M6
+   * R3). The template id stays in `data.lanChay` for calls.
+   */
+  function runsSentence(
+    runs: readonly {
+      ma: string
+      phienBan: string
+      thongSo: Readonly<Record<string, number | string | boolean>>
+    }[]
+  ): string {
+    if (!runs.length) return ''
+    const detail = (r: (typeof runs)[number]) => {
+      const tenMo = r.thongSo?.tenMo
+      const bits = [
+        ...(tenMo !== undefined && String(tenMo).trim()
+          ? [`hồ sơ mố ${String(tenMo).trim()}`]
+          : []),
+        ...(r.phienBan ? [`phiên bản ${r.phienBan}`] : [])
+      ]
+      return bits.length ? ` (${bits.join(', ')})` : ''
+    }
+    if (runs.length === 1) return `, 1 lần sửa ${runs[0].ma}${detail(runs[0])}`
+    return `, ${runs.length} lần sửa: ${runs
+      .map(r => `mã ${r.ma}${detail(r)}`)
+      .join('; ')}`
   }
-  if (runs.length === 1) return `, 1 lần sửa ${runs[0].ma}${detail(runs[0])}`
-  return `, ${runs.length} lần sửa: ${runs
-    .map(r => `mã ${r.ma}${detail(r)}`)
-    .join('; ')}`
-}
 
   if (digest.status !== 'tagged') {
     const verdict = canEditSemantically(db, digest)
@@ -314,7 +322,6 @@ function runsSentence(
     }
   }
 }
-
 
 /**
  * Tags an untagged drawing from its layer names.
@@ -502,7 +509,9 @@ export function coordinateFrameTool(input: {
     dangDung: ucs.isWorld
       ? 'hệ toạ độ thế giới'
       : `${ucs.current.name || '(chưa đặt tên)'} tại (${ucs.current.origin.x}, ${ucs.current.origin.y})`,
-    mocDaLuu: ucs.list().map(u => ({ ten: u.name, x: u.origin.x, y: u.origin.y }))
+    mocDaLuu: ucs
+      .list()
+      .map(u => ({ ten: u.name, x: u.origin.x, y: u.origin.y }))
   })
 
   switch (input.hanh_dong) {

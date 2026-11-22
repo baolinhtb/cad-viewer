@@ -506,9 +506,7 @@ describe('UI fixtures (acTpDxfOut, UTF-8)', () => {
       // acTpDxfOut: AutoCAD 2013 with the UTF-8 code page and the TrueType
       // file names; the R14 writer says AC1014 and garbles these titles.
       expect(dxf).toContain('AC1027')
-      expect(dxf).toMatch(
-        /\$DWGCODEPAGE\r?\n\s*3\r?\n\s*UTF-8/
-      )
+      expect(dxf).toMatch(/\$DWGCODEPAGE\r?\n\s*3\r?\n\s*UTF-8/)
       expect(dxf).toMatch(/\n\s*3\r?\n\s*arial\.ttf/)
       for (const t of ['CÁC CAO ĐỘ', 'THÔNG SỐ KÍCH THƯỚC', 'QA-P2-M5'])
         expect(dxf).toContain(t)
@@ -528,7 +526,7 @@ describe('UI fixtures (acTpDxfOut, UTF-8)', () => {
           ? []
           : [
               expect.stringContaining(
-                '(1 đối tượng bộ sinh đã dời/xóa, 1 đối tượng ở chỗ mới'
+                '(1 đối tượng do công cụ vẽ đã dời/xóa, 1 đối tượng ở chỗ mới'
               )
             ]
       )

@@ -174,7 +174,7 @@ describe('a 0.3.0 dossier that matches today’s generator edits as usual', () =
     expect(run(db).version).toBe('0.3.1')
     expect(run(db).values.hThan).toBe(Number(v0.hThan) + 300)
     expect((res.data as { canhBao?: string[] }).canhBao?.join(' ')).toContain(
-      'đã chuyển lên bộ sinh 0.3.1'
+      'đã chuyển lên phiên bản 0.3.1'
     )
   })
 
@@ -231,8 +231,8 @@ describe('a 0.3.0 dossier the generator has moved on from: unlock', () => {
         numbers[`refused ${name}`] = res.message
         expect(res.ok).toBe(false)
         expect(res.message).toContain('mở khóa')
-        expect(res.message).toContain('bộ sinh 0.3.0')
-        expect(res.message).toContain('bộ sinh 0.3.1')
+        expect(res.message).toContain('phiên bản 0.3.0')
+        expect(res.message).toContain('phiên bản 0.3.1')
         expect(res.message).toContain('mo_khoa_031: true')
         expect(res.message).toContain('hỏi xác nhận')
         expect(res.message).not.toMatch(/setText|execute_cad_script/)
@@ -289,7 +289,9 @@ describe('a 0.3.0 dossier the generator has moved on from: unlock', () => {
     const res = await edit(db, { hThan: Number(run(db).values.hThan) + 300 })
     expect(res.ok).toBe(false)
     expect(res.message).toContain('mở khóa')
-    expect(res.message).toContain('đang là «230.900», bộ sinh ghi «230.837»')
+    expect(res.message).toContain(
+      'đang là «230.900», thiết kế gốc ghi «230.837»'
+    )
     expect(res.message).toContain('mở khóa sẽ mất các số sửa tay này')
   })
 

@@ -142,12 +142,11 @@ function dimMismatches(v: Values) {
       }
   return { wrong, seen: seen.size }
 }
-/**
- * Known before M2 and outside it: H2 is 2 mm past the approximate tolerance
- * once hDau and hThan both move (plan P0–P1, section 7). Pinned exactly, not
- * tolerated, so a fix — or any new mismatch — shows here.
+/*
+ * Before P2-M6, H2 measured 7042 for 7204 at the end of the control chain
+ * (the head-wall top's low end rode the hDau band of the grid, plan P0–P1
+ * section 7). Fixed in the grid (line 21700): no mismatch is left.
  */
-const KNOWN_H2 = 'H2 7042≠7204'
 
 /** L1 exactly as the user said it: no footing width or pile spacing given. */
 const L1: Values = {
@@ -264,9 +263,11 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     expect(data.macDinhTuMau).not.toContain('bBe')
     expect(s.notBuilt).toEqual([])
     // Every view of the U abutment, as the source (329 entities on SUB-010).
-    // + G1…G4 on the front elevation since P1/M5 (source: 329, 2967).
-    expect(s.bySheet['SUB-010']).toBe(333)
-    expect(s.count).toBe(2971)
+    // + G1…G4 on the front elevation since P1/M5 (source: 329, 2967);
+    // + 1 since P2-M6: the front pile pair block drawn as its two stubs,
+    // 6700 apart.
+    expect(s.bySheet['SUB-010']).toBe(334)
+    expect(s.count).toBe(2972)
     expect(values(db)).toMatchObject({
       bMatDuong: 8000,
       bBe: 8700,
@@ -311,7 +312,10 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
       expect(changed[id] ?? 0).toBe(0)
     expect(changed['SUB-010'] ?? 0).toBeGreaterThan(0)
     expect(changed['SUB-010'] ?? 0).toBeLessThan(120)
-    expect(changed['SUB-020'] ?? 0).toBeLessThan(10)
+    // Since P2-M6 the cross fall is the stated 2 % over the wider road:
+    // section C–C (the low road edge) sits 10 mm lower and the SUB-020
+    // elevation table follows (EL1, EL2, EL4, FG). Pinned, not a tolerance.
+    expect(changed['SUB-020'] ?? 0).toBe(39)
   })
 
   test('L2: tThan → 1500 is no longer blocked by the road width', async () => {
@@ -380,9 +384,10 @@ describe('sua_ho_so_mo with a new road width', () => {
     expect(values(db)).toMatchObject({ bMatDuong: 8000, bBe: 8700 })
     expect(after.notBuilt).toEqual([])
     // 2890 source entities + the M1 steel warnings and the take-off table
-    // every geometry change adds (as L1 and the control dossier: 2967).
+    // every geometry change adds. P2-M6: L1 is 2972 (front pair exploded
+    // to two stubs at the true 6700 centres; was 2971 / 2967 before).
     expect(before.count).toBe(2890)
-    expect(after.count).toBe(2971)
+    expect(after.count).toBe(2972)
   })
 
   test('outside the remaining grid it still refuses honestly and says how to unlock', async () => {
@@ -423,7 +428,9 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
     expect(made.ok).toBe(true)
     expect(suyRa(made.data)).toEqual([])
     const first = snap(db)
-    expect(first.count).toBe(2971)
+    // 2971 before P2-M6: flush 2 × 2 at 5700, the front pair block is now
+    // its two stubs at 5700 (+1).
+    expect(first.count).toBe(2972)
     const log: unknown[] = []
     let prev = first
     for (const change of [
@@ -456,6 +463,6 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
     }
     const dims = dimMismatches(values(db))
     numbers.control = { first: first.bySheet, log, dims }
-    expect(dims.wrong).toEqual([KNOWN_H2])
+    expect(dims.wrong).toEqual([])
   })
 })

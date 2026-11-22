@@ -333,7 +333,9 @@ describe('S7: a hand-edited elevation cell, however it was edited', () => {
     const before = { ids: ids(db), table: table(db), tags: tags(db) }
     const res = await edit(db, { nhanKichThuoc: 'ky_hieu' })
     expect(res.ok).toBe(false)
-    expect(res.message).toContain(`đang ghi «EL? = 999», bộ sinh ghi «${was}»`)
+    expect(res.message).toContain(
+      `đang ghi «EL? = 999», thiết kế gốc ghi «${was}»`
+    )
     expect(res.message).toContain(
       'kích thước «B Mố = <>» trên SUB-010 không còn'
     )
@@ -520,7 +522,7 @@ describe('dua_ve_so_bo_sinh: one call puts hand edits back and applies the chang
     numbers[`revert ${name}`] = res.data
     expect(res.ok).toBe(true)
     expect((res.data as { canhBao?: string[] }).canhBao?.join(' ')).toContain(
-      'Đã đưa về số bộ sinh'
+      'Đã đưa về thiết kế gốc'
     )
     expect(listRuns(db)[0].values.caoDoDayBe).toBe(raise.caoDoDayBe)
     const after = table(db)

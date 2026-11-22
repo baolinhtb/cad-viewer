@@ -79,7 +79,7 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   «Chưa sửa: dày tường cánh 300 mm nhỏ hơn khoảng cho phép, bản vẽ giữ nguyên.
   Dày tường cánh cần từ 351 đến 999 mm.»
 - **Không trích tiêu chuẩn khi không có nguồn.** Khoảng min/max của thông số
-  hồ sơ là khoảng cho phép của bộ sinh, không phải TCVN. Sau khi sửa hồ sơ,
+  hồ sơ là khoảng cho phép của công cụ hồ sơ, không phải TCVN. Sau khi sửa hồ sơ,
   không nêu tiêu chuẩn, giới hạn hay số điều trừ khi số đó đến từ kết quả
   `tra_cuu_tieu_chuan` hoặc từ hướng dẫn này trong lượt đó; không lẫn «tường
   phòng hộ» của template khác với «chiều cao lan can» của hồ sơ mố. Giá trị lạ
@@ -92,8 +92,9 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 - **Số cao độ báo người dùng lấy từ `data.caoDo`** (`keGoiTim` EL3,
   `keGoiTrai` EL4.L, `keGoiPhai` EL4.R, `dayBe`, `dinhBe`, `bang`): đó là
   chính bảng SUB-020 đã vẽ, trùng thẻ cao độ. Không tự tính lại bằng công
-  thức dốc ngang — trên thân rộng hơn mẫu, số đã vẽ có thể lệch công thức
-  tới 10 mm ở mép; nếu người dùng hỏi thì nói rõ.
+  thức dốc ngang. Từ P2-M6 hình vẽ đúng độ dốc ghi trên mọi bề rộng mặt
+  đường (dốc ngang 0 % thì hai bên bằng nhau); hồ sơ dựng trước đó có thể
+  lệch tới 10 mm ở mép cho tới lần sửa kích thước kế tiếp.
 
 - Hồ sơ cũ có tờ hình ghi «CHƯA DỰNG ĐƯỢC HÌNH…» (dựng trước khi có kiểm
   tra lúc tạo) bị khoá: mọi sửa kích thước bị từ chối cho tới khi đưa thông
@@ -103,7 +104,7 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**. Đọc `canhBao`
   trong kết quả để báo các tờ không áp dụng (thép).
 - **Sửa tay: so theo vùng đổi (từ P2-M5).** Hồ sơ 0.3.1 có hình/chữ người
-  dùng thêm, hoặc nét bộ sinh đã dời/xóa *ngoài vùng mà lần sửa vẽ lại*
+  dùng thêm, hoặc nét do công cụ vẽ đã dời/xóa *ngoài vùng mà lần sửa vẽ lại*
   (ví dụ dời một cọc ở mặt bằng cọc rồi đổi dốc ngang hay chiều cao lan
   can), vẫn sửa kích thước được: công cụ chỉ vẽ lại phần thông số làm đổi,
   giữ nguyên phần kia và báo trong `canhBao`. Sửa tay *trong vùng đổi*
@@ -111,22 +112,28 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   từ chối và hỏi một lần như dưới. Đã có tờ BTKL thì sửa hồ sơ tự cập nhật
   tờ BTKL (cùng mã, cùng chỗ) và `canhBao` nêu số mới — báo lại số đó, không
   cần lập lại bảng khối lượng.
+- **Lời với người dùng: không nói «bộ sinh».** «Bộ sinh» là tiếng lóng nội
+  bộ (cũng như tên công cụ, tên cờ `dua_ve_so_bo_sinh`, `mo_khoa_031`): không
+  viết ra trong câu trả lời, kể cả khi thông báo công cụ có. Nói bằng lời
+  thường: «thiết kế gốc», «giá trị mặc định», «bản vẽ do công cụ dựng»; câu
+  hỏi sau lời từ chối là «đưa về thiết kế gốc rồi làm tiếp / giữ bản vẽ đã sửa
+  tay / hủy».
 - **Bị từ chối vì sửa tay: dừng và hỏi, không lách.** Hồ sơ do
   `tao_ho_so_mo` / `sua_ho_so_mo` dựng chỉ đổi cao độ, kích thước, nhãn
   kích thước bằng chính các công cụ hồ sơ. Khi công cụ từ chối vì có chữ /
   thẻ cao độ / kích thước đã sửa tay: không sửa gì thêm, nêu đúng các chỗ
-  công cụ liệt kê (ví dụ «ô EL6 trên SUB-020 đang là 228.900, khác số bộ sinh
-  228.837») và hỏi người dùng **một lần**, chọn: đưa các chỗ đó về số bộ sinh
-  rồi làm tiếp / giữ số đã sửa, không đổi thông số / hủy. Chọn đưa về số bộ
-  sinh: gọi lại `sua_ho_so_mo` **một lần** với cùng thông số và
-  `dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh
-  (Text, font, màu, layer) và áp thay đổi trong cùng lần gọi. **Cấm** dùng `tx.setText`,
+  công cụ liệt kê (ví dụ «ô EL6 trên SUB-020 đang là 228.900, khác số thiết
+  kế gốc 228.837») và hỏi người dùng **một lần**, chọn: đưa các chỗ đó về
+  thiết kế gốc rồi làm tiếp / giữ bản vẽ đã sửa tay, không đổi thông số /
+  hủy. Chọn đưa về thiết kế gốc: gọi lại `sua_ho_so_mo` **một lần** với cùng
+  thông số và `dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó đúng
+  kiểu ban đầu (Text, font, màu, layer) và áp thay đổi trong cùng lần gọi. **Cấm** dùng `tx.setText`,
   `execute_cad_script` hay công cụ sửa chữ khác để tăng/giảm hàng loạt chữ cao
-  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, để tự đưa về số bộ sinh, hoặc để hồ sơ lệch bản vẽ.
-  Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp như
+  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, để tự đưa về thiết kế gốc, hoặc để hồ sơ lệch bản vẽ.
+  Bản vẽ DWG/DXF nhập vào (không phải hồ sơ do công cụ dựng) vẫn sửa trực tiếp như
   thường.
-- **Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.** Hồ sơ mới là **0.3.1**. Hồ sơ 0.3.0
-  mà bản vẽ vẫn khớp bộ sinh hiện tại thì sửa như thường (và thành 0.3.1).
+- **Hồ sơ phiên bản cũ (0.3.0) — mở khóa.** Hồ sơ mới là **0.3.1**. Hồ sơ 0.3.0
+  mà bản vẽ vẫn khớp phiên bản hiện tại thì sửa như thường (và thành 0.3.1).
   Bản vẽ không còn khớp (ô số màu cũ, tiêu đề «M1», thiếu nhãn gối, tờ
   «CHƯA DỰNG ĐƯỢC» của hồ sơ khoá trước M2…) thì công cụ từ chối với
   **đường mở khóa**: giải thích cho người dùng rằng hồ sơ sẽ được dựng lại

@@ -31,7 +31,7 @@ import {
 
 import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
 import { acTpDimensionText, type AcTpDimLabelMode } from './dimSymbols'
-import { sheetStretch } from './grid030'
+import { acTpLegacyDossierGeometry, sheetStretch } from './grid030'
 import type { DossierModel } from './model'
 import {
   DOSSIER_BEARING_WIDTH,
@@ -612,6 +612,16 @@ const PILE_VIEWS: Record<string, PileView[]> = {
 /** The front elevation's pair block and the one-pile block it nests. */
 const FRONT_PILE_PAIR = 'MO2_U351'
 const FRONT_PILE = 'MO2_U350'
+/** The front elevation's pair insert (SUB-010). */
+const FRONT_PAIR_HANDLE = '2111C60'
+/** Centre to centre of the two stubs the pair block draws, mm (source). */
+const FRONT_PAIR_SPACING = (() => {
+  const pair = LAYOUT.blocks.find(
+    b => b.name === FRONT_PILE_PAIR
+  ) as unknown as { entities: { position: { x: number } }[] } | undefined
+  const xs = (pair?.entities ?? []).map(e => e.position.x)
+  return xs.length ? Math.round(Math.max(...xs) - Math.min(...xs)) : 5300
+})()
 
 /** A stretched sheet: what {@link arrayedPiles} needs of it. */
 interface PileStretch {
@@ -646,16 +656,28 @@ function arrayedPiles(
   stretch: PileStretch,
   shifts: XY[]
 ): LayoutPrimitive[] {
-  const views = PILE_VIEWS[sheet]
   const n = (k: string) => Number(model.values[k])
-  if (
-    !views ||
-    (n('soCotCoc') === 2 &&
-      n('soHangCoc') === 2 &&
-      n('aCocNgang') === n('bBe') - 2 * n('D') &&
-      n('aCocDoc') === n('lBe') - 2 * n('D'))
-  )
-    return content
+  const flush =
+    n('soCotCoc') === 2 &&
+    n('soHangCoc') === 2 &&
+    n('aCocNgang') === n('bBe') - 2 * n('D') &&
+    n('aCocDoc') === n('lBe') - 2 * n('D')
+  // Flush 2 × 2: every pile item already sits where the grid puts the pile
+  // lines — except the front elevation's pair, one block whose two stubs
+  // are FRONT_PAIR_SPACING apart whatever the spacing. Since P2-M6 it is
+  // drawn as two stubs at the true centres when that spacing differs (L1:
+  // 6700, the dimension above it), its dimensions and leaders untouched.
+  const pairOnly =
+    flush &&
+    !acTpLegacyDossierGeometry() &&
+    n('aCocNgang') !== FRONT_PAIR_SPACING
+  const views =
+    flush && !pairOnly
+      ? undefined
+      : PILE_VIEWS[sheet]?.filter(
+          v => !pairOnly || v.piles[0] === FRONT_PAIR_HANDLE
+        )
+  if (!views?.length) return content
   const byHandle = new Map(content.map(p => [p.handle, p]))
   const get = (h: string) => byHandle.get(h)
   // Where a source point ends up (stretch, then the view's shift), and the
@@ -746,7 +768,7 @@ function arrayedPiles(
         viewAt: at
       } as ArrayedPrimitive)
     })
-    for (const a of axes) {
+    for (const a of pairOnly ? [] : axes) {
       const lowPile = a.targets[0],
         highPile = a.targets[a.targets.length - 1]
       const sourceLow = Math.min(...a.edges),
