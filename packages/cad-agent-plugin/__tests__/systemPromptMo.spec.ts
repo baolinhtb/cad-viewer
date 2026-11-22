@@ -163,16 +163,46 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
   // P2-M1b (finding B): a refused change got two proposals and «Bạn muốn
   // chọn hướng nào?» though the user had asked for none.
   test('a refusal: one short hint at most, no closing question of options', () => {
+    // P2-M3 (QA P2-M2 step 3): two hints and «…chọn hướng nào thì tôi sẽ
+    // sửa…» still came; now one sentence, no question.
     expect(prompt).toContain(
-      'one short hint at what would fit is fine, but do not end with a question offering options'
+      'after a refusal add at most one short sentence of hint — the allowed range and at most one other way — and no question at all'
     )
-    expect(skill).toContain('được thêm **một** gợi ý ngắn')
-    expect(skill).toContain('không kết bằng câu hỏi chọn phương án')
+    expect(prompt).toContain('chọn hướng nào thì tôi sẽ sửa…')
+    expect(skill).toContain('được thêm **đúng một câu** gợi ý ngắn')
+    expect(skill).toContain('**không hỏi gì**')
+    expect(skill).toContain('(«Bạn muốn chọn hướng nào?», «chọn hướng nào')
   })
 
   test('the take-off: the wing is line 1.4, line 1.7 is the rail', () => {
     expect(skill).toContain('bê tông **tường cánh** là mục 1.4')
     expect(skill).toContain('mục 1.7 là **lan can trên tường cánh**')
     expect(skill).toContain('không gọi 1.7 là tường cánh')
+  })
+
+  // P2-M3 (QA P2-M2 step 6): after «lan can 900 mm» the agent quoted a
+  // «tường phòng hộ 685–1500 mm … TCVN 11823-13:2017» it had not looked up.
+  test('no standard quoted for the dossier without a source', () => {
+    expect(prompt).toContain(
+      '**The abutment dossier\u0027s ranges are not a standard.**'
+    )
+    expect(prompt).toContain('call them «khoảng cho phép», never TCVN')
+    expect(prompt).toContain(
+      'quote no standard, limit or clause number unless that number came from tra_cuu_tieu_chuan or from the mo-cau guide in this turn'
+    )
+    expect(prompt).toContain('«tường phòng hộ»')
+    // It comes after the catalogue rule it overrides.
+    expect(
+      prompt.indexOf('dossier\u0027s ranges are not a standard')
+    ).toBeGreaterThan(
+      prompt.indexOf('A template\u0027s declared range is the standard')
+    )
+    expect(skill).toContain('**Không trích tiêu chuẩn khi không có nguồn.**')
+    expect(skill).toContain('không phải TCVN')
+  })
+
+  test('the slopes: in the stretch rows, said in Vietnamese', () => {
+    expect(skill).toMatch(/\| `docNgang`, `docDoc` +\| Co giãn \(từ P2-M3\)/)
+    expect(skill).toContain('«dốc ngang», «dốc đỉnh cánh»')
   })
 })

@@ -232,19 +232,16 @@ describe('dossier tools against a real database', () => {
     const edit = DOSSIER_TOOLS.find(t => t.name === 'sua_ho_so_mo')!
     for (const description of [create.description, edit.description]) {
       const fixed = description.split('CHƯA đổi được')[1] ?? ''
-      for (const key of [
-        'docNgang',
-        'docDoc',
-        'soCotCoc',
-        'soHangCoc',
-        'phuLot'
-      ])
+      for (const key of ['soCotCoc', 'soHangCoc', 'phuLot'])
         expect(fixed).toContain(`${key} = `)
       expect(fixed).not.toContain('bMatDuong = ')
       // In the grid since P2/M1.
       expect(fixed).not.toContain('tCanh = ')
       // In the grid since P2-M2.
       expect(fixed).not.toContain('hLanCan = ')
+      // In the grid since P2-M3 (tilted, not stretched).
+      expect(fixed).not.toContain('docNgang = ')
+      expect(fixed).not.toContain('docDoc = ')
       expect(fixed).not.toContain('soGoi = ')
       expect(fixed).not.toContain('aGoi = ')
       expect(description).toContain('Gối đổi được: soGoi, aGoi')
@@ -260,7 +257,7 @@ describe('dossier tools against a real database', () => {
       expect(description).toContain('6 gối trên thân 8700 → aGoi = 1400')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
-        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong, tCanh, hLanCan.'
+        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong, tCanh, hLanCan, docNgang, docDoc.'
       )
       expect(description).toContain('bBe = bThan = bMatDuong + 2 × 350')
       expect(description).toContain('data.suyRa')
