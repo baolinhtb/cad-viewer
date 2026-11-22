@@ -167,7 +167,8 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
         )
       ).data as { caoDo: { bang: Record<string, number> } }
     ).caoDo.bang
-    expect(said0.FG - 237.491).toBeCloseTo(0.3, 6)
+    // P2-M6: L1 default FG is 237,498 (true 2 % over 8 m); FE stays 237,441.
+    expect(said0.FG - 237.498).toBeCloseTo(0.3, 6)
     expect(said0.FE - 237.441).toBeCloseTo(0.3, 6)
     expect(said0.EL3).toBe(235.854)
     expect(after).toContain(Number(v0.caoDoDayBe))
@@ -286,10 +287,11 @@ describe('one source of elevations: the drawn table', () => {
           db
         )
       ).data as { caoDo: Said }
-      // Before any raise (M4 measurements): 235.631 / 235.477 / 235.554.
+      // P2-M6: seat follows 2 % over the 8,7 m stem (±0,087 about 235,554).
+      // Before: 235.631 / 235.477 (fall over 7,7 m).
       expect(created.caoDo).toMatchObject({
-        keGoiTrai: 235.631,
-        keGoiPhai: 235.477,
+        keGoiTrai: 235.641,
+        keGoiPhai: 235.467,
         keGoiTim: 235.554
       })
       const res = await edit(
@@ -312,8 +314,8 @@ describe('one source of elevations: the drawn table', () => {
     for (const k of ['keGoiTrai', 'keGoiPhai', 'keGoiTim'] as const)
       expect(seats[1][k]).toBe(seats[0][k])
     expect(seats[0]).toMatchObject({
-      keGoiTrai: 235.931,
-      keGoiPhai: 235.777,
+      keGoiTrai: 235.941,
+      keGoiPhai: 235.767,
       keGoiTim: 235.854
     })
   })

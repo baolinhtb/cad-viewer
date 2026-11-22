@@ -67,7 +67,15 @@ export const DOSSIER_DIM_SYMBOLS: Readonly<Record<string, AcTpDimSymbol>> = {
   },
   H2A: { thamSo: 'hThan', giaTri: v => n(v, 'hThan'), xapXi: true },
   H2B: { thamSo: 'hDau', giaTri: v => n(v, 'hDau'), xapXi: true },
-  H3: { thamSo: 'hThan + hDau', giaTri: v => n(v, 'hThan') + n(v, 'hDau') },
+  // At the high road edge of the front elevation, like H3A/H3B: it measured
+  // hThan + hDau exactly only while the road was the source's 7000 at 2 %.
+  // Since P2-M6 the fall is the stated one on any road width (L1: 6615,
+  // the high edge 10 mm higher than the stretched source put it).
+  H3: {
+    thamSo: 'hThan + hDau',
+    giaTri: v => n(v, 'hThan') + n(v, 'hDau'),
+    xapXi: true
+  },
   H3A: { thamSo: 'hThan', giaTri: v => n(v, 'hThan'), xapXi: true },
   H3B: { thamSo: 'hDau', giaTri: v => n(v, 'hDau'), xapXi: true }
 }

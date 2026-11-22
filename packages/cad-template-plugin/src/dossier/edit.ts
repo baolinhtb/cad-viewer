@@ -22,6 +22,7 @@ import {
 import type { AcApRunEditResult } from '../editRun'
 import { entitiesOfRun, listRuns } from '../runIdentity'
 import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
+import { acTpWithLegacyDossierGeometry } from './grid030'
 import {
   acapIsA3Version,
   buildDossierModel,
@@ -114,7 +115,7 @@ export async function acapEditDossierRun(
     changed.some(k => DOSSIER_TITLE_KEYS.includes(k))
   )
     return result([
-      `Hồ sơ ${run.id} dựng bằng bộ sinh 0.1.0, chưa có khung tên nên không ghi được ${changed
+      `Hồ sơ ${run.id} dựng bằng phiên bản 0.1.0, chưa có khung tên nên không ghi được ${changed
         .filter(k => DOSSIER_TITLE_KEYS.includes(k))
         .join(
           ', '
@@ -146,7 +147,7 @@ export async function acapEditDossierRun(
     return regenerate()
   if (changed.some(k => !patchable.includes(k)))
     return result([
-      `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}: công cụ chưa đổi được ${changed
+      `Hồ sơ ${run.id} dựng bằng phiên bản ${run.version}: công cụ chưa đổi được ${changed
         .filter(k => !patchable.includes(k))
         .map(dossierParamLabel)
         .join(
@@ -158,11 +159,17 @@ export async function acapEditDossierRun(
   // not be silently overwritten by a value reconstructed from the template.
   // Both scenes with the run's own generator: a 0.1.0 dossier keeps its
   // border, a 0.2.0 one its title block.
-  const before = buildDossierScene(
-    buildDossierModel({ ...run.values }),
-    run.version
+  // A dossier drawn before P2-M6 keeps that drawing while only its labels
+  // change: both scenes as it was drawn, so nothing reads as a hand edit.
+  const asDrawn = drawnBeforeM6(run, entities)
+    ? acTpWithLegacyDossierGeometry
+    : <T>(build: () => T) => build()
+  const before = asDrawn(() =>
+    buildDossierScene(buildDossierModel({ ...run.values }), run.version)
   )
-  const after = buildDossierScene(buildDossierModel(values), run.version)
+  const after = asDrawn(() =>
+    buildDossierScene(buildDossierModel(values), run.version)
+  )
   const replacements = new Map<
     string,
     {
@@ -321,7 +328,7 @@ export async function acapEditDossierRun(
       // The text the run drew, or the drawing was edited by hand.
       if (!sameLabel(e.dimensionText ?? '', resolve(dim.old))) {
         differs(
-          `kích thước trên ${sheet} đang ghi «${e.dimensionText}», bộ sinh ghi «${resolve(dim.old)}»`
+          `kích thước trên ${sheet} đang ghi «${e.dimensionText}», thiết kế gốc ghi «${resolve(dim.old)}»`
         )
         handled.add(JSON.stringify([sheet, source]))
         if (revert)
@@ -344,7 +351,7 @@ export async function acapEditDossierRun(
         if (!attr) continue
         if (!sameLabel(a.textString, attr.old)) {
           differs(
-            `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», bộ sinh ghi «${attr.old}»`
+            `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», thiết kế gốc ghi «${attr.old}»`
           )
           handled.add(key)
           if (revert) attrTexts.set(a.objectId, { tag: a.tag, ...attr })
@@ -413,7 +420,7 @@ export async function acapEditDossierRun(
       }
       const now = textAt(db, place)
       differs(
-        `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
+        `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số thiết kế gốc «${replacement.old}»`
       )
       if (revert)
         redraws.push({
@@ -577,7 +584,7 @@ export async function acapEditDossierRun(
           warnings: [
             ...(reverted.length
               ? [
-                  `Đã đưa về số bộ sinh (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
+                  `Đã đưa về thiết kế gốc (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
                 ]
               : []),
             ...(a3 && run.version !== DOSSIER_VERSION
@@ -602,8 +609,8 @@ function handEdited(runId: string, edited: string[]): string {
   const more = edited.length > 6 ? ` và ${edited.length - 6} chỗ khác` : ''
   return (
     `Hồ sơ ${runId} có chữ đã sửa tay: ${shown}${more}. Chưa sửa gì: bản vẽ và thông số hồ sơ giữ nguyên. ` +
-    'Dừng lại, báo đúng các chỗ này và hỏi người dùng MỘT lần, chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi làm tiếp — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true, công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh và áp thay đổi; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
-    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về số bộ sinh.' +
+    'Dừng lại, báo đúng các chỗ này và hỏi người dùng MỘT lần, chọn: (1) đưa các chỗ đó về thiết kế gốc rồi làm tiếp — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true, công cụ tự viết lại các chỗ đó đúng kiểu ban đầu và áp thay đổi; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
+    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về thiết kế gốc.' +
     ' Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.'
   )
 }
@@ -847,10 +854,15 @@ async function regenerateRun(
     version: acapIsA3Version(run.version) ? DOSSIER_VERSION : run.version,
     values: v as Record<string, number | string | boolean>
   })
-  const before = buildDossierScene(
-    buildDossierModel({ ...run.values }),
-    run.version
-  )
+  // What the run's values drew: as before P2-M6 for a dossier drawn then
+  // (front pile pair 5300 apart on L1, the source fall stretched, the hDau
+  // band) — so the corrections are what this change redraws, never taken
+  // for hand edits; they come with it.
+  const before = (
+    drawnBeforeM6(run, entities)
+      ? acTpWithLegacyDossierGeometry
+      : <T>(build: () => T) => build()
+  )(() => buildDossierScene(buildDossierModel({ ...run.values }), run.version))
   // Say it before doing it: on 17/11/2026 hLot +50 mm silently took the
   // dossier from 2890 to 829 entities. Counted on the scenes, sheet by sheet.
   const counts = (scene: DossierScene) =>
@@ -1034,7 +1046,7 @@ async function regenerateRun(
     })
     if (edited)
       labels.push(
-        `chữ trên ${String(readSemanticTag(edited)?.params?.sheet ?? '')} đang là «${plainOf(edited)}», bộ sinh ghi «${said}»`
+        `chữ trên ${String(readSemanticTag(edited)?.params?.sheet ?? '')} đang là «${plainOf(edited)}», thiết kế gốc ghi «${said}»`
       )
   }
   if (inRegion || labels.length)
@@ -1044,7 +1056,7 @@ async function regenerateRun(
         [
           ...(inRegion
             ? [
-                `${inRegion} đối tượng bộ sinh đã dời, sửa hoặc xóa trong vùng mà lần sửa này vẽ lại`
+                `${inRegion} đối tượng do công cụ vẽ đã dời, sửa hoặc xóa trong vùng mà lần sửa này vẽ lại`
               ]
             : []),
           ...labels.slice(0, 6)
@@ -1109,7 +1121,7 @@ async function regenerateRun(
   const handMoved = sum(toKeep)
   if (handMoved || extra.length)
     notes.push(
-      `Giữ nguyên phần đã sửa tay ngoài vùng đổi (${handMoved ? `${handMoved} đối tượng bộ sinh đã dời/xóa` : ''}${handMoved && extra.length ? ', ' : ''}${extra.length ? `${extra.length} đối tượng ở chỗ mới hoặc thêm` : ''}); chỉ vẽ lại phần thông số làm đổi.`
+      `Giữ nguyên phần đã sửa tay ngoài vùng đổi (${handMoved ? `${handMoved} đối tượng do công cụ vẽ đã dời/xóa` : ''}${handMoved && extra.length ? ', ' : ''}${extra.length ? `${extra.length} đối tượng ở chỗ mới hoặc thêm` : ''}); chỉ vẽ lại phần thông số làm đổi.`
     )
   const crowded = userEntitiesOver(db, added)
   if (crowded)
@@ -1197,7 +1209,7 @@ function handEditedRun(runId: string, what: string): string {
 }
 
 const upgraded = (version: string) =>
-  `Hồ sơ dựng bằng bộ sinh ${version} đã chuyển lên bộ sinh ${DOSSIER_VERSION}.`
+  `Hồ sơ dựng bằng phiên bản ${version} đã chuyển lên phiên bản ${DOSSIER_VERSION}.`
 
 /** Key of a drawn entity, its text read without formatting. */
 function plainKey(e: AcDbEntity): string {
@@ -1219,10 +1231,23 @@ function compareWithGenerator(
   run: ReturnType<typeof listRuns>[number],
   entities: AcDbEntity[]
 ): { drift: number; valueEdits: string[] } {
-  const scene = buildDossierScene(
-    buildDossierModel({ ...run.values }),
-    DOSSIER_VERSION
-  )
+  const now = driftFrom(db, run, entities, false)
+  if (!now.drift) return now
+  // Drawn before P2-M6 and untouched since: no drift either.
+  const old = driftFrom(db, run, entities, true)
+  return old.drift < now.drift ? old : now
+}
+
+/** {@link compareWithGenerator} against one generator revision. */
+function driftFrom(
+  db: AcDbDatabase,
+  run: ReturnType<typeof listRuns>[number],
+  entities: AcDbEntity[],
+  beforeM6: boolean
+): { drift: number; valueEdits: string[] } {
+  const build = () =>
+    buildDossierScene(buildDossierModel({ ...run.values }), DOSSIER_VERSION)
+  const scene = beforeM6 ? acTpWithLegacyDossierGeometry(build) : build()
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
   acTpWithWorkingDatabaseSync(scratch, () =>
@@ -1280,7 +1305,7 @@ function compareWithGenerator(
     if (i >= 0) extraTexts.splice(i, 1)
     if (!sameLabel(plainOf(there), m.textString))
       valueEdits.push(
-        `chữ trên ${String(readSemanticTag(m)?.params?.sheet ?? '')} đang là «${plainOf(there)}», bộ sinh ghi «${m.textString}»`
+        `chữ trên ${String(readSemanticTag(m)?.params?.sheet ?? '')} đang là «${plainOf(there)}», thiết kế gốc ghi «${m.textString}»`
       )
     // The right value in a Text of another colour or layer: an old style.
     else if (
@@ -1292,6 +1317,69 @@ function compareWithGenerator(
   return { drift: drift + extraTexts.length, valueEdits }
 }
 
+/**
+ * Whether an A3 dossier's drawing is the generator's before P2-M6 (see
+ * `legacy` in grid030): its values draw differently then and now (an L1
+ * road, a flush 2 × 2 off the source spacing, hDau changed), and more of
+ * its entities match the older drawing. Untouched or hand-edited alike, the
+ * closer drawing is the one it was built with.
+ */
+function drawnBeforeM6(
+  run: ReturnType<typeof listRuns>[number],
+  entities: AcDbEntity[]
+): boolean {
+  if (!acapIsA3Version(run.version)) return false
+  const build = () =>
+    buildDossierScene(buildDossierModel({ ...run.values }), run.version)
+  let now: DossierScene
+  let old: DossierScene
+  try {
+    now = build()
+    old = acTpWithLegacyDossierGeometry(build)
+  } catch {
+    return false
+  }
+  if (JSON.stringify(now) === JSON.stringify(old)) return false
+  const actual = new Map<string, number>()
+  for (const e of entities) {
+    const k = regionKey(e)
+    actual.set(k, (actual.get(k) ?? 0) + 1)
+  }
+  const matches = (scene: DossierScene) => {
+    const scratch = new AcDbDatabase()
+    scratch.createDefaultData()
+    acTpWithWorkingDatabaseSync(scratch, () =>
+      drawDossierScene(
+        createDrawContext(
+          scratch,
+          DOSSIER_ID,
+          roleLayers(),
+          {
+            id: run.id,
+            version: DOSSIER_VERSION,
+            values: run.values as Record<string, number | string | boolean>
+          },
+          layerStyles(),
+          { legacyLayers: legacyLayers() }
+        ),
+        scene
+      )
+    )
+    const left = new Map(actual)
+    let hits = 0
+    for (const e of entitiesOfRun(scratch, run.id)) {
+      const k = regionKey(e)
+      const n = left.get(k) ?? 0
+      if (n > 0) {
+        left.set(k, n - 1)
+        hits += 1
+      }
+    }
+    return hits
+  }
+  return matches(old) > matches(now)
+}
+
 /** The refusal for an older dossier that no longer matches the generator. */
 function unlockMessage(
   run: ReturnType<typeof listRuns>[number],
@@ -1301,8 +1389,8 @@ function unlockMessage(
     ? ` Ngoài ra có chữ đã sửa tay: ${drift.valueEdits.slice(0, 6).join('; ')}${drift.valueEdits.length > 6 ? ` và ${drift.valueEdits.length - 6} chỗ khác` : ''} — mở khóa sẽ mất các số sửa tay này.`
     : ''
   return (
-    `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}; bản vẽ không còn khớp bộ sinh ${DOSSIER_VERSION} (khoảng ${drift.drift} đối tượng khác: màu, kiểu chữ, chỗ đặt, nhãn bộ sinh mới thêm, hoặc tờ thông báo cũ), nên chưa sửa được và chưa đụng gì.${edits} ` +
-    `Đường mở khóa: giải thích cho người dùng và hỏi xác nhận dựng lại hồ sơ theo bộ sinh ${DOSSIER_VERSION} từ đúng thông số đã lưu (chữ, hình vẽ thêm và mọi số sửa tay trên hồ sơ sẽ mất). Người dùng đồng ý thì gọi lại sua_ho_so_mo MỘT lần với cùng thông số và mo_khoa_031: true — công cụ dựng lại và áp thay đổi trong cùng lần. ` +
+    `Hồ sơ ${run.id} dựng bằng phiên bản ${run.version}; bản vẽ không còn khớp phiên bản ${DOSSIER_VERSION} (khoảng ${drift.drift} đối tượng khác: màu, kiểu chữ, chỗ đặt, nhãn phiên bản mới thêm, hoặc tờ thông báo cũ), nên chưa sửa được và chưa đụng gì.${edits} ` +
+    `Đường mở khóa: giải thích cho người dùng và hỏi xác nhận dựng lại hồ sơ theo phiên bản ${DOSSIER_VERSION} từ đúng thông số đã lưu (chữ, hình vẽ thêm và mọi số sửa tay trên hồ sơ sẽ mất). Người dùng đồng ý thì gọi lại sua_ho_so_mo MỘT lần với cùng thông số và mo_khoa_031: true — công cụ dựng lại và áp thay đổi trong cùng lần. ` +
     'Chưa xác nhận thì không đụng gì; không sửa bằng script, không dùng tao_ho_so_mo thay thế.' +
     ' Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.'
   )

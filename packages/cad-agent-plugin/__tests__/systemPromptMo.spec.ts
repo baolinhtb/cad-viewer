@@ -63,7 +63,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     for (const word of [
       'Bị từ chối vì sửa tay: dừng và hỏi, không lách.',
       '**Cấm** dùng `tx.setText`',
-      'Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp'
+      'Bản vẽ DWG/DXF nhập vào (không phải hồ sơ do công cụ dựng) vẫn sửa trực tiếp'
     ])
       expect(skill).toContain(word)
     // The skill no longer sends a refused dossier edit to the script tool.
@@ -86,7 +86,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     for (const word of [
       'hỏi người dùng **một lần**',
       '`dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó',
-      'để tự đưa về số bộ sinh'
+      'để tự đưa về thiết kế gốc'
     ])
       expect(skill).toContain(word)
   })
@@ -106,7 +106,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     )
     expect(prompt).toContain('mo_khoa_031: true')
     expect(prompt).toContain('never replace it quietly with tao_ho_so_mo')
-    expect(skill).toContain('**Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.**')
+    expect(skill).toContain('**Hồ sơ phiên bản cũ (0.3.0) — mở khóa.**')
     expect(skill).toContain('`mo_khoa_031: true`')
   })
 
@@ -207,7 +207,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
   // answer after a refusal is one or two sentences.
   test('a refusal: the whole answer is one or two sentences', () => {
     expect(prompt).toContain(
-      '**After a refusal the whole answer is one or two sentences:** counted from the tool\'s answer — an intention «Tôi sẽ…» written before the call is allowed and does not count — «chưa sửa, bản vẽ giữ nguyên» with the short reason in that same sentence, then at most that one hint sentence — no paragraph of explanation, no list of ways, no «Nếu cần… thì…», no «Một cách khác là…» beyond the one hint, no question.'
+      "**After a refusal the whole answer is one or two sentences:** counted from the tool's answer — an intention «Tôi sẽ…» written before the call is allowed and does not count — «chưa sửa, bản vẽ giữ nguyên» with the short reason in that same sentence, then at most that one hint sentence — no paragraph of explanation, no list of ways, no «Nếu cần… thì…», no «Một cách khác là…» beyond the one hint, no question."
     )
     // The earlier rule stays, the new one follows it.
     expect(
@@ -251,7 +251,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
   // before the call is allowed; what follows the refusal is 1–2 sentences.
   test('a refusal after an intention: the intention does not count', () => {
     expect(prompt).toContain(
-      'counted from the tool\'s answer — an intention «Tôi sẽ…» written before the call is allowed and does not count'
+      "counted from the tool's answer — an intention «Tôi sẽ…» written before the call is allowed and does not count"
     )
     expect(skill).toContain(
       'tính phần viết sau khi\n  công cụ trả lời; câu ý định «Tôi sẽ…» viết trước khi gọi công cụ không\n  tính vào đó (được giữ)'
@@ -273,5 +273,31 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('*ngoài vùng mà lần sửa vẽ lại*')
     expect(skill).toContain('*trong vùng đổi*')
     expect(skill).toContain('tự cập nhật\n  tờ BTKL (cùng mã, cùng chỗ)')
+  })
+
+  // QA P2-M5 step 7: «đưa về số bộ sinh» said to the user. «Bộ sinh» is
+  // internal slang: plain words in the prompt, the skill and the questions;
+  // the flag names (dua_ve_so_bo_sinh) stay for the calls only.
+  test('no «bộ sinh» in what the user reads: «thiết kế gốc» / «giá trị mặc định»', () => {
+    // The rule itself names the word in «»; nothing else may use it.
+    const bare = (t: string) => t.replace(/«[Bb]ộ sinh»/g, '')
+    expect(bare(prompt)).not.toMatch(/bộ sinh/i)
+    expect(bare(skill)).not.toMatch(/bộ sinh/i)
+    expect(prompt).toContain('Nor the internal word «bộ sinh»')
+    expect(prompt).toContain(
+      'say «thiết kế gốc» or «giá trị mặc định» (e.g. «đưa về thiết kế gốc»)'
+    )
+    expect(prompt).toContain(
+      '«đưa về thiết kế gốc rồi làm tiếp», «giữ bản vẽ đã sửa tay»'
+    )
+    expect(prompt).toContain('người dùng chọn đưa về thiết kế gốc thì gọi lại')
+    expect(skill).toContain('**Lời với người dùng: không nói «bộ sinh».**')
+    expect(skill).toContain('«thiết kế gốc», «giá trị mặc định»')
+    expect(skill.replace(/\s+/g, ' ')).toContain(
+      '«đưa về thiết kế gốc rồi làm tiếp / giữ bản vẽ đã sửa tay / hủy»'
+    )
+    // The flags are still there, for the calls.
+    expect(prompt).toContain('dua_ve_so_bo_sinh: true')
+    expect(skill).toContain('`dua_ve_so_bo_sinh: true`')
   })
 })

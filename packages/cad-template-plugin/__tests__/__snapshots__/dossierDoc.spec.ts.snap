@@ -1,20 +1,20 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`the take-off with the slopes (formulas unchanged) L1: numbers pinned for 0 / 3 % and 1 / 4 % 1`] = `
+exports[`the take-off with the slopes (1.4 / 5.4: wing end as drawn, P2-M6) L1: numbers pinned for 0 / 3 % and 1 / 4 % 1`] = `
 {
   "docDoc 1": {
-    "1 C30": 184.76579494811537,
+    "1 C30": 184.71539509175537,
     "1.2 than": 49.24548,
-    "1.4 canh": 19.61295,
+    "1.4 canh": 19.562550143640003,
     "1.7 lan can": 3.214153846153846,
-    "5 van khuon": 252.16140000000001,
+    "5 van khuon": 251.95980057456,
   },
   "docDoc 4": {
-    "1 C30": 184.91804494811535,
+    "1 C30": 184.95164485235534,
     "1.2 than": 49.24548,
-    "1.4 canh": 19.7652,
+    "1.4 canh": 19.79879990424,
     "1.7 lan can": 3.214153846153846,
-    "5 van khuon": 252.7704,
+    "5 van khuon": 252.90479961696,
   },
   "docNgang 0": {
     "1 C30": 185.08114494811537,
@@ -40,21 +40,21 @@ exports[`the take-off with the slopes (formulas unchanged) L1: numbers pinned fo
 }
 `;
 
-exports[`the take-off with the slopes (formulas unchanged) M1: numbers pinned for 0 / 3 % and 1 / 4 % 1`] = `
+exports[`the take-off with the slopes (1.4 / 5.4: wing end as drawn, P2-M6) M1: numbers pinned for 0 / 3 % and 1 / 4 % 1`] = `
 {
   "docDoc 1": {
-    "1 C30": 187.04721598682463,
+    "1 C30": 186.63771957782464,
     "1.2 than": 54.48135,
-    "1.4 canh": 27.6925,
+    "1.4 canh": 27.283003591,
     "1.7 lan can": 5.223,
-    "5 van khuon": 267.2716,
+    "5 van khuon": 265.633614364,
   },
   "docDoc 4": {
-    "1 C30": 186.99471598682462,
+    "1 C30": 187.26771359282463,
     "1.2 than": 54.48135,
-    "1.4 canh": 27.64,
+    "1.4 canh": 27.912997605999998,
     "1.7 lan can": 5.223,
-    "5 van khuon": 267.0616,
+    "5 van khuon": 268.15359042399996,
   },
   "docNgang 0": {
     "1 C30": 187.19071598682464,
@@ -66,9 +66,9 @@ exports[`the take-off with the slopes (formulas unchanged) M1: numbers pinned fo
   "docNgang 3": {
     "1 C30": 186.92821598682463,
     "1.2 than": 54.48135,
-    "1.4 canh": 27.5735,
+    "1.4 canh": 27.573500000000003,
     "1.7 lan can": 5.223,
-    "5 van khuon": 266.7956,
+    "5 van khuon": 266.79560000000004,
   },
   "goc": {
     "1 C30": 187.01571598682463,

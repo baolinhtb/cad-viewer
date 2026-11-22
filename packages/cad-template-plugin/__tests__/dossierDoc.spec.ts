@@ -410,7 +410,7 @@ describe('the tools build and edit them', () => {
   })
 })
 
-describe('the take-off with the slopes (formulas unchanged)', () => {
+describe('the take-off with the slopes (1.4 / 5.4: wing end as drawn, P2-M6)', () => {
   const row = (v: Values, stt: string) =>
     acTpBtklMo(v).items.find(i => i.stt === stt)!.khoiLuong!
   test.each([

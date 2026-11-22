@@ -82,7 +82,45 @@ type Axis = (v: number) => number
  * 2,8 %), so a slope is not a grid line: what moves is the change from the
  * source slope (P2-M3), and at the source slopes nothing moves.
  */
-type Tilt = (x: number, y: number) => number
+type Tilt = (x: number, y: number, xs?: number) => number
+
+/** Source cross fall (front elevation, sections B–B / C–C), %. */
+export const DOSSIER_SOURCE_CROSS_FALL = 2
+/** Source road width the cross fall is drawn over, mm. */
+const SOURCE_ROAD = 7000
+/** Source stem (and footing) width, mm. */
+const SOURCE_STEM = 7700
+
+/**
+ * Generator revision of the drawing. P2-M6 corrected three things a dossier
+ * drawn before shows differently: the head-wall top and the seat strip of
+ * the front elevation follow hDau / hThan as one (lines 21700, 20750), the
+ * cross fall is the stated slope on any road width (not the source's 140 mm
+ * stretched), and a flush 2 × 2 front elevation draws its two pile stubs at
+ * the true spacing (not the source pair 5300 apart). `legacy` draws as
+ * before, only to recognise such a dossier when it is edited — never to
+ * build a new one (see `acapDossierRevisionFor` in edit.ts).
+ */
+let legacy = false
+
+/**
+ * Runs `build` with the drawing of the generator before P2-M6 (see
+ * {@link legacy}). Synchronous: the flag is restored before returning.
+ */
+export function acTpWithLegacyDossierGeometry<T>(build: () => T): T {
+  const was = legacy
+  legacy = true
+  try {
+    return build()
+  } finally {
+    legacy = was
+  }
+}
+
+/** Whether a drawing is being built as before P2-M6. */
+export function acTpLegacyDossierGeometry(): boolean {
+  return legacy
+}
 
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v))
@@ -107,6 +145,57 @@ const wingTilt =
     (d.docDoc / 100) *
     clamp(Math.sign(end - face) * (x - face), 0, Math.abs(end - face)) *
     ramp(y, chamfer, wallTop)
+
+/**
+ * How far the high road edge rises for the cross fall, beyond what the
+ * source draws there (sections B–B / C–C are cut at the road edges): the
+ * change of slope over half the road, plus — since P2-M6 — the source slope
+ * over the half-width added to the source road (L1: 10 mm), so the edges sit
+ * `docNgang · bMatDuong / 2` from the centre whatever the road width.
+ */
+const edgeLift = (d: Delta, n: (key: string) => number) =>
+  ((d.docNgang / 100) * n('bMatDuong')) / 2 +
+  (legacy
+    ? 0
+    : ((DOSSIER_SOURCE_CROSS_FALL / 100) * (n('bMatDuong') - SOURCE_ROAD)) / 2)
+
+/**
+ * The source fall over the width a band gained (P2-M6), mm, at source x
+ * `xs` (stretched `x` when the caller has no source x): with the source
+ * slope drawn as is, the band's edges end up at `i_s · (k − 1) · e` from the
+ * stated slope, k the band's stretch and e the source edge offset. Zero at
+ * the source widths, and before P2-M6.
+ */
+function fallFix(
+  fx: Axis,
+  centre: number,
+  stem: [number, number],
+  road: [number, number]
+) {
+  const band = (b: [number, number]) => ({
+    b,
+    k: (fx(b[1]) - fx(b[0])) / (b[1] - b[0])
+  })
+  const bands = [band(stem), band(road)]
+  const i = DOSSIER_SOURCE_CROSS_FALL / 100
+  return (onRoad: boolean, x: number, xs?: number) => {
+    const { b, k } = bands[onRoad ? 1 : 0]
+    if (legacy || Math.abs(k - 1) < 1e-12) return 0
+    const u = clamp(xs ?? inverse(fx, x), b[0], b[1])
+    return i * (k - 1) * (u - centre)
+  }
+}
+/** The source coordinate a monotonic axis map takes to `x` (bisection). */
+function inverse(f: Axis, x: number) {
+  let lo = -1e6
+  let hi = 1e6
+  for (let k = 0; k < 80; k++) {
+    const mid = (lo + hi) / 2
+    if (f(mid) < x) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
 
 /** Parameters the grid follows. */
 export const DOSSIER_STRETCH_KEYS = [
@@ -255,14 +344,24 @@ const SUB_010: View[] = [
     // road edges (3764 / 10764), where the source measures them (the kerb
     // strip outside rides along). The footing (15286 and below) stays; the
     // stem stretches up to the seat (19900, under its low end).
+    //
+    // The source draws that fall over its own widths (140 over the 7000
+    // road, 154 over the 7700 stem); stretched wider it would be a flatter
+    // slope than stated (L1: 1,75 % for 2 %, a 20 mm tilt left at 0 %).
+    // `fallFix` adds the source fall over the width added (P2-M6), from the
+    // source x, so the drawn slope is the stated one on any width.
     tilt: (d, _n, fx) => {
       const i = d.docNgang / 100
       const centre = fx(7264)
       const stem = [fx(3414), fx(11114)]
       const road = [fx(3764), fx(10764)]
-      return (x, y) => {
+      const fix = fallFix(fx, 7264, [3414, 11114], [3764, 10764])
+      return (x, y, xs) => {
         const [lo, hi] = y >= 21700 ? road : stem
-        return i * (clamp(x, lo, hi) - centre) * ramp(y, 15286, 19900)
+        return (
+          (i * (clamp(x, lo, hi) - centre) + fix(y >= 21700, x, xs)) *
+          ramp(y, 15286, 19900)
+        )
       }
     },
     y: [
@@ -273,7 +372,20 @@ const SUB_010: View[] = [
       // bearings, stops, elevation tags EL3/EL4 — rises as one with hThan,
       // instead of its low side rising by 0,983 Δ (P1/M5).
       [19900, d => d.hBe + d.hThan] as Line,
-      ...heights(20015).slice(3)
+      ...heights(20015).slice(3, 4),
+      // P2-M6: above the seat's high end (20080) the bearings, stops and
+      // their bars (up to 20743) and the EL4.R tag rode the hDau band:
+      // +0,3 m on hDau raised EL4.R by 12 mm and stretched the stops. They
+      // rise with the seat now; the line is left out where hDau would fold
+      // it onto the one above (head wall under 937 mm).
+      [20750, d => d.hBe + d.hThan, d => !legacy && d.hDau > -900] as Line,
+      // P2-M6: the head-wall top falls across the bridge (21751 at its low
+      // road edge, 21891 at its high one). Below 21891 its low side rode the
+      // hDau band and rose by 0,925 Δ: H2 measured 7042 for 7204 after the
+      // chain of height changes (plan P0–P1, section 7). The whole top now
+      // rises as one with hDau, as the tilt already treats it.
+      [21700, d => d.hBe + d.hThan + d.hDau, () => !legacy] as Line,
+      ...heights(20015).slice(4)
     ]
   },
   {
@@ -329,7 +441,7 @@ const SUB_010: View[] = [
     tilt: (d, n, fx) => {
       const face = fx(29367)
       const wing = wingTilt(d, face, fx(35867), 20573, 21891)
-      const lift = ((d.docNgang / 100) * n('bMatDuong')) / 2
+      const lift = edgeLift(d, n)
       return (x, y) =>
         lift * (x > face ? ramp(y, 20573, 21891) : ramp(y, 15286, 20000)) +
         wing(x, y)
@@ -362,7 +474,7 @@ const SUB_020: View[] = [
     tilt: (d, n, fx) => {
       const face = fx(8722)
       const wing = wingTilt(d, face, fx(2222), 10586, 11904)
-      const lift = ((d.docNgang / 100) * n('bMatDuong')) / 2
+      const lift = edgeLift(d, n)
       return (x, y) =>
         -lift * (x < face ? ramp(y, 10586, 11904) : ramp(y, 5439, 10013)) +
         wing(x, y)
@@ -437,6 +549,12 @@ export interface AcTpSheetStretch {
    * `map`): for an item placed at its own distance across, not at `map`'s x.
    */
   tilt?(x: number, y: number, at?: XY): number
+  /**
+   * The rise for the slopes at source point `p` (already in `map`): what
+   * the cross fall and the wing top slope add to where `p` is drawn (P2-M6,
+   * the BTKL wing end height).
+   */
+  rise?(p: XY, at?: XY): number
   /** Index of the view a point belongs to. */
   viewOf(at: XY): number
   /** View names, by index. */
@@ -506,7 +624,12 @@ export function sheetStretch(
     }
   const kept = (lines: Line[]) => lines.filter(l => !l[2] || l[2](d))
   try {
-    const tilted = d.docNgang !== 0 || d.docDoc !== 0
+    // Since P2-M6 a road or stem wider than the source tilts too (the
+    // source fall over the added width), at any slope.
+    const tilted =
+      d.docNgang !== 0 ||
+      d.docDoc !== 0 ||
+      (!legacy && (n('bMatDuong') !== SOURCE_ROAD || n('bBe') !== SOURCE_STEM))
     const maps = views.map(v => {
       const fx = axis(kept(v.x), d, v.name, 'ngang')
       return {
@@ -532,9 +655,13 @@ export function sheetStretch(
       map: (p, at = p) => {
         const m = maps[index(at)]
         const x = m.fx(p[0])
-        return [x, m.fy(p[1]) + m.tilt(x, p[1])]
+        return [x, m.fy(p[1]) + m.tilt(x, p[1], p[0])]
       },
       tilt: (x, y, at = [x, y]) => maps[index(at)].tilt(x, y),
+      rise: (p, at = p) => {
+        const m = maps[index(at)]
+        return m.tilt(m.fx(p[0]), p[1], p[0])
+      },
       viewOf: index,
       views: views.map(v => v.name),
       flow: FLOWS[id] ?? [views.map((_, k) => k)]

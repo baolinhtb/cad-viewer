@@ -302,11 +302,13 @@ describe('tags clear of dashed lines, styled as generated', () => {
     }
     // The numbers after (b), unchanged by the bearings.
     const shown = [...tags.values()].map(t => t.a.textString)
+    // P2-M6: EL4 / FG follow the true 2 % over the 8,7 m stem (EL4 ±0,087
+    // about EL3; was 235.931 / 235.777 / FG 237.791 when the fall used 7,7 m).
     for (const want of [
       'EL3 = 235.854',
-      'EL4.L = 235.931',
-      'EL4.R = 235.777',
-      'FG = 237.791',
+      'EL4.L = 235.941',
+      'EL4.R = 235.767',
+      'FG = 237.798',
       'FE = 237.741',
       'EL6 = 228.837'
     ])

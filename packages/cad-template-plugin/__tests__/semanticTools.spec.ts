@@ -289,10 +289,10 @@ describe('describing the drawing', () => {
       const outcome = describeDrawing()
       expect(outcome.ok).toBe(true)
       expect(outcome.message).toBe(
-        'Bản vẽ có 2 bộ phận, 1 lần sửa r1 (hồ sơ mố QA-M6-P1, bộ sinh 0.3.1).'
+        'Bản vẽ có 2 bộ phận, 1 lần sửa r1 (hồ sơ mố QA-M6-P1, phiên bản 0.3.1).'
       )
       expect(outcome.message).toContain('lần sửa r1')
-      expect(outcome.message).toContain('bộ sinh 0.3.1')
+      expect(outcome.message).toContain('phiên bản 0.3.1')
       expect(outcome.message).not.toMatch(/ho_so_mo_m1|hThan|tenMo/)
       // The key stays in the data, for calls.
       const lanChay = (outcome.data as { lanChay: Record<string, unknown>[] })
@@ -310,7 +310,9 @@ describe('describing the drawing', () => {
     test('a run with no abutment name still says its id and generator', () => {
       mockEntities = [run('r2', '1.0.0', { bBe: 8000 })]
       const message = describeDrawing().message
-      expect(message).toBe('Bản vẽ có 2 bộ phận, 1 lần sửa r2 (bộ sinh 1.0.0).')
+      expect(message).toBe(
+        'Bản vẽ có 2 bộ phận, 1 lần sửa r2 (phiên bản 1.0.0).'
+      )
       expect(message).not.toContain('hồ sơ mố')
     })
 
@@ -320,7 +322,7 @@ describe('describing the drawing', () => {
         run('r1', '0.3.0', { tenMo: 'M1' })
       ]
       expect(describeDrawing().message).toBe(
-        'Bản vẽ có 2 bộ phận, 2 lần sửa: mã r1 (hồ sơ mố M1, bộ sinh 0.3.0); mã r2 (bộ sinh 0.3.1).'
+        'Bản vẽ có 2 bộ phận, 2 lần sửa: mã r1 (hồ sơ mố M1, phiên bản 0.3.0); mã r2 (phiên bản 0.3.1).'
       )
     })
 
@@ -328,7 +330,7 @@ describe('describing the drawing', () => {
       mockEntities = [{}, {}]
       const outcome = describeDrawing()
       expect(outcome.message).toBe('Bản vẽ có 2 bộ phận.')
-      expect(outcome.message).not.toMatch(/lần sửa|bộ sinh/)
+      expect(outcome.message).not.toMatch(/lần sửa|phiên bản|bộ sinh/)
       expect((outcome.data as { lanChay: unknown[] }).lanChay).toEqual([])
     })
   })

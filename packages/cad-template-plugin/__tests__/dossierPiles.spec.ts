@@ -187,15 +187,17 @@ describe('the source arrangement stays the source drawing (0.3.1)', () => {
           .identity
     ).toBe(true)
   })
-  test('L1 (D1000, footing 8700, 6700 × 4000 flush): as built before M4', () => {
+  test('L1 (D1000, footing 8700, 6700 × 4000 flush): as built before M4, front stubs at 6700', () => {
     expect(L1).toMatchObject({ aCocNgang: 6700, aCocDoc: 4000, bBe: 8700 })
-    expect(arrayed(L1)).toBe(0)
+    // Only the front elevation's two stubs are re-placed (P2-M6): the
+    // source pair block drew them 5300 apart under the 6700 dimension.
+    expect(arrayed(L1)).toBe(2)
     expect(plan(L1).count).toBe(4)
     expect(steps(plan(L1).xs)).toEqual([6700])
     expect(steps(plan(L1).ys)).toEqual([4000])
-    // The front keeps the source's one pair block (5300 apart as drawn —
-    // a known limitation of L1's front, see the notes).
-    expect(inserts(L1, 'MO2_U351')).toHaveLength(1)
+    // The front: two stubs at the true centres, no pair block (P2-M6).
+    expect(inserts(L1, 'MO2_U351')).toHaveLength(0)
+    expect(inserts(L1, 'MO2_U350')).toHaveLength(2)
     numbers.L1 = {
       plan: plan(L1),
       front: front(L1),

@@ -26,6 +26,7 @@ import {
   AcApOpenCmd,
   AcApQNewCmd,
   acapRunDatabaseEdit,
+  acapRunDataSourceMenuAction,
   acapScreenPxToWcs,
   acapSetMeasurementDrawColor,
   acapSetMeasurementTextHeight,
@@ -56,7 +57,8 @@ import {
   setMarkupDrawColor,
   setMarkupTextHeight,
   setMeasurementUnitOverride,
-  subscribeMeasurementSelection} from '@mlightcad/cad-simple-viewer'
+  subscribeMeasurementSelection
+} from '@mlightcad/cad-simple-viewer'
 import {
   AcCmColor,
   AcDbAngleUnits,
@@ -85,7 +87,8 @@ import {
   onUnmounted,
   ref,
   shallowRef,
-  watch} from 'vue'
+  watch
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { store } from '../../app'
@@ -3011,6 +3014,14 @@ const handleFileMenuSelect = async (command: string) => {
   } else if (command === 'Open') {
     const cmd = new AcApOpenCmd()
     cmd.trigger(AcApDocManager.instance.context)
+  } else if (command.startsWith('ds:')) {
+    // Open Drawing submenu (Local file, URL, cloud sources): the branch was
+    // lost when upstream 1.7.8 was merged, so the item did nothing (QA
+    // P2-M5). Run before any await: the local picker clicks a hidden file
+    // input, which needs the click's user activation.
+    const itemId = command.slice(3)
+    const item = dataSourceMenuItems.value.find(i => i.id === itemId)
+    if (item) void acapRunDataSourceMenuAction(item)
   } else if (command === 'Template') {
     await runLazyCommand('template')
   } else if (command === 'DrawingUnits') {
