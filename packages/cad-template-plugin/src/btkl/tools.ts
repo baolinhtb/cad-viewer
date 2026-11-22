@@ -40,6 +40,13 @@ export interface AcApBtklDownload {
   content: string | Uint8Array
 }
 
+/**
+ * Wing and rail are two lines (P2-M1b: after a wing-thickness change the
+ * agent called line 1.7 the wing and said it ignored the thickness).
+ */
+const WING_LINES =
+  'Mố: bê tông tường cánh là mục 1.4, nhân dày tường cánh (tCanh); mục 1.7 là lan can trên tường cánh, theo chiều dài cánh × chiều cao lan can, không theo dày tường cánh; ván khuôn tường cánh (5.4) là hai mặt lớn (tiết diện cánh), không nhân dày. Khi báo cho người dùng gọi đúng tên dòng (mục 1.7 là lan can, không phải tường cánh), bằng tên tiếng Việt, không nói khóa.'
+
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -47,7 +54,8 @@ export const BTKL_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_btkl',
     description:
-      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong); thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl.',
+      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong); thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl. ' +
+      WING_LINES,
     input_schema: {
       type: 'object',
       properties: {
@@ -64,7 +72,8 @@ export const BTKL_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'cap_nhat_btkl',
     description:
-      'Tính lại BTKL sau khi mố/trụ trong bản vẽ đổi kích thước, được thêm hoặc xoá: đọc lại thông số từ bản vẽ và dựng lại các tờ BTKL tại chỗ (cùng mã lần chạy, cùng vị trí). Tờ BTKL là kết quả tính, sửa tay trên tờ sẽ mất. Không có gì đổi thì không sửa bản vẽ.',
+      'Tính lại BTKL sau khi mố/trụ trong bản vẽ đổi kích thước, được thêm hoặc xoá: đọc lại thông số từ bản vẽ và dựng lại các tờ BTKL tại chỗ (cùng mã lần chạy, cùng vị trí). Tờ BTKL là kết quả tính, sửa tay trên tờ sẽ mất. Không có gì đổi thì không sửa bản vẽ. ' +
+      WING_LINES,
     input_schema: {
       type: 'object',
       properties: { ma_lan_chay: { type: 'string' } },
