@@ -51,8 +51,10 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   - (a) **nâng cả mố** → `caoDoDayBe += Δ` (m): mọi cao độ dời cùng Δ, kể cả
     đáy/đỉnh bệ; hình không đổi (hThan, hBe giữ), khối lượng không đổi;
   - (b) **giữ móng, kéo dài thân** → `hThan += Δ` (mm): đáy và đỉnh bệ giữ
-    nguyên; bệ kê gối và mọi cao độ phía trên tăng Δ; thân cao hơn, khối
-    lượng thân tăng.
+    nguyên; bệ kê gối và mọi cao độ phía trên tăng Δ — **kể cả FG và FE**
+    (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên
+    gối; thân cao hơn, khối lượng thân tăng. Khi hỏi (a)/(b) và khi báo xong
+    (b), nói rõ: FG, FE tăng cùng Δ; đáy bệ, đỉnh bệ không đổi.
 - Ví dụ câu hỏi: «Nâng xà mũ mố thêm 0,3 m theo cách nào: (a) nâng cả mố
   (đáy bệ cũng lên 0,3 m) hay (b) giữ móng, kéo dài thân thêm 300 mm?»
 - Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;
@@ -76,12 +78,25 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   kích thước bằng chính các công cụ hồ sơ. Khi công cụ từ chối vì có chữ /
   thẻ cao độ / kích thước đã sửa tay: không sửa gì thêm, nêu đúng các chỗ
   công cụ liệt kê (ví dụ «ô EL6 trên SUB-020 đang là 228.900, khác số bộ sinh
-  228.837») và hỏi người dùng chọn: đưa các chỗ đó về số bộ sinh rồi gọi lại /
-  giữ số đã sửa, không đổi thông số / hủy. **Cấm** dùng `tx.setText`,
+  228.837») và hỏi người dùng **một lần**, chọn: đưa các chỗ đó về số bộ sinh
+  rồi làm tiếp / giữ số đã sửa, không đổi thông số / hủy. Chọn đưa về số bộ
+  sinh: gọi lại `sua_ho_so_mo` **một lần** với cùng thông số và
+  `dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh
+  (Text, font, màu, layer) và áp thay đổi trong cùng lần gọi. **Cấm** dùng `tx.setText`,
   `execute_cad_script` hay công cụ sửa chữ khác để tăng/giảm hàng loạt chữ cao
-  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, hoặc để hồ sơ lệch bản vẽ.
+  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, để tự đưa về số bộ sinh, hoặc để hồ sơ lệch bản vẽ.
   Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp như
   thường.
+- **Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.** Hồ sơ mới là **0.3.1**. Hồ sơ 0.3.0
+  mà bản vẽ vẫn khớp bộ sinh hiện tại thì sửa như thường (và thành 0.3.1).
+  Bản vẽ không còn khớp (ô số màu cũ, tiêu đề «M1», thiếu nhãn gối, tờ
+  «CHƯA DỰNG ĐƯỢC» của hồ sơ khoá trước M2…) thì công cụ từ chối với
+  **đường mở khóa**: giải thích cho người dùng rằng hồ sơ sẽ được dựng lại
+  theo 0.3.1 từ đúng thông số đã lưu (chữ/hình vẽ thêm và số sửa tay sẽ mất),
+  hỏi xác nhận; đồng ý thì gọi lại `sua_ho_so_mo` **một lần** với cùng thông
+  số và `mo_khoa_031: true` — dựng lại và áp thay đổi trong cùng lần. Không
+  lách bằng script, không dùng `tao_ho_so_mo` thay thế. Nếu thông báo nêu cả
+  chữ sửa tay thì nói rõ mở khóa sẽ mất các số đó.
 - Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.
 - Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A3), `html` (tự chứa, in được),
   `dxf`, hoặc `json`. Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.

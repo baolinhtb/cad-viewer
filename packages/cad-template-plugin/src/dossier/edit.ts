@@ -22,10 +22,11 @@ import type { AcApRunEditResult } from '../editRun'
 import { entitiesOfRun, listRuns } from '../runIdentity'
 import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
 import {
+  acapIsA3Version,
   buildDossierModel,
-  DOSSIER_A3_VERSION,
   DOSSIER_ID,
-  DOSSIER_TITLE_KEYS
+  DOSSIER_TITLE_KEYS,
+  DOSSIER_VERSION
 } from './model'
 import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
@@ -53,6 +54,20 @@ export interface AcApDossierEditOptions {
    * refused with the numbers, so the agent can ask first.
    */
   confirmLoss?: boolean
+  /**
+   * The user chose to put the hand-edited texts, elevation tags and
+   * dimensions back to what the generator writes, in the same call as the
+   * change (`dua_ve_so_bo_sinh`). They are redrawn by the tool as generated —
+   * entity type, font, colour, layer — never by a script.
+   */
+  revertHandEdits?: boolean
+  /**
+   * The user confirmed rebuilding an older dossier (0.3.0) whose drawing no
+   * longer matches today's generator with generator 0.3.1, from its stored
+   * values, and applying the change in the same call (`mo_khoa_031`).
+   * Anything drawn by hand on it is lost.
+   */
+  unlock031?: boolean
 }
 
 /**
@@ -106,11 +121,21 @@ export async function acapEditDossierRun(
   // 0.3.0 (plan P0–P1 2.7): the elevation datum and the label mode only
   // change what texts, dimension texts and elevation tags say — patched in
   // place too, keeping every handle, when nothing else moves.
-  const a3 = run.version === DOSSIER_A3_VERSION
+  const a3 = acapIsA3Version(run.version)
   const wording = changed.some(k => WORDING_KEYS.includes(k))
   const patchable = a3 ? [...labelKeys, ...WORDING_KEYS] : labelKeys
   const regenerate = () =>
     regenerateRun(db, run, values, entities, result, options)
+  // An older A3 dossier (0.3.0, drawn before M2–M5b changed the generator)
+  // is edited like a current one only while its drawing is what today's
+  // generator draws from its values. Otherwise the user unlocks it: rebuilt
+  // as 0.3.1 from its stored values with the change, in one call — never
+  // silently, and never mistaken for a hand-edited number.
+  if (a3 && options.unlock031) return regenerate()
+  if (a3 && run.version !== DOSSIER_VERSION) {
+    const drift = compareWithGenerator(db, run, entities)
+    if (drift.drift > 0) return result([unlockMessage(run, drift)])
+  }
   if (
     a3 &&
     (changed.some(k => !patchable.includes(k)) ||
@@ -140,14 +165,28 @@ export async function acapEditDossierRun(
       // A text fitted to its cell (the SUB-020 name) is narrowed with it.
       fit?: { widthFactor: number; height: number }
       // Where the run drew it (sheet, point, height): to say what is there.
-      places: { sheet: string; at: XY; height: number }[]
+      places: {
+        sheet: string
+        at: XY
+        height: number
+        /** What the generator draws there now (to redraw the cell). */
+        next: DossierPrimitive
+      }[]
     }
   >()
   // Dimension texts and block attributes, by sheet and source handle.
-  const dimPatches = new Map<string, { old?: string; next?: string }>()
+  const dimPatches = new Map<
+    string,
+    { old?: string; next?: string; prim: DossierPrimitive }
+  >()
   const attrPatches = new Map<
     string,
-    { old: string; next: string; place?: { at: XY; align: number } }
+    {
+      old: string
+      next: string
+      place?: { at: XY; align: number }
+      prim: DossierPrimitive
+    }
   >()
   let moved = false
   // A frame whose structure is unchanged (same lines, same number of text
@@ -184,7 +223,8 @@ export async function acapEditDossierRun(
           if (!a.sourceHandle) moved = true
           dimPatches.set(JSON.stringify([old.id, a.sourceHandle]), {
             old: a.text,
-            next: b.text
+            next: b.text,
+            prim: b
           })
         }
         if (a.kind === 'insert' && b.kind === 'insert')
@@ -201,7 +241,8 @@ export async function acapEditDossierRun(
             attrPatches.set(JSON.stringify([old.id, a.sourceHandle, tag]), {
               old: was,
               next: now,
-              ...(shifted && to ? { place: to } : {})
+              ...(shifted && to ? { place: to } : {}),
+              prim: b
             })
           }
       }
@@ -222,7 +263,8 @@ export async function acapEditDossierRun(
           {
             sheet: old.id,
             at: [old.origin[0] + a.at[0], old.origin[1] + a.at[1]] as XY,
-            height: a.height
+            height: a.height,
+            next: b
           }
         ],
         ...(a.widthFactor !== b.widthFactor || a.height !== b.height
@@ -246,8 +288,20 @@ export async function acapEditDossierRun(
     }
   >()
   const handled = new Set<string>()
-  // What differs from what the run drew: named in the refusal.
+  // What differs from what the run drew: named in the refusal — or, when the
+  // user chose to put it back (revertHandEdits), listed as put back.
   const edited: string[] = []
+  const reverted: string[] = []
+  const revert = options.revertHandEdits === true
+  const differs = (what: string) => (revert ? reverted : edited).push(what)
+  // Cells to draw again from the generator: the run's text holds the right
+  // value in another entity (an MText, a text put in its stead), or a hand
+  // edit is being put back.
+  const redraws: {
+    sheet: string
+    erase?: AcDbEntity
+    prim: DossierPrimitive
+  }[] = []
   for (const e of entities) {
     const tag = readSemanticTag(e)
     const sheet = tag?.params?.sheet
@@ -258,15 +312,20 @@ export async function acapEditDossierRun(
       const resolve = (t?: string) =>
         t === undefined ? measured : t.replace(/<>/g, measured)
       // The text the run drew, or the drawing was edited by hand.
-      if (e.dimensionText !== resolve(dim.old)) {
-        edited.push(
+      if (!sameLabel(e.dimensionText ?? '', resolve(dim.old))) {
+        differs(
           `kích thước trên ${sheet} đang ghi «${e.dimensionText}», bộ sinh ghi «${resolve(dim.old)}»`
         )
         handled.add(JSON.stringify([sheet, source]))
+        if (revert)
+          dimTexts.set(e.objectId, {
+            old: e.dimensionText ?? '',
+            next: resolve(dim.next)
+          })
         continue
       }
       dimTexts.set(e.objectId, {
-        old: e.dimensionText,
+        old: e.dimensionText ?? '',
         next: resolve(dim.next)
       })
       handled.add(JSON.stringify([sheet, source]))
@@ -276,11 +335,12 @@ export async function acapEditDossierRun(
         const key = JSON.stringify([sheet, source, a.tag])
         const attr = attrPatches.get(key)
         if (!attr) continue
-        if (a.textString !== attr.old) {
-          edited.push(
+        if (!sameLabel(a.textString, attr.old)) {
+          differs(
             `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», bộ sinh ghi «${attr.old}»`
           )
           handled.add(key)
+          if (revert) attrTexts.set(a.objectId, { tag: a.tag, ...attr })
           continue
         }
         attrTexts.set(a.objectId, { tag: a.tag, ...attr })
@@ -289,42 +349,83 @@ export async function acapEditDossierRun(
   }
   // Every planned patch found its entity, exactly as drawn.
   for (const [k, d] of dimPatches)
-    if (!handled.has(k))
-      edited.push(
+    if (!handled.has(k)) {
+      differs(
         `kích thước «${d.old ?? 'số đo'}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
       )
+      if (revert) redraws.push({ sheet: JSON.parse(k)[0], prim: d.prim })
+    }
   for (const [k, a] of attrPatches)
-    if (!handled.has(k))
-      edited.push(
+    if (!handled.has(k)) {
+      differs(
         `thẻ cao độ «${a.old}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
       )
+      // The tag's block is drawn again, once for all its attributes.
+      if (revert && !redraws.some(r => r.prim === a.prim))
+        redraws.push({ sheet: JSON.parse(k)[0], prim: a.prim })
+    }
   const cells = acapDossierTableValues({ ...run.values })
+  const inRun = new Set(entities.map(e => e.objectId))
   for (const [key, replacement] of replacements) {
-    const found = entities.filter(e => {
+    const [sheetId, partId] = JSON.parse(key) as [string, string, string]
+    const mine = entities.filter(e => {
       const tag = readSemanticTag(e)
       return (
-        e instanceof AcDbText &&
-        JSON.stringify([tag?.params?.sheet, tag?.partId, e.textString]) === key
+        tag?.params?.sheet === sheetId &&
+        tag?.partId === partId &&
+        (e instanceof AcDbText || e instanceof AcDbMText) &&
+        sameLabel(plainOf(e), replacement.old)
       )
     })
-    if (found.length !== replacement.expected) {
-      // Name each place the run's text no longer is: what stands there now
-      // (a Text or an MText put in its stead), or nothing.
-      const cell = [...cells].find(([, x]) => x === replacement.old)?.[0]
-      for (const place of replacement.places) {
-        const here = found.some(e => near((e as AcDbText).position, place))
-        if (here) continue
-        const now = textAt(db, place)
-        edited.push(
-          `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
-        )
-      }
+    if (
+      mine.length === replacement.expected &&
+      mine.every(e => e instanceof AcDbText)
+    ) {
+      mine.forEach(e => {
+        patches.set(e.objectId, replacement.next)
+        if (replacement.fit) fits.set(e.objectId, replacement.fit)
+      })
       continue
     }
-    found.forEach(e => {
-      patches.set(e.objectId, replacement.next)
-      if (replacement.fit) fits.set(e.objectId, replacement.fit)
-    })
+    // Place by place: the run's own Text, the right value in another
+    // entity (redrawn), or a hand edit (named).
+    const cell = [...cells].find(([, x]) => x === replacement.old)?.[0]
+    for (const place of replacement.places) {
+      const own = mine.find(e => near(positionOf(e), place, 1.5))
+      if (own instanceof AcDbText) {
+        patches.set(own.objectId, replacement.next)
+        if (replacement.fit) fits.set(own.objectId, replacement.fit)
+        continue
+      }
+      const stand =
+        own ??
+        textEntityAt(db, place, e => !inRun.has(e.objectId), replacement.old)
+      if (stand) {
+        redraws.push({ sheet: place.sheet, erase: stand, prim: place.next })
+        continue
+      }
+      const now = textAt(db, place)
+      differs(
+        `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
+      )
+      if (revert)
+        redraws.push({
+          sheet: place.sheet,
+          // Whatever holds the cell now — the run's own text, or a text put
+          // in its stead — gives way to the generator's.
+          erase:
+            entities.find(e => {
+              const tag = readSemanticTag(e)
+              return (
+                tag?.params?.sheet === sheetId &&
+                tag?.partId === partId &&
+                (e instanceof AcDbText || e instanceof AcDbMText) &&
+                near(positionOf(e), place, 1.5)
+              )
+            }) ?? textEntityAt(db, place, () => true),
+          prim: place.next
+        })
+    }
   }
   if (edited.length) return result([handEdited(run.id, edited)])
   // The frame is generated layout, not engineering detail, so a changed frame
@@ -363,7 +464,18 @@ export async function acapEditDossierRun(
     db,
     'Sửa nhãn/vị trí hồ sơ, giữ chi tiết',
     async () => {
+      // Cells drawn again: what stands there goes (the run's MText, or a
+      // text put in its stead), the generator's own text comes back.
+      const redrawn = new Set(redraws.flatMap(r => r.erase?.objectId ?? []))
+      for (const r of redraws)
+        if (
+          r.erase &&
+          db.openEntityForWrite(r.erase)?.erase() &&
+          inRun.has(r.erase.objectId)
+        )
+          removed += 1
       for (const original of entities) {
+        if (redrawn.has(original.objectId)) continue
         if (
           redrawFrame &&
           FRAME_ROLES.has(readSemanticTag(original)?.role ?? '')
@@ -415,11 +527,13 @@ export async function acapEditDossierRun(
             : {}),
           run: {
             ...tag.run!,
+            // A matching 0.3.0 dossier is a 0.3.1 one from now on.
+            version: a3 ? DOSSIER_VERSION : tag.run!.version,
             values: values as Record<string, number | string | boolean>
           }
         })
       }
-      if (redrawFrame) {
+      if (redrawFrame || redraws.length) {
         // Drawn at the new placement: `after` already carries the new x, y.
         const ctx = createDrawContext(
           db,
@@ -427,7 +541,7 @@ export async function acapEditDossierRun(
           roleLayers(),
           {
             id: run.id,
-            version: run.version,
+            version: a3 ? DOSSIER_VERSION : run.version,
             values: values as Record<string, number | string | boolean>
           },
           layerStyles(),
@@ -437,7 +551,10 @@ export async function acapEditDossierRun(
           ...after,
           sheets: after.sheets.map(sheet => ({
             ...sheet,
-            primitives: sheet.primitives.filter(isFrame)
+            primitives: [
+              ...(redrawFrame ? sheet.primitives.filter(isFrame) : []),
+              ...redraws.filter(r => r.sheet === sheet.id).map(r => r.prim)
+            ]
           }))
         })
         drawn = ctx.drawn.length
@@ -447,7 +564,21 @@ export async function acapEditDossierRun(
   return {
     ...result([]),
     removed,
-    entityCount: entities.length - removed + drawn
+    entityCount: entities.length - removed + drawn,
+    ...(reverted.length || (a3 && run.version !== DOSSIER_VERSION)
+      ? {
+          warnings: [
+            ...(reverted.length
+              ? [
+                  `Đã đưa về số bộ sinh (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
+                ]
+              : []),
+            ...(a3 && run.version !== DOSSIER_VERSION
+              ? [upgraded(run.version)]
+              : [])
+          ]
+        }
+      : {})
   }
 }
 
@@ -464,14 +595,82 @@ function handEdited(runId: string, edited: string[]): string {
   const more = edited.length > 6 ? ` và ${edited.length - 6} chỗ khác` : ''
   return (
     `Hồ sơ ${runId} có chữ đã sửa tay: ${shown}${more}. Chưa sửa gì: bản vẽ và thông số hồ sơ giữ nguyên. ` +
-    'Dừng lại, báo đúng các chỗ này và hỏi người dùng chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi gọi lại sua_ho_so_mo; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
-    'Không tự sửa từng chữ cao độ hay kích thước của hồ sơ bằng script để đi tiếp.'
+    'Dừng lại, báo đúng các chỗ này và hỏi người dùng MỘT lần, chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi làm tiếp — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true, công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh và áp thay đổi; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
+    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về số bộ sinh.'
   )
 }
 
-/** Same place: within half a text height. */
-const near = (p: { x: number; y: number }, place: { at: XY; height: number }) =>
-  Math.hypot(p.x - place.at[0], p.y - place.at[1]) <= place.height / 2
+/** Same place: within `heights` text heights (half by default). */
+const near = (
+  p: { x: number; y: number },
+  place: { at: XY; height: number },
+  heights = 0.5
+) => Math.hypot(p.x - place.at[0], p.y - place.at[1]) <= place.height * heights
+
+/**
+ * A label as it reads, without MText or inline formatting: `{\A1;\c16777215;
+ * \farial|b0|i0;\H161.4;228.837}` reads `228.837` (UI acceptance P1/M5b:
+ * a cell rewritten through a script kept its codes and was taken for a hand
+ * edit).
+ */
+export function acapPlainLabel(text: string): string {
+  return text
+    .replace(/\\[ACcFfHhWwQqTtp][^;]*;/g, '')
+    .replace(/\\[LlOoKkNX]/g, '')
+    .replace(/\\P/g, ' ')
+    .replace(/\\~/g, ' ')
+    .replace(/[{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const NUMBER = /^[-+]?\d+(?:[.,]\d+)?$/
+/**
+ * Two labels say the same: equal once formatting is gone, or the same number
+ * (228.837, 228,837 and 228.8370 alike).
+ */
+export function acapSameLabel(a: string, b: string): boolean {
+  const x = acapPlainLabel(a)
+  const y = acapPlainLabel(b)
+  if (x === y) return true
+  if (NUMBER.test(x) && NUMBER.test(y))
+    return Number(x.replace(',', '.')) === Number(y.replace(',', '.'))
+  return false
+}
+const sameLabel = acapSameLabel
+
+/** The text an entity shows, Text or MText, without its formatting. */
+const plainOf = (e: AcDbEntity) =>
+  acapPlainLabel(
+    e instanceof AcDbMText
+      ? e.contents
+      : e instanceof AcDbText
+        ? e.textString
+        : ''
+  )
+const positionOf = (e: AcDbEntity) =>
+  e instanceof AcDbMText ? e.location : (e as AcDbText).position
+
+/**
+ * The Text or MText at a place that `pick` accepts and that reads `value`
+ * (any value when undefined).
+ */
+function textEntityAt(
+  db: AcDbDatabase,
+  place: { at: XY; height: number },
+  pick: (e: AcDbEntity) => boolean,
+  value?: string
+): AcDbEntity | undefined {
+  for (const e of db.tables.blockTable.modelSpace.newIterator())
+    if (
+      (e instanceof AcDbText || e instanceof AcDbMText) &&
+      pick(e) &&
+      near(positionOf(e), place) &&
+      (value === undefined || sameLabel(plainOf(e), value))
+    )
+      return e
+  return undefined
+}
 
 /**
  * The text standing at a place of a sheet now, whatever entity holds it — a
@@ -481,12 +680,8 @@ function textAt(
   db: AcDbDatabase,
   place: { at: XY; height: number }
 ): string | undefined {
-  for (const e of db.tables.blockTable.modelSpace.newIterator()) {
-    if (e instanceof AcDbText && near(e.position, place)) return e.textString
-    if (e instanceof AcDbMText && near(e.location, place))
-      return e.contents.replace(/\\[A-Za-z][^;]*;|[{}]/g, '').trim()
-  }
-  return undefined
+  const e = textEntityAt(db, place, () => true)
+  return e ? plainOf(e) : undefined
 }
 
 const attributeValue = (a: string | { value: string } | undefined) =>
@@ -544,7 +739,7 @@ function patchDimensionText(
     ? db.tables.blockTable.getAt(d.dimBlockId)
     : undefined
   for (const e of block?.newIterator() ?? [])
-    if (e instanceof AcDbMText && e.contents === old)
+    if (e instanceof AcDbMText && sameLabel(e.contents, old))
       (db.openEntityForWrite(e) as AcDbMText).contents = next
 }
 
@@ -604,7 +799,8 @@ async function regenerateRun(
   }
   const identity = (v: AcTpParamValues) => ({
     id: run.id,
-    version: run.version,
+    // An A3 dossier rebuilt is a 0.3.1 one.
+    version: acapIsA3Version(run.version) ? DOSSIER_VERSION : run.version,
     values: v as Record<string, number | string | boolean>
   })
   const before = buildDossierScene(
@@ -651,11 +847,17 @@ async function regenerateRun(
   )
   const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
   const actual = entities.map(entityKey).sort()
-  if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+  if (
+    JSON.stringify(expected) !== JSON.stringify(actual) &&
+    // The user chose to drop the hand edits, or to unlock an older
+    // dossier: the run is drawn again from its values.
+    !options.revertHandEdits &&
+    !options.unlock031
+  ) {
     const missing = expected.filter(k => !actual.includes(k)).length
     const extra = actual.filter(k => !expected.includes(k)).length
     return result([
-      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại. Không tự sửa từng chữ cao độ hay kích thước bằng script để đi tiếp.`
+      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script.`
     ])
   }
   let removed = 0
@@ -685,10 +887,123 @@ async function regenerateRun(
       )
       .map(p => `${s.id}: ${(p as { text: string }).text}`)
   )
+  if (acapIsA3Version(run.version) && run.version !== DOSSIER_VERSION)
+    warnings.push(upgraded(run.version))
   return {
     ...result([]),
     removed,
     entityCount: drawn,
     ...(warnings.length ? { warnings } : {})
   }
+}
+
+const upgraded = (version: string) =>
+  `Hồ sơ dựng bằng bộ sinh ${version} đã chuyển lên bộ sinh ${DOSSIER_VERSION}.`
+
+/** Key of a drawn entity, its text read without formatting. */
+function plainKey(e: AcDbEntity): string {
+  const key = entityKey(e)
+  return e instanceof AcDbText
+    ? key.slice(0, key.lastIndexOf('|') + 1) + acapPlainLabel(e.textString)
+    : key
+}
+
+/**
+ * How an older dossier's drawing differs from what today's generator draws
+ * from its stored values. A text at a generated place reading another value
+ * is a hand edit (`valueEdits`); a text holding the right value in another
+ * entity is neither; everything else — colours, layers, entities missing or
+ * added, a notice sheet instead of the drawing — is generator drift.
+ */
+function compareWithGenerator(
+  db: AcDbDatabase,
+  run: ReturnType<typeof listRuns>[number],
+  entities: AcDbEntity[]
+): { drift: number; valueEdits: string[] } {
+  const scene = buildDossierScene(
+    buildDossierModel({ ...run.values }),
+    DOSSIER_VERSION
+  )
+  const scratch = new AcDbDatabase()
+  scratch.createDefaultData()
+  acTpWithWorkingDatabaseSync(scratch, () =>
+    drawDossierScene(
+      createDrawContext(
+        scratch,
+        DOSSIER_ID,
+        roleLayers(),
+        {
+          id: run.id,
+          version: DOSSIER_VERSION,
+          values: run.values as Record<string, number | string | boolean>
+        },
+        layerStyles(),
+        { legacyLayers: legacyLayers() }
+      ),
+      scene
+    )
+  )
+  const left = new Map<string, AcDbEntity[]>()
+  for (const e of entities) {
+    const k = plainKey(e)
+    left.set(k, [...(left.get(k) ?? []), e])
+  }
+  const missing: AcDbEntity[] = []
+  for (const e of entitiesOfRun(scratch, run.id)) {
+    const same = left.get(plainKey(e))
+    if (same?.length) same.pop()
+    else missing.push(e)
+  }
+  const extra = [...left.values()].flat()
+  const extraTexts: AcDbEntity[] = extra.filter(
+    e => e instanceof AcDbText || e instanceof AcDbMText
+  )
+  let drift = extra.length - extraTexts.length
+  const valueEdits: string[] = []
+  const inRun = new Set(entities.map(e => e.objectId))
+  for (const m of missing) {
+    if (!(m instanceof AcDbText)) {
+      drift += 1
+      continue
+    }
+    const place = {
+      at: [m.position.x, m.position.y] as XY,
+      height: m.height
+    }
+    const there =
+      extraTexts.find(e => near(positionOf(e), place, 1.5)) ??
+      textEntityAt(db, place, e => !inRun.has(e.objectId))
+    if (!there) {
+      drift += 1
+      continue
+    }
+    const i = extraTexts.indexOf(there)
+    if (i >= 0) extraTexts.splice(i, 1)
+    if (!sameLabel(plainOf(there), m.textString))
+      valueEdits.push(
+        `chữ trên ${String(readSemanticTag(m)?.params?.sheet ?? '')} đang là «${plainOf(there)}», bộ sinh ghi «${m.textString}»`
+      )
+    // The right value in a Text of another colour or layer: an old style.
+    else if (
+      there instanceof AcDbText &&
+      (there.color.colorIndex !== m.color.colorIndex || there.layer !== m.layer)
+    )
+      drift += 1
+  }
+  return { drift: drift + extraTexts.length, valueEdits }
+}
+
+/** The refusal for an older dossier that no longer matches the generator. */
+function unlockMessage(
+  run: ReturnType<typeof listRuns>[number],
+  drift: { drift: number; valueEdits: string[] }
+): string {
+  const edits = drift.valueEdits.length
+    ? ` Ngoài ra có chữ đã sửa tay: ${drift.valueEdits.slice(0, 6).join('; ')}${drift.valueEdits.length > 6 ? ` và ${drift.valueEdits.length - 6} chỗ khác` : ''} — mở khóa sẽ mất các số sửa tay này.`
+    : ''
+  return (
+    `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}; bản vẽ không còn khớp bộ sinh ${DOSSIER_VERSION} (khoảng ${drift.drift} đối tượng khác: màu, kiểu chữ, chỗ đặt, nhãn bộ sinh mới thêm, hoặc tờ thông báo cũ), nên chưa sửa được và chưa đụng gì.${edits} ` +
+    `Đường mở khóa: giải thích cho người dùng và hỏi xác nhận dựng lại hồ sơ theo bộ sinh ${DOSSIER_VERSION} từ đúng thông số đã lưu (chữ, hình vẽ thêm và mọi số sửa tay trên hồ sơ sẽ mất). Người dùng đồng ý thì gọi lại sua_ho_so_mo MỘT lần với cùng thông số và mo_khoa_031: true — công cụ dựng lại và áp thay đổi trong cùng lần. ` +
+    'Chưa xác nhận thì không đụng gì; không sửa bằng script, không dùng tao_ho_so_mo thay thế.'
+  )
 }

@@ -69,4 +69,42 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'khi đó sửa trực tiếp bằng `execute_cad_script`'
     )
   })
+
+  // UI acceptance P1/M5b, S4/S7: the agent put cells back by script, lost
+  // their font, and needed two turns. One confirmation, one call, the tool
+  // rewrites them.
+  test('putting hand edits back: one confirmation, one call, done by the tool', () => {
+    for (const word of [
+      'ask the user once',
+      'make ONE sua_ho_so_mo call with the same parameters and dua_ve_so_bo_sinh: true',
+      'never rewrite them yourself with a script first',
+      'gọi lại sua_ho_so_mo một lần với dua_ve_so_bo_sinh: true'
+    ])
+      expect(prompt).toContain(word)
+    for (const word of [
+      'hỏi người dùng **một lần**',
+      '`dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó',
+      'để tự đưa về số bộ sinh'
+    ])
+      expect(skill).toContain(word)
+  })
+
+  // QA M5b S2: under (b) FG/FE rose by 0,300 too — right, and to be said.
+  test('(b) says FG and FE rise with the seat', () => {
+    expect(prompt).toContain('FG and FE (road / finished level) included')
+    expect(prompt).toContain('«FG, FE cũng tăng Δ; đáy bệ, đỉnh bệ không đổi»')
+    expect(skill).toContain('**kể cả FG và FE**')
+  })
+
+  // Generator 0.3.1: an older dossier the generator has moved on from is
+  // unlocked by the user, in one call.
+  test('the unlock path for an older dossier', () => {
+    expect(prompt).toContain(
+      'generator (0.3.0) whose drawing no longer matches generator 0.3.1'
+    )
+    expect(prompt).toContain('mo_khoa_031: true')
+    expect(prompt).toContain('never replace it quietly with tao_ho_so_mo')
+    expect(skill).toContain('**Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.**')
+    expect(skill).toContain('`mo_khoa_031: true`')
+  })
 })

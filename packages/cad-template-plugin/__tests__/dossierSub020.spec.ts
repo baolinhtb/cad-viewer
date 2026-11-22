@@ -19,6 +19,9 @@ import {
   AcDbText
 } from '@mlightcad/data-model'
 
+import { buildDossierModel, DOSSIER_A3_VERSION } from '../src/dossier/model'
+import layout from '../src/dossier/reference/layout-mo2.json'
+import { buildDossierScene } from '../src/dossier/scene'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun } from '../src/runIdentity'
 
@@ -165,5 +168,71 @@ describe('every value cell is written alike', () => {
       for (const t of row) expect(look(t)).toEqual(look(row[1]))
       expect(look(right)).toEqual(look(row[1]))
     }
+  })
+})
+
+// QA M5b S5: a thin line runs through the header "FG (m)". It is the
+// source's own — a short stroke of the Excel picture of the M1 table, just
+// above the header's baseline — not something the generator added; none of
+// the P1 changes (name cell, titles, colours) moves it.
+describe('the line through "FG (m)" is the source table\'s', () => {
+  type P = { kind: string; text?: string; at?: number[]; points?: number[][] }
+  test('in the source, at the same place on every dossier', () => {
+    const paper = (
+      layout.sheets.find(x => x.id === 'SUB-020') as unknown as {
+        paper: (P & { ole?: string; color?: number })[]
+      }
+    ).paper
+    const header = paper.find(p => p.text === 'FG (m)')!
+    const stroke = paper.filter(
+      p =>
+        p.kind === 'path' &&
+        p.ole === header.ole &&
+        p.points!.length === 2 &&
+        Math.abs(p.points![0][1] - header.at![1]) < 0.5 &&
+        p.points![0][0] < header.at![0] + 1 &&
+        p.points![1][0] > header.at![0] + 3
+    )
+    expect(stroke).toHaveLength(1)
+    expect(stroke[0].points![0][1] - header.at![1]).toBeCloseTo(0.13, 2)
+    // Drawn the same, relative to the header, whatever the dossier.
+    const relative = (v: Record<string, number | string>) => {
+      const sheet = buildDossierScene(
+        buildDossierModel(v),
+        DOSSIER_A3_VERSION
+      ).sheets.find(x => x.id === 'SUB-020')!
+      const h = sheet.primitives.find(
+        p => p.kind === 'text' && p.text === 'FG (m)'
+      ) as unknown as { at: number[]; height: number }
+      const lines = sheet.primitives.filter(
+        (p): p is Extract<typeof p, { kind: 'path' }> =>
+          p.kind === 'path' &&
+          p.points.length === 2 &&
+          Math.abs(p.points[0][1] - p.points[1][1]) < 1e-6 &&
+          p.points[0][1] > h.at[1] &&
+          p.points[0][1] < h.at[1] + h.height / 2 &&
+          Math.min(p.points[0][0], p.points[1][0]) < h.at[0] + h.height &&
+          Math.max(p.points[0][0], p.points[1][0]) > h.at[0] + 2 * h.height
+      )
+      return lines.map(l =>
+        [
+          l.points[0][0] - h.at[0],
+          l.points[0][1] - h.at[1],
+          l.points[1][0] - h.at[0]
+        ].map(Math.round)
+      )
+    }
+    const source = relative({})
+    expect(source).toHaveLength(1)
+    expect(
+      relative({
+        tenMo: 'QA-M5-A1-DAI-HON',
+        nhanKichThuoc: 'ca_hai',
+        bMatDuong: 8000,
+        bBe: 8700,
+        bThan: 8700,
+        aCocNgang: 6300
+      })
+    ).toEqual(source)
   })
 })

@@ -48,7 +48,7 @@ describe('scene 0.2.0', () => {
   const scene = buildDossierScene(buildDossierModel(dossierDefaults()), '0.2.0')
 
   test('a 0.2.0 dossier (no longer the current one) carries the title block on every sheet', () => {
-    expect(DOSSIER_VERSION).toBe('0.3.0')
+    expect(DOSSIER_VERSION).toBe('0.3.1')
     expect(scene.version).toBe('0.2.0')
     for (const [i, s] of scene.sheets.entries()) {
       const texts = s.primitives.flatMap(p =>
