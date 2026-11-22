@@ -581,6 +581,9 @@ const STEEL_LAYERS = new Set([
  * in an ANSI font came out as `?` in the OLE presentation (AutoCAD shows the
  * `?` too). The generated tables are a deliverable, so they say it right.
  */
+/** Colour of every value cell of the SUB-020 tables (as FE, EL3…). */
+const VALUE_COLOR = 7
+
 const TABLE_TEXT: Record<string, string> = {
   'TÊN M?': 'TÊN MỐ',
   'CAO Ð?': 'CAO ĐỘ',
@@ -682,6 +685,11 @@ function sub020Tables(
         else if (deltas.has(key))
           text = (Number(text) + deltas.get(key)!).toFixed(decimals)
         if (!('error' in stretch) && !values.has(key)) values.set(key, text)
+        // The Excel source shaded its input cells (FG, EL6, Lc, HB…) grey,
+        // colour 8; in the drawing that only reads as a faded number (QA
+        // P1/M5, S7). Every value is written like its neighbours.
+        out.push({ ...p, text, color: VALUE_COLOR })
+        continue
       }
       out.push({ ...p, text })
     }

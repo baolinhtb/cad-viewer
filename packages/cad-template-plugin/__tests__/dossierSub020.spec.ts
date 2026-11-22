@@ -142,3 +142,28 @@ describe('the name cell stays inside its cell', () => {
     )
   })
 })
+
+// QA P1/M5, S7: FG (237,791, then 238,091) read paler than FE and EL6 —
+// the Excel source shaded its input cells grey (colour 8).
+describe('every value cell is written alike', () => {
+  test.each(['QA-M5-A1', 'QA-M5-A1-DAI-HON'])('%s', async tenMo => {
+    const db = await dossier({
+      tenMo,
+      bMatDuong: 8000,
+      tThan: 1200,
+      lCanh: 4000,
+      D: 1000,
+      lCoc: 25000
+    })
+    for (const { right } of nameCells(db)) {
+      // The cell right of the name: FG on the elevation table.
+      const row = texts(db)
+        .filter(t => Math.abs(t.position.y - right.position.y) < 1)
+        .filter(t => /^\d+\.\d+$/.test(t.textString))
+      expect(row.length).toBeGreaterThan(5)
+      const look = (t: AcDbText) => [t.color.colorIndex, t.layer, t.widthFactor]
+      for (const t of row) expect(look(t)).toEqual(look(row[1]))
+      expect(look(right)).toEqual(look(row[1]))
+    }
+  })
+})
