@@ -69,9 +69,19 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   số ngoài lưới về giá trị mẫu **trong cùng lần gọi** `sua_ho_so_mo`, ví dụ
   `{tCanh: 500, tThan: 1800}`. Hỏi người dùng trước khi đưa về.
 - Sửa: `sua_ho_so_mo` + mã lần dựng từ `mo_ta_ban_ve`; chỉ truyền phần đổi.
-  Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**; có sửa tay thì công
-  cụ từ chối, khi đó sửa trực tiếp bằng `execute_cad_script`. Đọc `canhBao`
+  Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**. Đọc `canhBao`
   trong kết quả để báo các tờ không áp dụng (thép).
+- **Bị từ chối vì sửa tay: dừng và hỏi, không lách.** Hồ sơ do
+  `tao_ho_so_mo` / `sua_ho_so_mo` dựng chỉ đổi cao độ, kích thước, nhãn
+  kích thước bằng chính các công cụ hồ sơ. Khi công cụ từ chối vì có chữ /
+  thẻ cao độ / kích thước đã sửa tay: không sửa gì thêm, nêu đúng các chỗ
+  công cụ liệt kê (ví dụ «ô EL6 trên SUB-020 đang là 228.900, khác số bộ sinh
+  228.837») và hỏi người dùng chọn: đưa các chỗ đó về số bộ sinh rồi gọi lại /
+  giữ số đã sửa, không đổi thông số / hủy. **Cấm** dùng `tx.setText`,
+  `execute_cad_script` hay công cụ sửa chữ khác để tăng/giảm hàng loạt chữ cao
+  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, hoặc để hồ sơ lệch bản vẽ.
+  Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp như
+  thường.
 - Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.
 - Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A3), `html` (tự chứa, in được),
   `dxf`, hoặc `json`. Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.

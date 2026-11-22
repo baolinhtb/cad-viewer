@@ -46,4 +46,27 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'Bridge piers (trụ cầu, xà mũ, thân trụ, bệ trụ, trụ T1…) are covered by the guide'
     )
   })
+
+  // UI acceptance P1/M5, S7: after sua_ho_so_mo refused a hand-edited
+  // elevation, the agent shifted 23 elevations by tx.setText instead.
+  test('a generated dossier is not worked around with setText after a refusal', () => {
+    for (const word of [
+      'is changed only through those dossier tools',
+      'stop: name the places its message lists and ask the user',
+      'Never use tx.setText, execute_cad_script or any text-editing tool to shift',
+      'Imported DWG/DXF drawings (not generated dossiers) are still edited directly',
+      'CHỈ bằng sua_ho_so_mo; nếu bị từ chối vì sửa tay thì dừng'
+    ])
+      expect(prompt).toContain(word)
+    for (const word of [
+      'Bị từ chối vì sửa tay: dừng và hỏi, không lách.',
+      '**Cấm** dùng `tx.setText`',
+      'Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp'
+    ])
+      expect(skill).toContain(word)
+    // The skill no longer sends a refused dossier edit to the script tool.
+    expect(skill).not.toContain(
+      'khi đó sửa trực tiếp bằng `execute_cad_script`'
+    )
+  })
 })

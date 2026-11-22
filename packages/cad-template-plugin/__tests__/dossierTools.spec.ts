@@ -242,6 +242,15 @@ describe('dossier tools against a real database', () => {
       expect(fixed).not.toContain('soGoi = ')
       expect(fixed).not.toContain('aGoi = ')
       expect(description).toContain('Gối đổi được: soGoi, aGoi')
+    }
+    // UI P1/M5 S7: a refusal for hand edits is a stop, not a detour.
+    expect(edit.description).toContain(
+      'Khi bị từ chối vì sửa tay: không sửa gì thêm'
+    )
+    expect(edit.description).not.toContain(
+      'Khi bị từ chối dùng execute_cad_script'
+    )
+    for (const description of [create.description, edit.description]) {
       expect(description).toContain('6 gối trên thân 8700 → aGoi = 1400')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
