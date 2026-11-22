@@ -110,10 +110,16 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   giữ nguyên phần kia và báo trong `canhBao`. Sửa tay *trong vùng đổi*
   (dời/sửa/xóa nét mà lần sửa sẽ vẽ lại) hoặc chữ nhãn đã sửa số thì vẫn bị
   từ chối và hỏi một lần như dưới. Đã có tờ BTKL thì sửa hồ sơ tự cập nhật
-  tờ BTKL (cùng mã, cùng chỗ) và `canhBao` nêu số mới — báo lại các mục đổi
-  một cách ngắn, gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30 khi
-  các số đó có trong `canhBao`; không bỏ 1.4 hay 1.7. Không cần lập lại bảng
+  tờ BTKL (cùng mã, cùng chỗ) và đưa vào `canhBao` / thông báo **một dòng**
+  tóm tắt bắt đầu «Đã tự cập nhật tờ BTKL»: **nhắc lại nguyên văn dòng đó**
+  (đã có 1.4 Tường cánh, 1.7 Lan can trên tường cánh, tổng C30; cũ → mới khi
+  đổi). Không thay bằng chỉ tổng C30, không bỏ 1.4 hay 1.7, không lập lại bảng
   khối lượng.
+- **Sau lần sửa: không lặp cảnh báo tĩnh.** Tờ thép SUB-070…100 vẫn theo M1,
+  và cờ cần kỹ sư không đổi, chỉ nói khi tạo hoặc mô tả hồ sơ — không viết lại
+  thành mục «Lưu ý» hai gạch sau mỗi lần sửa. Ngoài dòng BTKL (nguyên văn) và
+  cao độ mới, được thêm **tối đa một câu** ghi chú (ví dụ dốc trên 2 % thường
+  dùng khi có siêu cao).
 - **Lời với người dùng: không nói «bộ sinh».** «Bộ sinh» là tiếng lóng nội
   bộ (cũng như tên công cụ, tên cờ `dua_ve_so_bo_sinh`, `mo_khoa_031`): không
   viết ra trong câu trả lời, kể cả khi thông báo công cụ có. Nói bằng lời

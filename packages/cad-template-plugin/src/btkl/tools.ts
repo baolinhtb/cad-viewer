@@ -282,6 +282,39 @@ const vi = (v: number | null | undefined) =>
     ? '–'
     : String(Math.round(v * 1000) / 1000).replace('.', ',')
 
+const qty3 = (v: number | null | undefined): number | null =>
+  v === null || v === undefined ? null : Math.round(v * 1000) / 1000
+
+/**
+ * One short line the agent must repeat verbatim after sua_ho_so_mo refreshes
+ * an existing take-off (P2-M6c): key items 1.4, 1.7 and tổng C30 always,
+ * plus cọc/bệ when they changed; old → new where the figure moved.
+ */
+export function acapBtklKeyItemsLine(
+  before: AcTpBtklResult | undefined,
+  after: AcTpBtklResult
+): string {
+  const val = (r: AcTpBtklResult | undefined, key: string) =>
+    r?.items.find(i => i.key === key)?.khoiLuong ?? null
+  const part = (key: string, label: string, always: boolean) => {
+    const now = val(after, key)
+    const was = val(before, key)
+    if (!always && (before == null || qty3(was) === qty3(now))) return null
+    if (before != null && qty3(was) !== qty3(now))
+      return `${label} ${vi(was)} → ${vi(now)} m³`
+    return `${label} ${vi(now)} m³`
+  }
+  return [
+    part('coc', 'cọc', false),
+    part('be', 'bệ', false),
+    part('canh', '1.4 Tường cánh', true),
+    part('lan_can', '1.7 Lan can trên tường cánh', true),
+    part('be_tong', 'tổng C30', true)
+  ]
+    .filter((s): s is string => s != null)
+    .join('; ')
+}
+
 /**
  * After an abutment dossier changed (`sua_ho_so_mo`), every take-off already
  * in the drawing is refreshed the way `cap_nhat_btkl` does it — same run id,
@@ -300,6 +333,10 @@ export async function acapRefreshBtklAfterEdit(
   for (const run of listRuns(db).filter(
     r => r.templateId === BTKL_TEMPLATE_ID
   )) {
+    const beforeMine = btklObjectsFromValues(run.values).objects.find(
+      o => o.ma === moRunId
+    )
+    const beforeResult = beforeMine ? acTpBtklOfObject(beforeMine) : undefined
     const out = await runBtklTool(
       'cap_nhat_btkl',
       { ma_lan_chay: run.id },
@@ -317,14 +354,11 @@ export async function acapRefreshBtklAfterEdit(
     const { objects } = btklObjectsFromValues(now?.values ?? {})
     const mine = objects.find(o => o.ma === moRunId)
     const result = mine ? acTpBtklOfObject(mine) : undefined
-    const kl = (key: string) =>
-      result?.items.find(i => i.key === key)?.khoiLuong
+    const items = result ? acapBtklKeyItemsLine(beforeResult, result) : ''
     notes.push(
-      `Đã tự cập nhật tờ BTKL ${run.id} theo hồ sơ mới (cùng chỗ, như cap_nhat_btkl; sửa tay trên tờ BTKL nếu có được thay bằng số tính)${
-        result
-          ? `: ${mine!.ten} — cọc ${vi(kl('coc'))} m³, bệ ${vi(kl('be'))} m³, bê tông C30 ${vi(kl('be_tong'))} m³`
-          : ''
-      }.`
+      items
+        ? `Đã tự cập nhật tờ BTKL ${run.id}: ${items}.`
+        : `Đã tự cập nhật tờ BTKL ${run.id} theo hồ sơ mới (cùng chỗ).`
     )
   }
   return notes
