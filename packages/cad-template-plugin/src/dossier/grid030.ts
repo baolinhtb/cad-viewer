@@ -44,7 +44,9 @@ type Delta = Record<
   | 'D'
   | 'bMatDuong'
   | 'tCanh'
-  | 'hLanCan',
+  | 'hLanCan'
+  | 'docNgang'
+  | 'docDoc',
   number
 >
 /**
@@ -63,7 +65,41 @@ interface View {
   box: { x0: number; y0: number; x1: number; y1: number }
   x: Line[]
   y: Line[]
+  /** The view's tilt for changed slopes (see {@link Tilt}). */
+  tilt?: (d: Delta, n: (key: string) => number, fx: Axis) => Tilt
 }
+type Axis = (v: number) => number
+/**
+ * How far a point rises for a changed slope, mm: from its stretched x and its
+ * source y. The source is drawn sloped already (cross fall 2 %, wing top
+ * 2,8 %), so a slope is not a grid line: what moves is the change from the
+ * source slope (P2-M3), and at the source slopes nothing moves.
+ */
+type Tilt = (x: number, y: number) => number
+
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v))
+/** 0 at or below `from`, 1 at or above `to`, linear between (source y). */
+const ramp = (y: number, from: number, to: number) =>
+  clamp((y - from) / (to - from), 0, 1)
+/**
+ * The wing top's slope along the bridge (docDoc): the wing top rises by the
+ * change × the distance from the head wall face, up to the wing end; the 1:1
+ * chamfer below (ending `chamfer`, source y) stays, the wing top (from
+ * `wallTop`) moves fully. `away` is +1 when the wing runs to the right.
+ */
+const wingTilt =
+  (
+    d: Delta,
+    face: number,
+    end: number,
+    chamfer: number,
+    wallTop: number
+  ): Tilt =>
+  (x, y) =>
+    (d.docDoc / 100) *
+    clamp(Math.sign(end - face) * (x - face), 0, Math.abs(end - face)) *
+    ramp(y, chamfer, wallTop)
 
 /** Parameters the grid follows. */
 export const DOSSIER_STRETCH_KEYS = [
@@ -79,7 +115,9 @@ export const DOSSIER_STRETCH_KEYS = [
   'D',
   'bMatDuong',
   'tCanh',
-  'hLanCan'
+  'hLanCan',
+  'docNgang',
+  'docDoc'
 ] as const
 
 /**
@@ -199,6 +237,23 @@ const SUB_010: View[] = [
     name: 'Mặt chính',
     box: { x0: 0, y0: 12000, x1: 13500, y1: 26000 },
     x: frontAcross(3414),
+    // Cross fall about the centre line (7264), left of the route (drawn on
+    // the right) up. The seat strip, stem top and EL4 tags take it at the
+    // stem edges (3414 / 11114); the head wall top, the road, the rail tops
+    // and EL1 tags — everything from the head wall top (21700) up — at the
+    // road edges (3764 / 10764), where the source measures them (the kerb
+    // strip outside rides along). The footing (15286 and below) stays; the
+    // stem stretches up to the seat (19900, under its low end).
+    tilt: (d, _n, fx) => {
+      const i = d.docNgang / 100
+      const centre = fx(7264)
+      const stem = [fx(3414), fx(11114)]
+      const road = [fx(3764), fx(10764)]
+      return (x, y) => {
+        const [lo, hi] = y >= 21700 ? road : stem
+        return i * (clamp(x, lo, hi) - centre) * ramp(y, 15286, 19900)
+      }
+    },
     y: [
       ...heights(20015).slice(0, 3),
       // The seat falls across the bridge (19916 at its low end, 20080 at
@@ -254,6 +309,20 @@ const SUB_010: View[] = [
   {
     // Mirrored: B2 · B(TT) · B1 from the left, wing to LC beyond.
     name: 'Mặt cắt B–B',
+    // Cut at the high road edge (left of the route): its stem is 140 taller
+    // than C–C's (2 % × 7000). A cross fall change lifts it by the change ×
+    // half the road width: the stem from the footing top up to the seat, the
+    // wing only above its 1:1 chamfer (which keeps its place on the footing,
+    // as the gate wing_profile_inverted measures it). The wing top tilts
+    // along the wing from the head wall face (29367) to its end (35867).
+    tilt: (d, n, fx) => {
+      const face = fx(29367)
+      const wing = wingTilt(d, face, fx(35867), 20573, 21891)
+      const lift = ((d.docNgang / 100) * n('bMatDuong')) / 2
+      return (x, y) =>
+        lift * (x > face ? ramp(y, 20573, 21891) : ramp(y, 15286, 20000)) +
+        wing(x, y)
+    },
     box: { x0: 25000, y0: 0, x1: 40000, y1: 26000 },
     x: [
       [26367, () => 0],
@@ -277,6 +346,16 @@ const SUB_010: View[] = [
 const SUB_020: View[] = [
   {
     name: 'Mặt cắt C–C',
+    // The low road edge (right of the route), the wing running left from the
+    // head wall face (8722) to its end (2222).
+    tilt: (d, n, fx) => {
+      const face = fx(8722)
+      const wing = wingTilt(d, face, fx(2222), 10586, 11904)
+      const lift = ((d.docNgang / 100) * n('bMatDuong')) / 2
+      return (x, y) =>
+        -lift * (x < face ? ramp(y, 10586, 11904) : ramp(y, 5439, 10013)) +
+        wing(x, y)
+    },
     box: { x0: 0, y0: 0, x1: 14000, y1: 16000 },
     x: [
       [2222, d => -d.muiBe - d.tThan - d.lCanh],
@@ -342,6 +421,11 @@ export interface AcTpSheetStretch {
   identity: boolean
   /** Maps a local point; `at` picks the view (an entity's centre). */
   map(p: XY, at?: XY): XY
+  /**
+   * The rise for changed slopes at stretched `x`, source `y` (already in
+   * `map`): for an item placed at its own distance across, not at `map`'s x.
+   */
+  tilt?(x: number, y: number, at?: XY): number
   /** Index of the view a point belongs to. */
   viewOf(at: XY): number
   /** View names, by index. */
@@ -408,11 +492,16 @@ export function sheetStretch(
     }
   const kept = (lines: Line[]) => lines.filter(l => !l[2] || l[2](d))
   try {
-    const maps = views.map(v => ({
-      box: v.box,
-      fx: axis(kept(v.x), d, v.name, 'ngang'),
-      fy: axis(kept(v.y), d, v.name, 'đứng')
-    }))
+    const tilted = d.docNgang !== 0 || d.docDoc !== 0
+    const maps = views.map(v => {
+      const fx = axis(kept(v.x), d, v.name, 'ngang')
+      return {
+        box: v.box,
+        fx,
+        fy: axis(kept(v.y), d, v.name, 'đứng'),
+        tilt: (tilted && v.tilt?.(d, n, fx)) || (() => 0)
+      }
+    })
     const index = (q: XY) =>
       Math.max(
         0,
@@ -428,8 +517,10 @@ export function sheetStretch(
       identity: false,
       map: (p, at = p) => {
         const m = maps[index(at)]
-        return [m.fx(p[0]), m.fy(p[1])]
+        const x = m.fx(p[0])
+        return [x, m.fy(p[1]) + m.tilt(x, p[1])]
       },
+      tilt: (x, y, at = [x, y]) => maps[index(at)].tilt(x, y),
       viewOf: index,
       views: views.map(v => v.name),
       flow: FLOWS[id] ?? [views.map((_, k) => k)]

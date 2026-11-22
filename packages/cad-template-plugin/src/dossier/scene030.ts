@@ -640,8 +640,25 @@ function sub020Tables(
         deltas.set(tag, moved / 1000 + datum)
       }
     }
+    // Tags drawn only on SUB-020 (EL2.R, the low wing end of section C–C):
+    // their own movement, so a cross fall change lowers them (P2-M3). For
+    // every other change C–C moves as B–B does, as the copy of EL2.L did.
+    const s20 = sheetStretch('SUB-020', v)
+    if (!('error' in s20))
+      for (const c of LAYOUT.sheets.find(x => x.id === 'SUB-020')?.content ??
+        []) {
+        if (c.kind !== 'insert' || c.block !== 'cd11') continue
+        const a = c.attributes?.ELEV
+        const tag = typeof a === 'string' ? a : a?.value
+        if (!tag || deltas.has(tag)) continue
+        const moved = s20.map(c.at!, c.at)[1] - c.at![1]
+        const datum =
+          Number(v.caoDoDayBe) - Number(dossierDefaults().caoDoDayBe)
+        deltas.set(tag, moved / 1000 + datum)
+      }
     if (deltas.has('H4A')) deltas.set('H4B', deltas.get('H4A')!)
-    if (deltas.has('EL2.L')) deltas.set('EL2.R', deltas.get('EL2.L')!)
+    if (deltas.has('EL2.L') && !deltas.has('EL2.R'))
+      deltas.set('EL2.R', deltas.get('EL2.L')!)
     deltas.set('Lc', deltas.get('LC') ?? 0)
   }
   const tables = new Map<string, LayoutPrimitive[]>()
@@ -1356,8 +1373,15 @@ export function buildScene030(
             const shift = (line: number) =>
               stretch.map([at[0], line], at)[1] - line
             const dy = band?.(shift)
+            // …and the cross fall at that true distance (P2-M3), not at the
+            // grid's x for its source point.
+            const tiltAt = (q: XY) =>
+              fc === undefined || !stretch.tilt
+                ? 0
+                : stretch.tilt(across(q), q[1], at) -
+                  stretch.tilt(stretch.map(q, at)[0], q[1], at)
             const down = (q: XY) =>
-              dy === undefined ? stretch.map(q, at)[1] : q[1] + dy
+              dy === undefined ? stretch.map(q, at)[1] + tiltAt(q) : q[1] + dy
             addPaper(
               c,
               contentRole(c),
