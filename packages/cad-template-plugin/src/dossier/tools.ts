@@ -29,7 +29,8 @@ import {
   DOSSIER_PARAMS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
-  dossierDefaults
+  dossierDefaults,
+  dossierParamValue
 } from './model'
 import { buildDossierScene } from './scene'
 import { acapDossierElevations } from './scene030'
@@ -188,7 +189,7 @@ function drawnElevations(model: ReturnType<typeof buildDossierModel>) {
 function derivedNote(suyRa: unknown): string {
   if (!Array.isArray(suyRa) || !suyRa.length) return ''
   const list = (suyRa as DossierDerived[])
-    .map(d => `${d.thamSo} = ${d.giaTri}`)
+    .map(d => dossierParamValue(d.thamSo, d.giaTri))
     .join(', ')
   return `Đã tự suy (phải báo lại người dùng): ${list}. `
 }
@@ -203,7 +204,7 @@ function summary(
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
-    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc. ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc lCoc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.`,
+    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc. ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.`,
     data: {
       maLanChay: runId,
       trangThaiHoSo: 'draft',

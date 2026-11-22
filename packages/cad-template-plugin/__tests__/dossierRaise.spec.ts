@@ -218,7 +218,7 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
       db
     )
     expect(refused.ok).toBe(false)
-    expect(refused.message).toContain('tCanh = 500')
+    expect(refused.message).toContain('dày tường cánh = 500 mm')
     const road = await runDossierTool(
       'tao_ho_so_mo',
       { thong_so: { ...L1, soGoi: 6 } },

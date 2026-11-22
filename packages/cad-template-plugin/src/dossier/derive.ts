@@ -64,16 +64,28 @@ export function acapDeriveDossierValues(
     set(
       'bBe',
       width,
-      `bBe = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định như M1)`
+      `bề rộng bệ = bề rộng mặt đường + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định như M1)`
     )
-    set('bThan', width, 'bản gốc vẽ thân rộng bằng bệ (bThan = bBe)')
+    set(
+      'bThan',
+      width,
+      'bản gốc vẽ thân rộng bằng bệ (bề rộng thân = bề rộng bệ)'
+    )
   }
   // Only when a driver moved: an unrelated edit must not rewrite pile
   // spacing a stored dossier already has.
   if (!has('aCocNgang') && (moved('bBe') || moved('D')))
-    set('aCocNgang', n('bBe') - 2 * n('D'), 'cọc sát mép bệ: bBe − 2D')
+    set(
+      'aCocNgang',
+      n('bBe') - 2 * n('D'),
+      'cọc sát mép bệ: tim cọc ngang = bề rộng bệ − 2 × đường kính cọc'
+    )
   if (!has('aCocDoc') && (moved('lBe') || moved('D')))
-    set('aCocDoc', n('lBe') - 2 * n('D'), 'cọc sát mép bệ: lBe − 2D')
+    set(
+      'aCocDoc',
+      n('lBe') - 2 * n('D'),
+      'cọc sát mép bệ: tim cọc dọc = chiều dài bệ − 2 × đường kính cọc'
+    )
   const bearings = n('soGoi')
   if (
     !has('aGoi') &&
@@ -88,7 +100,7 @@ export function acapDeriveDossierValues(
       set(
         'aGoi',
         spacing,
-        `rải đều ${bearings} gối trong bThan ${n('bThan')}: (bThan − ${BEARING_SYMBOL} − 2 × ${DOSSIER_BEARING_MARGIN}) / (soGoi − 1), lề mép ${DOSSIER_BEARING_MARGIN} mm như M1, làm tròn xuống bội ${BEARING_STEP} mm`
+        `rải đều ${bearings} gối trong bề rộng thân ${n('bThan')} mm: (bề rộng thân − ${BEARING_SYMBOL} − 2 × ${DOSSIER_BEARING_MARGIN}) / (số gối − 1), lề mép ${DOSSIER_BEARING_MARGIN} mm như M1, làm tròn xuống bội ${BEARING_STEP} mm`
       )
   }
   return { values, suyRa }

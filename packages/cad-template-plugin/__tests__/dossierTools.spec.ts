@@ -133,7 +133,7 @@ describe('dossier tools against a real database', () => {
     // 0.3.0: bBe alone cannot be followed (the source draws the stem as wide
     // as the footing): refused, nothing replaced by a notice or a schematic.
     expect(result.ok).toBe(false)
-    expect(result.message).toContain('bThan = bBe')
+    expect(result.message).toContain('bề rộng thân = bề rộng bệ')
     expect(listRuns(db)).toHaveLength(2)
     expect(listRuns(db)[0].values.bBe).toBe(7700)
     expect(listRuns(db)[0].values.bThan).toBe(7700)
@@ -162,8 +162,11 @@ describe('dossier tools against a real database', () => {
       expect(result.message).toContain('Chưa dựng hồ sơ, không vẽ gì')
       expect(result.message).toContain('SUB-010')
       // Names the parameter and the value that would draw.
-      expect(result.message).toContain('tCanh = 500')
+      expect(result.message).toContain('dày tường cánh = 500 mm')
       expect(result.message).not.toContain('bMatDuong = 7000')
+      // Named as the user reads it, never by key (QA P1/M6).
+      expect(result.message).not.toMatch(/tCanh|bMatDuong/)
+      expect(result.message).toContain('dày tường cánh')
     }
     expect(entities(db)).toHaveLength(0)
     expect(listRuns(db)).toHaveLength(0)
@@ -206,7 +209,9 @@ describe('dossier tools against a real database', () => {
       db
     )
     expect(blocked.ok).toBe(false)
-    expect(blocked.message).toContain('đưa về giá trị mẫu: tCanh = 500')
+    expect(blocked.message).toContain(
+      'đưa về giá trị mẫu: dày tường cánh = 500 mm'
+    )
     expect(entitiesOfRun(db, 'r1')).toHaveLength(locked)
     const unlocked = await runDossierTool(
       'sua_ho_so_mo',

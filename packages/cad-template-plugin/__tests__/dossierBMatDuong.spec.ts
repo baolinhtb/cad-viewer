@@ -220,7 +220,7 @@ describe('acapDeriveDossierValues', () => {
         code: 'road_outside_wall',
         level: 'warning',
         message: expect.stringContaining(
-          'bBe = bThan = bMatDuong + 2 × 350 = 8100'
+          'bề rộng bệ = bề rộng thân = bề rộng mặt đường + 2 × 350 = 8100'
         )
       })
     )
@@ -395,7 +395,7 @@ describe('sua_ho_so_mo with a new road width', () => {
       db
     )
     expect(res.ok).toBe(false)
-    expect(res.message).toContain('tCanh = 500')
+    expect(res.message).toContain('dày tường cánh = 500 mm')
     expect(snap(db).keys).toEqual(before.keys)
     expect(values(db).bMatDuong).toBe(7000)
   })

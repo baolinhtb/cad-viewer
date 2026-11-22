@@ -153,7 +153,7 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       // A change of pile layout: the general arrangement cannot follow, so
       // the tool refuses and leaves the drawing as it was.
       expect(outcome.ok).toBe(false)
-      expect(String(outcome.message)).toMatch(/soCotCoc/)
+      expect(String(outcome.message)).toMatch(/số cọc mỗi hàng ngang/)
       expect(dimLengths(db, runId, 'SUB-010', 'HB').length).toBeGreaterThan(0)
       results[name] = {
         change,

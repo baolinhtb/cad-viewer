@@ -22,7 +22,8 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import {
   buildDossierModel,
   DOSSIER_STOP_WIDTH,
-  dossierDefaults
+  dossierDefaults,
+  dossierParamLabel
 } from '../dossier/model'
 import bars from '../dossier/reference/bars.json'
 import { acTpSteelKgPerM, BTKL_M1_SOURCE } from './sourceM1'
@@ -226,7 +227,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
   const same = (...keys: string[]) =>
     keys.every(k => changedOf(DEP[k]).length === 0)
   const refusedFor = (key: string) =>
-    `Đã đổi ${changedOf(DEP[key]).join(', ')} so với mẫu M1; bản vẽ gốc không có đủ kích thước để tính lại dòng này.`
+    `Đã đổi ${changedOf(DEP[key]).map(dossierParamLabel).join(', ')} so với mẫu M1; bản vẽ gốc không có đủ kích thước để tính lại dòng này.`
 
   const items: AcTpBtklItem[] = []
   const add = (
@@ -388,7 +389,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
                         ? [
                             {
                               code: 'ty_le_ban_goc',
-                              message: `Tỉ lệ từ bảng gốc M1 theo ${changedOf(DEP[key]).join(', ')}; cấu tạo giữ như mẫu — cần kỹ sư xác nhận.`
+                              message: `Tỉ lệ từ bảng gốc M1 theo ${changedOf(DEP[key]).map(dossierParamLabel).join(', ')}; cấu tạo giữ như mẫu — cần kỹ sư xác nhận.`
                             }
                           ]
                         : []),

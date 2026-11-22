@@ -26,7 +26,8 @@ import {
   buildDossierModel,
   DOSSIER_ID,
   DOSSIER_TITLE_KEYS,
-  DOSSIER_VERSION
+  DOSSIER_VERSION,
+  dossierParamLabel
 } from './model'
 import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
@@ -144,7 +145,12 @@ export async function acapEditDossierRun(
     return regenerate()
   if (changed.some(k => !patchable.includes(k)))
     return result([
-      `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}: công cụ chưa đổi được ${changed.filter(k => !patchable.includes(k)).join(', ')} cho phiên bản này, và không xóa để dựng lại từ template/sơ đồ. Chưa thay đổi gì. Báo người dùng và hỏi hướng xử lý.`
+      `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}: công cụ chưa đổi được ${changed
+        .filter(k => !patchable.includes(k))
+        .map(dossierParamLabel)
+        .join(
+          ', '
+        )} cho phiên bản này, và không xóa để dựng lại từ template/sơ đồ. Chưa thay đổi gì. Báo người dùng và hỏi hướng xử lý.`
     ])
 
   // Plan label changes before opening the transaction. An edited label must
@@ -596,7 +602,8 @@ function handEdited(runId: string, edited: string[]): string {
   return (
     `Hồ sơ ${runId} có chữ đã sửa tay: ${shown}${more}. Chưa sửa gì: bản vẽ và thông số hồ sơ giữ nguyên. ` +
     'Dừng lại, báo đúng các chỗ này và hỏi người dùng MỘT lần, chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi làm tiếp — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true, công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh và áp thay đổi; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
-    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về số bộ sinh.'
+    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về số bộ sinh.' +
+    ' Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.'
   )
 }
 
@@ -857,7 +864,7 @@ async function regenerateRun(
     const missing = expected.filter(k => !actual.includes(k)).length
     const extra = actual.filter(k => !expected.includes(k)).length
     return result([
-      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script.`
+      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script. Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.`
     ])
   }
   let removed = 0
@@ -1004,6 +1011,7 @@ function unlockMessage(
   return (
     `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}; bản vẽ không còn khớp bộ sinh ${DOSSIER_VERSION} (khoảng ${drift.drift} đối tượng khác: màu, kiểu chữ, chỗ đặt, nhãn bộ sinh mới thêm, hoặc tờ thông báo cũ), nên chưa sửa được và chưa đụng gì.${edits} ` +
     `Đường mở khóa: giải thích cho người dùng và hỏi xác nhận dựng lại hồ sơ theo bộ sinh ${DOSSIER_VERSION} từ đúng thông số đã lưu (chữ, hình vẽ thêm và mọi số sửa tay trên hồ sơ sẽ mất). Người dùng đồng ý thì gọi lại sua_ho_so_mo MỘT lần với cùng thông số và mo_khoa_031: true — công cụ dựng lại và áp thay đổi trong cùng lần. ` +
-    'Chưa xác nhận thì không đụng gì; không sửa bằng script, không dùng tao_ho_so_mo thay thế.'
+    'Chưa xác nhận thì không đụng gì; không sửa bằng script, không dùng tao_ho_so_mo thay thế.' +
+    ' Tên công cụ và cờ ở trên chỉ để gọi công cụ; khi nói với người dùng, mô tả việc sẽ làm với bản vẽ.'
   )
 }
