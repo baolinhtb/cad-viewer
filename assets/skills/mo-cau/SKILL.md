@@ -87,6 +87,16 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   độ hoặc kích thước nhằm đi tiếp sau lời từ chối, để tự đưa về số bộ sinh, hoặc để hồ sơ lệch bản vẽ.
   Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp như
   thường.
+- **Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.** Hồ sơ mới là **0.3.1**. Hồ sơ 0.3.0
+  mà bản vẽ vẫn khớp bộ sinh hiện tại thì sửa như thường (và thành 0.3.1).
+  Bản vẽ không còn khớp (ô số màu cũ, tiêu đề «M1», thiếu nhãn gối, tờ
+  «CHƯA DỰNG ĐƯỢC» của hồ sơ khoá trước M2…) thì công cụ từ chối với
+  **đường mở khóa**: giải thích cho người dùng rằng hồ sơ sẽ được dựng lại
+  theo 0.3.1 từ đúng thông số đã lưu (chữ/hình vẽ thêm và số sửa tay sẽ mất),
+  hỏi xác nhận; đồng ý thì gọi lại `sua_ho_so_mo` **một lần** với cùng thông
+  số và `mo_khoa_031: true` — dựng lại và áp thay đổi trong cùng lần. Không
+  lách bằng script, không dùng `tao_ho_so_mo` thay thế. Nếu thông báo nêu cả
+  chữ sửa tay thì nói rõ mở khóa sẽ mất các số đó.
 - Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.
 - Xuất: `xuat_ho_so_mo` dạng `pdf` (6 trang A3), `html` (tự chứa, in được),
   `dxf`, hoặc `json`. Xuất tái sinh từ mô hình, không chứa sửa tay trên canvas.

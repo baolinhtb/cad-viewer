@@ -21,7 +21,7 @@
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
-import { dossierDefaults } from './model'
+import { DOSSIER_VERSION,dossierDefaults } from './model'
 
 type XY = [number, number]
 
@@ -267,7 +267,7 @@ function axis(lines: Line[], d: Delta, view: string, label: string) {
   for (let i = 1; i < dst.length; i++)
     if (!(dst[i] > dst[i - 1]))
       throw new Error(
-        `${view}: thông số mới làm các đường mốc ${label} chồng hoặc đảo nhau (${src[i - 1]} → ${src[i]}); bộ sinh 0.3.0 không vẽ được hình này.`
+        `${view}: thông số mới làm các đường mốc ${label} chồng hoặc đảo nhau (${src[i - 1]} → ${src[i]}); bộ sinh ${DOSSIER_VERSION} không vẽ được hình này.`
       )
   return (v: number) => {
     if (v <= src[0]) return v + (dst[0] - src[0])
@@ -316,7 +316,10 @@ export function sheetStretch(
       flow: []
     }
   const views = GRIDS[id]
-  if (!views) return { error: `Tờ ${id} chưa có lưới co giãn ở bộ sinh 0.3.0.` }
+  if (!views)
+    return {
+      error: `Tờ ${id} chưa có lưới co giãn ở bộ sinh ${DOSSIER_VERSION}.`
+    }
   const n = (k: string) => Number(values[k])
   const unsupported = geometric.filter(
     k =>
@@ -326,7 +329,7 @@ export function sheetStretch(
   )
   if (unsupported.length)
     return {
-      error: `Bộ sinh 0.3.0 chưa dựng được khi đổi ${unsupported.join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn). Để dựng lại được, đưa về giá trị mẫu: ${unsupported.map(k => `${k} = ${defaults[k]}`).join(', ')}.`
+      error: `Bộ sinh ${DOSSIER_VERSION} chưa dựng được khi đổi ${unsupported.join(', ')} (đổi số lượng/bố trí, chưa có trong lưới co giãn). Để dựng lại được, đưa về giá trị mẫu: ${unsupported.map(k => `${k} = ${defaults[k]}`).join(', ')}.`
     }
   // Values the source draws as one line with another.
   if (n('bThan') !== n('bBe'))

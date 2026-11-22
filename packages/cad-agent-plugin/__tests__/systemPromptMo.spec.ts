@@ -95,4 +95,16 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(prompt).toContain('«FG, FE cũng tăng Δ; đáy bệ, đỉnh bệ không đổi»')
     expect(skill).toContain('**kể cả FG và FE**')
   })
+
+  // Generator 0.3.1: an older dossier the generator has moved on from is
+  // unlocked by the user, in one call.
+  test('the unlock path for an older dossier', () => {
+    expect(prompt).toContain(
+      'generator (0.3.0) whose drawing no longer matches generator 0.3.1'
+    )
+    expect(prompt).toContain('mo_khoa_031: true')
+    expect(prompt).toContain('never replace it quietly with tao_ho_so_mo')
+    expect(skill).toContain('**Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.**')
+    expect(skill).toContain('`mo_khoa_031: true`')
+  })
 })

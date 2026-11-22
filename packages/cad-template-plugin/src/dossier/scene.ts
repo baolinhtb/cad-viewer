@@ -7,7 +7,7 @@ import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
 
 import type { DossierModel } from './model'
 import {
-  DOSSIER_A3_VERSION,
+  acapIsA3Version,
   DOSSIER_TITLE_KEYS,
   DOSSIER_VERSION,
   DOSSIER_VERSIONS,
@@ -188,7 +188,7 @@ export function buildDossierScene(
     )
   const errors = model.issues.filter(i => i.level === 'error')
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'))
-  if (version === DOSSIER_A3_VERSION)
+  if (acapIsA3Version(version))
     return buildScene030(model, version, isSourceGeometry(model.values))
   const v = model.values,
     n = (k: string) => Number(v[k])

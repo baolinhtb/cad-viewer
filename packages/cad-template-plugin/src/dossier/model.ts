@@ -14,11 +14,12 @@ export const DOSSIER_ID = 'ho_so_mo_m1'
  * with *their* generator — {@link DOSSIER_VERSIONS} — so a saved 0.1.0
  * dossier keeps its original frame exactly.
  */
-export const DOSSIER_VERSION = '0.3.0'
+export const DOSSIER_VERSION = '0.3.1'
 /** Every generator version this build can still regenerate, oldest first. */
 export const DOSSIER_VERSIONS: readonly string[] = [
   '0.1.0',
   '0.2.0',
+  '0.3.0',
   DOSSIER_VERSION
 ]
 
@@ -28,6 +29,20 @@ export const DOSSIER_VERSIONS: readonly string[] = [
  * has no hand edits (decision Q6); older runs keep label-only edits.
  */
 export const DOSSIER_A3_VERSION = '0.3.0'
+
+/**
+ * The A3 generators: 0.3.0, then 0.3.1 (P1, after M2–M5b changed what 0.3.0
+ * draws). Both build with today's A3 scene; a 0.3.0 run whose drawing no
+ * longer matches it is unlocked by the user (`mo_khoa_031`), never redrawn
+ * silently — and never sent to the 0.1/0.2 A1 generators.
+ */
+export const DOSSIER_A3_VERSIONS: readonly string[] = [
+  DOSSIER_A3_VERSION,
+  DOSSIER_VERSION
+]
+/** Whether a run was made by an A3 generator (0.3.0 or 0.3.1). */
+export const acapIsA3Version = (version: string) =>
+  DOSSIER_A3_VERSIONS.includes(version)
 
 /**
  * Title-block fields (0.2.0). Text only: changing them never changes geometry,

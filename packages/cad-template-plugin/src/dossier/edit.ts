@@ -22,10 +22,11 @@ import type { AcApRunEditResult } from '../editRun'
 import { entitiesOfRun, listRuns } from '../runIdentity'
 import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
 import {
+  acapIsA3Version,
   buildDossierModel,
-  DOSSIER_A3_VERSION,
   DOSSIER_ID,
-  DOSSIER_TITLE_KEYS
+  DOSSIER_TITLE_KEYS,
+  DOSSIER_VERSION
 } from './model'
 import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
@@ -60,6 +61,13 @@ export interface AcApDossierEditOptions {
    * entity type, font, colour, layer — never by a script.
    */
   revertHandEdits?: boolean
+  /**
+   * The user confirmed rebuilding an older dossier (0.3.0) whose drawing no
+   * longer matches today's generator with generator 0.3.1, from its stored
+   * values, and applying the change in the same call (`mo_khoa_031`).
+   * Anything drawn by hand on it is lost.
+   */
+  unlock031?: boolean
 }
 
 /**
@@ -113,11 +121,21 @@ export async function acapEditDossierRun(
   // 0.3.0 (plan P0–P1 2.7): the elevation datum and the label mode only
   // change what texts, dimension texts and elevation tags say — patched in
   // place too, keeping every handle, when nothing else moves.
-  const a3 = run.version === DOSSIER_A3_VERSION
+  const a3 = acapIsA3Version(run.version)
   const wording = changed.some(k => WORDING_KEYS.includes(k))
   const patchable = a3 ? [...labelKeys, ...WORDING_KEYS] : labelKeys
   const regenerate = () =>
     regenerateRun(db, run, values, entities, result, options)
+  // An older A3 dossier (0.3.0, drawn before M2–M5b changed the generator)
+  // is edited like a current one only while its drawing is what today's
+  // generator draws from its values. Otherwise the user unlocks it: rebuilt
+  // as 0.3.1 from its stored values with the change, in one call — never
+  // silently, and never mistaken for a hand-edited number.
+  if (a3 && options.unlock031) return regenerate()
+  if (a3 && run.version !== DOSSIER_VERSION) {
+    const drift = compareWithGenerator(db, run, entities)
+    if (drift.drift > 0) return result([unlockMessage(run, drift)])
+  }
   if (
     a3 &&
     (changed.some(k => !patchable.includes(k)) ||
@@ -509,6 +527,8 @@ export async function acapEditDossierRun(
             : {}),
           run: {
             ...tag.run!,
+            // A matching 0.3.0 dossier is a 0.3.1 one from now on.
+            version: a3 ? DOSSIER_VERSION : tag.run!.version,
             values: values as Record<string, number | string | boolean>
           }
         })
@@ -521,7 +541,7 @@ export async function acapEditDossierRun(
           roleLayers(),
           {
             id: run.id,
-            version: run.version,
+            version: a3 ? DOSSIER_VERSION : run.version,
             values: values as Record<string, number | string | boolean>
           },
           layerStyles(),
@@ -545,10 +565,17 @@ export async function acapEditDossierRun(
     ...result([]),
     removed,
     entityCount: entities.length - removed + drawn,
-    ...(reverted.length
+    ...(reverted.length || (a3 && run.version !== DOSSIER_VERSION)
       ? {
           warnings: [
-            `Đã đưa về số bộ sinh (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
+            ...(reverted.length
+              ? [
+                  `Đã đưa về số bộ sinh (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
+                ]
+              : []),
+            ...(a3 && run.version !== DOSSIER_VERSION
+              ? [upgraded(run.version)]
+              : [])
           ]
         }
       : {})
@@ -772,7 +799,8 @@ async function regenerateRun(
   }
   const identity = (v: AcTpParamValues) => ({
     id: run.id,
-    version: run.version,
+    // An A3 dossier rebuilt is a 0.3.1 one.
+    version: acapIsA3Version(run.version) ? DOSSIER_VERSION : run.version,
     values: v as Record<string, number | string | boolean>
   })
   const before = buildDossierScene(
@@ -821,9 +849,10 @@ async function regenerateRun(
   const actual = entities.map(entityKey).sort()
   if (
     JSON.stringify(expected) !== JSON.stringify(actual) &&
-    // The user chose to drop the hand edits: the run is drawn again from
-    // its values, which puts every text back as generated.
-    !options.revertHandEdits
+    // The user chose to drop the hand edits, or to unlock an older
+    // dossier: the run is drawn again from its values.
+    !options.revertHandEdits &&
+    !options.unlock031
   ) {
     const missing = expected.filter(k => !actual.includes(k)).length
     const extra = actual.filter(k => !expected.includes(k)).length
@@ -858,10 +887,123 @@ async function regenerateRun(
       )
       .map(p => `${s.id}: ${(p as { text: string }).text}`)
   )
+  if (acapIsA3Version(run.version) && run.version !== DOSSIER_VERSION)
+    warnings.push(upgraded(run.version))
   return {
     ...result([]),
     removed,
     entityCount: drawn,
     ...(warnings.length ? { warnings } : {})
   }
+}
+
+const upgraded = (version: string) =>
+  `Hồ sơ dựng bằng bộ sinh ${version} đã chuyển lên bộ sinh ${DOSSIER_VERSION}.`
+
+/** Key of a drawn entity, its text read without formatting. */
+function plainKey(e: AcDbEntity): string {
+  const key = entityKey(e)
+  return e instanceof AcDbText
+    ? key.slice(0, key.lastIndexOf('|') + 1) + acapPlainLabel(e.textString)
+    : key
+}
+
+/**
+ * How an older dossier's drawing differs from what today's generator draws
+ * from its stored values. A text at a generated place reading another value
+ * is a hand edit (`valueEdits`); a text holding the right value in another
+ * entity is neither; everything else — colours, layers, entities missing or
+ * added, a notice sheet instead of the drawing — is generator drift.
+ */
+function compareWithGenerator(
+  db: AcDbDatabase,
+  run: ReturnType<typeof listRuns>[number],
+  entities: AcDbEntity[]
+): { drift: number; valueEdits: string[] } {
+  const scene = buildDossierScene(
+    buildDossierModel({ ...run.values }),
+    DOSSIER_VERSION
+  )
+  const scratch = new AcDbDatabase()
+  scratch.createDefaultData()
+  acTpWithWorkingDatabaseSync(scratch, () =>
+    drawDossierScene(
+      createDrawContext(
+        scratch,
+        DOSSIER_ID,
+        roleLayers(),
+        {
+          id: run.id,
+          version: DOSSIER_VERSION,
+          values: run.values as Record<string, number | string | boolean>
+        },
+        layerStyles(),
+        { legacyLayers: legacyLayers() }
+      ),
+      scene
+    )
+  )
+  const left = new Map<string, AcDbEntity[]>()
+  for (const e of entities) {
+    const k = plainKey(e)
+    left.set(k, [...(left.get(k) ?? []), e])
+  }
+  const missing: AcDbEntity[] = []
+  for (const e of entitiesOfRun(scratch, run.id)) {
+    const same = left.get(plainKey(e))
+    if (same?.length) same.pop()
+    else missing.push(e)
+  }
+  const extra = [...left.values()].flat()
+  const extraTexts: AcDbEntity[] = extra.filter(
+    e => e instanceof AcDbText || e instanceof AcDbMText
+  )
+  let drift = extra.length - extraTexts.length
+  const valueEdits: string[] = []
+  const inRun = new Set(entities.map(e => e.objectId))
+  for (const m of missing) {
+    if (!(m instanceof AcDbText)) {
+      drift += 1
+      continue
+    }
+    const place = {
+      at: [m.position.x, m.position.y] as XY,
+      height: m.height
+    }
+    const there =
+      extraTexts.find(e => near(positionOf(e), place, 1.5)) ??
+      textEntityAt(db, place, e => !inRun.has(e.objectId))
+    if (!there) {
+      drift += 1
+      continue
+    }
+    const i = extraTexts.indexOf(there)
+    if (i >= 0) extraTexts.splice(i, 1)
+    if (!sameLabel(plainOf(there), m.textString))
+      valueEdits.push(
+        `chữ trên ${String(readSemanticTag(m)?.params?.sheet ?? '')} đang là «${plainOf(there)}», bộ sinh ghi «${m.textString}»`
+      )
+    // The right value in a Text of another colour or layer: an old style.
+    else if (
+      there instanceof AcDbText &&
+      (there.color.colorIndex !== m.color.colorIndex || there.layer !== m.layer)
+    )
+      drift += 1
+  }
+  return { drift: drift + extraTexts.length, valueEdits }
+}
+
+/** The refusal for an older dossier that no longer matches the generator. */
+function unlockMessage(
+  run: ReturnType<typeof listRuns>[number],
+  drift: { drift: number; valueEdits: string[] }
+): string {
+  const edits = drift.valueEdits.length
+    ? ` Ngoài ra có chữ đã sửa tay: ${drift.valueEdits.slice(0, 6).join('; ')}${drift.valueEdits.length > 6 ? ` và ${drift.valueEdits.length - 6} chỗ khác` : ''} — mở khóa sẽ mất các số sửa tay này.`
+    : ''
+  return (
+    `Hồ sơ ${run.id} dựng bằng bộ sinh ${run.version}; bản vẽ không còn khớp bộ sinh ${DOSSIER_VERSION} (khoảng ${drift.drift} đối tượng khác: màu, kiểu chữ, chỗ đặt, nhãn bộ sinh mới thêm, hoặc tờ thông báo cũ), nên chưa sửa được và chưa đụng gì.${edits} ` +
+    `Đường mở khóa: giải thích cho người dùng và hỏi xác nhận dựng lại hồ sơ theo bộ sinh ${DOSSIER_VERSION} từ đúng thông số đã lưu (chữ, hình vẽ thêm và mọi số sửa tay trên hồ sơ sẽ mất). Người dùng đồng ý thì gọi lại sua_ho_so_mo MỘT lần với cùng thông số và mo_khoa_031: true — công cụ dựng lại và áp thay đổi trong cùng lần. ` +
+    'Chưa xác nhận thì không đụng gì; không sửa bằng script, không dùng tao_ho_so_mo thay thế.'
+  )
 }

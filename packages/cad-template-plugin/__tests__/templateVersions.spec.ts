@@ -90,7 +90,7 @@ describe('the list the dialog offers', () => {
     expect(listTemplates().map(t => `${t.meta.id}@${t.meta.version}`)).toEqual([
       'mo_mat_chinh@1.1.0',
       'tuong_phong_ho_btct@3.1.0',
-      'ho_so_mo_m1@0.3.0',
+      'ho_so_mo_m1@0.3.1',
       'khung_ban_ve@1.0.0',
       'btkl_ket_cau@1.0.0'
     ])
@@ -101,8 +101,8 @@ describe('the list the dialog offers', () => {
 
 test('an older built-in generator regenerates its runs but is never offered', () => {
   // ho_so_mo_m1 0.1.0 runs keep their original border and 0.2.0 runs their
-  // A1 title block: both generators are still found by exact version, yet a
-  // new dossier always gets 0.3.0 (A3 sheets as the source).
+  // A1 title block, 0.3.0 runs the first A3 scene: all are still found by
+  // exact version, yet a new dossier always gets 0.3.1.
   setRemoteTemplates([])
   expect(findTemplateVersion('ho_so_mo_m1', '0.1.0')?.meta.version).toBe(
     '0.1.0'
@@ -113,12 +113,15 @@ test('an older built-in generator regenerates its runs but is never offered', ()
   expect(findTemplateVersion('ho_so_mo_m1', '0.3.0')?.meta.version).toBe(
     '0.3.0'
   )
-  expect(findTemplate('ho_so_mo_m1')?.meta.version).toBe('0.3.0')
+  expect(findTemplateVersion('ho_so_mo_m1', '0.3.1')?.meta.version).toBe(
+    '0.3.1'
+  )
+  expect(findTemplate('ho_so_mo_m1')?.meta.version).toBe('0.3.1')
   expect(
     listTemplates()
       .filter(t => t.meta.id === 'ho_so_mo_m1')
       .map(t => t.meta.version)
-  ).toEqual(['0.3.0'])
+  ).toEqual(['0.3.1'])
   expect(
     listRegisteredTemplates().filter(r => r.template.meta.id === 'ho_so_mo_m1')
   ).toHaveLength(1)

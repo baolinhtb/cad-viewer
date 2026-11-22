@@ -59,14 +59,17 @@ const model = (db: AcDbDatabase): AcDbEntity[] => [
 const onSheet = (db: AcDbDatabase, id: string) =>
   model(db).filter(e => readSemanticTag(e)?.params?.sheet === id)
 
-describe('0.3.0 là bộ sinh mặc định; 0.1.0/0.2.0 vẫn tái tạo', () => {
-  test('hồ sơ mới là 0.3.0; hai bộ sinh cũ chỉ để dựng lại run cũ', () => {
+describe('0.3.1 là bộ sinh mặc định; 0.1.0/0.2.0/0.3.0 vẫn tái tạo', () => {
+  test('hồ sơ mới là 0.3.1; các bộ sinh cũ chỉ để dựng lại run cũ', () => {
+    // 0.3.0 is the first A3 generator; 0.3.1 builds the same A3 scene and
+    // unlocks 0.3.0 dossiers the generator has moved on from (P1, Q4).
     expect(V).toBe('0.3.0')
-    expect(DOSSIER_VERSION).toBe('0.3.0')
-    expect(DOSSIER_VERSIONS).toEqual(['0.1.0', '0.2.0', '0.3.0'])
+    expect(DOSSIER_VERSION).toBe('0.3.1')
+    expect(DOSSIER_VERSIONS).toEqual(['0.1.0', '0.2.0', '0.3.0', '0.3.1'])
     expect(abutmentDossierLegacyTemplates.map(t => t.meta.version)).toEqual([
       '0.1.0',
-      '0.2.0'
+      '0.2.0',
+      '0.3.0'
     ])
   })
 })
