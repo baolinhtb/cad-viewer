@@ -233,7 +233,6 @@ describe('dossier tools against a real database', () => {
     for (const description of [create.description, edit.description]) {
       const fixed = description.split('CHƯA đổi được')[1] ?? ''
       for (const key of [
-        'hLanCan',
         'docNgang',
         'docDoc',
         'soCotCoc',
@@ -244,6 +243,8 @@ describe('dossier tools against a real database', () => {
       expect(fixed).not.toContain('bMatDuong = ')
       // In the grid since P2/M1.
       expect(fixed).not.toContain('tCanh = ')
+      // In the grid since P2-M2.
+      expect(fixed).not.toContain('hLanCan = ')
       expect(fixed).not.toContain('soGoi = ')
       expect(fixed).not.toContain('aGoi = ')
       expect(description).toContain('Gối đổi được: soGoi, aGoi')
@@ -259,7 +260,7 @@ describe('dossier tools against a real database', () => {
       expect(description).toContain('6 gối trên thân 8700 → aGoi = 1400')
       expect(description).toContain('bThan = bBe')
       expect(description).toContain(
-        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong, tCanh.'
+        'Co giãn được: bBe, lBe, hBe, hLot, muiBe, tThan, hThan, hDau, lCanh, D, bMatDuong, tCanh, hLanCan.'
       )
       expect(description).toContain('bBe = bThan = bMatDuong + 2 × 350')
       expect(description).toContain('data.suyRa')

@@ -43,7 +43,8 @@ type Delta = Record<
   | 'lCanh'
   | 'D'
   | 'bMatDuong'
-  | 'tCanh',
+  | 'tCanh'
+  | 'hLanCan',
   number
 >
 /**
@@ -77,7 +78,8 @@ export const DOSSIER_STRETCH_KEYS = [
   'lCanh',
   'D',
   'bMatDuong',
-  'tCanh'
+  'tCanh',
+  'hLanCan'
 ] as const
 
 /**
@@ -105,13 +107,29 @@ export const DOSSIER_FREE_KEYS: ReadonlySet<string> = new Set([
   'nhanKichThuoc'
 ])
 
-/** Elevation lines shared by the front view and both sections. */
+/**
+ * Elevation lines shared by the front view and both sections, ending with
+ * the rail (P2-M2): everything up to just above the wing end's top (22073)
+ * moves with the head wall top, as it did before — the FG tag (21941), the
+ * rail feet — and every rail top, hLanCan (1140) above its foot, moves by
+ * hLanCan as well. The rail tops are 23031 at the head wall (front, high
+ * side, and B–B), 22891 on the front's low side (cross fall 140) and 23213
+ * at the wing end (B–B); the rail's dimensions and the EL1/EL2 tags on its
+ * top follow. At the default rail height these lines move with the head
+ * wall top: no other parameter stretches differently.
+ */
 const heights = (stemTop: number): Line[] => [
   [13186, d => -d.hLot],
   [13286, () => 0],
   [15286, d => d.hBe],
   [stemTop, d => d.hBe + d.hThan],
-  [21891, d => d.hBe + d.hThan + d.hDau]
+  [21891, d => d.hBe + d.hThan + d.hDau],
+  ...railTops(22100, [22891, 23031, 23213])
+]
+/** A line pinned to the head wall top, then the rail tops above it. */
+const railTops = (pin: number, tops: number[]): Line[] => [
+  [pin, d => d.hBe + d.hThan + d.hDau],
+  ...tops.map((y): Line => [y, d => d.hBe + d.hThan + d.hDau + d.hLanCan])
 ]
 /** Across the bridge: footing edges, inner pile edges, centre line. */
 const across = (left: number): Line[] => [
@@ -275,7 +293,10 @@ const SUB_020: View[] = [
       [3439, () => 0],
       [5439, d => d.hBe],
       [10086, d => d.hBe + d.hThan],
-      [11904, d => d.hBe + d.hThan + d.hDau]
+      [11904, d => d.hBe + d.hThan + d.hDau],
+      // The rail as on B–B, 9987 lower: tops 13044 (head wall), 13226
+      // (wing end, EL2.R).
+      ...railTops(12113, [13044, 13226])
     ]
   }
 ]
