@@ -64,7 +64,9 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   công cụ hay cờ (`sua_ho_so_mo`, `cap_nhat_btkl`, `mo_khoa_031`…); nói việc sẽ
   làm với bản vẽ. Các khóa, tên công cụ, cờ trong skill này chỉ để gọi công
   cụ. Trước khi gọi công cụ chỉ nói ý định («Tôi sẽ sửa hồ sơ mố…») hoặc im; nói «Đã…» và nêu số mới chỉ sau khi công cụ thành công;
-  bị từ chối thì nói chưa sửa gì.
+  bị từ chối thì nói chưa sửa gì; được thêm **một** gợi ý ngắn (giá trị
+  lọt, hoặc cách khác), nhưng không kết bằng câu hỏi chọn phương án («Bạn
+  muốn chọn hướng nào?») khi người dùng không xin phương án.
 - Ví dụ câu hỏi: «Nâng xà mũ mố thêm 0,3 m theo cách nào: (a) nâng cả mố
   (đáy bệ cũng lên 0,3 m) hay (b) giữ móng, kéo dài thân thêm 300 mm?»
 - Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;
@@ -127,6 +129,11 @@ lượng** của mố/trụ đã dựng:
   thức) bên phải bản vẽ. Đã có BTKL thì không lập chồng.
 - Sau khi sửa kích thước mố/trụ: `cap_nhat_btkl` + mã lần chạy BTKL. Tờ
   BTKL dựng lại tại chỗ; không đổi gì thì không sửa.
+- Tường cánh và lan can là hai dòng: bê tông **tường cánh** là mục 1.4,
+  nhân dày tường cánh; mục 1.7 là **lan can trên tường cánh**, theo chiều dài
+  cánh × chiều cao lan can, không theo dày tường cánh (giả định 2); ván khuôn
+  tường cánh (5.4) là hai mặt lớn, không nhân dày. Đổi dày tường cánh thì chỉ
+  1.4 và tổng bê tông đổi; không gọi 1.7 là tường cánh.
 - Tải: `xuat_btkl` — `xlsx` (sheet BTKL + sheet thép chi tiết từng thanh) hoặc
   `json`. Có cảnh báo "đã đổi từ lúc lập" thì đề nghị `cap_nhat_btkl` trước.
 
