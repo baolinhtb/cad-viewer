@@ -273,6 +273,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('*ngoài vùng mà lần sửa vẽ lại*')
     expect(skill).toContain('*trong vùng đổi*')
     expect(skill).toContain('tự cập nhật\n  tờ BTKL (cùng mã, cùng chỗ)')
+    expect(skill).toContain('gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30')
   })
 
   // QA P2-M5 step 7: «đưa về số bộ sinh» said to the user. «Bộ sinh» is
@@ -299,5 +300,53 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     // The flags are still there, for the calls.
     expect(prompt).toContain('dua_ve_so_bo_sinh: true')
     expect(skill).toContain('`dua_ve_so_bo_sinh: true`')
+  })
+
+  // QA P2-M6 step 4: «Đổi dốc ngang thành 3 %» was not applied; the agent
+  // cited TCVN (not from a tool this turn) and asked about superelevation.
+  // An explicit value in the tool's range is applied at once; at most one
+  // short note after the result; never a question; never a TCVN citation
+  // unless a tool returned it this turn. After a successful edit that
+  // changes the take-off, the reply names 1.4, 1.7 and C30.
+  test('an explicit in-range cross fall is applied at once; take-off figures are reported', () => {
+    expect(prompt).toContain(
+      '**An explicit cross fall in the allowed range is applied at once.**'
+    )
+    expect(prompt).toContain(
+      'call the tool immediately with the current/default sign convention (positive = left side of the alignment high, «trái tuyến cao»)'
+    )
+    expect(prompt).toContain(
+      'Do not ask whether the abutment is in a superelevation curve, which side is high, or whether the value is acceptable, and do not wait for confirmation.'
+    )
+    expect(prompt).toContain(
+      'at most ONE short note sentence may follow the result (e.g. that a value above 2 % is usually used in superelevation)'
+    )
+    expect(prompt).toContain('Never a question.')
+    expect(prompt).toContain(
+      'Never cite TCVN or a clause/table unless that number was returned this turn by tra_cuu_tieu_chuan or another tool'
+    )
+    expect(prompt).toContain(
+      'This holds even if a published guide tells you to ask first or to quote clause numbers'
+    )
+    expect(prompt).toContain(
+      'report the changed item values concisely — including line 1.4 (wing), line 1.7 (rail) and the C30 total'
+    )
+    expect(prompt).toContain('do not omit 1.4 or 1.7')
+    expect(skill).toContain('**áp ngay** với quy ước dấu hiện tại / mặc định (dương =')
+    expect(skill).toContain('trái tuyến cao')
+    expect(skill).toContain(
+      'Không hỏi mố có nằm trong đường cong siêu cao hay không,'
+    )
+    expect(skill).toContain('được thêm **đúng một câu** ghi chú ngắn sau kết')
+    expect(skill).toContain('Không hỏi. Không')
+    expect(skill).toContain(
+      'trích TCVN hay số điều/bảng trừ khi số đó đến từ `tra_cuu_tieu_chuan` hoặc'
+    )
+    expect(skill).not.toContain('Hỏi người dùng xác nhận trước khi dựng')
+    expect(skill).not.toMatch(/Hỏi\s+người dùng xác nhận trước khi dựng/)
+    expect(skill).toContain(
+      'gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30'
+    )
+    expect(skill).toContain('không bỏ 1.4 hay 1.7')
   })
 })

@@ -110,8 +110,10 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   giữ nguyên phần kia và báo trong `canhBao`. Sửa tay *trong vùng đổi*
   (dời/sửa/xóa nét mà lần sửa sẽ vẽ lại) hoặc chữ nhãn đã sửa số thì vẫn bị
   từ chối và hỏi một lần như dưới. Đã có tờ BTKL thì sửa hồ sơ tự cập nhật
-  tờ BTKL (cùng mã, cùng chỗ) và `canhBao` nêu số mới — báo lại số đó, không
-  cần lập lại bảng khối lượng.
+  tờ BTKL (cùng mã, cùng chỗ) và `canhBao` nêu số mới — báo lại các mục đổi
+  một cách ngắn, gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30 khi
+  các số đó có trong `canhBao`; không bỏ 1.4 hay 1.7. Không cần lập lại bảng
+  khối lượng.
 - **Lời với người dùng: không nói «bộ sinh».** «Bộ sinh» là tiếng lóng nội
   bộ (cũng như tên công cụ, tên cờ `dua_ve_so_bo_sinh`, `mo_khoa_031`): không
   viết ra trong câu trả lời, kể cả khi thông báo công cụ có. Nói bằng lời
@@ -269,10 +271,16 @@ nói rõ với người dùng thay vì xấp xỉ bằng dốc một mái.
 | `doDocNgang` là siêu cao | ≥ 2 %, ≤ 8 % đường ô tô                                                                                                                         | TCVN 4054 đ.5.5.1     |
 | … đường đô thị           | theo tốc độ và bán kính (i_sc 0,02 – 0,08)                                                                                                      | TCVN 13592 Bảng 20    |
 
-Dốc trên 2,5 % chỉ hợp lệ khi mố nằm trong đường cong có siêu cao. **Hỏi
-người dùng xác nhận trước khi dựng**, nêu hai ngưỡng trên, đừng lặng lẽ vẽ.
-Khi báo kết quả, kèm số điều khoản để truy ngược, và nói rõ mục nào không
-kiểm tự động được. Cần nguyên văn điều khoản thì `tra_cuu_tieu_chuan`.
+Khi người dùng nêu rõ một giá trị dốc ngang nằm trong khoảng cho phép của
+công cụ (−8…8 %), **áp ngay** với quy ước dấu hiện tại / mặc định (dương =
+trái tuyến cao). Không hỏi mố có nằm trong đường cong siêu cao hay không,
+bên nào cao, hay giá trị có chấp nhận được không, và không chờ xác nhận.
+Sau khi công cụ thành công, được thêm **đúng một câu** ghi chú ngắn sau kết
+quả (ví dụ giá trị trên 2 % thường dùng khi có siêu cao). Không hỏi. Không
+trích TCVN hay số điều/bảng trừ khi số đó đến từ `tra_cuu_tieu_chuan` hoặc
+công cụ khác trong lượt này — bảng trên không phải nguồn để nêu ra khi đang
+áp giá trị người dùng đã cho. Nếu người dùng hỏi tiêu chuẩn, hoặc dốc ngoài
+khoảng cho phép thì mới xét bảng kiểm và (khi cần nguyên văn) `tra_cuu_tieu_chuan`.
 
 ## Tệp kèm theo — chỉ đọc khi cần
 
