@@ -273,11 +273,16 @@ describe('(b) an existing take-off follows sua_ho_so_mo', () => {
       c30: 184.622
     })
     const said = (res.data as { canhBao?: string[] }).canhBao ?? []
-    expect(said.join(' ')).toContain(`Đã tự cập nhật tờ BTKL ${was.id}`)
-    expect(said.join(' ')).toContain('cọc 117,81 m³')
-    expect(said.join(' ')).toContain('bệ 103,693 m³')
-    expect(said.join(' ')).toContain('bê tông C30 184,622 m³')
+    expect(said.join(' ')).toContain(`Đã tự cập nhật tờ BTKL ${was.id}:`)
+    expect(said.join(' ')).toContain('cọc 78,54 → 117,81 m³')
+    expect(said.join(' ')).toContain('bệ 103,929 → 103,693 m³')
+    expect(said.join(' ')).toContain('1.4 Tường cánh')
+    expect(said.join(' ')).toContain('1.7 Lan can trên tường cánh 3,214 m³')
+    expect(said.join(' ')).toContain('tổng C30 184,857 → 184,622 m³')
     expect(String(res.message)).toContain('117,81')
+    expect(String(res.message)).toContain('1.4 Tường cánh')
+    // Static steel caveats are not repeated in canhBao after an edit.
+    expect(said.join(' ')).not.toMatch(/THÉP THEO M1 GỐC/)
     // The sheet is the take-off of the drawing now: nothing left to refresh.
     const again = await runBtklTool(
       'cap_nhat_btkl',
@@ -286,6 +291,29 @@ describe('(b) an existing take-off follows sua_ho_so_mo', () => {
     )
     expect(again.message).toContain('đã khớp bản vẽ')
     numbers.btkl = { was, now, canhBao: said }
+  })
+
+  // QA P2-M6b: a 3 % cross fall must name 1.4 and 1.7 (not only C30), with
+  // old → new where the figure changed, and must not repeat the steel caveat.
+  test('L1 take-off: dốc ngang 3 % names 1.4 / 1.7 / C30 with old → new', async () => {
+    const db = await tao(database())
+    expect((await runBtklTool('tao_btkl', {}, db)).ok).toBe(true)
+    const was = take(db)!
+    const res = await sua(db, { docNgang: 3 })
+    expect(res.ok).toBe(true)
+    const said = ((res.data as { canhBao?: string[] }).canhBao ?? []).join(' ')
+    expect(said).toContain(`Đã tự cập nhật tờ BTKL ${was.id}:`)
+    expect(said).toContain('1.4 Tường cánh 19,704 → 19,592 m³')
+    expect(said).toContain('1.7 Lan can trên tường cánh 3,214 m³')
+    expect(said).toContain('tổng C30 184,857 → 184,745 m³')
+    expect(said).not.toMatch(/cọc \d/)
+    expect(said).not.toMatch(/bệ \d/)
+    expect(said).not.toMatch(/THÉP THEO M1 GỐC/)
+    expect(String(res.message)).toContain(
+      '1.4 Tường cánh 19,704 → 19,592 m³'
+    )
+    expect(String(res.message)).toMatch(/^Đã sửa hồ sơ/)
+    expect(String(res.message)).not.toMatch(/Chưa có thép áp dụng/)
   })
 
   test('wing thickness / rail height follow too; a label-only change leaves it', async () => {

@@ -312,11 +312,14 @@ describe('dossier tools against a real database', () => {
     expect(sub100).toContain('6,668')
     expect(sub100).toContain('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
     const data = result.data as { canhBao?: string[] }
-    expect(data.canhBao).toEqual(
+    // The sheets still carry the M1-steel caveat; after an edit it is not
+    // repeated in canhBao (said on create / describe only).
+    expect(data.canhBao ?? []).not.toEqual(
       expect.arrayContaining([
         'SUB-070: THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
       ])
     )
+    expect((data.canhBao ?? []).join(' ')).not.toMatch(/THÉP THEO M1 GỐC/)
   })
 
   test('a regeneration that drops much of the dossier asks first', async () => {

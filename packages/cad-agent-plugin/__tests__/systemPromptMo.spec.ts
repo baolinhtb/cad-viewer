@@ -273,7 +273,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('*ngoài vùng mà lần sửa vẽ lại*')
     expect(skill).toContain('*trong vùng đổi*')
     expect(skill).toContain('tự cập nhật\n  tờ BTKL (cùng mã, cùng chỗ)')
-    expect(skill).toContain('gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30')
+    expect(skill).toContain('nhắc lại nguyên văn dòng đó')
   })
 
   // QA P2-M5 step 7: «đưa về số bộ sinh» said to the user. «Bộ sinh» is
@@ -329,9 +329,9 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'This holds even if a published guide tells you to ask first or to quote clause numbers'
     )
     expect(prompt).toContain(
-      'report the changed item values concisely — including line 1.4 (wing), line 1.7 (rail) and the C30 total'
+      'relay that line verbatim — it already names 1.4 Tường cánh, 1.7 Lan can trên tường cánh and tổng C30'
     )
-    expect(prompt).toContain('do not omit 1.4 or 1.7')
+    expect(prompt).toContain('Do not replace it with only the C30 total')
     expect(skill).toContain('**áp ngay** với quy ước dấu hiện tại / mặc định (dương =')
     expect(skill).toContain('trái tuyến cao')
     expect(skill).toContain(
@@ -344,9 +344,34 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     )
     expect(skill).not.toContain('Hỏi người dùng xác nhận trước khi dựng')
     expect(skill).not.toMatch(/Hỏi\s+người dùng xác nhận trước khi dựng/)
-    expect(skill).toContain(
-      'gồm mục 1.4 (tường cánh), mục 1.7 (lan can) và tổng C30'
+    expect(skill).toContain('**nhắc lại nguyên văn dòng đó**')
+    expect(skill).toContain('1.4 Tường cánh, 1.7 Lan can trên tường cánh, tổng C30')
+    expect(skill).toContain('Không thay bằng chỉ tổng C30, không bỏ 1.4 hay 1.7')
+  })
+
+  // QA P2-M6b: the prompt rule to name 1.4/1.7 was ignored (only C30
+  // appeared). The tool now emits a summary line; the agent repeats it
+  // verbatim. The «Lưu ý» two steel/flag bullets must not repeat after
+  // every edit — at most one short note sentence.
+  test('the BTKL summary line is relayed verbatim; static caveats are not repeated after an edit', () => {
+    expect(prompt).toContain(
+      'relay that line verbatim — it already names 1.4 Tường cánh, 1.7 Lan can trên tường cánh and tổng C30'
     )
-    expect(skill).toContain('không bỏ 1.4 hay 1.7')
+    expect(prompt).toContain('beginning «Đã tự cập nhật tờ BTKL»')
+    expect(prompt).toContain(
+      '**After a successful sua_ho_so_mo, do not repeat static caveats.**'
+    )
+    expect(prompt).toContain(
+      'Steel sheets SUB-070…100 still following M1, and engineer-confirmation flags that have not changed, are said when the dossier is created or described, not after every edit.'
+    )
+    expect(prompt).toContain(
+      'After an edit, besides the BTKL line relayed verbatim and the new elevations, add at most one short note sentence'
+    )
+    expect(prompt).toContain('No «Lưu ý» list of the same two bullets.')
+    expect(skill).toContain('**nhắc lại nguyên văn dòng đó**')
+    expect(skill).toContain('**Sau lần sửa: không lặp cảnh báo tĩnh.**')
+    expect(skill).toContain('không viết lại')
+    expect(skill).toContain("thành mục «Lưu ý» hai gạch sau mỗi lần sửa")
+    expect(skill).toContain('được thêm **tối đa một câu** ghi chú')
   })
 })

@@ -1137,13 +1137,18 @@ async function regenerateRun(
   ): AcApRunEditResult {
     // Sheets that could not follow the values say so on the sheet; the tool
     // reports them too.
+    // Static steel / M1-schedule caveats stay on the sheet and are said
+    // on create or describe, not after every edit (P2-M6c). Still report
+    // sheets that could not be drawn, and a table of elevations that
+    // could not be computed.
     const warnings = after.sheets.flatMap(s =>
       s.primitives
         .filter(
           p =>
             p.kind === 'text' &&
             /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(p.text) &&
-            p.role === 'ghi_chu'
+            p.role === 'ghi_chu' &&
+            !/THÉP THEO M1 GỐC|BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG/.test(p.text)
         )
         .map(p => `${s.id}: ${(p as { text: string }).text}`)
     )

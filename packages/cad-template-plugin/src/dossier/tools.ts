@@ -96,7 +96,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ A3 0.3.0/0.3.1): dựng lại theo lưới co giãn, chỉ vẽ lại vùng mà thông số làm đổi (so theo vùng với bản dựng từ thông số đã ghi): đối tượng người dùng thêm và nét do công cụ vẽ dời/xóa tay ngoài vùng đó được giữ (báo trong canhBao); sửa tay trong vùng đổi, chữ nhãn đã sửa số, hoặc bố trí chung không theo được (bThan khác bBe, hình tràn khung A3, tim cọc phạm lề 300 mm hoặc chồng cọc…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. Bản vẽ đã có tờ BTKL thì sau khi sửa thành công công cụ tự cập nhật tờ BTKL đó (cùng mã, cùng chỗ, như cap_nhat_btkl; không lập tờ mới) và canhBao nêu số mới — báo lại số đó. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Hồ sơ 0.3.0 (phiên bản trước M2–M5b) mà bản vẽ không còn khớp phiên bản 0.3.1: từ chối, không đụng gì, thông báo nêu đường mở khóa — giải thích cho người dùng, hỏi xác nhận dựng lại theo 0.3.1 từ đúng thông số đã lưu (mất chữ/hình vẽ thêm và số sửa tay), đồng ý thì gọi lại MỘT lần với cùng thông số và mo_khoa_031: true; không lách bằng script, không dùng tao_ho_so_mo thay thế. Hồ sơ 0.3.0 khớp thì sửa bình thường và thành 0.3.1. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng MỘT lần (đưa về thiết kế gốc rồi làm tiếp / giữ bản vẽ đã sửa tay / hủy); chọn đưa về thiết kế gốc thì gọi lại MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true — công cụ tự viết lại các chỗ đó và áp thay đổi; không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
+      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ A3 0.3.0/0.3.1): dựng lại theo lưới co giãn, chỉ vẽ lại vùng mà thông số làm đổi (so theo vùng với bản dựng từ thông số đã ghi): đối tượng người dùng thêm và nét do công cụ vẽ dời/xóa tay ngoài vùng đó được giữ (báo trong canhBao); sửa tay trong vùng đổi, chữ nhãn đã sửa số, hoặc bố trí chung không theo được (bThan khác bBe, hình tràn khung A3, tim cọc phạm lề 300 mm hoặc chồng cọc…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. Bản vẽ đã có tờ BTKL thì sau khi sửa thành công công cụ tự cập nhật tờ BTKL đó (cùng mã, cùng chỗ, như cap_nhat_btkl; không lập tờ mới) và đưa vào canhBao / thông báo một dòng tóm tắt (1.4 Tường cánh, 1.7 Lan can trên tường cánh, tổng C30, cũ → mới khi đổi) — nhắc lại nguyên văn dòng đó, không thay bằng chỉ tổng C30. Cảnh báo tĩnh (tờ thép SUB-070…100 vẫn theo M1, cờ cần kỹ sư) nói khi tạo hoặc mô tả hồ sơ, không lặp trong canhBao sau mỗi lần sửa. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Hồ sơ 0.3.0 (phiên bản trước M2–M5b) mà bản vẽ không còn khớp phiên bản 0.3.1: từ chối, không đụng gì, thông báo nêu đường mở khóa — giải thích cho người dùng, hỏi xác nhận dựng lại theo 0.3.1 từ đúng thông số đã lưu (mất chữ/hình vẽ thêm và số sửa tay), đồng ý thì gọi lại MỘT lần với cùng thông số và mo_khoa_031: true; không lách bằng script, không dùng tao_ho_so_mo thay thế. Hồ sơ 0.3.0 khớp thì sửa bình thường và thành 0.3.1. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng MỘT lần (đưa về thiết kế gốc rồi làm tiếp / giữ bản vẽ đã sửa tay / hủy); chọn đưa về thiết kế gốc thì gọi lại MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true — công cụ tự viết lại các chỗ đó và áp thay đổi; không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
       limits +
       '\n' +
       raise,
@@ -202,14 +202,21 @@ function derivedNote(suyRa: unknown): string {
 function summary(
   values: AcTpParamValues,
   runId: string,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  kind: 'full' | 'edit' = 'full'
 ): AcApToolOutcome {
   const model = buildDossierModel(values)
   const detailMode = buildDossierScene(model).detailMode
+  const btklNote = Array.isArray(extra.btkl) ? ` ${extra.btkl.join(' ')}` : ''
+  const message =
+    kind === 'edit'
+      ? `Đã sửa hồ sơ ${values.tenMo} (${runId}): ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}`.trimEnd() +
+        btklNote
+      : `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${btklNote}`
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
-    message: `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${Array.isArray(extra.btkl) ? ` ${extra.btkl.join(' ')}` : ''}`,
+    message,
     data: {
       maLanChay: runId,
       trangThaiHoSo: 'draft',
@@ -332,13 +339,18 @@ export async function runDossierTool(
       const btkl = await acapRefreshBtklAfterEdit(runId, database)
       const warnings = [...(result.warnings ?? []), ...btkl]
       if (!database) await refreshDossierView()
-      return summary(result.values, runId, {
-        soDoiTuong: result.entityCount,
-        soDoiTuongXoa: result.removed,
-        ...suyRaOf(derived.suyRa),
-        ...(warnings.length ? { canhBao: warnings } : {}),
-        ...(btkl.length ? { btkl } : {})
-      })
+      return summary(
+        result.values,
+        runId,
+        {
+          soDoiTuong: result.entityCount,
+          soDoiTuongXoa: result.removed,
+          ...suyRaOf(derived.suyRa),
+          ...(warnings.length ? { canhBao: warnings } : {}),
+          ...(btkl.length ? { btkl } : {})
+        },
+        'edit'
+      )
     }
     if (name === 'kiem_tra_ho_so') return summary({ ...run.values }, runId)
     // Exported with the generator that made the run, so a 0.1.0 dossier
