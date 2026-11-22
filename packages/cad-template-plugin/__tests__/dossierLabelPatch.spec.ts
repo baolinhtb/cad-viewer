@@ -26,6 +26,7 @@ import {
   AcDbText
 } from '@mlightcad/data-model'
 
+import { acapPlainLabel, acapSameLabel } from '../src/dossier/edit'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
 
@@ -351,6 +352,107 @@ describe('S7: a hand-edited elevation cell, however it was edited', () => {
     expect(res.message).toContain('đã được sửa tay')
     expect(res.message).toMatch(/hỏi người dùng/)
     expect(res.message).not.toMatch(/setText|execute_cad_script/)
+  })
+})
+
+// UI acceptance P1/M5b, S7: after "put the cell back", EL6 was rewritten
+// through a script as {\A1;\c16777215;\farial|b0|i0;\H161.4;228.837} — the
+// right number in MText codes — and still refused as a hand edit.
+const FORMATTED = '{\\A1;\\c16777215;\\farial|b0|i0;\\H161.4;228.837}'
+
+describe('MText formatting is not a hand edit', () => {
+  test('labels read without their codes, numbers compared as numbers', () => {
+    expect(acapPlainLabel(FORMATTED)).toBe('228.837')
+    expect(acapSameLabel(FORMATTED, '228.837')).toBe(true)
+    expect(acapSameLabel('228,837', '228.837')).toBe(true)
+    expect(acapSameLabel('228.8370', '228.837')).toBe(true)
+    expect(acapSameLabel(FORMATTED.replace('837', '900'), '228.837')).toBe(
+      false
+    )
+    expect(acapSameLabel('{\\H150;EL3 = 235.554}', 'EL3 = 235.554')).toBe(true)
+  })
+
+  const el6 = (db: AcDbDatabase) =>
+    entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbText =>
+        e instanceof AcDbText &&
+        sheetOf(e) === 'SUB-020' &&
+        acapSameLabel(e.textString, '228.837')
+    )!
+  const asMText =
+    (contents: string, keepTag: boolean) => (db: AcDbDatabase) => {
+      const old = el6(db)
+      const m = new AcDbMText()
+      m.location = { x: old.position.x, y: old.position.y, z: 0 }
+      m.contents = contents
+      m.height = old.height
+      if (keepTag) writeSemanticTag(m, readSemanticTag(old)!)
+      db.tables.blockTable.modelSpace.appendEntity(m)
+      old.erase()
+    }
+  test.each([
+    [
+      'a Text holding the codes',
+      (db: AcDbDatabase) => (el6(db).textString = FORMATTED)
+    ],
+    ['an MText outside the run', asMText(FORMATTED, false)],
+    ['an MText carrying the run tag', asMText(FORMATTED, true)]
+  ] as [string, (db: AcDbDatabase) => void][])(
+    '%s reading 228.837: the raise goes through, the cell drawn as generated',
+    async (_name, rewrite) => {
+      const db = await dossier(L1)
+      const before = table(db)
+      const tagsBefore = tags(db)
+      const look = entitiesOfRun(db, 'r1').find(
+        (e): e is AcDbText =>
+          e instanceof AcDbText &&
+          sheetOf(e) === 'SUB-020' &&
+          e.textString === '230.837'
+      )!
+      rewrite(db)
+      const v0 = listRuns(db)[0].values
+      const res = await edit(db, {
+        caoDoDayBe: Math.round((Number(v0.caoDoDayBe) + 0.3) * 1000) / 1000
+      })
+      expect(res.ok).toBe(true)
+      const after = table(db)
+      expect(after).toHaveLength(11)
+      expect(after).toContain(229.137)
+      expect([...after].sort()).toEqual(
+        before.map(x => Math.round((x + 0.3) * 1000) / 1000).sort()
+      )
+      expect(tags(db)).not.toEqual(tagsBefore)
+      // EL6 is the generator's Text again: plain, the look of its row.
+      const cell = entitiesOfRun(db, 'r1').find(
+        (e): e is AcDbText =>
+          e instanceof AcDbText &&
+          sheetOf(e) === 'SUB-020' &&
+          e.textString === '229.137'
+      )!
+      expect(cell).toBeDefined()
+      expect(cell.color.colorIndex).toBe(look.color.colorIndex)
+      expect(cell.layer).toBe(look.layer)
+      expect(cell.styleName).toBe(look.styleName)
+      expect(cell.height).toBeCloseTo(look.height, 6)
+      const mtexts = [...db.tables.blockTable.modelSpace.newIterator()].filter(
+        e => e instanceof AcDbMText
+      )
+      expect(mtexts).toEqual([])
+    }
+  )
+
+  test('a formatted MText with another number is still a hand edit', async () => {
+    const db = await dossier(L1)
+    asMText(FORMATTED.replace('837', '900'), false)(db)
+    const before = { ids: ids(db), table: table(db), tags: tags(db) }
+    const v0 = { ...listRuns(db)[0].values }
+    const res = await edit(db, { caoDoDayBe: Number(v0.caoDoDayBe) + 0.3 })
+    expect(res.ok).toBe(false)
+    expect(res.message).toContain('ô EL6 trên SUB-020 đang là «228.900»')
+    expect(ids(db)).toEqual(before.ids)
+    expect(table(db)).toEqual(before.table)
+    expect(tags(db)).toEqual(before.tags)
+    expect(listRuns(db)[0].values).toEqual(v0)
   })
 })
 

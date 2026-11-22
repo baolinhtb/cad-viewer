@@ -140,7 +140,13 @@ export async function acapEditDossierRun(
       // A text fitted to its cell (the SUB-020 name) is narrowed with it.
       fit?: { widthFactor: number; height: number }
       // Where the run drew it (sheet, point, height): to say what is there.
-      places: { sheet: string; at: XY; height: number }[]
+      places: {
+        sheet: string
+        at: XY
+        height: number
+        /** What the generator draws there now (to redraw the cell). */
+        next: DossierPrimitive
+      }[]
     }
   >()
   // Dimension texts and block attributes, by sheet and source handle.
@@ -222,7 +228,8 @@ export async function acapEditDossierRun(
           {
             sheet: old.id,
             at: [old.origin[0] + a.at[0], old.origin[1] + a.at[1]] as XY,
-            height: a.height
+            height: a.height,
+            next: b
           }
         ],
         ...(a.widthFactor !== b.widthFactor || a.height !== b.height
@@ -258,7 +265,7 @@ export async function acapEditDossierRun(
       const resolve = (t?: string) =>
         t === undefined ? measured : t.replace(/<>/g, measured)
       // The text the run drew, or the drawing was edited by hand.
-      if (e.dimensionText !== resolve(dim.old)) {
+      if (!sameLabel(e.dimensionText ?? '', resolve(dim.old))) {
         edited.push(
           `kích thước trên ${sheet} đang ghi «${e.dimensionText}», bộ sinh ghi «${resolve(dim.old)}»`
         )
@@ -266,7 +273,7 @@ export async function acapEditDossierRun(
         continue
       }
       dimTexts.set(e.objectId, {
-        old: e.dimensionText,
+        old: e.dimensionText ?? '',
         next: resolve(dim.next)
       })
       handled.add(JSON.stringify([sheet, source]))
@@ -276,7 +283,7 @@ export async function acapEditDossierRun(
         const key = JSON.stringify([sheet, source, a.tag])
         const attr = attrPatches.get(key)
         if (!attr) continue
-        if (a.textString !== attr.old) {
+        if (!sameLabel(a.textString, attr.old)) {
           edited.push(
             `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», bộ sinh ghi «${attr.old}»`
           )
@@ -299,32 +306,57 @@ export async function acapEditDossierRun(
         `thẻ cao độ «${a.old}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
       )
   const cells = acapDossierTableValues({ ...run.values })
+  // Cells to draw again from the generator: the run's text holds the right
+  // value but in another entity (an MText, or a text put in its stead).
+  const redraws: {
+    sheet: string
+    erase: AcDbEntity
+    prim: DossierPrimitive
+  }[] = []
+  const inRun = new Set(entities.map(e => e.objectId))
   for (const [key, replacement] of replacements) {
-    const found = entities.filter(e => {
+    const [sheetId, partId] = JSON.parse(key) as [string, string, string]
+    const mine = entities.filter(e => {
       const tag = readSemanticTag(e)
       return (
-        e instanceof AcDbText &&
-        JSON.stringify([tag?.params?.sheet, tag?.partId, e.textString]) === key
+        tag?.params?.sheet === sheetId &&
+        tag?.partId === partId &&
+        (e instanceof AcDbText || e instanceof AcDbMText) &&
+        sameLabel(plainOf(e), replacement.old)
       )
     })
-    if (found.length !== replacement.expected) {
-      // Name each place the run's text no longer is: what stands there now
-      // (a Text or an MText put in its stead), or nothing.
-      const cell = [...cells].find(([, x]) => x === replacement.old)?.[0]
-      for (const place of replacement.places) {
-        const here = found.some(e => near((e as AcDbText).position, place))
-        if (here) continue
-        const now = textAt(db, place)
-        edited.push(
-          `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
-        )
-      }
+    if (
+      mine.length === replacement.expected &&
+      mine.every(e => e instanceof AcDbText)
+    ) {
+      mine.forEach(e => {
+        patches.set(e.objectId, replacement.next)
+        if (replacement.fit) fits.set(e.objectId, replacement.fit)
+      })
       continue
     }
-    found.forEach(e => {
-      patches.set(e.objectId, replacement.next)
-      if (replacement.fit) fits.set(e.objectId, replacement.fit)
-    })
+    // Place by place: the run's own Text, the right value in another
+    // entity (redrawn), or a hand edit (named).
+    const cell = [...cells].find(([, x]) => x === replacement.old)?.[0]
+    for (const place of replacement.places) {
+      const own = mine.find(e => near(positionOf(e), place, 1.5))
+      if (own instanceof AcDbText) {
+        patches.set(own.objectId, replacement.next)
+        if (replacement.fit) fits.set(own.objectId, replacement.fit)
+        continue
+      }
+      const stand =
+        own ??
+        textEntityAt(db, place, e => !inRun.has(e.objectId), replacement.old)
+      if (stand) {
+        redraws.push({ sheet: place.sheet, erase: stand, prim: place.next })
+        continue
+      }
+      const now = textAt(db, place)
+      edited.push(
+        `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
+      )
+    }
   }
   if (edited.length) return result([handEdited(run.id, edited)])
   // The frame is generated layout, not engineering detail, so a changed frame
@@ -363,7 +395,17 @@ export async function acapEditDossierRun(
     db,
     'Sửa nhãn/vị trí hồ sơ, giữ chi tiết',
     async () => {
+      // Cells drawn again: what stands there goes (the run's MText, or a
+      // text put in its stead), the generator's own text comes back.
+      const redrawn = new Set(redraws.map(r => r.erase.objectId))
+      for (const r of redraws)
+        if (
+          db.openEntityForWrite(r.erase)?.erase() &&
+          inRun.has(r.erase.objectId)
+        )
+          removed += 1
       for (const original of entities) {
+        if (redrawn.has(original.objectId)) continue
         if (
           redrawFrame &&
           FRAME_ROLES.has(readSemanticTag(original)?.role ?? '')
@@ -419,7 +461,7 @@ export async function acapEditDossierRun(
           }
         })
       }
-      if (redrawFrame) {
+      if (redrawFrame || redraws.length) {
         // Drawn at the new placement: `after` already carries the new x, y.
         const ctx = createDrawContext(
           db,
@@ -437,7 +479,10 @@ export async function acapEditDossierRun(
           ...after,
           sheets: after.sheets.map(sheet => ({
             ...sheet,
-            primitives: sheet.primitives.filter(isFrame)
+            primitives: [
+              ...(redrawFrame ? sheet.primitives.filter(isFrame) : []),
+              ...redraws.filter(r => r.sheet === sheet.id).map(r => r.prim)
+            ]
           }))
         })
         drawn = ctx.drawn.length
@@ -469,9 +514,77 @@ function handEdited(runId: string, edited: string[]): string {
   )
 }
 
-/** Same place: within half a text height. */
-const near = (p: { x: number; y: number }, place: { at: XY; height: number }) =>
-  Math.hypot(p.x - place.at[0], p.y - place.at[1]) <= place.height / 2
+/** Same place: within `heights` text heights (half by default). */
+const near = (
+  p: { x: number; y: number },
+  place: { at: XY; height: number },
+  heights = 0.5
+) => Math.hypot(p.x - place.at[0], p.y - place.at[1]) <= place.height * heights
+
+/**
+ * A label as it reads, without MText or inline formatting: `{\A1;\c16777215;
+ * \farial|b0|i0;\H161.4;228.837}` reads `228.837` (UI acceptance P1/M5b:
+ * a cell rewritten through a script kept its codes and was taken for a hand
+ * edit).
+ */
+export function acapPlainLabel(text: string): string {
+  return text
+    .replace(/\\[ACcFfHhWwQqTtp][^;]*;/g, '')
+    .replace(/\\[LlOoKkNX]/g, '')
+    .replace(/\\P/g, ' ')
+    .replace(/\\~/g, ' ')
+    .replace(/[{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const NUMBER = /^[-+]?\d+(?:[.,]\d+)?$/
+/**
+ * Two labels say the same: equal once formatting is gone, or the same number
+ * (228.837, 228,837 and 228.8370 alike).
+ */
+export function acapSameLabel(a: string, b: string): boolean {
+  const x = acapPlainLabel(a)
+  const y = acapPlainLabel(b)
+  if (x === y) return true
+  if (NUMBER.test(x) && NUMBER.test(y))
+    return Number(x.replace(',', '.')) === Number(y.replace(',', '.'))
+  return false
+}
+const sameLabel = acapSameLabel
+
+/** The text an entity shows, Text or MText, without its formatting. */
+const plainOf = (e: AcDbEntity) =>
+  acapPlainLabel(
+    e instanceof AcDbMText
+      ? e.contents
+      : e instanceof AcDbText
+        ? e.textString
+        : ''
+  )
+const positionOf = (e: AcDbEntity) =>
+  e instanceof AcDbMText ? e.location : (e as AcDbText).position
+
+/**
+ * The Text or MText at a place that `pick` accepts and that reads `value`
+ * (any value when undefined).
+ */
+function textEntityAt(
+  db: AcDbDatabase,
+  place: { at: XY; height: number },
+  pick: (e: AcDbEntity) => boolean,
+  value?: string
+): AcDbEntity | undefined {
+  for (const e of db.tables.blockTable.modelSpace.newIterator())
+    if (
+      (e instanceof AcDbText || e instanceof AcDbMText) &&
+      pick(e) &&
+      near(positionOf(e), place) &&
+      (value === undefined || sameLabel(plainOf(e), value))
+    )
+      return e
+  return undefined
+}
 
 /**
  * The text standing at a place of a sheet now, whatever entity holds it — a
@@ -481,12 +594,8 @@ function textAt(
   db: AcDbDatabase,
   place: { at: XY; height: number }
 ): string | undefined {
-  for (const e of db.tables.blockTable.modelSpace.newIterator()) {
-    if (e instanceof AcDbText && near(e.position, place)) return e.textString
-    if (e instanceof AcDbMText && near(e.location, place))
-      return e.contents.replace(/\\[A-Za-z][^;]*;|[{}]/g, '').trim()
-  }
-  return undefined
+  const e = textEntityAt(db, place, () => true)
+  return e ? plainOf(e) : undefined
 }
 
 const attributeValue = (a: string | { value: string } | undefined) =>
@@ -544,7 +653,7 @@ function patchDimensionText(
     ? db.tables.blockTable.getAt(d.dimBlockId)
     : undefined
   for (const e of block?.newIterator() ?? [])
-    if (e instanceof AcDbMText && e.contents === old)
+    if (e instanceof AcDbMText && sameLabel(e.contents, old))
       (db.openEntityForWrite(e) as AcDbMText).contents = next
 }
 
