@@ -76,10 +76,13 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   kích thước bằng chính các công cụ hồ sơ. Khi công cụ từ chối vì có chữ /
   thẻ cao độ / kích thước đã sửa tay: không sửa gì thêm, nêu đúng các chỗ
   công cụ liệt kê (ví dụ «ô EL6 trên SUB-020 đang là 228.900, khác số bộ sinh
-  228.837») và hỏi người dùng chọn: đưa các chỗ đó về số bộ sinh rồi gọi lại /
-  giữ số đã sửa, không đổi thông số / hủy. **Cấm** dùng `tx.setText`,
+  228.837») và hỏi người dùng **một lần**, chọn: đưa các chỗ đó về số bộ sinh
+  rồi làm tiếp / giữ số đã sửa, không đổi thông số / hủy. Chọn đưa về số bộ
+  sinh: gọi lại `sua_ho_so_mo` **một lần** với cùng thông số và
+  `dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh
+  (Text, font, màu, layer) và áp thay đổi trong cùng lần gọi. **Cấm** dùng `tx.setText`,
   `execute_cad_script` hay công cụ sửa chữ khác để tăng/giảm hàng loạt chữ cao
-  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, hoặc để hồ sơ lệch bản vẽ.
+  độ hoặc kích thước nhằm đi tiếp sau lời từ chối, để tự đưa về số bộ sinh, hoặc để hồ sơ lệch bản vẽ.
   Bản vẽ DWG/DXF nhập vào (không phải hồ sơ bộ sinh) vẫn sửa trực tiếp như
   thường.
 - Kiểm: `kiem_tra_ho_so`; đọc và báo các mục chưa chốt, không nói đạt thiết kế.

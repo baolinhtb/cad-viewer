@@ -53,6 +53,13 @@ export interface AcApDossierEditOptions {
    * refused with the numbers, so the agent can ask first.
    */
   confirmLoss?: boolean
+  /**
+   * The user chose to put the hand-edited texts, elevation tags and
+   * dimensions back to what the generator writes, in the same call as the
+   * change (`dua_ve_so_bo_sinh`). They are redrawn by the tool as generated —
+   * entity type, font, colour, layer — never by a script.
+   */
+  revertHandEdits?: boolean
 }
 
 /**
@@ -150,10 +157,18 @@ export async function acapEditDossierRun(
     }
   >()
   // Dimension texts and block attributes, by sheet and source handle.
-  const dimPatches = new Map<string, { old?: string; next?: string }>()
+  const dimPatches = new Map<
+    string,
+    { old?: string; next?: string; prim: DossierPrimitive }
+  >()
   const attrPatches = new Map<
     string,
-    { old: string; next: string; place?: { at: XY; align: number } }
+    {
+      old: string
+      next: string
+      place?: { at: XY; align: number }
+      prim: DossierPrimitive
+    }
   >()
   let moved = false
   // A frame whose structure is unchanged (same lines, same number of text
@@ -190,7 +205,8 @@ export async function acapEditDossierRun(
           if (!a.sourceHandle) moved = true
           dimPatches.set(JSON.stringify([old.id, a.sourceHandle]), {
             old: a.text,
-            next: b.text
+            next: b.text,
+            prim: b
           })
         }
         if (a.kind === 'insert' && b.kind === 'insert')
@@ -207,7 +223,8 @@ export async function acapEditDossierRun(
             attrPatches.set(JSON.stringify([old.id, a.sourceHandle, tag]), {
               old: was,
               next: now,
-              ...(shifted && to ? { place: to } : {})
+              ...(shifted && to ? { place: to } : {}),
+              prim: b
             })
           }
       }
@@ -253,8 +270,20 @@ export async function acapEditDossierRun(
     }
   >()
   const handled = new Set<string>()
-  // What differs from what the run drew: named in the refusal.
+  // What differs from what the run drew: named in the refusal — or, when the
+  // user chose to put it back (revertHandEdits), listed as put back.
   const edited: string[] = []
+  const reverted: string[] = []
+  const revert = options.revertHandEdits === true
+  const differs = (what: string) => (revert ? reverted : edited).push(what)
+  // Cells to draw again from the generator: the run's text holds the right
+  // value in another entity (an MText, a text put in its stead), or a hand
+  // edit is being put back.
+  const redraws: {
+    sheet: string
+    erase?: AcDbEntity
+    prim: DossierPrimitive
+  }[] = []
   for (const e of entities) {
     const tag = readSemanticTag(e)
     const sheet = tag?.params?.sheet
@@ -266,10 +295,15 @@ export async function acapEditDossierRun(
         t === undefined ? measured : t.replace(/<>/g, measured)
       // The text the run drew, or the drawing was edited by hand.
       if (!sameLabel(e.dimensionText ?? '', resolve(dim.old))) {
-        edited.push(
+        differs(
           `kích thước trên ${sheet} đang ghi «${e.dimensionText}», bộ sinh ghi «${resolve(dim.old)}»`
         )
         handled.add(JSON.stringify([sheet, source]))
+        if (revert)
+          dimTexts.set(e.objectId, {
+            old: e.dimensionText ?? '',
+            next: resolve(dim.next)
+          })
         continue
       }
       dimTexts.set(e.objectId, {
@@ -284,10 +318,11 @@ export async function acapEditDossierRun(
         const attr = attrPatches.get(key)
         if (!attr) continue
         if (!sameLabel(a.textString, attr.old)) {
-          edited.push(
+          differs(
             `thẻ cao độ trên ${sheet} đang ghi «${a.textString}», bộ sinh ghi «${attr.old}»`
           )
           handled.add(key)
+          if (revert) attrTexts.set(a.objectId, { tag: a.tag, ...attr })
           continue
         }
         attrTexts.set(a.objectId, { tag: a.tag, ...attr })
@@ -296,23 +331,22 @@ export async function acapEditDossierRun(
   }
   // Every planned patch found its entity, exactly as drawn.
   for (const [k, d] of dimPatches)
-    if (!handled.has(k))
-      edited.push(
+    if (!handled.has(k)) {
+      differs(
         `kích thước «${d.old ?? 'số đo'}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
       )
+      if (revert) redraws.push({ sheet: JSON.parse(k)[0], prim: d.prim })
+    }
   for (const [k, a] of attrPatches)
-    if (!handled.has(k))
-      edited.push(
+    if (!handled.has(k)) {
+      differs(
         `thẻ cao độ «${a.old}» trên ${JSON.parse(k)[0]} không còn (đã xóa hoặc thay)`
       )
+      // The tag's block is drawn again, once for all its attributes.
+      if (revert && !redraws.some(r => r.prim === a.prim))
+        redraws.push({ sheet: JSON.parse(k)[0], prim: a.prim })
+    }
   const cells = acapDossierTableValues({ ...run.values })
-  // Cells to draw again from the generator: the run's text holds the right
-  // value but in another entity (an MText, or a text put in its stead).
-  const redraws: {
-    sheet: string
-    erase: AcDbEntity
-    prim: DossierPrimitive
-  }[] = []
   const inRun = new Set(entities.map(e => e.objectId))
   for (const [key, replacement] of replacements) {
     const [sheetId, partId] = JSON.parse(key) as [string, string, string]
@@ -353,9 +387,26 @@ export async function acapEditDossierRun(
         continue
       }
       const now = textAt(db, place)
-      edited.push(
+      differs(
         `${cell ? `ô ${cell}` : `chữ «${replacement.old}»`} trên ${place.sheet} ${now === undefined ? 'đã bị xóa' : `đang là «${now}»`}, khác số bộ sinh «${replacement.old}»`
       )
+      if (revert)
+        redraws.push({
+          sheet: place.sheet,
+          // Whatever holds the cell now — the run's own text, or a text put
+          // in its stead — gives way to the generator's.
+          erase:
+            entities.find(e => {
+              const tag = readSemanticTag(e)
+              return (
+                tag?.params?.sheet === sheetId &&
+                tag?.partId === partId &&
+                (e instanceof AcDbText || e instanceof AcDbMText) &&
+                near(positionOf(e), place, 1.5)
+              )
+            }) ?? textEntityAt(db, place, () => true),
+          prim: place.next
+        })
     }
   }
   if (edited.length) return result([handEdited(run.id, edited)])
@@ -397,9 +448,10 @@ export async function acapEditDossierRun(
     async () => {
       // Cells drawn again: what stands there goes (the run's MText, or a
       // text put in its stead), the generator's own text comes back.
-      const redrawn = new Set(redraws.map(r => r.erase.objectId))
+      const redrawn = new Set(redraws.flatMap(r => r.erase?.objectId ?? []))
       for (const r of redraws)
         if (
+          r.erase &&
           db.openEntityForWrite(r.erase)?.erase() &&
           inRun.has(r.erase.objectId)
         )
@@ -492,7 +544,14 @@ export async function acapEditDossierRun(
   return {
     ...result([]),
     removed,
-    entityCount: entities.length - removed + drawn
+    entityCount: entities.length - removed + drawn,
+    ...(reverted.length
+      ? {
+          warnings: [
+            `Đã đưa về số bộ sinh (theo lựa chọn của người dùng): ${reverted.join('; ')}.`
+          ]
+        }
+      : {})
   }
 }
 
@@ -509,8 +568,8 @@ function handEdited(runId: string, edited: string[]): string {
   const more = edited.length > 6 ? ` và ${edited.length - 6} chỗ khác` : ''
   return (
     `Hồ sơ ${runId} có chữ đã sửa tay: ${shown}${more}. Chưa sửa gì: bản vẽ và thông số hồ sơ giữ nguyên. ` +
-    'Dừng lại, báo đúng các chỗ này và hỏi người dùng chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi gọi lại sua_ho_so_mo; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
-    'Không tự sửa từng chữ cao độ hay kích thước của hồ sơ bằng script để đi tiếp.'
+    'Dừng lại, báo đúng các chỗ này và hỏi người dùng MỘT lần, chọn: (1) đưa các chỗ đó về đúng số bộ sinh rồi làm tiếp — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true, công cụ tự viết lại các chỗ đó đúng kiểu bộ sinh và áp thay đổi; (2) giữ số đã sửa và không đổi thông số này; (3) hủy. ' +
+    'Không tự viết lại hay sửa từng chữ cao độ, kích thước của hồ sơ bằng script, kể cả để đưa về số bộ sinh.'
   )
 }
 
@@ -760,11 +819,16 @@ async function regenerateRun(
   )
   const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
   const actual = entities.map(entityKey).sort()
-  if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+  if (
+    JSON.stringify(expected) !== JSON.stringify(actual) &&
+    // The user chose to drop the hand edits: the run is drawn again from
+    // its values, which puts every text back as generated.
+    !options.revertHandEdits
+  ) {
     const missing = expected.filter(k => !actual.includes(k)).length
     const extra = actual.filter(k => !expected.includes(k)).length
     return result([
-      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại. Không tự sửa từng chữ cao độ hay kích thước bằng script để đi tiếp.`
+      `Hồ sơ ${run.id} đã được sửa tay (${missing} đối tượng khác hoặc thiếu, ${extra} đối tượng lạ so với bản dựng từ thông số); không dựng lại để giữ phần đã sửa, chưa sửa gì. Dừng lại và hỏi người dùng MỘT lần: giữ bản vẽ đã sửa (không đổi thông số), hay bỏ các sửa tay để dựng lại — khi đó gọi lại sua_ho_so_mo MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true. Không tự sửa từng chữ cao độ hay kích thước bằng script.`
     ])
   }
   let removed = 0

@@ -69,4 +69,23 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'khi đó sửa trực tiếp bằng `execute_cad_script`'
     )
   })
+
+  // UI acceptance P1/M5b, S4/S7: the agent put cells back by script, lost
+  // their font, and needed two turns. One confirmation, one call, the tool
+  // rewrites them.
+  test('putting hand edits back: one confirmation, one call, done by the tool', () => {
+    for (const word of [
+      'ask the user once',
+      'make ONE sua_ho_so_mo call with the same parameters and dua_ve_so_bo_sinh: true',
+      'never rewrite them yourself with a script first',
+      'gọi lại sua_ho_so_mo một lần với dua_ve_so_bo_sinh: true'
+    ])
+      expect(prompt).toContain(word)
+    for (const word of [
+      'hỏi người dùng **một lần**',
+      '`dua_ve_so_bo_sinh: true` — công cụ tự viết lại các chỗ đó',
+      'để tự đưa về số bộ sinh'
+    ])
+      expect(skill).toContain(word)
+  })
 })

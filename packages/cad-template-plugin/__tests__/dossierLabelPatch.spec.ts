@@ -456,6 +456,137 @@ describe('MText formatting is not a hand edit', () => {
   })
 })
 
+// UI acceptance P1/M5b, S4/S7: the agent put EL6 back by script (codes
+// kept, font lost, a cyan cell) and needed two turns. One confirmation, one
+// call: the tool rewrites the cell as generated and applies the change.
+describe('dua_ve_so_bo_sinh: one call puts hand edits back and applies the change', () => {
+  const el6 = (db: AcDbDatabase) =>
+    entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbText =>
+        e instanceof AcDbText &&
+        sheetOf(e) === 'SUB-020' &&
+        acapSameLabel(e.textString, '228.837')
+    )!
+  const neighbour = (db: AcDbDatabase, value: string) =>
+    entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbText =>
+        e instanceof AcDbText &&
+        sheetOf(e) === 'SUB-020' &&
+        e.textString === value
+    )!
+  const cyanMText = (db: AcDbDatabase) => {
+    const old = el6(db)
+    const m = new AcDbMText()
+    m.location = { x: old.position.x, y: old.position.y, z: 0 }
+    m.contents = '{\\A1;\\C4;\\farial|b0|i0;\\H161.4;228.900}'
+    m.height = old.height
+    m.color.colorIndex = 4
+    db.tables.blockTable.modelSpace.appendEntity(m)
+    old.erase()
+  }
+  test.each([
+    ['typed over', (db: AcDbDatabase) => (el6(db).textString = '228.900')],
+    ['a cyan formatted MText', cyanMText],
+    ['erased', (db: AcDbDatabase) => el6(db).erase()]
+  ] as [string, (db: AcDbDatabase) => void][])('%s', async (name, handEdit) => {
+    const db = await dossier(L1)
+    const before = table(db).filter(x => x !== 228.837)
+    const look = neighbour(db, '230.837')
+    const lookOf = (t: AcDbText) => [
+      t.color.colorIndex,
+      t.layer,
+      t.styleName,
+      Math.round(t.height * 1000)
+    ]
+    const expected = lookOf(look)
+    handEdit(db)
+    const v0 = { ...listRuns(db)[0].values }
+    const raise = {
+      caoDoDayBe: Math.round((Number(v0.caoDoDayBe) + 0.3) * 1000) / 1000
+    }
+    // Without the flag: M5b, refused, nothing touched.
+    const refused = await edit(db, raise)
+    expect(refused.ok).toBe(false)
+    expect(refused.message).toContain('dua_ve_so_bo_sinh: true')
+    expect(refused.message).toContain('MỘT lần')
+    expect(refused.message).not.toMatch(/setText|execute_cad_script/)
+    expect(listRuns(db)[0].values).toEqual(v0)
+    // With it: one call, the cell back as generated, every elevation +0,300.
+    const res = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: 'r1', thong_so: raise, dua_ve_so_bo_sinh: true },
+      db
+    )
+    numbers[`revert ${name}`] = res.data
+    expect(res.ok).toBe(true)
+    expect((res.data as { canhBao?: string[] }).canhBao?.join(' ')).toContain(
+      'Đã đưa về số bộ sinh'
+    )
+    expect(listRuns(db)[0].values.caoDoDayBe).toBe(raise.caoDoDayBe)
+    const after = table(db)
+    expect(after).toHaveLength(11)
+    expect(after).toContain(229.137)
+    for (const x of before)
+      expect(after).toContain(Math.round((x + 0.3) * 1000) / 1000)
+    const cell = neighbour(db, '229.137')
+    expect(cell).toBeInstanceOf(AcDbText)
+    expect(lookOf(cell)).toEqual(expected)
+    expect(
+      [...db.tables.blockTable.modelSpace.newIterator()].filter(
+        e => e instanceof AcDbMText
+      )
+    ).toEqual([])
+    expect(
+      entitiesOfRun(db, 'r1')
+        .filter((e): e is AcDbText => e instanceof AcDbText)
+        .some(e => e.textString.includes('\\'))
+    ).toBe(false)
+  })
+
+  test('tags and dimensions are put back too, with the label mode change', async () => {
+    const db = await dossier(L1)
+    const ref = entitiesOfRun(db, 'r1').find(
+      (e): e is AcDbBlockReference =>
+        e instanceof AcDbBlockReference && e.blockName === 'cd11'
+    )!
+    const [a] = [...ref.attributeIterator()]
+    a.textString = 'EL? = 999'
+    const bMo = dims(db).find(d => d.dimensionText === 'B Mố = 8700')!
+    bMo.dimensionText = 'B Mố = 8800'
+    const res = await runDossierTool(
+      'sua_ho_so_mo',
+      {
+        ma_lan_chay: 'r1',
+        thong_so: { nhanKichThuoc: 'ky_hieu' },
+        dua_ve_so_bo_sinh: true
+      },
+      db
+    )
+    expect(res.ok).toBe(true)
+    expect(a.textString).not.toBe('EL? = 999')
+    expect(a.textString).toMatch(/^EL/)
+    expect(bMo.dimensionText).toBe('B Mố')
+  })
+
+  test('a dimension change on a hand-edited dossier, flag given: rebuilt', async () => {
+    const db = await dossier(L1)
+    el6(db).textString = '228.900'
+    const v0 = listRuns(db)[0].values
+    const res = await runDossierTool(
+      'sua_ho_so_mo',
+      {
+        ma_lan_chay: 'r1',
+        thong_so: { hThan: Number(v0.hThan) + 300 },
+        dua_ve_so_bo_sinh: true
+      },
+      db
+    )
+    expect(res.ok).toBe(true)
+    expect(table(db)).not.toContain(228.9)
+    expect(table(db)).toContain(228.837)
+  })
+})
+
 describe('a wording change mixed with geometry still regenerates', () => {
   test('caoDoDayBe with hThan: rebuilt through the grid, as before', async () => {
     const db = await dossier(L1)

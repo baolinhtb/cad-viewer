@@ -89,7 +89,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'sua_ho_so_mo',
     description:
-      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng (đưa về số bộ sinh rồi gọi lại / giữ số đã sửa / hủy); không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
+      'Sửa hồ sơ mố đang có; chỉ truyền thông số đổi. Tên mố, công trình, vị trí x/y, khung tên: vá tại chỗ, giữ nguyên đối tượng và chi tiết đã sửa tay. Kích thước (hồ sơ 0.3.0): dựng lại theo lưới co giãn — chỉ khi bản vẽ chưa bị sửa tay (so với bản dựng từ thông số đã ghi); có sửa tay, hoặc bố trí chung không theo được (đổi số/bố trí cọc, bThan khác bBe, hình tràn khung A3…) thì từ chối và không sửa gì. Đổi hình học: tờ thép giữ hình thép M1 (không kéo giãn) kèm cảnh báo "THÉP THEO M1 GỐC, CHƯA CẬP NHẬT", SUB-100 giữ bảng M1 có cảnh báo và thêm bảng khối lượng theo thông số hiện tại (BTKL tạm tính) — báo trong canhBao. lCoc không phải đổi hình học: chỉ ghi giá trị, giữ mọi đối tượng. Nếu bản dựng lại bỏ nhiều đối tượng (>10 % và ≥100), công cụ từ chối kèm số liệu: hỏi người dùng rồi mới gọi lại với xac_nhan_bo_doi_tuong: true. Hồ sơ 0.1.0/0.2.0: kích thước bị từ chối như trước. Khi bị từ chối vì sửa tay: không sửa gì thêm, báo đúng các chỗ trong thông báo và hỏi người dùng MỘT lần (đưa về số bộ sinh rồi làm tiếp / giữ số đã sửa / hủy); chọn đưa về số bộ sinh thì gọi lại MỘT lần với cùng thông số và dua_ve_so_bo_sinh: true — công cụ tự viết lại các chỗ đó và áp thay đổi; không dùng tx.setText hay execute_cad_script để tự tăng/giảm từng chữ cao độ, kích thước của hồ sơ, không dùng tao_ho_so_mo thay thế hồ sơ. Hồ sơ đang mang thông số ngoài lưới (tờ hình ghi CHƯA DỰNG ĐƯỢC) thì mọi sửa kích thước bị từ chối cho tới khi đưa thông số đó về giá trị mẫu trong cùng lần gọi; thông báo từ chối nêu giá trị cần đưa về.\n' +
       limits +
       '\n' +
       raise,
@@ -98,6 +98,11 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
       properties: {
         ma_lan_chay: { type: 'string' },
         thong_so: parameters,
+        dua_ve_so_bo_sinh: {
+          type: 'boolean',
+          description:
+            'Chỉ đặt true khi người dùng đã chọn đưa các chữ / thẻ cao độ / kích thước đã sửa tay (lần gọi trước đã liệt kê) về đúng số bộ sinh rồi làm tiếp. Công cụ tự viết lại chúng đúng kiểu bộ sinh (Text, font, màu, layer) và áp thay đổi trong CÙNG lần gọi này; không dùng script để làm việc đó.'
+        },
         xac_nhan_bo_doi_tuong: {
           type: 'boolean',
           description:
@@ -306,7 +311,8 @@ export async function runDossierTool(
         ...Object.fromEntries(derived.suyRa.map(d => [d.thamSo, d.giaTri]))
       }
       const result = await editTemplateRun(runId, edit, db, {
-        confirmLoss: input.xac_nhan_bo_doi_tuong === true
+        confirmLoss: input.xac_nhan_bo_doi_tuong === true,
+        revertHandEdits: input.dua_ve_so_bo_sinh === true
       })
       if (result.errors.length) throw new Error(result.errors.join('\n'))
       if (!database) await refreshDossierView()
