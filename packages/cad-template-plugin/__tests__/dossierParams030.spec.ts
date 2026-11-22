@@ -48,8 +48,11 @@ export const VARIANTS: Record<string, Record<string, number>> = {
   bBe: { bBe: 8500, bThan: 8500, aCocNgang: 6100 },
   // Pile diameter: the piles stay flush with the footing edges.
   'coc-D': { D: 1500, aCocNgang: 4700, aCocDoc: 3000 },
-  // Pile count: a change of layout the stretch grid cannot follow.
-  'coc-so': { soCotCoc: 3, bBe: 11000, bThan: 11000, aCocNgang: 4000 },
+  // Pile count (P2-M4): drawn as an array, like the bearings — refused
+  // before M4. Outer piles flush: (8500 − 2 × 1200) / 2 = 3050. (A footing
+  // 11000 on the 7000 road stays refused: its road edges would fall inside
+  // the outer piles in the front grid, as with two piles.)
+  'coc-so': { soCotCoc: 3, bBe: 8500, bThan: 8500, aCocNgang: 3050 },
   caoDoDayBe: { caoDoDayBe: 230 },
   gop: {
     hBe: 2500,
@@ -149,26 +152,6 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       { ma_lan_chay: runId, thong_so: change },
       db
     )
-    if (name === 'coc-so') {
-      // A change of pile layout: the general arrangement cannot follow, so
-      // the tool refuses and leaves the drawing as it was.
-      expect(outcome.ok).toBe(false)
-      expect(String(outcome.message)).toMatch(/số cọc mỗi hàng ngang/)
-      expect(dimLengths(db, runId, 'SUB-010', 'HB').length).toBeGreaterThan(0)
-      results[name] = {
-        change,
-        warnings: [String(outcome.message)],
-        changedSheets: [],
-        sub010: 'từ chối (công cụ không sửa gì)',
-        HB: [],
-        LC: [],
-        BMo: [],
-        DCoc: [],
-        bangSUB020: [],
-        thep: 'giữ nguyên (không sửa)'
-      }
-      return
-    }
     expect(outcome.ok).toBe(true)
     const warnings = ((outcome.data as { canhBao?: string[] })?.canhBao ??
       []) as string[]
@@ -205,28 +188,22 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
     const bMo = dimLengths(db, runId, 'SUB-010', 'B Mố')
     const dCoc = dimLengths(db, runId, 'SUB-010', 'D Cọc')
     const table = texts(db, runId, 'SUB-020').filter(t => /^[\d.–]+$/.test(t))
-    if (name === 'coc-so') {
-      // Pile count changes the layout: SUB-010/020 refuse, tables too.
-      expect(refused).toBe(true)
-      expect(table.every(t => t === '–' || t === '1')).toBe(true)
-    } else {
-      expect(refused).toBe(false)
-      const hBe = num('hBe')
-      // Every HB dimension grows by exactly the change of hBe, against its
-      // own default length (the source's HB measure 1997–2000 mm).
-      expect(hb).toHaveLength(defaultHB.length)
-      hb.forEach((h, k) =>
-        expect(Math.abs(h - defaultHB[k] - (hBe - 2000))).toBeLessThanOrEqual(1)
-      )
-      for (const l of lc) expect(l).toBe(num('lCanh'))
-      for (const b of bMo) expect(b).toBe(num('bBe'))
-      for (const d of dCoc) expect(d).toBe(num('D'))
-      // Elevations: EL6 = caoDoDayBe, EL5 = EL6 + hBe.
-      const el6 = num('caoDoDayBe').toFixed(3)
-      const el5 = (num('caoDoDayBe') + hBe / 1000).toFixed(3)
-      expect(table).toEqual(expect.arrayContaining([el6, el5]))
-      expect(table).toContain((hBe / 1000).toFixed(3))
-    }
+    expect(refused).toBe(false)
+    const hBe = num('hBe')
+    // Every HB dimension grows by exactly the change of hBe, against its
+    // own default length (the source's HB measure 1997–2000 mm).
+    expect(hb).toHaveLength(defaultHB.length)
+    hb.forEach((h, k) =>
+      expect(Math.abs(h - defaultHB[k] - (hBe - 2000))).toBeLessThanOrEqual(1)
+    )
+    for (const l of lc) expect(l).toBe(num('lCanh'))
+    for (const b of bMo) expect(b).toBe(num('bBe'))
+    for (const d of dCoc) expect(d).toBe(num('D'))
+    // Elevations: EL6 = caoDoDayBe, EL5 = EL6 + hBe.
+    const el6 = num('caoDoDayBe').toFixed(3)
+    const el5 = (num('caoDoDayBe') + hBe / 1000).toFixed(3)
+    expect(table).toEqual(expect.arrayContaining([el6, el5]))
+    expect(table).toContain((hBe / 1000).toFixed(3))
     const print = fingerprint(db, runId)
     const changedSheets = after.sheets
       .map(s => s.id)

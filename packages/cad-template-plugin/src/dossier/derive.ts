@@ -31,9 +31,11 @@ const BEARING_MIN = 500
  *
  * - only `bMatDuong` given (no `bBe`/`bThan`): `bBe = bThan = bMatDuong +
  *   2 × DOSSIER_ROAD_MARGIN`, whatever margin the dossier had;
- * - `aCocNgang = bBe − 2D` when the footing width or pile diameter changes
- *   and `aCocNgang` is not given;
- * - `aCocDoc = lBe − 2D` likewise for the footing length;
+ * - `aCocNgang = (bBe − 2D) / (soCotCoc − 1)` (floored to mm) when the
+ *   footing width, the pile diameter or the pile count changes and
+ *   `aCocNgang` is not given: the outer piles flush with the footing edges
+ *   as in the source, the others spread evenly (`bBe − 2D` for two);
+ * - `aCocDoc = (lBe − 2D) / (soHangCoc − 1)` likewise along the bridge;
  * - `aGoi`, when not given and the bearings no longer fit the stem
  *   (`(soGoi − 1) · aGoi + 500 > bThan`): spread evenly with
  *   DOSSIER_BEARING_MARGIN at each edge, rounded down to 50 mm. Left as is
@@ -73,19 +75,37 @@ export function acapDeriveDossierValues(
     )
   }
   // Only when a driver moved: an unrelated edit must not rewrite pile
-  // spacing a stored dossier already has.
-  if (!has('aCocNgang') && (moved('bBe') || moved('D')))
+  // spacing a stored dossier already has. The outer piles stay flush with
+  // the footing edges, as the source; more piles spread evenly between
+  // them (P2-M4). One pile per row needs no spacing.
+  const flush = (
+    spacing: string,
+    count: string,
+    width: string,
+    words: { width: string; spacing: string; count: string }
+  ) => {
+    if (has(spacing) || !(moved(width) || moved('D') || moved(count))) return
+    const piles = n(count)
+    if (!(piles > 1)) return
+    const gap = n(width) - 2 * n('D')
     set(
-      'aCocNgang',
-      n('bBe') - 2 * n('D'),
-      'cọc sát mép bệ: tim cọc ngang = bề rộng bệ − 2 × đường kính cọc'
+      spacing,
+      piles === 2 ? gap : Math.floor(gap / (piles - 1)),
+      piles === 2
+        ? `cọc sát mép bệ: ${words.spacing} = ${words.width} − 2 × đường kính cọc`
+        : `cọc biên sát mép bệ, ${piles} ${words.count} chia đều: ${words.spacing} = (${words.width} − 2 × đường kính cọc) / ${piles - 1}, làm tròn xuống mm`
     )
-  if (!has('aCocDoc') && (moved('lBe') || moved('D')))
-    set(
-      'aCocDoc',
-      n('lBe') - 2 * n('D'),
-      'cọc sát mép bệ: tim cọc dọc = chiều dài bệ − 2 × đường kính cọc'
-    )
+  }
+  flush('aCocNgang', 'soCotCoc', 'bBe', {
+    width: 'bề rộng bệ',
+    spacing: 'tim cọc ngang',
+    count: 'cọc mỗi hàng'
+  })
+  flush('aCocDoc', 'soHangCoc', 'lBe', {
+    width: 'chiều dài bệ',
+    spacing: 'tim cọc dọc',
+    count: 'hàng cọc'
+  })
   const bearings = n('soGoi')
   if (
     !has('aGoi') &&

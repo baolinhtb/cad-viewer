@@ -302,7 +302,14 @@ const BEARING_LABEL = /^G\d+$/
  * centre line (source x `fromCentre`): the grid moves that line, not the
  * distances, so a bearing array keeps its spacing whatever the width does.
  */
-type ArrayedPrimitive = LayoutPrimitive & { fromCentre?: number }
+type ArrayedPrimitive = LayoutPrimitive & {
+  fromCentre?: number
+  /**
+   * The source point whose view maps this item (P2-M4 piles): the item was
+   * placed through that view's stretch, wherever its own centre falls.
+   */
+  viewAt?: XY
+}
 
 /**
  * The view's content with every bearing-related item placed from the model
@@ -497,6 +504,352 @@ function arrayedBearings(
   return [...rest.slice(0, first), ...placed, ...rest.slice(first)]
 }
 
+/**
+ * One axis of a view's pile array: the source footing edges on it, the
+ * count, spacing and width parameters that place the piles along it, and
+ * the source items measuring them (by handle).
+ */
+interface PileAxis {
+  /** 0: the view's horizontal; 1: its vertical (pile plan rows). */
+  k: 0 | 1
+  /** Source footing edges, local (the grid maps them to the footing). */
+  edges: [number, number]
+  /** Across the bridge (soCotCoc, aCocNgang, bBe) or along it. */
+  across: boolean
+  /** Edge → outer pile dimensions and the outer-to-outer one. */
+  dims: { edge: string[]; middle: string }
+  /** Leaders whose first point sits on a pile ("CỌC KHOAN NHỒI"). */
+  leaders?: string[]
+}
+/** The source's pile items of one view, by handle. */
+interface PileView {
+  /** Pile inserts (one pile each), or the front's nested pair. */
+  piles: string[]
+  axes: PileAxis[]
+}
+/**
+ * Pile items of the general-arrangement sheets (handles read from
+ * `reference/layout-mo2.json`): the pile plan (2 × 2 `D1200-1`), the front
+ * elevation (one `MO2_U351` drawing the pair, 5300 apart), sections A–A,
+ * B–B and C–C (`D1m` stubs, one per row).
+ */
+const PILE_VIEWS: Record<string, PileView[]> = {
+  'SUB-010': [
+    {
+      // Front elevation.
+      piles: ['2111C60'],
+      axes: [
+        {
+          k: 0,
+          edges: [3413.649, 11113.649],
+          across: true,
+          dims: { edge: ['20EFB44', '211A15A'], middle: '20EFB37' },
+          leaders: ['20EFA0F', '20EFA10']
+        }
+      ]
+    },
+    {
+      // Section A–A.
+      piles: ['20EB327', '20EB328'],
+      axes: [
+        {
+          k: 0,
+          edges: [15732.274, 21732.274],
+          across: false,
+          dims: { edge: ['20F00AF', '211B746'], middle: '20F00BC' },
+          leaders: ['20F00AD', '20F00AC']
+        }
+      ]
+    },
+    {
+      // Section B–B (mirrored).
+      piles: ['20EF24F', '20EF24E'],
+      axes: [
+        {
+          k: 0,
+          edges: [26366.886, 32366.886],
+          across: false,
+          dims: { edge: ['211B76E', '211B771'], middle: '211B76F' },
+          leaders: ['20F0C99', '20F0C9A']
+        }
+      ]
+    },
+    {
+      // Pile plan: rows along the bridge (y), piles across (x).
+      piles: ['20EF26C', '20EF269', '20EF26B', '20EF26A'],
+      axes: [
+        {
+          k: 0,
+          edges: [15714.259, 23414.259],
+          across: true,
+          dims: { edge: ['211B943', '211B945'], middle: '211B942' }
+        },
+        {
+          k: 1,
+          edges: [2149.253, 8149.253],
+          across: false,
+          dims: { edge: ['211B99A', '211B99D'], middle: '211B99B' }
+        }
+      ]
+    }
+  ],
+  'SUB-020': [
+    {
+      // Section C–C.
+      piles: ['2111623', '2111624'],
+      axes: [
+        {
+          k: 0,
+          edges: [5721.75, 11721.75],
+          across: false,
+          dims: { edge: ['211B7C6', '211B7C9'], middle: '211B7C7' },
+          leaders: ['2111651', '2111650']
+        }
+      ]
+    }
+  ]
+}
+/** The front elevation's pair block and the one-pile block it nests. */
+const FRONT_PILE_PAIR = 'MO2_U351'
+const FRONT_PILE = 'MO2_U350'
+
+/** A stretched sheet: what {@link arrayedPiles} needs of it. */
+interface PileStretch {
+  map(p: XY, at?: XY): XY
+  viewOf(at: XY): number
+}
+
+/**
+ * The view's content with the piles placed from the model (`model.piles`,
+ * P2-M4), in place of the source's flush 2 × 2:
+ *
+ * - pile plan: one `D1200-1` per pile, `soHangCoc` rows × `soCotCoc`;
+ * - front elevation: one `MO2_U350` stub per pile across (the source nests
+ *   its pair in `MO2_U351`); sections A–A, B–B, C–C: one `D1m` stub per row;
+ * - each axis's dimensions: footing edge → outer pile, and outer pile →
+ *   outer pile (`n − 1 × a = <>` for more than two piles; the source's
+ *   symbol only where it still measures what it says); the "CỌC KHOAN
+ *   NHỒI" leaders start on the outer piles as in the source.
+ *
+ * Piles keep their true spacing whatever the grid does to the footing:
+ * each item is placed at the source point the stretch (and the view's
+ * shift) takes to the pile's true place, about the footing centre (the
+ * grid maps the source edges to the footing edges). Returned untouched for
+ * the source arrangement — 2 × 2 flush with the footing edges, at any
+ * footing size the grid follows — so those drawings stay exactly as built
+ * (a dossier built before keeps matching its parameters).
+ */
+function arrayedPiles(
+  content: LayoutPrimitive[],
+  sheet: string,
+  model: DossierModel,
+  stretch: PileStretch,
+  shifts: XY[]
+): LayoutPrimitive[] {
+  const views = PILE_VIEWS[sheet]
+  const n = (k: string) => Number(model.values[k])
+  if (
+    !views ||
+    (n('soCotCoc') === 2 &&
+      n('soHangCoc') === 2 &&
+      n('aCocNgang') === n('bBe') - 2 * n('D') &&
+      n('aCocDoc') === n('lBe') - 2 * n('D'))
+  )
+    return content
+  const byHandle = new Map(content.map(p => [p.handle, p]))
+  const get = (h: string) => byHandle.get(h)
+  // Where a source point ends up (stretch, then the view's shift), and the
+  // source coordinate on axis k that ends up at `target` (bisection: the
+  // stretch is monotonic on each axis, and extends past its last lines).
+  const final = (q: XY, at: XY): XY => {
+    const [x, y] = stretch.map(q, at)
+    const [sx, sy] = shifts[stretch.viewOf(at)] ?? [0, 0]
+    return [x + sx, y + sy]
+  }
+  const on = (q: XY, k: number, value: number): XY =>
+    k ? [q[0], value] : [value, q[1]]
+  const source = (target: number, k: number, q: XY, at: XY) => {
+    let lo = -1e6,
+      hi = 1e6
+    for (let i = 0; i < 80; i++) {
+      const mid = (lo + hi) / 2
+      if (final(on(q, k, mid), at)[k] < target) lo = mid
+      else hi = mid
+    }
+    return (lo + hi) / 2
+  }
+  const offsets = (across: boolean) =>
+    [...new Set(model.piles.map(p => (across ? p.x : p.y)))].sort(
+      (a, b) => a - b
+    )
+  const replaced = new Set<LayoutPrimitive>()
+  const placed: ArrayedPrimitive[] = []
+  const pairDef = LAYOUT.blocks.find(
+    b => b.name === FRONT_PILE_PAIR
+  ) as unknown as { entities: { position: { x: number; y: number } }[] }
+  const stubDef = LAYOUT.blocks.find(b => b.name === FRONT_PILE) as unknown as {
+    entities: { position: { x: number; y: number } }[]
+  }
+  for (const view of views) {
+    const piles = view.piles.map(get)
+    if (piles.some(p => !p)) continue
+    const first = piles[0]!
+    const at = centreOf(first)
+    // The front pair nests one stub per pile, off the stub block's origin.
+    const pair = first.block === FRONT_PILE_PAIR
+    const template: LayoutPrimitive = pair
+      ? { ...first, block: FRONT_PILE }
+      : first
+    const ref: XY = pair ? [stubDef.entities[0].position.x, 0] : [0, 0]
+    const drawn = centreOf(template)
+    const offset: XY = [drawn[0] - template.at![0], drawn[1] - template.at![1]]
+    const axes = view.axes.map(a => {
+      const f = a.edges.map(e => final(on(at, a.k, e), at)[a.k])
+      const lo = Math.min(...f),
+        hi = Math.max(...f)
+      const count = n(a.across ? 'soCotCoc' : 'soHangCoc')
+      const spacing = n(a.across ? 'aCocNgang' : 'aCocDoc')
+      const width = n(a.across ? 'bBe' : 'lBe')
+      // Source pile positions on this axis, low to high.
+      const was = pair
+        ? pairDef.entities
+            .map(e => first.at![a.k] + (a.k ? e.position.y : e.position.x))
+            .map(x => x + ref[a.k])
+        : piles.map(p => p!.at![a.k] + ref[a.k])
+      return {
+        ...a,
+        lo,
+        hi,
+        count,
+        spacing,
+        edge: (width - (count - 1) * spacing) / 2,
+        flush: (count - 1) * spacing === width - 2 * n('D'),
+        targets: offsets(a.across).map(o => (lo + hi) / 2 + o),
+        was: [...new Set(was)].sort((x, y) => x - y)
+      }
+    })
+    piles.forEach(p => replaced.add(p!))
+    // Every combination of the axes' targets (one axis in elevations).
+    const combos = axes.reduce<number[][]>(
+      (all, a) => all.flatMap(c => a.targets.map(t => [...c, t])),
+      [[]]
+    )
+    combos.forEach((t, i) => {
+      const centre: XY = [...drawn]
+      axes.forEach((a, j) => {
+        centre[a.k] = source(t[j] + offset[a.k] - ref[a.k], a.k, centre, at)
+      })
+      placed.push({
+        ...template,
+        handle: `${first.handle}#P${i + 1}`,
+        at: [centre[0] - offset[0], centre[1] - offset[1]],
+        viewAt: at
+      } as ArrayedPrimitive)
+    })
+    for (const a of axes) {
+      const lowPile = a.targets[0],
+        highPile = a.targets[a.targets.length - 1]
+      const sourceLow = Math.min(...a.edges),
+        sourceHigh = Math.max(...a.edges)
+      // A dimension's two points moved to their new places on this axis
+      // (`ends`, for start and end); the other axis stays.
+      const dim = (
+        t: LayoutPrimitive,
+        ends: [number, number],
+        text: string | undefined
+      ) => {
+        const tat = centreOf(t)
+        const s = [t.start!, t.end!].map((q, i) => source(ends[i], a.k, q, tat))
+        const nearStart =
+          Math.abs(t.dimLine![a.k] - t.start![a.k]) <=
+          Math.abs(t.dimLine![a.k] - t.end![a.k])
+        const { text: _symbol, ...rest } = t
+        placed.push({
+          ...rest,
+          ...(text === undefined ? {} : { text }),
+          handle: `${t.handle}#P`,
+          start: on(t.start!, a.k, s[0]),
+          end: on(t.end!, a.k, s[1]),
+          dimLine: on(t.dimLine!, a.k, nearStart ? s[0] : s[1]),
+          ...(t.textAt
+            ? {
+                textAt: on(
+                  t.textAt,
+                  a.k,
+                  source((ends[0] + ends[1]) / 2, a.k, t.textAt, tat)
+                )
+              }
+            : {}),
+          viewAt: tat
+        } as ArrayedPrimitive)
+        replaced.add(t)
+      }
+      // Footing edge → outer pile: "D Cọc" only while it is still D.
+      for (const h of a.dims.edge) {
+        const t = get(h)
+        if (!t?.start || !t.end) continue
+        const toEdge = (q: XY) =>
+          Math.min(Math.abs(q[a.k] - sourceLow), Math.abs(q[a.k] - sourceHigh))
+        const startOnEdge = toEdge(t.start) <= toEdge(t.end)
+        const edgePoint = startOnEdge ? t.start : t.end
+        const low =
+          Math.abs(edgePoint[a.k] - sourceLow) <
+          Math.abs(edgePoint[a.k] - sourceHigh)
+        const [e, p] = low ? [a.lo, lowPile] : [a.hi, highPile]
+        dim(
+          t,
+          startOnEdge ? [e, p] : [p, e],
+          a.count > 1 && a.edge === n('D') ? t.text : undefined
+        )
+      }
+      // Outer pile → outer pile: the source symbol while flush 2, else
+      // the count and spacing (the CAD writes the total for <>).
+      const middle = get(a.dims.middle)
+      if (middle?.start && middle.end) {
+        if (a.count > 1)
+          dim(
+            middle,
+            middle.start[a.k] <= middle.end[a.k]
+              ? [lowPile, highPile]
+              : [highPile, lowPile],
+            a.count === 2
+              ? a.flush
+                ? middle.text
+                : undefined
+              : `${a.count - 1}x${Math.round(a.spacing * 10) / 10}=<>`
+          )
+        else replaced.add(middle)
+      }
+      // Leaders: the first point on the outer pile it pointed at.
+      for (const h of a.leaders ?? []) {
+        const t = get(h)
+        if (!t?.points?.length) continue
+        const p0 = t.points[0]
+        const nearest = a.was.reduce((b, x) =>
+          Math.abs(x - p0[a.k]) < Math.abs(b - p0[a.k]) ? x : b
+        )
+        const target =
+          (nearest === a.was[0] ? lowPile : highPile) + (p0[a.k] - nearest)
+        const tat = centreOf(t)
+        placed.push({
+          ...t,
+          handle: `${t.handle}#P`,
+          points: [
+            on(p0, a.k, source(target, a.k, p0, tat)),
+            ...t.points.slice(1)
+          ],
+          viewAt: tat
+        } as ArrayedPrimitive)
+        replaced.add(t)
+      }
+    }
+  }
+  if (!replaced.size) return content
+  const firstAt = content.findIndex(p => replaced.has(p))
+  const rest = content.filter(p => !replaced.has(p))
+  return [...rest.slice(0, firstAt), ...placed, ...rest.slice(firstAt)]
+}
+
 /** Plan of SUB-010, source y of the footing back (where the wings start). */
 const PLAN_FOOTING_BACK = 7445.85
 /** Plan of SUB-010, source y of the wing ends. */
@@ -546,6 +899,9 @@ function contentRole(p: LayoutPrimitive): string {
             cd11: 'ghi_chu_cao_do',
             D1m: 'coc_khoan_nhoi',
             'D1200-1': 'coc_khoan_nhoi',
+            // A stub of the front elevation's pile pair (MO2_U351), drawn
+            // alone by the pile array (P2-M4).
+            [FRONT_PILE]: 'coc_khoan_nhoi',
             GA: 'ky_hieu_mat_cat',
             center1: 'duong_tim',
             [BEARING_BLOCK]: 'goi_cau',
@@ -1351,37 +1707,46 @@ export function buildScene030(
         else
           for (const raw of steel
             ? ls.content
-            : arrayedBearings(ls.content, model, stretch.identity)) {
+            : arrayedPiles(
+                arrayedBearings(ls.content, model, stretch.identity),
+                ls.id,
+                model,
+                stretch,
+                layout.shifts
+              )) {
             const c = steel ? relabelSteel(raw) : relabelGeneral(raw)
             const at = centreOf(c)
-            const [sx, sy] = layout.shifts[stretch.viewOf(at)] ?? [0, 0]
+            // The view that maps it: its own centre's, or the one a pile
+            // item was placed through (P2-M4).
+            const view = (raw as ArrayedPrimitive).viewAt ?? at
+            const [sx, sy] = layout.shifts[stretch.viewOf(view)] ?? [0, 0]
             // A block moves as a whole, by how far its drawn centre moves;
             // everything else is stretched point by point.
-            const [mx, my] = stretch.map(at, at)
+            const [mx, my] = stretch.map(at, view)
             const move: XY = [mx - at[0], my - at[1]]
             // A re-placed bearing item keeps its true distance from the
             // bearing centre line, whatever the grid does to the width.
             const fc = (raw as ArrayedPrimitive).fromCentre
             const across = (q: XY) =>
               fc === undefined
-                ? stretch.map(q, at)[0]
-                : stretch.map([fc, q[1]], at)[0] + q[0] - fc
+                ? stretch.map(q, view)[0]
+                : stretch.map([fc, q[1]], view)[0] + q[0] - fc
             if (fc !== undefined) move[0] = across(at) - at[0]
             // Annotations of the plan's wing band move as a block (see
             // PLAN_BAND): the band itself shrinks with the wings.
             const band = steel ? undefined : PLAN_BAND[c.handle ?? '']
             const shift = (line: number) =>
-              stretch.map([at[0], line], at)[1] - line
+              stretch.map([at[0], line], view)[1] - line
             const dy = band?.(shift)
             // …and the cross fall at that true distance (P2-M3), not at the
             // grid's x for its source point.
             const tiltAt = (q: XY) =>
               fc === undefined || !stretch.tilt
                 ? 0
-                : stretch.tilt(across(q), q[1], at) -
-                  stretch.tilt(stretch.map(q, at)[0], q[1], at)
+                : stretch.tilt(across(q), q[1], view) -
+                  stretch.tilt(stretch.map(q, view)[0], q[1], view)
             const down = (q: XY) =>
-              dy === undefined ? stretch.map(q, at)[1] + tiltAt(q) : q[1] + dy
+              dy === undefined ? stretch.map(q, view)[1] + tiltAt(q) : q[1] + dy
             addPaper(
               c,
               contentRole(c),
