@@ -48,6 +48,9 @@ let digest: unknown = {
 
 let hasDocument = true
 
+/** Model-space entities; `tag` is what `readSemanticTag` reads back. */
+let mockEntities: { tag?: unknown }[] = []
+
 jest.mock('@mlightcad/cad-simple-viewer', () => ({
   __esModule: true,
   AcApDocManager: {
@@ -57,7 +60,15 @@ jest.mock('@mlightcad/cad-simple-viewer', () => ({
         // lần chạy template, và nó quét chính model space để lấy — một database
         // giả không có bảng nào thì lỗi ở chỗ chẳng liên quan gì tới bài kiểm.
         curDocument: hasDocument
-          ? { database: { tables: { blockTable: { modelSpace: { newIterator: () => [] } } } } }
+          ? {
+              database: {
+                tables: {
+                  blockTable: {
+                    modelSpace: { newIterator: () => mockEntities }
+                  }
+                }
+              }
+            }
           : undefined,
         curView: {
           selectionSet: {
@@ -80,6 +91,7 @@ let titles: { text: string; guessed?: boolean }[] = []
 jest.mock('@mlightcad/cad-template-sdk', () => ({
   __esModule: true,
   readDrawingDigest: () => digest,
+  readSemanticTag: (e: { tag?: unknown }) => e.tag,
   acTpCollectDrawingTexts: () => ({ texts: titles, truncated: false }),
   canEditSemantically: (_db: unknown, d: { status: string }) => ({
     allowed: d.status === 'tagged',
@@ -237,6 +249,88 @@ describe('describing the drawing', () => {
       titles = []
     }
     expect(describeDrawing().data).not.toHaveProperty('tieuDe')
+  })
+
+  // QA P1/M6 R3: «Mô tả bản vẽ» lost the run id and the generator version —
+  // the message read `r1 (ho_so_mo_m1)`, a key the model may not say.
+  describe('the runs in the message', () => {
+    const run = (
+      id: string,
+      version: string,
+      values: Record<string, unknown>
+    ) => ({
+      tag: { templateId: 'ho_so_mo_m1', run: { id, version, values } }
+    })
+    beforeEach(() => {
+      digest = {
+        status: 'tagged',
+        templateIds: ['ho_so_mo_m1'],
+        untaggedEntityCount: 0,
+        parts: ['be_mo', 'than_mo'].map(partId => ({
+          role: partId,
+          roleLabel: partId,
+          partId,
+          layers: ['KC'],
+          entityCount: 1,
+          objectIds: [partId]
+        }))
+      }
+    })
+    afterEach(() => {
+      mockEntities = []
+    })
+
+    test('a dossier run: run id, abutment name and generator, no key', () => {
+      mockEntities = [
+        run('r1', '0.3.1', { tenMo: 'QA-M6-P1', hThan: 5017 }),
+        run('r1', '0.3.1', { tenMo: 'QA-M6-P1', hThan: 5017 }),
+        {}
+      ]
+      const outcome = describeDrawing()
+      expect(outcome.ok).toBe(true)
+      expect(outcome.message).toBe(
+        'Bản vẽ có 2 bộ phận, 1 lần sửa r1 (hồ sơ mố QA-M6-P1, bộ sinh 0.3.1).'
+      )
+      expect(outcome.message).toContain('lần sửa r1')
+      expect(outcome.message).toContain('bộ sinh 0.3.1')
+      expect(outcome.message).not.toMatch(/ho_so_mo_m1|hThan|tenMo/)
+      // The key stays in the data, for calls.
+      const lanChay = (outcome.data as { lanChay: Record<string, unknown>[] })
+        .lanChay
+      expect(lanChay).toEqual([
+        expect.objectContaining({
+          ma: 'r1',
+          template: 'ho_so_mo_m1',
+          phienBan: '0.3.1',
+          soDoiTuong: 2
+        })
+      ])
+    })
+
+    test('a run with no abutment name still says its id and generator', () => {
+      mockEntities = [run('r2', '1.0.0', { bBe: 8000 })]
+      const message = describeDrawing().message
+      expect(message).toBe('Bản vẽ có 2 bộ phận, 1 lần sửa r2 (bộ sinh 1.0.0).')
+      expect(message).not.toContain('hồ sơ mố')
+    })
+
+    test('several runs: each with its id and generator', () => {
+      mockEntities = [
+        run('r2', '0.3.1', {}),
+        run('r1', '0.3.0', { tenMo: 'M1' })
+      ]
+      expect(describeDrawing().message).toBe(
+        'Bản vẽ có 2 bộ phận, 2 lần sửa: mã r1 (hồ sơ mố M1, bộ sinh 0.3.0); mã r2 (bộ sinh 0.3.1).'
+      )
+    })
+
+    test('parts without a run: no run, no made-up version', () => {
+      mockEntities = [{}, {}]
+      const outcome = describeDrawing()
+      expect(outcome.message).toBe('Bản vẽ có 2 bộ phận.')
+      expect(outcome.message).not.toMatch(/lần sửa|bộ sinh/)
+      expect((outcome.data as { lanChay: unknown[] }).lanChay).toEqual([])
+    })
   })
 
   test('no open drawing is a refusal, not a crash', () => {
