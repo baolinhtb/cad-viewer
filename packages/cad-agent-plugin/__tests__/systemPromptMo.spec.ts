@@ -37,8 +37,8 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       '«đỉnh tường đỉnh» and «đỉnh mố» mean seat + hDau',
       '«xà mũ» (`tru-cau`)',
       'always ask exactly one question with two choices and never pick one yourself',
-      '(a) nâng cả mố — caoDoDayBe += Δ',
-      '(b) giữ móng, kéo dài thân — hThan += Δ'
+      '(a) nâng cả mố — cao độ đáy bệ tăng Δ',
+      '(b) giữ móng, kéo dài thân — chiều cao thân tăng Δ'
     ])
       expect(prompt).toContain(word)
     // The pier flow is untouched.
@@ -106,5 +106,23 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(prompt).toContain('never replace it quietly with tao_ho_so_mo')
     expect(skill).toContain('**Hồ sơ bộ sinh cũ (0.3.0) — mở khóa.**')
     expect(skill).toContain('`mo_khoa_031: true`')
+  })
+
+  // QA 0.3.1b: "Tôi sửa hồ sơ r1 … hThan = 5017 mm." before a tool that
+  // then refused, and parameter keys in the prose (V2, V4–V7).
+  test('intention before a tool, Vietnamese names to the user', () => {
+    for (const word of [
+      'Say what you will do before a tool, what was done only after it.',
+      'Text written before a tool call is an intention',
+      'never word it as done',
+      'when it refused, say that nothing was changed',
+      'Speak Vietnamese names, not parameter keys.',
+      '«cao độ đáy bệ», «chiều cao thân»',
+      'never in place of the name'
+    ])
+      expect(prompt).toContain(word)
+    // The (a)/(b) question itself is worded with the names.
+    expect(prompt).not.toContain('(a) nâng cả mố — caoDoDayBe += Δ')
+    expect(prompt).toContain('parameter caoDoDayBe')
   })
 })

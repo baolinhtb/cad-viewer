@@ -55,6 +55,11 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
     (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên
     gối; thân cao hơn, khối lượng thân tăng. Khi hỏi (a)/(b) và khi báo xong
     (b), nói rõ: FG, FE tăng cùng Δ; đáy bệ, đỉnh bệ không đổi.
+- **Cách nói với người dùng:** dùng tên tiếng Việt («cao độ đáy bệ», «chiều cao
+  thân», «số gối», «bề rộng mặt đường»…); khóa như `caoDoDayBe`, `hThan` chỉ
+  để trong ngoặc khi cần đối chiếu. Trước khi gọi công cụ chỉ nói ý định
+  («Tôi sẽ…») hoặc im; nói «Đã…» và nêu số mới chỉ sau khi công cụ thành công;
+  bị từ chối thì nói chưa sửa gì.
 - Ví dụ câu hỏi: «Nâng xà mũ mố thêm 0,3 m theo cách nào: (a) nâng cả mố
   (đáy bệ cũng lên 0,3 m) hay (b) giữ móng, kéo dài thân thêm 300 mm?»
 - Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;
