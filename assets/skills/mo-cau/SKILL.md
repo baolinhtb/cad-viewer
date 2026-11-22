@@ -67,7 +67,9 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   công cụ hay cờ (`sua_ho_so_mo`, `cap_nhat_btkl`, `mo_khoa_031`…); nói việc sẽ
   làm với bản vẽ. Các khóa, tên công cụ, cờ trong skill này chỉ để gọi công
   cụ. Trước khi gọi công cụ chỉ nói ý định («Tôi sẽ sửa hồ sơ mố…») hoặc im; nói «Đã…» và nêu số mới chỉ sau khi công cụ thành công;
-  bị từ chối thì **cả câu trả lời chỉ 1–2 câu**: một câu «chưa sửa, bản vẽ
+  bị từ chối thì **cả câu trả lời chỉ 1–2 câu** — tính phần viết sau khi
+  công cụ trả lời; câu ý định «Tôi sẽ…» viết trước khi gọi công cụ không
+  tính vào đó (được giữ): một câu «chưa sửa, bản vẽ
   giữ nguyên» (kèm lý do ngắn trong câu đó), rồi
   được thêm **đúng một câu** gợi ý ngắn (khoảng cho phép, và tối đa một cách
   khác) — không thêm đoạn giải thích, không liệt kê nhiều hướng,
@@ -100,6 +102,15 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 - Sửa: `sua_ho_so_mo` + mã lần dựng từ `mo_ta_ban_ve`; chỉ truyền phần đổi.
   Hồ sơ 0.3.0 được dựng lại **chỉ khi chưa bị sửa tay**. Đọc `canhBao`
   trong kết quả để báo các tờ không áp dụng (thép).
+- **Sửa tay: so theo vùng đổi (từ P2-M5).** Hồ sơ 0.3.1 có hình/chữ người
+  dùng thêm, hoặc nét bộ sinh đã dời/xóa *ngoài vùng mà lần sửa vẽ lại*
+  (ví dụ dời một cọc ở mặt bằng cọc rồi đổi dốc ngang hay chiều cao lan
+  can), vẫn sửa kích thước được: công cụ chỉ vẽ lại phần thông số làm đổi,
+  giữ nguyên phần kia và báo trong `canhBao`. Sửa tay *trong vùng đổi*
+  (dời/sửa/xóa nét mà lần sửa sẽ vẽ lại) hoặc chữ nhãn đã sửa số thì vẫn bị
+  từ chối và hỏi một lần như dưới. Đã có tờ BTKL thì sửa hồ sơ tự cập nhật
+  tờ BTKL (cùng mã, cùng chỗ) và `canhBao` nêu số mới — báo lại số đó, không
+  cần lập lại bảng khối lượng.
 - **Bị từ chối vì sửa tay: dừng và hỏi, không lách.** Hồ sơ do
   `tao_ho_so_mo` / `sua_ho_so_mo` dựng chỉ đổi cao độ, kích thước, nhãn
   kích thước bằng chính các công cụ hồ sơ. Khi công cụ từ chối vì có chữ /
