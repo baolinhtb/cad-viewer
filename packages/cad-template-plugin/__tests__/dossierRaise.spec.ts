@@ -148,6 +148,20 @@ describe('raise the seat by 0,3 m — both ways, applied everywhere', () => {
     // 0,300 — the whole cross-falling seat strip moves as one (P1/M5; at
     // M4 its low side came out +0,295 / +0,299).
     expect(d).toEqual([0.3, 0.3, 0, 0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
+    // FG, FE (road / finished level) rise with the seat under (b): the road
+    // sits on what the bearings carry (QA M5b S2, confirmed P1/0.3.1).
+    const said0 = (
+      (
+        await runDossierTool(
+          'kiem_tra_ho_so',
+          { ma_lan_chay: listRuns(db)[0].id },
+          db
+        )
+      ).data as { caoDo: { bang: Record<string, number> } }
+    ).caoDo.bang
+    expect(said0.FG - 237.491).toBeCloseTo(0.3, 6)
+    expect(said0.FE - 237.441).toBeCloseTo(0.3, 6)
+    expect(said0.EL3).toBe(235.854)
     expect(after).toContain(Number(v0.caoDoDayBe))
     expect(after).toContain(
       Math.round((Number(v0.caoDoDayBe) + Number(v0.hBe) / 1000) * 1000) / 1000

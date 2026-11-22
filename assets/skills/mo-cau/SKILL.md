@@ -51,8 +51,10 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
   - (a) **nâng cả mố** → `caoDoDayBe += Δ` (m): mọi cao độ dời cùng Δ, kể cả
     đáy/đỉnh bệ; hình không đổi (hThan, hBe giữ), khối lượng không đổi;
   - (b) **giữ móng, kéo dài thân** → `hThan += Δ` (mm): đáy và đỉnh bệ giữ
-    nguyên; bệ kê gối và mọi cao độ phía trên tăng Δ; thân cao hơn, khối
-    lượng thân tăng.
+    nguyên; bệ kê gối và mọi cao độ phía trên tăng Δ — **kể cả FG và FE**
+    (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên
+    gối; thân cao hơn, khối lượng thân tăng. Khi hỏi (a)/(b) và khi báo xong
+    (b), nói rõ: FG, FE tăng cùng Δ; đáy bệ, đỉnh bệ không đổi.
 - Ví dụ câu hỏi: «Nâng xà mũ mố thêm 0,3 m theo cách nào: (a) nâng cả mố
   (đáy bệ cũng lên 0,3 m) hay (b) giữ móng, kéo dài thân thêm 300 mm?»
 - Sau khi người dùng chọn: một lần `sua_ho_so_mo` với đúng một tham số đó;

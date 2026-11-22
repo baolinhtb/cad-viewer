@@ -88,4 +88,11 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     ])
       expect(skill).toContain(word)
   })
+
+  // QA M5b S2: under (b) FG/FE rose by 0,300 too — right, and to be said.
+  test('(b) says FG and FE rise with the seat', () => {
+    expect(prompt).toContain('FG and FE (road / finished level) included')
+    expect(prompt).toContain('«FG, FE cũng tăng Δ; đáy bệ, đỉnh bệ không đổi»')
+    expect(skill).toContain('**kể cả FG và FE**')
+  })
 })
