@@ -374,4 +374,23 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain("thành mục «Lưu ý» hai gạch sau mỗi lần sửa")
     expect(skill).toContain('được thêm **tối đa một câu** ghi chú')
   })
+
+  // FIX-NOTE L1 defaults: «Tạo hồ sơ L1, lập BTKL mặc định» named the dossier
+  // L1 and got the M1 template (C30 187,016, no pile volume). The tool applies
+  // the accepted L1 set on tenMo "L1"; the agent must ask for it and the
+  // take-off, and not ask the pile length again.
+  test('«hồ sơ L1»: tenMo "L1" (the tool applies the L1 set) and tao_btkl', () => {
+    for (const word of [
+      '«hồ sơ L1», «L1 mặc định», «tạo hồ sơ L1, lập BTKL mặc định»',
+      'gọi tao_ho_so_mo với thong_so.tenMo = "L1"',
+      'chiều dài cọc 25000 mm) rồi gọi tao_btkl',
+      'Không được chỉ đổi tên rồi lấy mẫu M1',
+      'không hỏi lại chiều dài cọc khi đã áp bộ L1',
+      'Không nói L1 thì vẫn là mẫu M1 và không tự đặt chiều dài cọc'
+    ])
+      expect(prompt).toContain(word)
+    expect(skill).toContain('gọi `tao_ho_so_mo` với `tenMo: ')
+    expect(skill).toContain('`lCoc = 25000`')
+    expect(skill).toContain('Không chỉ đổi tên rồi để mẫu M1')
+  })
 })

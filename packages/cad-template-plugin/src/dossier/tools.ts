@@ -72,6 +72,43 @@ const limits =
 const raise =
   'Từ vựng mố (khác «xà mũ» của trụ): «xà mũ mố», «bệ kê gối», «đỉnh thân» = cao độ kê gối seat = caoDoDayBe + hBe + hThan (caoDoDayBe m, hBe/hThan mm); «đỉnh tường đỉnh», «đỉnh mố» = seat + hDau. ' +
   'Người dùng muốn nâng/hạ một cao độ này thêm Δ mà chưa nói cách: BẮT BUỘC hỏi đúng một câu, không tự chọn, không mặc định — (a) nâng cả mố: caoDoDayBe += Δ (m), mọi cao độ dời Δ, hình và khối lượng không đổi; hay (b) giữ móng, kéo dài thân: hThan += Δ (mm), đáy/đỉnh bệ giữ nguyên, kê gối và phía trên tăng Δ — kể cả FG, FE (cao độ mặt đường / hoàn thiện), vì mặt đường nằm trên kết cấu kê lên gối; khi báo kết quả (b) phải nói rõ FG, FE cũng tăng Δ. Người dùng chọn xong mới gọi sua_ho_so_mo với đúng một tham số đó. Nói với người dùng chỉ bằng tên tiếng Việt (cao độ đáy bệ, chiều cao thân…), không nói khóa nội bộ (kể cả trong ngoặc) hay tên công cụ, cờ — chúng chỉ dùng khi gọi công cụ; trước khi công cụ trả lời chỉ nói ý định, «Đã…» chỉ sau khi thành công.'
+/**
+ * The accepted P2 dossier «L1» (8 m road, stem 1,2 m, wings 4 m, D1000 piles
+ * 25 m long). «Hồ sơ L1» / «L1 mặc định» means these values, not the M1
+ * template with the name changed (FIX-NOTE UI re-run: the agent named the
+ * dossier L1 and got C30 187,016 and no pile volume). `dossierDefaults()`
+ * stays M1: the preset applies only when L1 is asked for.
+ */
+export const DOSSIER_PRESET_L1: Readonly<AcTpParamValues> = Object.freeze({
+  tenMo: 'L1',
+  bMatDuong: 8000,
+  tThan: 1200,
+  lCanh: 4000,
+  D: 1000,
+  lCoc: 25000
+})
+const presetL1Words = Object.entries(DOSSIER_PRESET_L1)
+  .map(([k, v]) => `${k} = ${v}`)
+  .join(', ')
+
+/**
+ * The values `tao_ho_so_mo` builds from: the L1 preset under what the user
+ * gave when L1 is asked for (`thong_so.tenMo` «L1», any case, or `mau: 'L1'`),
+ * otherwise what the user gave alone (on the M1 template). A name that merely
+ * contains L1 (QA-P2-M5, QA-FIX-NOTE…) is not the preset.
+ */
+export function acapDossierGivenValues(
+  given: AcTpParamValues,
+  mau: unknown
+): { given: AcTpParamValues; mau?: 'L1' } {
+  const isL1 = (v: unknown) =>
+    typeof v === 'string' && /^(mố\s+)?l1$/i.test(v.trim())
+  if (mau !== undefined && !isL1(mau))
+    throw new Error(`mau chỉ nhận "L1" (nhận "${String(mau)}").`)
+  if (!isL1(mau) && !isL1(given.tenMo)) return { given }
+  return { given: { ...DOSSIER_PRESET_L1, ...given }, mau: 'L1' }
+}
+
 const parameters = {
   type: 'object',
   description: `Thông số thiết kế. Đổi m/cm sang mm trước khi gọi; caoDoDayBe là m, dốc là %. Không tự suy số liệu chưa có.\n${paramDescription}`,
@@ -81,7 +118,8 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_ho_so_mo',
     description:
-      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Phiên bản 0.3.1 (hồ sơ mới): 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Thông số ngoài giới hạn dưới đây thì công cụ từ chối và không vẽ gì. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì tờ thép giữ hình M1 kèm cảnh báo chưa cập nhật, SUB-100 thêm bảng khối lượng theo thông số. Hồ sơ bản nháp; không tự thiết kế cốt thép hoặc chiều dài cọc. Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Phiên bản 0.3.1 (hồ sơ mới): 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Thông số ngoài giới hạn dưới đây thì công cụ từ chối và không vẽ gì. Tờ thép và bảng thống kê chỉ đúng cho mố M1 gốc: đổi hình học thì tờ thép giữ hình M1 kèm cảnh báo chưa cập nhật, SUB-100 thêm bảng khối lượng theo thông số. Hồ sơ bản nháp; không tự thiết kế cốt thép. Mẫu M1 (không nói L1): chưa có chiều dài cọc thì không tự đặt (lCoc 0). Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      `«Hồ sơ L1», «L1 mặc định», «tạo hồ sơ L1, lập BTKL mặc định»: gọi với thong_so.tenMo = "L1" (hoặc mau: "L1"); công cụ áp bộ L1 đã chấp nhận: ${presetL1Words} (gồm chiều dài cọc 25 m), rồi tự suy bBe = bThan = 8700, tim cọc ngang 6700, tim cọc dọc 4000. Thông số truyền thêm đè lên bộ L1 (ví dụ tenMo "L1", lCoc 0 giữ lCoc 0). Phải báo lại các số của bộ L1 cho người dùng; không hỏi lại chiều dài cọc khi đã áp bộ L1. Không được chỉ đổi tên rồi để mẫu M1.\n` +
       limits +
       '\n' +
       raise +
@@ -89,7 +127,14 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
       paramDescription,
     input_schema: {
       type: 'object',
-      properties: { thong_so: parameters },
+      properties: {
+        thong_so: parameters,
+        mau: {
+          type: 'string',
+          enum: ['L1'],
+          description: `Bộ thông số có sẵn. "L1" = hồ sơ L1 đã chấp nhận (${presetL1Words}); thong_so truyền kèm đè lên bộ này. Bỏ trống = mẫu M1. thong_so.tenMo = "L1" cũng áp bộ L1.`
+        }
+      },
       additionalProperties: false
     }
   },
@@ -208,11 +253,15 @@ function summary(
   const model = buildDossierModel(values)
   const detailMode = buildDossierScene(model).detailMode
   const btklNote = Array.isArray(extra.btkl) ? ` ${extra.btkl.join(' ')}` : ''
+  const presetNote =
+    extra.boThongSo === 'L1'
+      ? `Đã áp bộ L1 (phải báo lại người dùng): bề rộng mặt đường ${values.bMatDuong} mm, dày tường thân ${values.tThan} mm, chiều dài tường cánh ${values.lCanh} mm, đường kính cọc ${values.D} mm, chiều dài cọc ${values.lCoc} mm. `
+      : ''
   const message =
     kind === 'edit'
       ? `Đã sửa hồ sơ ${values.tenMo} (${runId}): ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}`.trimEnd() +
         btklNote
-      : `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${btklNote}`
+      : `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${presetNote}${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${btklNote}`
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
@@ -247,7 +296,12 @@ export async function runDossierTool(
     if (name === 'tao_ho_so_mo') {
       // New dossiers label with numbers unless asked otherwise; runs stored
       // without the key keep the source's symbols (standard assumption 10).
-      const given = suppliedValues(input.thong_so)
+      // «Hồ sơ L1»: the preset under the user's own values, derived from the
+      // M1 defaults like any input so bBe/bThan/pile spacing follow.
+      const { given, mau } = acapDossierGivenValues(
+        suppliedValues(input.thong_so),
+        input.mau
+      )
       const derived = acapDeriveDossierValues(dossierDefaults(), given)
       const model = buildDossierModel({
         nhanKichThuoc: DOSSIER_NEW_LABEL_MODE,
@@ -290,6 +344,7 @@ export async function runDossierTool(
       return summary(model.values, result.runId!, {
         soDoiTuong: result.entityCount,
         ...suyRaOf(derived.suyRa),
+        ...(mau ? { boThongSo: mau, boL1: { ...DOSSIER_PRESET_L1 } } : {}),
         macDinhTuMau: DOSSIER_PARAMS.filter(
           p => !(p.key in given) && !derived.suyRa.some(d => d.thamSo === p.key)
         ).map(p => p.key)
