@@ -171,7 +171,13 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
         .object({
           thong_so: z
             .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+            .optional(),
+          // A tool field, not a parameter: buildDossierModel would treat
+          // `mau` inside thong_so as unknown.
+          mau: z
+            .enum(['L1'])
             .optional()
+            .describe(dossierFlag('tao_ho_so_mo', 'mau'))
         })
         .strict(),
       execute: async input => {

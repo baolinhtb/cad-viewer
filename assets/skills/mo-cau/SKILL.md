@@ -156,6 +156,7 @@ mẫu là chiều dài **tường cánh**, không phải chiều dài cọc (`lC
 - Cọc mặc định **2 hàng × 2 cọc D1200**; tim ngang 5300, tim dọc 3600.
 - Dốc ngang dương: **trái tuyến cao**. Trên mặt chính trái tuyến nằm bên phải ảnh.
 - Chưa có chiều dài cọc thì để `lCoc=0`, không tự đoán: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc. Thông báo công cụ nhắc việc này — **hỏi người dùng chiều dài cọc thực** rồi sửa bằng `sua_ho_so_mo` `{lCoc: …}`.
+- **Hồ sơ L1** («hồ sơ L1», «L1 mặc định», «tạo hồ sơ L1, lập BTKL mặc định»): gọi `tao_ho_so_mo` với `tenMo: 'L1'` — công cụ áp bộ L1 đã chấp nhận `bMatDuong = 8000`, `tThan = 1200`, `lCanh = 4000`, `D = 1000`, `lCoc = 25000` (bệ/thân 8700, tim cọc 6700 × 4000) — rồi `tao_btkl`. Không chỉ đổi tên rồi để mẫu M1; không hỏi lại chiều dài cọc; báo lại các số của bộ L1.
 - Các mâu thuẫn nguồn C8/C10, F3 D22/D25, W16 D14/D16 chưa được tự chốt.
 - Hồ sơ dựng bằng 0.1.0 (khung cũ) và 0.2.0 (khung tên A1) vẫn dựng lại và
   xuất đúng như lúc tạo; với chúng `sua_ho_so_mo` chỉ sửa nhãn/vị trí/khung tên.

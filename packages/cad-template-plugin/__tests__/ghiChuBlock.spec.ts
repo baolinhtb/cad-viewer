@@ -472,6 +472,85 @@ describe('SUB-100: GHI CHÚ clear of the take-off table, table above the title s
   )
 })
 
+/**
+ * FIX-NOTE L1 defaults: «hồ sơ L1» through the tool (tenMo "L1" only, the
+ * preset applied), as drawn in the database — fresh and after a 3 % cross
+ * fall. The GHI CHÚ block is there without any sua, clear of the take-off
+ * table (union) and of the title strip; the table, its red footer included
+ * («Đỏ: không tính…», a caption of the table, not the GHI CHÚ heading), is
+ * clear of the title strip.
+ */
+describe('hồ sơ L1 mặc định (tao_ho_so_mo tenMo "L1"): SUB-100 boxes', () => {
+  jest.setTimeout(600000)
+
+  const union = (es: AcDbEntity[]): Box =>
+    es.map(boxOf).reduce((a, b) => ({
+      x0: Math.min(a.x0, b.x0),
+      y0: Math.min(a.y0, b.y0),
+      x1: Math.max(a.x1, b.x1),
+      y1: Math.max(a.y1, b.y1)
+    }))
+
+  function checkSub100(entities: AcDbEntity[]) {
+    const sub = entities.filter(e => sheetOf(e) === 'SUB-100')
+    const table = sub.filter(
+      e => readSemanticTag(e)?.partId === 'ghi_chu_btkl_SUB-100'
+    )
+    const strip = sub.filter(e =>
+      ['khung_ten', 'tieu_de_ban_ve'].includes(readSemanticTag(e)?.role ?? '')
+    )
+    const notes = sub.filter(isNote) as AcDbText[]
+    expect(table.length).toBeGreaterThan(60)
+    expect(strip.length).toBeGreaterThan(0)
+    expect(notes.map(n => n.textString)).toContain('GHI CHÚ')
+    // The footer is in the table's part: the table box covers it.
+    const footer = table.filter(
+      e => e instanceof AcDbText && /^Đỏ: không tính/.test(e.textString)
+    )
+    expect(footer).toHaveLength(1)
+    const tableBox = union(table)
+    const stripBox = union(strip)
+    expect(acTpBoxesOverlap(tableBox, stripBox)).toBe(false)
+    expect(acTpBoxesOverlap(boxOf(footer[0]), stripBox)).toBe(false)
+    for (const n of notes)
+      expect([
+        n.textString,
+        acTpBoxesOverlap(boxOf(n), tableBox),
+        acTpBoxesOverlap(boxOf(n), stripBox)
+      ]).toEqual([n.textString, false, false])
+    expect(dossierOverlaps(entities)).toEqual([])
+  }
+
+  test('fresh, then after dốc ngang 3 %', async () => {
+    const db = new AcDbDatabase()
+    db.createDefaultData()
+    const r = await runDossierTool(
+      'tao_ho_so_mo',
+      { thong_so: { tenMo: 'L1' } },
+      db
+    )
+    expect(r.ok).toBe(true)
+    const run = () => listRuns(db).find(x => x.templateId === DOSSIER_ID)!
+    expect(run().values).toMatchObject({ D: 1000, lCoc: 25000, bBe: 8700 })
+    // The red blocks without any sua: the geometry is not M1's.
+    const notes = entitiesOfRun(db, run().id).filter(isNote)
+    expect([...new Set(notes.map(sheetOf))].sort()).toEqual([
+      'SUB-070',
+      'SUB-080',
+      'SUB-090',
+      'SUB-100'
+    ])
+    checkSub100(entitiesOfRun(db, run().id))
+    const res = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: run().id, thong_so: { docNgang: 3 } },
+      db
+    )
+    expect(res.ok).toBe(true)
+    checkSub100(entitiesOfRun(db, run().id))
+  })
+})
+
 describe('library versions to publish (drawings pin id@version)', () => {
   test.each([
     ['mo_mat_chinh.js', '2.0.1'],
