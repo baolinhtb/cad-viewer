@@ -1,4 +1,4 @@
-const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
+const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 
 /**
  * Cọc khoan nhồi dưới bệ mố, mặt chính.
@@ -270,28 +270,31 @@ export default {
     }
 
     // Hai yêu cầu phát sinh của cùng điều khoản, in ra để kỹ sư thấy trên bản
-    // vẽ chứ không phải chỉ trong hộp thoại.
+    // vẽ chứ không phải chỉ trong hộp thoại — gom vào khối GHI CHÚ, vẽ sau
+    // cùng, tránh mọi nét đã vẽ.
     const notes = []
     if (count > 1 && pitch < 4 * D) {
       notes.push(
-        `Tim-tim ${Math.round(pitch)} mm < 4D (${4 * D} mm): phai danh gia anh huong ` +
-          'tuong tac giua cac coc lien ke — TCVN 11823-10:2017 §8.1.2'
+        `Tim–tim ${Math.round(pitch)} mm < 4D (${4 * D} mm): phải đánh giá ảnh hưởng ` +
+          'tương tác giữa các cọc liền kề — TCVN 11823-10:2017 §8.1.2'
       )
     }
     if (count > 1 && pitch < 6 * D) {
       notes.push(
-        `Tim-tim ${Math.round(pitch)} mm < 6D (${6 * D} mm): trinh tu khoan coc phai ` +
-          'duoc neu ro trong ho so thiet ke — TCVN 11823-10:2017 §8.1.2'
+        `Tim–tim ${Math.round(pitch)} mm < 6D (${6 * D} mm): trình tự khoan cọc phải ` +
+          'được nêu rõ trong hồ sơ thiết kế — TCVN 11823-10:2017 §8.1.2'
       )
     }
-    notes.forEach((line, index) => {
-      ctx.text({
-        role: 'ghi_chu',
-        partId: formatPartId({ role: 'ghi_chu', ordinal: index + 1 }),
-        position: { x: x0 - capWidth / 2, y: y0 - Lcoc - 400 - index * 320, z: 0 },
-        text: line,
-        height: 200
+    // Cạnh phải bệ, ngang đáy bệ: ghép với mo_be_mong thì chỗ ấy vẫn trống —
+    // bệ, bê tông lót và kích thước của nó nằm trong bề rộng bệ hoặc sát mép
+    // phải (dim đứng +700), cọc thì luôn trong bề rộng bệ (mép ≥ 300).
+    if (notes.length) {
+      const nua = capWidth / 2
+      acTpPlaceGhiChuBlock(ctx, notes, {
+        textHeight: 200,
+        width: 7200,
+        at: { x: x0 + nua + 1800, y: y0 - 600 }
       })
-    })
+    }
   }
 }

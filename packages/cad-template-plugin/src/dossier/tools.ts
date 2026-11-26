@@ -36,7 +36,7 @@ import {
   dossierParamValue
 } from './model'
 import { buildDossierScene } from './scene'
-import { acapDossierElevations } from './scene030'
+import { acapDossierElevations, acapDossierNoteAfter } from './scene030'
 import { abutmentDossierTemplate } from './template'
 
 const paramDescription = DOSSIER_PARAMS.map(
@@ -440,14 +440,13 @@ export async function runDossierTool(
 function unbuiltSheets(model: ReturnType<typeof buildDossierModel>): string[] {
   const out: string[] = []
   for (const sheet of buildDossierScene(model).sheets) {
-    const at = sheet.primitives.findIndex(
-      p =>
-        p.kind === 'text' &&
-        p.text === 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
+    // The reason is the next note of the sheet's GHI CHÚ block, wrapped.
+    const why = acapDossierNoteAfter(
+      sheet,
+      'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
     )
-    if (at < 0) continue
-    const why = sheet.primitives[at + 1]
-    out.push(`${sheet.id}: ${why?.kind === 'text' ? why.text : ''}`)
+    if (why === undefined) continue
+    out.push(`${sheet.id}: ${why}`)
   }
   return out
 }

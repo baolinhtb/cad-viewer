@@ -40,9 +40,10 @@ import { runBtklTool } from '../src/btkl/tools'
 import { acapDeriveDossierValues } from '../src/dossier/derive'
 import { buildDossierModel, dossierDefaults } from '../src/dossier/model'
 import { buildDossierScene } from '../src/dossier/scene'
-import { acapSlopeLabel } from '../src/dossier/scene030'
+import { acapDossierSheetNotes, acapSlopeLabel } from '../src/dossier/scene030'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
+import { ghiChuText } from './helpers/ghiChu'
 
 const OUT = process.env.QA_EVIDENCE_DIR
 const FIXTURES = join(__dirname, 'fixtures', 'p2m5')
@@ -309,9 +310,7 @@ describe('(b) an existing take-off follows sua_ho_so_mo', () => {
     expect(said).not.toMatch(/cọc \d/)
     expect(said).not.toMatch(/bệ \d/)
     expect(said).not.toMatch(/THÉP THEO M1 GỐC/)
-    expect(String(res.message)).toContain(
-      '1.4 Tường cánh 19,704 → 19,592 m³'
-    )
+    expect(String(res.message)).toContain('1.4 Tường cánh 19,704 → 19,592 m³')
     expect(String(res.message)).toMatch(/^Đã sửa hồ sơ/)
     expect(String(res.message)).not.toMatch(/Chưa có thép áp dụng/)
   })
@@ -586,4 +585,75 @@ describe('UI fixtures (acTpDxfOut, UTF-8)', () => {
       }
     }
   )
+
+  // FIX-NOTE: the fixture predates the GHI CHÚ block — its warnings are
+  // loose red texts, some over the drawing. The first edit replaces them by
+  // the block; they are the generator's, never hand edits (they were told
+  // as «25 dời/xóa, 7 ở chỗ mới» and kept over the drawing).
+  test('fixture note: the old loose warnings give way to the GHI CHÚ block, no hand edit told', async () => {
+    const db = await readDxf(readFileSync(path('note'), 'utf8'))
+    const STEEL = 'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+    const TABLES =
+      'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+    const loose = () =>
+      entitiesOfRun(db, runOf(db).id).filter(
+        (e): e is AcDbText =>
+          e instanceof AcDbText &&
+          readSemanticTag(e)?.params?.khoi === undefined &&
+          /^(THÉP THEO M1 GỐC|CHƯA |BẢNG .*CHƯA|Hình thép giữ nguyên)/.test(
+            e.textString
+          )
+      )
+    // Three steel sheets × two lines, and the M1 tables caveat of SUB-100.
+    const old = loose().map(e => ({
+      sheet: sheetOf(e),
+      text: e.textString,
+      at: [Math.round(e.position.x), Math.round(e.position.y)]
+    }))
+    expect(old).toHaveLength(7)
+    expect(old.map(o => o.text)).toEqual(
+      expect.arrayContaining([STEEL, TABLES])
+    )
+
+    const res = await sua(db, { hLanCan: 1300 })
+    expect(res.ok).toBe(true)
+    expect(
+      ((res.data as { canhBao?: string[] }).canhBao ?? []).filter(w =>
+        w.includes('sửa tay')
+      )
+    ).toEqual([])
+    // Gone from where they were; nothing reads them there any more.
+    expect(loose()).toEqual([])
+    for (const o of old)
+      expect(
+        all(db).some(
+          e =>
+            e instanceof AcDbText &&
+            e.textString === o.text &&
+            Math.round(e.position.x) === o.at[0] &&
+            Math.round(e.position.y) === o.at[1]
+        )
+      ).toBe(false)
+    // The user's note is not the run's: it stays.
+    expect(
+      all(db).some(e => e instanceof AcDbText && e.textString === NOTE)
+    ).toBe(true)
+    // The block is drawn, its warnings whole however they wrap.
+    const run = entitiesOfRun(db, runOf(db).id)
+    for (const sheet of ['SUB-070', 'SUB-080', 'SUB-090'])
+      expect(ghiChuText(run, sheet)).toContain(STEEL)
+    expect(ghiChuText(run, 'SUB-100')).toContain(TABLES)
+    const notes = buildDossierScene(
+      buildDossierModel({ ...runOf(db).values })
+    ).sheets.flatMap(s => acapDossierSheetNotes(s))
+    expect(notes).toEqual(expect.arrayContaining([STEEL, TABLES]))
+    // And the next edit finds the block where the generator put it.
+    const next = await sua(db, { docNgang: 3 })
+    expect(next.ok).toBe(true)
+    expect(
+      ((next.data as { canhBao?: string[] }).canhBao ?? []).filter(w =>
+        w.includes('sửa tay')
+      )
+    ).toEqual([])
+  })
 })

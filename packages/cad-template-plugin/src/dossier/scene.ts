@@ -3,7 +3,10 @@ import type {
   AcTpDimStyleVars,
   AcTpDrawContext
 } from '@mlightcad/cad-template-sdk'
-import { acTpBuildDrawingFrame } from '@mlightcad/cad-template-sdk'
+import {
+  ACTP_GHI_CHU_TITLE,
+  acTpBuildDrawingFrame
+} from '@mlightcad/cad-template-sdk'
 import type { AcDbEntity } from '@mlightcad/data-model'
 
 import type { DossierModel } from './model'
@@ -33,6 +36,12 @@ interface Base {
   lineWeight?: number
   /** Linetype scale of the entity (0.3.0); otherwise 1. */
   linetypeScale?: number
+  /**
+   * A line of the sheet's GHI CHÚ block (FIX-NOTE): the index of the note it
+   * belongs to, −1 for the heading. A note wrapped over several lines gives
+   * each the same index.
+   */
+  note?: number
 }
 export type DossierPrimitive = Base &
   (
@@ -1023,7 +1032,8 @@ export function drawDossierScene(
             : {}),
           sheet: s.id,
           reference: scene.reference,
-          status: scene.status
+          status: scene.status,
+          ...(op.note !== undefined ? { khoi: ACTP_GHI_CHU_TITLE } : {})
         }
       }
       if (op.kind === 'fill')

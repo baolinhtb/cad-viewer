@@ -1,4 +1,4 @@
-const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
+const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 
 /**
  * Trụ cầu — mặt chính (nhìn dọc tuyến, phương ngang cầu nằm ngang).
@@ -625,14 +625,18 @@ function but(ctx) {
       for (let i = 1; i < diem.length; i++)
         this.kichThuoc(diem[i - 1], diem[i], offset, huong)
     },
-    ghiChu(x, y, text, height) {
-      ctx.text({
-        role: 'ghi_chu',
-        partId: formatPartId({ role: 'ghi_chu', ordinal: ++soGhiChu }),
-        position: p(x, y),
-        text,
-        height: height ?? 200
+    /**
+     * Khối GHI CHÚ: gom mọi ghi chú vào một khối có tiêu đề, xuống dòng theo
+     * bề rộng khối, đặt ở chỗ trống không đè hình, kích thước hay chữ nào đã
+     * vẽ. Gọi sau cùng, khi mọi thứ khác đã có trên bản vẽ.
+     */
+    khoiGhiChu(dong) {
+      const khoi = acTpPlaceGhiChuBlock(ctx, dong, {
+        textHeight: 200,
+        width: 8000,
+        firstOrdinal: soGhiChu + 1
       })
+      if (khoi) soGhiChu += 1 + dong.length
     }
   }
 }
@@ -840,9 +844,9 @@ export default {
       )
     }
 
-    // Ghi chú cọc (TCVN 11823-10:2017 đ.8.1.2) và lời nhắc bố cục sơ bộ, dưới hình.
-    const yGhi = g.yBeDay - g.lVe - 2600
-    const ghi = [
+    // Ghi chú cọc (TCVN 11823-10:2017 đ.8.1.2) và lời nhắc bố cục sơ bộ, vào
+    // khối GHI CHÚ — không còn đặt cố định dưới mũi cọc.
+    b.khoiGhiChu([
       'Bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng. Kích thước do tính toán quyết định.',
       ...(v.lCoc === 0
         ? [
@@ -850,9 +854,6 @@ export default {
           ]
         : []),
       ...ghiChuCoc(v)
-    ]
-    ghi.forEach((dong, i) =>
-      b.ghiChu(x0 - Math.max(nuaBe, nuaXa), yGhi - i * 360, dong, 200)
-    )
+    ])
   }
 }
