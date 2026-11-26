@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { formatPartId } from '@mlightcad/cad-template-sdk'
+import { acTpPlaceGhiChuBlock, formatPartId } from '@mlightcad/cad-template-sdk'
 
 import { setRemoteTemplates } from '../../src/templateRegistry'
 
@@ -20,7 +20,8 @@ const DIR = join(__dirname, '..', '..', 'library')
 /** Evaluates one uploadable template file. */
 export function loadLibraryTemplate(file: string) {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
+    formatPartId,
+    acTpPlaceGhiChuBlock
   }
   const code = readFileSync(join(DIR, file), 'utf8')
   if (!/^\s*export default /m.test(code)) {

@@ -37,6 +37,7 @@ import { abutmentDossierTemplate } from '../src/dossier/template'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
+import { ghiChuText } from './helpers/ghiChu'
 
 jest.setTimeout(240_000)
 
@@ -166,23 +167,23 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
     // the M1 steel, marked as not updated (they used to go blank, −71 % of
     // the dossier); the elevation datum alone leaves the steel as it is.
     const geometric = Object.keys(change).some(k => k !== 'caoDoDayBe')
+    // The caveats are in each sheet's GHI CHÚ block, wrapped: read whole.
+    const run = entitiesOfRun(db, runId)
     for (const s of ['SUB-070', 'SUB-080', 'SUB-090']) {
       expect(steelDrawn(db, runId, s)).toBeGreaterThan(0)
       expect(
-        texts(db, runId, s).includes(
+        ghiChuText(run, s).includes(
           'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
         )
       ).toBe(geometric)
     }
     expect(
-      texts(db, runId, 'SUB-100').includes(
+      ghiChuText(run, 'SUB-100').includes(
         'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
       )
     ).toBe(geometric)
 
-    const refused = texts(db, runId, 'SUB-010').some(t =>
-      t.startsWith('CHƯA DỰNG ĐƯỢC HÌNH')
-    )
+    const refused = ghiChuText(run, 'SUB-010').includes('CHƯA DỰNG ĐƯỢC HÌNH')
     const hb = dimLengths(db, runId, 'SUB-010', 'HB')
     const lc = dimLengths(db, runId, 'SUB-010', 'LC')
     const bMo = dimLengths(db, runId, 'SUB-010', 'B Mố')

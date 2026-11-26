@@ -22,12 +22,13 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  acTpPlaceGhiChuBlock,
   createDrawContext,
   formatPartId,
   readSemanticTag,
   validateParamValues
 } from '@mlightcad/cad-template-sdk'
-import { AcDbDatabase } from '@mlightcad/data-model'
+import { AcDbDatabase, AcDbText } from '@mlightcad/data-model'
 
 /** The very files that get uploaded, so the two cannot drift. */
 const DIR = join(__dirname, '..', 'library')
@@ -79,7 +80,8 @@ const ROLE_LAYERS: Record<string, string> = {
  */
 function load(file: string, dir: string = DIR) {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
+    formatPartId,
+    acTpPlaceGhiChuBlock
   }
   const code = readFileSync(join(dir, file), 'utf8')
   if (!/^\s*export default /m.test(code)) {
@@ -87,6 +89,23 @@ function load(file: string, dir: string = DIR) {
   }
   const body = code.replace(/^\s*export default /m, 'return ')
   return new Function(`${body}`)()
+}
+
+/**
+ * Notes of the GHI CHÚ block, one per obligation: the wrapped lines of a note
+ * share its partId; the heading and the `1.` numbering are not part of it.
+ */
+function notesOf(drawn: unknown[]): string[] {
+  const byPart = new Map<string, string[]>()
+  for (const e of drawn as AcDbText[]) {
+    const tag = readSemanticTag(e as never)
+    if (tag?.role !== 'ghi_chu') continue
+    expect(e).toBeInstanceOf(AcDbText)
+    expect(tag.params?.khoi).toBe('GHI CHÚ')
+    if (e.textString === 'GHI CHÚ') continue
+    byPart.set(tag.partId, [...(byPart.get(tag.partId) ?? []), e.textString])
+  }
+  return [...byPart.values()].map(l => l.join(' ').replace(/^\d+\. /, ''))
 }
 
 function newDatabase() {
@@ -321,10 +340,11 @@ describe('cọc khoan nhồi dưới bệ mố', () => {
       .map(e => readSemanticTag(e as never))
       .find(tag => tag?.role === 'coc_khoan_nhoi')
     expect(than?.params?.tyLeTimD).toBe(3)
-    const notes = drawn
-      .map(e => readSemanticTag(e as never))
-      .filter(tag => tag?.role === 'ghi_chu')
-    expect(notes.length).toBe(2)
+    const notes = notesOf(drawn)
+    expect(notes).toEqual([
+      'Tim–tim 3000 mm < 4D (4000 mm): phải đánh giá ảnh hưởng tương tác giữa các cọc liền kề — TCVN 11823-10:2017 §8.1.2',
+      'Tim–tim 3000 mm < 6D (6000 mm): trình tự khoan cọc phải được nêu rõ trong hồ sơ thiết kế — TCVN 11823-10:2017 §8.1.2'
+    ])
   })
 
   test('từ 6D trở lên thì không phát sinh gì, và không ghi chú thừa', () => {
@@ -348,10 +368,11 @@ describe('cọc khoan nhồi dưới bệ mố', () => {
       soCoc: 2,
       beRongBe: 8000
     })
-    const notes = drawn
-      .map(e => readSemanticTag(e as never))
-      .filter(tag => tag?.role === 'ghi_chu')
-    expect(notes.length).toBe(1)
+    const notes = notesOf(drawn)
+    expect(notes).toHaveLength(1)
+    expect(notes[0]).toMatch(
+      /^Tim–tim 5000 mm < 6D \(6000 mm\): trình tự khoan cọc/
+    )
   })
 
   test('từ chối cọc chồng lên nhau', () => {

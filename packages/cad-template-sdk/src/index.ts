@@ -1,6 +1,7 @@
 export * from './AcTpDimensionBlock'
 export * from './AcTpDrawContext'
 export * from './AcTpDxfOut'
+export * from './AcTpGhiChuBlock'
 export * from './AcTpDrawingFrame'
 export * from './AcTpDrawingDigest'
 export * from './AcTpPartId'

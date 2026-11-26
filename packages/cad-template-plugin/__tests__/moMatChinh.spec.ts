@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  acTpPlaceGhiChuBlock,
   createDrawContext,
   formatPartId,
   readSemanticTag,
@@ -60,7 +61,8 @@ const LAYER_STYLES: Record<string, { color: number | null }> = {
 
 function load() {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
+    formatPartId,
+    acTpPlaceGhiChuBlock
   }
   const code = readFileSync(FILE, 'utf8')
   return new Function(code.replace(/^\s*export default /m, 'return '))()
@@ -135,12 +137,26 @@ describe('mo_mat_chinh với mặc định dựng lại đúng bản vẽ', () =
     expect(colorOf(drawn.find(e => partId(e) === 'duong_tim_01')!)).toBe(1)
     const texts = drawn.filter(e => e.dxfTypeName === 'TEXT') as (AcDbEntity & { textString: string })[]
     const green = texts.filter(t => colorOf(t) === 3).map(t => t.textString).sort()
-    expect(green).toHaveLength(11)
-    expect(green).toEqual(expect.arrayContaining([
+    expect(green).toEqual([
       'BÊ TÔNG ĐỆM C8', 'CỌC KHOAN NHỒI', 'D1200 (M)', 'i=0%', 'i=0%',
       'Tim cầu', 'Tim giai đoạn hoàn thiện', 'PHẢI TUYẾN', 'TRÁI TUYẾN', 'gđ1'
-    ]))
-    expect(green.some(t => t.startsWith('Tim-tim 5300 mm < 6D (7200 mm):'))).toBe(true)
+    ].sort())
+    // Cảnh báo 6D (TCVN 11823-10:2017 §8.1.2) nằm trong khối GHI CHÚ, đỏ (1),
+    // có dấu; chữ đỏ của template chỉ là khối ấy.
+    const red = texts.filter(t => colorOf(t) === 1)
+    expect(red.length).toBeGreaterThan(1)
+    expect(red.every(t => readSemanticTag(t)?.params?.khoi === 'GHI CHÚ')).toBe(
+      true
+    )
+    expect(red[0].textString).toBe('GHI CHÚ')
+    expect(
+      red
+        .slice(1)
+        .map(t => t.textString)
+        .join(' ')
+    ).toBe(
+      '1. Tim–tim 5300 mm < 6D (7200 mm): trình tự khoan cọc phải được nêu rõ trong hồ sơ thiết kế — TCVN 11823-10:2017 §8.1.2'
+    )
     expect(colorOf(texts.find(t => t.textString === 'Tim cầu')!)).toBe(3)
     const moc = drawn.filter(e => role(e) === 'ghi_chu_cao_do' && isPoly(e))
     expect(moc.every(e => colorOf(e) === 2)).toBe(true)

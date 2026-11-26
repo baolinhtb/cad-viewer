@@ -1,4 +1,4 @@
-const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
+const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 
 /**
  * Trụ cầu — mặt bên (nhìn ngang tuyến, phương dọc cầu nằm ngang).
@@ -620,14 +620,18 @@ function but(ctx) {
       for (let i = 1; i < diem.length; i++)
         this.kichThuoc(diem[i - 1], diem[i], offset, huong)
     },
-    ghiChu(x, y, text, height) {
-      ctx.text({
-        role: 'ghi_chu',
-        partId: formatPartId({ role: 'ghi_chu', ordinal: ++soGhiChu }),
-        position: p(x, y),
-        text,
-        height: height ?? 200
+    /**
+     * Khối GHI CHÚ: gom mọi ghi chú vào một khối có tiêu đề, xuống dòng theo
+     * bề rộng khối, đặt ở chỗ trống không đè hình, kích thước hay chữ nào đã
+     * vẽ. Gọi sau cùng, khi mọi thứ khác đã có trên bản vẽ.
+     */
+    khoiGhiChu(dong) {
+      const khoi = acTpPlaceGhiChuBlock(ctx, dong, {
+        textHeight: 200,
+        width: 8000,
+        firstOrdinal: soGhiChu + 1
       })
+      if (khoi) soGhiChu += 1 + dong.length
     }
   }
 }

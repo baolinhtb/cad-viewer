@@ -32,6 +32,7 @@ import {
 import layout from '../src/dossier/reference/layout-mo2.json'
 import type { DossierPrimitive } from '../src/dossier/scene'
 import { buildDossierScene, drawDossierScene } from '../src/dossier/scene'
+import { acapDossierSheetNotes } from '../src/dossier/scene030'
 import { abutmentDossierLegacyTemplates } from '../src/dossier/template'
 
 const V = DOSSIER_A3_VERSION
@@ -191,13 +192,10 @@ describe('bố cục 0.3.0', () => {
     expect(changed.detailMode).toBe('parametric')
     for (const s of changed.sheets.slice(2, 5)) {
       expect(s.primitives.some(p => p.sourceHandle)).toBe(true)
-      expect(
-        s.primitives.some(
-          p =>
-            p.kind === 'text' &&
-            p.text === 'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-        )
-      ).toBe(true)
+      // In the sheet's GHI CHÚ block, read whole however it wraps.
+      expect(acapDossierSheetNotes(s)).toContain(
+        'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      )
     }
   })
 })
@@ -253,10 +251,16 @@ describe('SUB-010 dựng bằng đối tượng thật, theo lưới co giãn', 
   })
 
   test('bố trí lưới không theo được thì từ chối, nói lý do', () => {
-    const texts = (values: Record<string, number>) =>
-      buildDossierScene(buildDossierModel(values), V)
-        .sheets[0].primitives.flatMap(p => (p.kind === 'text' ? [p.text] : []))
-        .join(' | ')
+    // The reason is a note of the GHI CHÚ block: its wrapped lines joined.
+    const texts = (values: Record<string, number>) => {
+      const s = buildDossierScene(buildDossierModel(values), V).sheets[0]
+      return [
+        ...s.primitives.flatMap(p =>
+          p.kind === 'text' && p.note === undefined ? [p.text] : []
+        ),
+        ...acapDossierSheetNotes(s)
+      ].join(' | ')
+    }
     expect(texts({ phuLot: 200 })).toMatch(/đổi phần lót nhô mỗi mép/)
     expect(texts({ bBe: 8500 })).toMatch(/bề rộng thân = bề rộng bệ/)
     // P2-M4: piles not flush with the edges are drawn (an array), no
@@ -470,13 +474,9 @@ describe('SUB-070 (thép 1/3) dựng bằng đối tượng thật', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     // Exactly the M1 steel, point for point: not stretched to the new size.
     expect(own(tall)).toEqual(own(scene))
-    expect(
-      tall.sheets[2].primitives.some(
-        p =>
-          p.kind === 'text' &&
-          p.text === 'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-      )
-    ).toBe(true)
+    expect(acapDossierSheetNotes(tall.sheets[2])).toContain(
+      'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+    )
   })
 
   test('đổi cấu tạo thép (F3 D25): vẫn không vẽ thép, ghi chưa có phương án', () => {
@@ -591,7 +591,8 @@ describe('SUB-100: bảng thống kê và khối lượng vẽ bằng nét và c
   test('kích thước khác bản gốc: bảng M1 giữ nguyên có cảnh báo, thêm bảng khối lượng theo thông số', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     expect(texts(tall)).toContain('14058.319')
-    expect(texts(tall)).toContain(
+    // The caveat is a note of the sheet's GHI CHÚ block, read whole.
+    expect(acapDossierSheetNotes(sub100(tall))).toContain(
       'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
     )
     // The take-off of the current parameters: footing 7,7 × 6 × 2,5 − piles.

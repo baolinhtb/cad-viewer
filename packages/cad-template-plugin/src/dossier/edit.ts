@@ -1,6 +1,7 @@
 import { acapRunGroupedEdit } from '@mlightcad/cad-simple-viewer'
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 import {
+  ACTP_GHI_CHU_TITLE,
   acTpWithWorkingDatabaseSync,
   createDrawContext,
   formatDimensionText,
@@ -33,7 +34,11 @@ import {
 } from './model'
 import type { DossierPrimitive, DossierScene, XY } from './scene'
 import { buildDossierScene, drawDossierScene } from './scene'
-import { acapDossierTableValues } from './scene030'
+import {
+  acapDossierNoteAfter,
+  acapDossierSheetNotes,
+  acapDossierTableValues
+} from './scene030'
 
 /** Roles of the sheet border and title block (0.2.0 and later). */
 const FRAME_ROLES = new Set(['khung_ban_ve', 'khung_ten'])
@@ -810,6 +815,37 @@ function regionKey(e: AcDbEntity): string {
 }
 
 /**
+ * Wording of a warning the generator writes on a sheet: `THÉP THEO M1 GỐC…`,
+ * `CHƯA DỰNG ĐƯỢC…`, `BẢNG … CHƯA…`, the M1 tables caveat of SUB-100. Before
+ * FIX-NOTE each was a loose red TEXT where the sheet had room (over the
+ * drawing at times); a dossier drawn then still has them there.
+ */
+const GENERATOR_WARNING =
+  /^(?:THÉP THEO M1 GỐC|CHƯA |BẢNG .*CHƯA|BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC)/
+
+/**
+ * Whether an entity of a run is a warning the generator wrote (FIX-NOTE):
+ * a line of a sheet's GHI CHÚ block (tagged with the block), or — drawn
+ * before the block — a `ghi_chu` text reading one of the sheet's warnings
+ * whole (`notes`, from the run's values) or worded as one, numbered or not.
+ * Never a hand edit: such text is redrawn as the sheet's GHI CHÚ block.
+ */
+function isGeneratorNote(
+  e: AcDbEntity,
+  notes: (sheet: string) => ReadonlySet<string>
+): boolean {
+  const tag = readSemanticTag(e)
+  if (tag?.params?.khoi === ACTP_GHI_CHU_TITLE) return true
+  if (!(e instanceof AcDbText || e instanceof AcDbMText)) return false
+  if (tag?.role !== 'ghi_chu') return false
+  const text = plainOf(e).replace(/^\d+[.)]\s+/, '')
+  return (
+    notes(String(tag.params?.sheet ?? '')).has(text) ||
+    GENERATOR_WARNING.test(text)
+  )
+}
+
+/**
  * 0.3.0: a dimension change regenerates the run (decision Q6), but only if
  * the drawing still is exactly what the run's recorded values produce. The
  * run is drawn again from those values into a scratch database and compared
@@ -837,15 +873,13 @@ async function regenerateRun(
   // (a layout change, a view leaving the A3 sheet), nothing is changed —
   // regenerating would replace the detailed drawing with a notice.
   for (const sheet of after.sheets) {
-    const notice = sheet.primitives.findIndex(
-      p =>
-        p.kind === 'text' &&
-        p.text === 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
+    const why = acapDossierNoteAfter(
+      sheet,
+      'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
     )
-    if (notice < 0) continue
-    const why = sheet.primitives[notice + 1]
+    if (why === undefined) continue
     return result([
-      `${sheet.id}: hình chiếu không theo được thông số mới — ${why?.kind === 'text' ? why.text : ''} Chưa sửa gì.`
+      `${sheet.id}: hình chiếu không theo được thông số mới — ${why} Chưa sửa gì.`
     ])
   }
   const identity = (v: AcTpParamValues) => ({
@@ -905,6 +939,22 @@ async function regenerateRun(
       keptAfter.add(`${sheet.id}#${twin}`)
     })
   }
+  // FIX-NOTE: the generator's warnings — a GHI CHÚ block, or loose texts
+  // in a dossier drawn before it — are always erased and drawn anew as the
+  // block of the new values, whatever the change: never taken for hand
+  // edits, never kept over the drawing. A note the user added is not the
+  // run's and stays.
+  const beforeNotes = new Map(
+    before.sheets.map(s => [s.id, new Set(acapDossierSheetNotes(s))])
+  )
+  const noNotes: ReadonlySet<string> = new Set()
+  const generatorNotes = entities.filter(e =>
+    isGeneratorNote(e, sheet => beforeNotes.get(sheet) ?? noNotes)
+  )
+  const noteSet = new Set(generatorNotes)
+  const body = entities.filter(e => !noteSet.has(e))
+  const isBlockLine = (scene: DossierScene, sheet: string, i: number) =>
+    scene.sheets.find(s => s.id === sheet)?.primitives[i]?.note !== undefined
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
   // What the run's values draw, split into what the change redraws and what
@@ -923,16 +973,22 @@ async function regenerateRun(
         { legacyLayers: legacyLayers() }
       ),
       before,
-      (sheet, i, drawn) =>
-        (keptBefore.has(`${sheet}#${i}`) ? keptKeys : redrawnKeys).push(
+      (sheet, i, drawn) => {
+        // The GHI CHÚ block is matched apart (generatorNotes).
+        if (isBlockLine(before, sheet, i)) return
+        ;(keptBefore.has(`${sheet}#${i}`) ? keptKeys : redrawnKeys).push(
           ...drawn
             .filter(e => readSemanticTag(e)?.run?.id === run.id)
             .map(regionKey)
         )
+      }
     )
   )
-  const expected = entitiesOfRun(scratch, run.id).map(entityKey).sort()
-  const actual = entities.map(entityKey).sort()
+  const expected = entitiesOfRun(scratch, run.id)
+    .filter(e => readSemanticTag(e)?.params?.khoi !== ACTP_GHI_CHU_TITLE)
+    .map(entityKey)
+    .sort()
+  const actual = body.map(entityKey).sort()
   const full =
     // The user chose to drop the hand edits, or to unlock an older
     // dossier: the run is drawn again from its values, as a whole.
@@ -997,7 +1053,7 @@ async function regenerateRun(
   const keep: AcDbEntity[] = []
   const extra: AcDbEntity[] = []
   const odd: AcDbEntity[] = []
-  for (const e of entities) {
+  for (const e of body) {
     const k = regionKey(e)
     if (take(toRedraw, k)) erase.push(e)
     else if (take(toKeep, k)) keep.push(e)
@@ -1071,7 +1127,8 @@ async function regenerateRun(
     db,
     'Sửa hồ sơ theo thông số mới, giữ phần không đổi',
     async () => {
-      for (const entity of erase) if (entity.erase()) removed += 1
+      for (const entity of [...erase, ...generatorNotes])
+        if (entity.erase()) removed += 1
       // What stays carries the new values, as if drawn with them.
       for (const original of [...keep, ...extra]) {
         const entity = db.openEntityForWrite(original)!
@@ -1109,7 +1166,7 @@ async function regenerateRun(
         sheets: after.sheets.map(sheet => ({
           ...sheet,
           primitives: sheet.primitives.filter(
-            (_, i) => !keptAfter.has(`${sheet.id}#${i}`)
+            (p, i) => p.note !== undefined || !keptAfter.has(`${sheet.id}#${i}`)
           )
         }))
       })
@@ -1141,16 +1198,15 @@ async function regenerateRun(
     // on create or describe, not after every edit (P2-M6c). Still report
     // sheets that could not be drawn, and a table of elevations that
     // could not be computed.
+    // Read from the sheet's GHI CHÚ block, each note whole however wrapped.
     const warnings = after.sheets.flatMap(s =>
-      s.primitives
+      acapDossierSheetNotes(s)
         .filter(
-          p =>
-            p.kind === 'text' &&
-            /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(p.text) &&
-            p.role === 'ghi_chu' &&
-            !/THÉP THEO M1 GỐC|BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG/.test(p.text)
+          t =>
+            /^(CHƯA|BẢNG .*CHƯA|THÉP THEO M1 GỐC)/.test(t) &&
+            !/THÉP THEO M1 GỐC|BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG/.test(t)
         )
-        .map(p => `${s.id}: ${(p as { text: string }).text}`)
+        .map(t => `${s.id}: ${t}`)
     )
     warnings.push(...notes)
     if (acapIsA3Version(run.version) && run.version !== DOSSIER_VERSION)

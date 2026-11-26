@@ -67,6 +67,21 @@ function draw(file: string, overrides: Record<string, unknown> = {}) {
   return { db, errors, drawn: [...ctx.drawn] }
 }
 
+/**
+ * Notes of the GHI CHÚ block, one per note: wrapped lines share the note's
+ * partId; the heading and the `1.` numbering are left out.
+ */
+function notesOf(list: AcDbEntity[]): string[] {
+  const byPart = new Map<string, string[]>()
+  for (const e of list) {
+    const tag = readSemanticTag(e)
+    if (tag?.role !== 'ghi_chu' || !(e instanceof AcDbText)) continue
+    if (e.textString === 'GHI CHÚ') continue
+    byPart.set(tag.partId, [...(byPart.get(tag.partId) ?? []), e.textString])
+  }
+  return [...byPart.values()].map(l => l.join(' ').replace(/^\d+\. /, ''))
+}
+
 /** Bounding box of every entity with this role. */
 function box(list: AcDbEntity[], role: string) {
   const found = list.filter(e => readSemanticTag(e)?.role === role)
@@ -219,12 +234,7 @@ describe('mặt chính', () => {
   })
 
   test('pile spacing under 4D and 6D is noted on the drawing, citing đ.8.1.2', () => {
-    const notes = draw('tru_mat_chinh.js')
-      .drawn.filter(
-        (e): e is AcDbText =>
-          e instanceof AcDbText && readSemanticTag(e)?.role === 'ghi_chu'
-      )
-      .map(e => e.textString)
+    const notes = notesOf(draw('tru_mat_chinh.js').drawn)
     expect(notes.filter(n => n.includes('< 4D'))).toHaveLength(2)
     expect(notes.filter(n => n.includes('< 6D'))).toHaveLength(2)
     expect(notes.find(n => n.includes('< 4D'))).toMatch(
@@ -232,17 +242,50 @@ describe('mặt chính', () => {
     )
     expect(notes[0]).toMatch(/Bố cục sơ bộ/)
     // Wide enough spacing: no 4D/6D notes.
-    const wide = draw('tru_mat_chinh.js', {
-      aCocNgang: 7200,
-      soCocNgang: 2,
-      aCocDoc: 7200,
-      lBe: 9000
-    }).drawn.filter(
-      e => e instanceof AcDbText && readSemanticTag(e)?.role === 'ghi_chu'
+    const wide = notesOf(
+      draw('tru_mat_chinh.js', {
+        aCocNgang: 7200,
+        soCocNgang: 2,
+        aCocDoc: 7200,
+        lBe: 9000
+      }).drawn
     )
+    expect(wide.length).toBeGreaterThan(0)
+    expect(wide.some(t => /[46]D/.test(t))).toBe(false)
+  })
+
+  test('notes sit in one red GHI CHÚ block, clear of the drawing', () => {
+    const { drawn } = draw('tru_mat_chinh.js')
+    const block = drawn.filter(
+      (e): e is AcDbText =>
+        e instanceof AcDbText && readSemanticTag(e)?.role === 'ghi_chu'
+    )
+    expect(block[0].textString).toBe('GHI CHÚ')
+    expect(block.every(e => e.color.colorIndex === 1)).toBe(true)
     expect(
-      wide.map(e => (e as AcDbText).textString).some(t => /[46]D/.test(t))
-    ).toBe(false)
+      block.every(e => readSemanticTag(e)?.params?.khoi === 'GHI CHÚ')
+    ).toBe(true)
+    const others = drawn.filter(e => !block.includes(e as AcDbText))
+    for (const t of block) {
+      const a = t.geometricExtents
+      for (const o of others) {
+        const b = o.geometricExtents
+        const overlap =
+          a.min.x < b.max.x &&
+          b.min.x < a.max.x &&
+          a.min.y < b.max.y &&
+          b.min.y < a.max.y
+        expect({
+          note: t.textString,
+          other: readSemanticTag(o)?.partId,
+          overlap
+        }).toEqual({
+          note: t.textString,
+          other: readSemanticTag(o)?.partId,
+          overlap: false
+        })
+      }
+    }
   })
 
   test('a known pile length is drawn full, without the "còn tiếp" mark', () => {

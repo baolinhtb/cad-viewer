@@ -24,6 +24,7 @@ import { DOSSIER_TOOLS, runDossierTool } from '../src/dossier/tools'
 import { listRuns } from '../src/runIdentity'
 import { entitiesOfRun } from '../src/runIdentity'
 import { runTemplate } from '../src/runTemplate'
+import { ghiChuText } from './helpers/ghiChu'
 
 const database = () => {
   const db = new AcDbDatabase()
@@ -292,17 +293,18 @@ describe('dossier tools against a real database', () => {
             e instanceof AcDbText && readSemanticTag(e)?.params?.sheet === sheet
         )
         .map(e => (e as AcDbText).textString)
+    // The caveats are in each sheet's GHI CHÚ block, wrapped: read whole.
     for (const sheet of ['SUB-070', 'SUB-080', 'SUB-090']) {
-      expect(textsOn(sheet)).toContain(
+      expect(ghiChuText(after, sheet)).toContain(
         'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
       )
-      expect(textsOn(sheet)).not.toContain(
+      expect(ghiChuText(after, sheet)).not.toContain(
         'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY'
       )
     }
     const sub100 = textsOn('SUB-100')
     expect(sub100).toContain('TỔNG KHỐI LƯỢNG BÊ TÔNG MỐ (M3)')
-    expect(sub100).toContain(
+    expect(ghiChuText(after, 'SUB-100')).toContain(
       'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
     )
     expect(sub100).toContain(

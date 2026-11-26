@@ -31,6 +31,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  acTpPlaceGhiChuBlock,
   createDrawContext,
   formatPartId,
   readSemanticTag,
@@ -59,7 +60,8 @@ const ROLE_LAYERS: Record<string, string> = {
 
 function load(file: string, dir: string = DIR) {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
+    formatPartId,
+    acTpPlaceGhiChuBlock
   }
   const code = readFileSync(join(dir, file), 'utf8')
   const body = code.replace(/^\s*export default /m, 'return ')

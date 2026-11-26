@@ -195,7 +195,11 @@ exports[`hồi quy cách ghép mo_cau_hoan_chinh hình và layer theo bảng _33
     "LWPOLYLINE|mo_tuong_tai|mo_tuong_tai_phai|3700,6891.8,3850,8102.8",
     "LWPOLYLINE|mo_tuong_tai|mo_tuong_tai_trai|-3850,6740.8,-3700,7951.8",
     "LWPOLYLINE|mo_tuong_than|mo_tuong_than|-3850,2100,3850,6893.3",
-    "TEXT|ghi_chu|ghi_chu_01|-3850,-1350,19350,-1150",
+    "TEXT|ghi_chu|ghi_chu_01|5650,-750,7400,-500",
+    "TEXT|ghi_chu|ghi_chu_02|5650,-1220,12450,-1020",
+    "TEXT|ghi_chu|ghi_chu_02|6250,-1540,12650,-1340",
+    "TEXT|ghi_chu|ghi_chu_02|6250,-1860,12250,-1660",
+    "TEXT|ghi_chu|ghi_chu_02|6250,-2180,10250,-1980",
   ],
   "layer": [
     "lan_can|lan_can_phai_50 → _33_CAU_MIS_Lancan",
@@ -391,6 +395,10 @@ exports[`hồi quy cách ghép mo_cau_hoan_chinh hình và layer theo bảng _33
     "mo_tuong_tai|mo_tuong_tai_trai → _33_CAU_MO_Tuongtai",
     "mo_tuong_than|mo_tuong_than → _33_CAU_MO_Tuongthan",
     "ghi_chu|ghi_chu_01 → _33_Ghichu",
+    "ghi_chu|ghi_chu_02 → _33_Ghichu",
+    "ghi_chu|ghi_chu_02 → _33_Ghichu",
+    "ghi_chu|ghi_chu_02 → _33_Ghichu",
+    "ghi_chu|ghi_chu_02 → _33_Ghichu",
   ],
 }
 `;
@@ -673,7 +681,11 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_co
   "LWPOLYLINE|coc_khoan_nhoi|coc_khoan_nhoi_01|-3250,100,-2050,250",
   "LWPOLYLINE|coc_khoan_nhoi|coc_khoan_nhoi_02|2050,-1010,3250,-890",
   "LWPOLYLINE|coc_khoan_nhoi|coc_khoan_nhoi_02|2050,100,3250,250",
-  "TEXT|ghi_chu|ghi_chu_01|-3850,-1350,19350,-1150",
+  "TEXT|ghi_chu|ghi_chu_01|5650,-750,7400,-500",
+  "TEXT|ghi_chu|ghi_chu_02|5650,-1220,12450,-1020",
+  "TEXT|ghi_chu|ghi_chu_02|6250,-1540,12650,-1340",
+  "TEXT|ghi_chu|ghi_chu_02|6250,-1860,12250,-1660",
+  "TEXT|ghi_chu|ghi_chu_02|6250,-2180,10250,-1980",
 ]
 `;
 
@@ -702,6 +714,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_co
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → _33_CAU_MO_Coc",
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → _33_CAU_MO_Coc",
   "ghi_chu|ghi_chu_01 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
 ]
 `;
 
@@ -730,6 +746,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_co
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → KC-COC",
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → KC-COC",
   "ghi_chu|ghi_chu_01 → GC-GHICHU",
+  "ghi_chu|ghi_chu_02 → GC-GHICHU",
+  "ghi_chu|ghi_chu_02 → GC-GHICHU",
+  "ghi_chu|ghi_chu_02 → GC-GHICHU",
+  "ghi_chu|ghi_chu_02 → GC-GHICHU",
 ]
 `;
 
@@ -758,6 +778,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_co
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → _33_CAU_MO_Coc",
   "coc_khoan_nhoi|coc_khoan_nhoi_02 → _33_CAU_MO_Coc",
   "ghi_chu|ghi_chu_01 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
+  "ghi_chu|ghi_chu_02 → _33_Ghichu",
 ]
 `;
 
@@ -1115,7 +1139,11 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_ma
   "TEXT|ghi_chu|ghi_chu_15|4164.22,-703.58,5514.22,-553.58",
   "TEXT|ghi_chu|ghi_chu_17|-5511.77,11026.7,-4011.77,11176.7",
   "TEXT|ghi_chu|ghi_chu_19|4238.41,11026.7,5738.41,11176.7",
-  "TEXT|ghi_chu|ghi_chu_20|-3850,-1300,19350,-1100",
+  "TEXT|ghi_chu|ghi_chu_20|3122.04,13206.19,4872.04,13456.19",
+  "TEXT|ghi_chu|ghi_chu_21|3122.04,12736.19,9922.04,12936.19",
+  "TEXT|ghi_chu|ghi_chu_21|3722.04,11776.19,7722.04,11976.19",
+  "TEXT|ghi_chu|ghi_chu_21|3722.04,12096.19,9722.04,12296.19",
+  "TEXT|ghi_chu|ghi_chu_21|3722.04,12416.19,10122.04,12616.19",
   "TEXT|ky_hieu_mat_cat|ky_hieu_mat_cat_01|140.64,10005.01,340.64,10205.01",
   "TEXT|ky_hieu_mat_cat|ky_hieu_mat_cat_02|140.64,-849.7,340.64,-649.7",
   "TEXT|ky_hieu_mat_cat|ky_hieu_mat_cat_03|4541.27,10355.07,4741.27,10555.07",
@@ -1482,6 +1510,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_ma
   "ghi_chu|ghi_chu_17 → _33_Ghichu",
   "ghi_chu|ghi_chu_19 → _33_Ghichu",
   "ghi_chu|ghi_chu_20 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_01 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_02 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_03 → _33_Kyhieumatcat",
@@ -1848,6 +1880,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_ma
   "ghi_chu|ghi_chu_17 → GC-GHICHU",
   "ghi_chu|ghi_chu_19 → GC-GHICHU",
   "ghi_chu|ghi_chu_20 → GC-GHICHU",
+  "ghi_chu|ghi_chu_21 → GC-GHICHU",
+  "ghi_chu|ghi_chu_21 → GC-GHICHU",
+  "ghi_chu|ghi_chu_21 → GC-GHICHU",
+  "ghi_chu|ghi_chu_21 → GC-GHICHU",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_01 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_02 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_03 → _33_Kyhieumatcat",
@@ -2214,6 +2250,10 @@ exports[`hồi quy template mố — chụp trước khi chuẩn hoá _33_ mo_ma
   "ghi_chu|ghi_chu_17 → _33_Ghichu",
   "ghi_chu|ghi_chu_19 → _33_Ghichu",
   "ghi_chu|ghi_chu_20 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
+  "ghi_chu|ghi_chu_21 → _33_Ghichu",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_01 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_02 → _33_Kyhieumatcat",
   "ky_hieu_mat_cat|ky_hieu_mat_cat_03 → _33_Kyhieumatcat",

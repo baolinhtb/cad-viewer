@@ -1,4 +1,4 @@
-const { formatPartId } = globalThis.__CAD_TEMPLATE_SDK__
+const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 
 /**
  * Mặt chính mố cầu hoàn chỉnh, chuyển từ bản vẽ của kỹ sư.
@@ -1041,6 +1041,8 @@ export default {
     ghi(xChu, hLot - 503.765, 'CỌC KHOAN NHỒI', 150, XANH)
     ghi(xChu + 450.56, hLot - 803.581, `D${D} (M)`, 150, XANH)
 
+    // Tiêu đề "MẶT CHÍNH MỐ": khối GHI CHÚ đặt cạnh nó (xem cuối hàm).
+    let tieuDe
     if (ghiKT) {
       const yLcT = chanLanCan(-1) + hLanCan
       const yLcP = chanLanCan(1) + hLanCan
@@ -1049,7 +1051,7 @@ export default {
       ghi(-w - 500 - 1511.772, yBCau + 105.543, 'PHẢI TUYẾN')
       dan(w + 500 + 1769.528, yBCau, w + 500, yBCau)
       ghi(w + 500 + 238.412, yBCau + 105.543, 'TRÁI TUYẾN')
-      ctx.text({
+      tieuDe = ctx.text({
         role: 'tieu_de_ban_ve',
         partId: formatPartId({ role: 'tieu_de_ban_ve', ordinal: 1 }),
         params: { tenMo },
@@ -1066,21 +1068,20 @@ export default {
       })
     }
 
-    // Hai yêu cầu phát sinh của TCVN 11823-10:2017 §8.1.2, in như template cọc.
+    // Hai yêu cầu phát sinh của TCVN 11823-10:2017 §8.1.2, in như template
+    // cọc. Chỉ gom lại ở đây; khối GHI CHÚ vẽ sau cùng, khi mọi hình, kích
+    // thước, mốc và ký hiệu mặt cắt đã có, để nó tránh được tất cả.
     const notes = []
     if (soCoc > 1 && khoangCoc < 4 * D) {
       notes.push(
-        `Tim-tim ${Math.round(khoangCoc)} mm < 4D (${4 * D} mm): phai danh gia anh huong tuong tac giua cac coc lien ke - TCVN 11823-10:2017 §8.1.2`
+        `Tim–tim ${Math.round(khoangCoc)} mm < 4D (${4 * D} mm): phải đánh giá ảnh hưởng tương tác giữa các cọc liền kề — TCVN 11823-10:2017 §8.1.2`
       )
     }
     if (soCoc > 1 && khoangCoc < 6 * D) {
       notes.push(
-        `Tim-tim ${Math.round(khoangCoc)} mm < 6D (${6 * D} mm): trinh tu khoan coc phai duoc neu ro trong ho so thiet ke - TCVN 11823-10:2017 §8.1.2`
+        `Tim–tim ${Math.round(khoangCoc)} mm < 6D (${6 * D} mm): trình tự khoan cọc phải được nêu rõ trong hồ sơ thiết kế — TCVN 11823-10:2017 §8.1.2`
       )
     }
-    notes.forEach((line, index) =>
-      ghi(-halfBe, hLot - Lcoc - 400 - index * 320, line, 200)
-    )
 
     // --- Mốc cao độ -------------------------------------------------------
     //
@@ -1185,5 +1186,21 @@ export default {
     matCat(w + 500 + 749.944, -1137.862, -1, -1, 'B', -329.241, -197.281)
     matCat(-w - 500 - 906.831, yMD + 1571.622, 1, 1, 'C', 82.736, 35.593)
     matCat(-w - 500 - 828.126, -1117.518, 1, -1, 'C', 124.602, -197.28)
+
+    // --- Khối GHI CHÚ -----------------------------------------------------
+    //
+    // Cảnh báo đỏ (1), gom một chỗ ở góc trống cạnh tiêu đề "MẶT CHÍNH MỐ",
+    // không còn đặt cố định dưới mũi cọc — chỗ ấy trùng chuỗi kích thước đáy
+    // và ký hiệu mặt cắt (t54u: «chữ đỏ đè lên các thành phần khác»). Helper
+    // dời khối tới chỗ trống gần nhất, hết chỗ thì ra ngoài hình.
+    if (notes.length) {
+      const t = tieuDe?.geometricExtents
+      acTpPlaceGhiChuBlock(ctx, notes, {
+        textHeight: 200,
+        width: 7200,
+        firstOrdinal: nGhiChu + 1,
+        ...(t ? { at: { x: t.max.x + 400, y: t.max.y } } : {})
+      })
+    }
   }
 }

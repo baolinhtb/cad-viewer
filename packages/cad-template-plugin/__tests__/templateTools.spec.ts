@@ -17,7 +17,7 @@ import { AcDbDatabase } from '@mlightcad/data-model'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { formatPartId } from '@mlightcad/cad-template-sdk'
+import { acTpPlaceGhiChuBlock, formatPartId } from '@mlightcad/cad-template-sdk'
 
 import { registerLibrary } from './helpers/libraryTemplate'
 import { runTemplateTool, TEMPLATE_TOOLS } from '../src/templateTools'
@@ -26,7 +26,8 @@ import { listTemplates, setRemoteTemplates } from '../src/templateRegistry'
 /** Loads an uploadable template the way the library does. */
 function loadLibrary(file: string) {
   ;(globalThis as unknown as Record<string, unknown>).__CAD_TEMPLATE_SDK__ = {
-    formatPartId
+    formatPartId,
+    acTpPlaceGhiChuBlock
   }
   const code = readFileSync(join(__dirname, '..', 'library', file), 'utf8')
   return new Function(code.replace(/^\s*export default /m, 'return '))()

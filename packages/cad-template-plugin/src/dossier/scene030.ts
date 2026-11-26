@@ -21,12 +21,15 @@
 import type {
   AcTpBlockDef,
   AcTpBlockEntity,
-  AcTpDimStyleVars
+  AcTpDimStyleVars,
+  AcTpNoteBox
 } from '@mlightcad/cad-template-sdk'
 import {
   ACTP_DIM_STYLES_33,
   acTpBuildDrawingFrame,
-  acTpDecodeVnText
+  acTpDecodeVnText,
+  acTpGhiChuTextWidth,
+  acTpLayoutGhiChuBlock
 } from '@mlightcad/cad-template-sdk'
 
 import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
@@ -1365,6 +1368,237 @@ function placeElevationTags(primitives: DossierPrimitive[]) {
     }
 }
 
+/** The notice a general sheet shows instead of a drawing it cannot build. */
+const NOT_BUILT = 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY'
+
+/** A warning of one sheet, for its GHI CHÚ block. */
+interface SheetNote {
+  text: string
+  height: number
+  /** A heading: the block is made wide enough to keep it on one line. */
+  heading: boolean
+}
+
+/** Roles of the A3 frame: its strokes enclose the sheet, so not boxes. */
+const FRAME_ROLES = new Set(['khung_ban_ve', 'khung_ten'])
+
+/**
+ * Box a sheet primitive occupies, estimated the way the data model sizes the
+ * entity it becomes (TEXT: one height a character, see acapTextWidth), with
+ * room for what the primitive does not carry — dimension arrows and text,
+ * descenders, a leader's arrowhead.
+ */
+function primitiveBox(p: DossierPrimitive): AcTpNoteBox | undefined {
+  let box: Box | undefined
+  const add = (q: XY | number, ...r: number[]) => {
+    const [x, y] = typeof q === 'number' ? [q, r.shift()!] : q
+    const [rx = 0, ry = rx] = r
+    box = grow(box, [x - rx, y - ry])
+    box = grow(box, [x + rx, y + ry])
+  }
+  const addText = (
+    at: XY,
+    text: string,
+    h: number,
+    align = 0,
+    wf = 1,
+    rotation = 0
+  ) => {
+    const t = textBox(at, text, h, align, wf, rotation)
+    add([t.x0, t.y0], 0.3 * h)
+    add([t.x1, t.y1], 0.3 * h)
+  }
+  switch (p.kind) {
+    case 'path':
+      p.points.forEach(q => add(q))
+      break
+    case 'leader':
+      p.points.forEach(q => add(q, 300))
+      break
+    case 'fill':
+      p.loops.flat().forEach(q => add(q))
+      break
+    case 'circle':
+    case 'arc':
+      add(p.at, p.radius)
+      break
+    case 'point':
+      add(p.at, 50)
+      break
+    case 'text':
+      addText(p.at, p.text, p.height, p.align, p.widthFactor, p.rotation)
+      break
+    case 'dimension': {
+      const [a, b] = [p.start, p.end]
+      let line: XY[]
+      if (p.direction === 'ngang') {
+        const y = Math.max(a[1], b[1]) + p.offset
+        line = [
+          [a[0], y],
+          [b[0], y]
+        ]
+      } else if (p.direction === 'dung') {
+        const x = Math.max(a[0], b[0]) + p.offset
+        line = [
+          [x, a[1]],
+          [x, b[1]]
+        ]
+      } else {
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+        const n: XY = [
+          (-(b[1] - a[1]) / len) * p.offset,
+          ((b[0] - a[0]) / len) * p.offset
+        ]
+        line = [
+          [a[0] + n[0], a[1] + n[1]],
+          [b[0] + n[0], b[1] + n[1]]
+        ]
+      }
+      ;[a, b, ...line].forEach(q => add(q, 400))
+      if (p.textAt) {
+        // Text centred on textAt, along the dimension line either way.
+        const w = acapTextWidth((p.text ?? '<>').replace('<>', '00000'), 250)
+        const [x, y] = p.textAt
+        add(x, y, w / 2 + 400, 650)
+        add(x, y, 650, w / 2 + 400)
+      }
+      break
+    }
+    case 'angular':
+      ;[
+        p.at,
+        p.start,
+        p.end,
+        p.arcPoint,
+        ...(p.textAt ? [p.textAt] : [])
+      ].forEach(q => add(q, 400))
+      break
+    case 'insert': {
+      const own = blockPoints(p.block)
+      const [sx, sy] = p.scale
+      const r = ((p.rotation ?? 0) * Math.PI) / 180
+      if (!own.length) add(p.at, 500)
+      for (const [x, y] of own) {
+        const lx = x * sx,
+          ly = y * sy
+        add([
+          p.at[0] + lx * Math.cos(r) - ly * Math.sin(r),
+          p.at[1] + lx * Math.sin(r) + ly * Math.cos(r)
+        ])
+      }
+      for (const a of Object.values(p.attributes))
+        if (typeof a !== 'string' && a.value)
+          addText(
+            a.at,
+            a.value,
+            a.height ?? 150,
+            a.align,
+            a.widthFactor,
+            a.rotation
+          )
+      break
+    }
+  }
+  return box
+}
+
+/**
+ * Draws the sheet's warnings as one GHI CHÚ block (FIX-NOTE): red (1), headed
+ * `GHI CHÚ`, wrapped, near the title strip at the right of the drawing area
+ * and clear of every other primitive of the sheet — frame strokes checked as
+ * strokes, everything else by its box. When the drawing area has no room the
+ * block goes below the sheet's content, never onto it.
+ */
+function placeSheetNotes(
+  s: DossierSheet,
+  notes: SheetNote[],
+  area: AcTpNoteBox
+) {
+  if (!notes.length) return
+  const obstacles: AcTpNoteBox[] = []
+  const segments: [{ x: number; y: number }, { x: number; y: number }][] = []
+  for (const p of s.primitives) {
+    if (FRAME_ROLES.has(p.role) && p.kind === 'path') {
+      const pts = p.closed ? [...p.points, p.points[0]] : p.points
+      for (let i = 1; i < pts.length; i++)
+        segments.push([
+          { x: pts[i - 1][0], y: pts[i - 1][1] },
+          { x: pts[i][0], y: pts[i][1] }
+        ])
+      continue
+    }
+    const box = primitiveBox(p)
+    if (box) obstacles.push(box)
+  }
+  // As wide as the headings first (one line each, fewest lines), narrower
+  // when the sheet has no such room — the steel sheets are full but for a
+  // column or a corner; at 6 m a heading wraps too.
+  const headings = Math.max(
+    ...notes
+      .filter(n => n.heading)
+      .map(n => acTpGhiChuTextWidth(n.text, n.height)),
+    0
+  )
+  const margin = 300
+  let layout: ReturnType<typeof acTpLayoutGhiChuBlock>
+  for (const width of [Math.max(20000, headings), 15000, 12000, 9000, 6000]) {
+    layout = acTpLayoutGhiChuBlock(notes, {
+      obstacles,
+      segments,
+      textHeight: 300,
+      titleHeight: 450,
+      numbered: false,
+      width,
+      gap: 150,
+      step: 500,
+      maxSteps: 80,
+      at: { x: area.x1 - margin, y: area.y0 + margin },
+      corner: 'bottom-right',
+      bounds: area
+    })
+    if (!layout?.outside) break
+  }
+  for (const line of layout?.lines ?? [])
+    s.primitives.push({
+      role: 'ghi_chu',
+      partId: `ghi_chu_${s.id}`,
+      kind: 'text',
+      at: [line.x, line.y],
+      text: line.text,
+      height: line.height,
+      color: 1,
+      note: line.note
+    })
+}
+
+/**
+ * The notes of a sheet's GHI CHÚ block, each whole (its wrapped lines
+ * joined), in order; the block's own heading is left out.
+ */
+export function acapDossierSheetNotes(sheet: {
+  primitives: readonly DossierPrimitive[]
+}): string[] {
+  const notes: string[][] = []
+  for (const p of sheet.primitives)
+    if (p.kind === 'text' && p.note !== undefined && p.note >= 0)
+      (notes[p.note] ??= []).push(p.text)
+  return notes.filter(Boolean).map(lines => lines.join(' '))
+}
+
+/**
+ * The whole note that follows a heading of a sheet's GHI CHÚ block (the
+ * reason after «CHƯA DỰNG ĐƯỢC…»); `undefined` when the sheet has no such
+ * heading.
+ */
+export function acapDossierNoteAfter(
+  sheet: { primitives: readonly DossierPrimitive[] },
+  heading: string
+): string | undefined {
+  const notes = acapDossierSheetNotes(sheet)
+  const at = notes.indexOf(heading)
+  return at < 0 ? undefined : (notes[at + 1] ?? '')
+}
+
 /** Every point an extracted primitive draws through (for extents). */
 function pointsOf(p: LayoutPrimitive): XY[] {
   if (p.kind === 'insert') return insertDrawnPoints(p)
@@ -1695,6 +1929,11 @@ export function buildScene030(
     }
     const id = (role: string) => ({ role, partId: `${role}_${s.id}` })
     const push = (p: DossierPrimitive) => s.primitives.push(p)
+    // Warnings of this sheet: gathered here, drawn last as one GHI CHÚ block
+    // clear of everything else on the sheet (FIX-NOTE, see placeSheetNotes).
+    const notes: SheetNote[] = []
+    const note = (text: string, height: number, heading = false) =>
+      notes.push({ text, height, heading })
 
     // ------------------------------------------------ drawing in the viewport
     if (ls.viewport && ls.content) {
@@ -1718,45 +1957,20 @@ export function buildScene030(
                   'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
               }
       if (steel && steelAsM1 && !('error' in stretch))
-        STEEL_AS_M1.forEach((t, i) =>
-          push({
-            ...id('ghi_chu'),
-            kind: 'text',
-            at: [x0 + 2000, y0 + ls.viewport!.h * K - 1200 - i * 500],
-            text: t,
-            height: i ? 280 : 400,
-            color: 1
-          })
+        STEEL_AS_M1.forEach((t, i) => note(t, i ? 280 : 400, !i))
+      if ('error' in stretch) {
+        note(
+          steel ? 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY' : NOT_BUILT,
+          450,
+          true
         )
-      if ('error' in stretch)
-        [
-          steel
-            ? 'CHƯA CÓ PHƯƠNG ÁN THÉP CHO HÌNH HỌC NÀY'
-            : 'CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY',
-          stretch.error
-        ].forEach((t, i) =>
-          push({
-            ...id('ghi_chu'),
-            kind: 'text',
-            at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
-            text: t,
-            height: i ? 300 : 450
-          })
-        )
-      else {
+        note(stretch.error, 300)
+      } else {
         const layout = viewShifts(ls, stretch)
-        if ('error' in layout)
-          ['CHƯA DỰNG ĐƯỢC HÌNH CHO BỘ THÔNG SỐ NÀY', layout.error].forEach(
-            (t, i) =>
-              push({
-                ...id('ghi_chu'),
-                kind: 'text',
-                at: [x0 + 2000, y0 + ls.viewport!.h * K - 3000 - i * 600],
-                text: t,
-                height: i ? 300 : 450
-              })
-          )
-        else
+        if ('error' in layout) {
+          note(NOT_BUILT, 450, true)
+          note(layout.error, 300)
+        } else
           for (const raw of steel
             ? ls.content
             : arrayedPiles(
@@ -1834,15 +2048,7 @@ export function buildScene030(
               'CHƯA DỰNG HÌNH CHO KÍCH THƯỚC KHÁC BẢN GỐC',
               'Bộ sinh 0.3.0 hiện chỉ dựng đúng mố M1 của bản gốc.'
             ]
-        lines.forEach((t, i) =>
-          push({
-            ...id('ghi_chu'),
-            kind: 'text',
-            at: [box.x0 + 2000, box.y1 - 3000 - i * 600],
-            text: t,
-            height: i ? 300 : 450
-          })
-        )
+        lines.forEach((t, i) => note(t, i ? 300 : 450, !i))
       } else {
         // Source model point → sheet: the viewport shows the model window
         // [x0, x1] × [y0, y1] at 1:100 from its lower-left corner.
@@ -1940,36 +2146,23 @@ export function buildScene030(
     // SUB-020: elevation and dimension tables, recomputed (GĐ5).
     const tables =
       s.id === 'SUB-020' ? sub020Tables(ls.paper, v, tenMo) : undefined
-    if (tables?.error)
-      [
-        'BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY',
-        tables.error
-      ].forEach((t, i) =>
-        push({
-          ...id('ghi_chu'),
-          kind: 'text',
-          at: [6000, 26000 - i * 600],
-          text: t,
-          height: i ? 300 : 450
-        })
-      )
+    if (tables?.error) {
+      note('BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY', 450, true)
+      note(tables.error, 300)
+    }
     for (const p of tables?.paper ?? ls.paper)
       if (!p.ole || tablesApply || tables) addPaper(p, roleOf(p))
-    if (steelAsM1 && !tables && ls.paper.some(p => p.ole))
+    if (steelAsM1 && !tables && ls.paper.some(p => p.ole)) {
+      note(STEEL_TABLES_AS_M1, 250, true)
       quantityTable(v).forEach(push)
-    if (!tables && !tablesApply && ls.paper.some(p => p.ole))
-      [
-        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG',
-        'Số liệu bảng là của mố M1 gốc; chưa tính lại cho thông số này.'
-      ].forEach((t, i) =>
-        push({
-          ...id('ghi_chu'),
-          kind: 'text',
-          at: [6000, 26000 - i * 600],
-          text: t,
-          height: i ? 300 : 450
-        })
+    }
+    if (!tables && !tablesApply && ls.paper.some(p => p.ole)) {
+      note('BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG', 450, true)
+      note(
+        'Số liệu bảng là của mố M1 gốc; chưa tính lại cho thông số này.',
+        300
       )
+    }
     for (const p of ls.title)
       addPaper({ ...p, text: relabelTitle(p.text ?? '') }, 'tieu_de_ban_ve')
 
@@ -2286,6 +2479,16 @@ export function buildScene030(
           widthFactor: p.widthFactor
         })
     }
+    // Last, once everything else is on the sheet: the GHI CHÚ block, in the
+    // drawing area just above the title strip at the right, or the nearest
+    // free place to it.
+    const area = frame.drawArea
+    placeSheetNotes(s, notes, {
+      x0: area.x * K,
+      y0: area.y * K,
+      x1: (area.x + area.w) * K,
+      y1: (area.y + area.h) * K
+    })
     return s
   })
 
@@ -2313,6 +2516,10 @@ export function buildScene030(
   }
 }
 
+/** Warning on SUB-100 when its tables stay M1's for a changed geometry. */
+const STEEL_TABLES_AS_M1 =
+  'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+
 /** Warning over a steel sheet drawn as M1 for a changed geometry. */
 const STEEL_AS_M1 = [
   'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
@@ -2320,9 +2527,10 @@ const STEEL_AS_M1 = [
 ]
 
 /**
- * SUB-100 for a changed geometry: the M1 tables stay, marked as M1's, and
- * the take-off of the current parameters (item d) is drawn in the free lower
- * left of the sheet (paper x 15–195 mm, y 12–100 mm).
+ * SUB-100 for a changed geometry: the M1 tables stay, marked as M1's (the
+ * warning is in the sheet's GHI CHÚ block), and the take-off of the current
+ * parameters (item d) is drawn in the free lower left of the sheet (paper x
+ * 15–195 mm, y 12–100 mm).
  */
 function quantityTable(v: DossierModel['values']): DossierPrimitive[] {
   const out: DossierPrimitive[] = []
@@ -2342,12 +2550,6 @@ function quantityTable(v: DossierModel['values']): DossierPrimitive[] {
       style: '_33_Arial',
       ...extra
     })
-  text(
-    [1500, 28900],
-    'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
-    250,
-    { color: 1 }
-  )
   const result = acTpBtklMo(v)
   const rows = result.items.filter(
     i =>
