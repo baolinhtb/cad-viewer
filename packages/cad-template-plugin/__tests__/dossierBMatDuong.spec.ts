@@ -269,7 +269,9 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     expect(s.bySheet['SUB-010']).toBe(334)
     // FIX-NOTE: the M1-steel and SUB-100 warnings are GHI CHÚ blocks
     // (heading + wrapped lines): +18 over the 7 loose texts.
-    expect(s.count).toBe(2990)
+    // FIX-NOTE QA: SUB-100's take-off footer on two lines (+1) and its GHI
+    // CHÚ block in the narrower free slot beside the table (+4 lines).
+    expect(s.count).toBe(2995)
     expect(values(db)).toMatchObject({
       bMatDuong: 8000,
       bBe: 8700,
@@ -389,8 +391,9 @@ describe('sua_ho_so_mo with a new road width', () => {
     // every geometry change adds. P2-M6: L1 is 2972 (front pair exploded
     // to two stubs at the true 6700 centres; was 2971 / 2967 before).
     expect(before.count).toBe(2890)
-    // FIX-NOTE: 2990, the warnings as GHI CHÚ blocks (+18 lines).
-    expect(after.count).toBe(2990)
+    // FIX-NOTE: 2990, the warnings as GHI CHÚ blocks (+18 lines); FIX-NOTE
+    // QA: 2995, the SUB-100 take-off footer (+1) and narrower block (+4).
+    expect(after.count).toBe(2995)
   })
 
   test('outside the remaining grid it still refuses honestly and says how to unlock', async () => {
@@ -433,8 +436,9 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
     const first = snap(db)
     // 2971 before P2-M6: flush 2 × 2 at 5700, the front pair block is now
     // its two stubs at 5700 (+1).
-    // FIX-NOTE: the warnings as GHI CHÚ blocks, +18.
-    expect(first.count).toBe(2990)
+    // FIX-NOTE: the warnings as GHI CHÚ blocks, +18; FIX-NOTE QA: SUB-100
+    // take-off footer +1, its block narrower +4.
+    expect(first.count).toBe(2995)
     const log: unknown[] = []
     let prev = first
     for (const change of [

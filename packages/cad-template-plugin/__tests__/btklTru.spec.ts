@@ -20,7 +20,7 @@ const PILE = Math.PI * 0.6 ** 2
 describe('BTKL trụ — defaults match the library templates', () => {
   test.each(['tru_mat_chinh.js', 'tru_mat_ben.js'])('%s', file => {
     const t = loadLibraryTemplate(file)
-    expect(t.meta.version).toBe('1.0.0')
+    expect(t.meta.version).toBe('1.0.1')
     expect(
       Object.fromEntries(
         t.params.map((p: { key: string; default: unknown }) => [

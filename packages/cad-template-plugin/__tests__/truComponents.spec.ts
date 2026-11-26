@@ -99,14 +99,14 @@ function box(list: AcDbEntity[], role: string) {
 
 describe('library contract', () => {
   test.each(FILES)(
-    '%s: one default export, no import, 1.0.0, says it is preliminary',
+    '%s: one default export, no import, 1.0.1, says it is preliminary',
     file => {
       const code = readFileSync(join(DIR, file), 'utf8')
       expect(code.match(/^\s*export default /gm)).toHaveLength(1)
       expect(code).not.toMatch(/^\s*import\s/m)
       const t = loadLibraryTemplate(file)
       expect(t.meta.id).toBe(file.replace('.js', ''))
-      expect(t.meta.version).toBe('1.0.0')
+      expect(t.meta.version).toBe('1.0.1')
       expect(t.meta.category).toBe('Mố trụ')
       expect(t.meta.description).toMatch(
         /bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng/i
@@ -447,7 +447,7 @@ describe('the road the agent takes: library → loader → chay_template / ghep_
       db
     )
     expect(outcome.ok).toBe(true)
-    expect(outcome.message).toContain(`${id} v1.0.0`)
+    expect(outcome.message).toContain(`${id} v1.0.1`)
     expect(listRuns(db).map(run => run.templateId)).toEqual([id])
   })
 

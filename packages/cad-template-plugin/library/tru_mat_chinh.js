@@ -645,7 +645,7 @@ function but(ctx) {
 export default {
   meta: {
     id: 'tru_mat_chinh',
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'Trụ cầu — mặt chính (bố cục sơ bộ)',
     category: 'Mố trụ',
     description:

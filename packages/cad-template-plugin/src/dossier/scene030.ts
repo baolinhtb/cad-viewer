@@ -1502,6 +1502,20 @@ function primitiveBox(p: DossierPrimitive): AcTpNoteBox | undefined {
   return box
 }
 
+/** Room kept round a solid group (see {@link solidGroup}). */
+const SOLID_MARGIN = 200
+
+/**
+ * The block a primitive belongs to when that block is an obstacle as a whole
+ * — the take-off table of SUB-100 (`ghi_chu_btkl_*`) and the title strip
+ * with its texts — or `undefined`.
+ */
+function solidGroup(p: DossierPrimitive): string | undefined {
+  if (p.partId.startsWith('ghi_chu_btkl_')) return p.partId
+  if (p.role === 'khung_ten' || p.role === 'tieu_de_ban_ve') return 'khung_ten'
+  return undefined
+}
+
 /**
  * Draws the sheet's warnings as one GHI CHÚ block (FIX-NOTE): red (1), headed
  * `GHI CHÚ`, wrapped, near the title strip at the right of the drawing area
@@ -1517,6 +1531,28 @@ function placeSheetNotes(
   if (!notes.length) return
   const obstacles: AcTpNoteBox[] = []
   const segments: [{ x: number; y: number }, { x: number; y: number }][] = []
+  // Groups that read as one block are solid: a table of sparse columns or
+  // the title strip has gaps between its texts and strokes, and the GHI CHÚ
+  // block was put in them (QA SUB-100). Their parts are still checked one by
+  // one below as well.
+  const solid = new Map<string, Box>()
+  for (const p of s.primitives) {
+    const group = solidGroup(p)
+    if (!group) continue
+    const box = primitiveBox(p)
+    if (box)
+      solid.set(
+        group,
+        grow(grow(solid.get(group), [box.x0, box.y0]), [box.x1, box.y1])
+      )
+  }
+  for (const b of solid.values())
+    obstacles.push({
+      x0: b.x0 - SOLID_MARGIN,
+      y0: b.y0 - SOLID_MARGIN,
+      x1: b.x1 + SOLID_MARGIN,
+      y1: b.y1 + SOLID_MARGIN
+    })
   for (const p of s.primitives) {
     if (FRAME_ROLES.has(p.role) && p.kind === 'path') {
       const pts = p.closed ? [...p.points, p.points[0]] : p.points
@@ -1541,7 +1577,18 @@ function placeSheetNotes(
   )
   const margin = 300
   let layout: ReturnType<typeof acTpLayoutGhiChuBlock>
-  for (const width of [Math.max(20000, headings), 15000, 12000, 9000, 6000]) {
+  // Down to a narrow column: SUB-100 with the take-off has room only beside
+  // it, between the table and the M1 bar shapes.
+  for (const width of [
+    Math.max(20000, headings),
+    15000,
+    12000,
+    9000,
+    6000,
+    4500,
+    3000,
+    2400
+  ]) {
     layout = acTpLayoutGhiChuBlock(notes, {
       obstacles,
       segments,
@@ -1935,6 +1982,24 @@ export function buildScene030(
     const note = (text: string, height: number, heading = false) =>
       notes.push({ text, height, heading })
 
+    // The A3 frame, built first: the take-off on SUB-100 sits above its
+    // title strip. Drawn after the content (below).
+    const frame = acTpBuildDrawingFrame({
+      khoGiay: 'A3',
+      truong: {
+        duAn: field('duAn'),
+        soTo: `${index + 1}/${LAYOUT.sheets.length}`,
+        tiLe: `1:${K}`,
+        ngay: field('ngay'),
+        giaiDoan: 'TKBVTC',
+        donVi: field('donVi'),
+        chuTri: field('nguoiChuTri'),
+        thietKe: field('nguoiThietKe'),
+        kiemTra: field('nguoiKiemTra'),
+        duyet: field('nguoiDuyet')
+      }
+    })
+
     // ------------------------------------------------ drawing in the viewport
     if (ls.viewport && ls.content) {
       // Real entities of the source, through the sheet's stretch grid.
@@ -2154,7 +2219,10 @@ export function buildScene030(
       if (!p.ole || tablesApply || tables) addPaper(p, roleOf(p))
     if (steelAsM1 && !tables && ls.paper.some(p => p.ole)) {
       note(STEEL_TABLES_AS_M1, 250, true)
-      quantityTable(v).forEach(push)
+      quantityTable(v, {
+        x: frame.drawArea.x * K + 300,
+        y: (frame.titleStrip.y + frame.titleStrip.h) * K + 300
+      }).forEach(push)
     }
     if (!tables && !tablesApply && ls.paper.some(p => p.ole)) {
       note('BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG CHƯA ÁP DỤNG', 450, true)
@@ -2420,21 +2488,6 @@ export function buildScene030(
     }
 
     // ------------------------------------------------ A3 frame
-    const frame = acTpBuildDrawingFrame({
-      khoGiay: 'A3',
-      truong: {
-        duAn: field('duAn'),
-        soTo: `${index + 1}/${LAYOUT.sheets.length}`,
-        tiLe: `1:${K}`,
-        ngay: field('ngay'),
-        giaiDoan: 'TKBVTC',
-        donVi: field('donVi'),
-        chuTri: field('nguoiChuTri'),
-        thietKe: field('nguoiThietKe'),
-        kiemTra: field('nguoiKiemTra'),
-        duyet: field('nguoiDuyet')
-      }
-    })
     // The source's own title block (xref `FR A3`) is missing from the file;
     // only its three texts survive, at the right of the strip. They are drawn
     // where they were measured, so cells of our title block that fall in
@@ -2529,16 +2582,26 @@ const STEEL_AS_M1 = [
 /**
  * SUB-100 for a changed geometry: the M1 tables stay, marked as M1's (the
  * warning is in the sheet's GHI CHÚ block), and the take-off of the current
- * parameters (item d) is drawn in the free lower left of the sheet (paper x
- * 15–195 mm, y 12–100 mm).
+ * parameters (item d) is drawn in the lower left of the drawing area, its
+ * bottom at `base` (just above the title strip).
+ *
+ * Built bottom-up and as narrow as its texts (QA SUB-100): drawn down from a
+ * fixed top at fixed columns it ran into the title strip (CHỦ TRÌ / THIẾT KẾ)
+ * and left a wide gap between the item and unit columns that the GHI CHÚ
+ * block was placed in. Widths are estimated as the data model sizes TEXT (one
+ * height a character, {@link acapTextWidth}), so the table's box is what the
+ * drawn entities' boxes are.
  */
-function quantityTable(v: DossierModel['values']): DossierPrimitive[] {
+function quantityTable(
+  v: DossierModel['values'],
+  base: { x: number; y: number }
+): DossierPrimitive[] {
   const out: DossierPrimitive[] = []
   const text = (
     at: XY,
     t: string,
     height: number,
-    extra: { align?: number; color?: number } = {}
+    extra: { align?: number; color?: number; widthFactor?: number } = {}
   ) =>
     out.push({
       role: 'ghi_chu',
@@ -2551,39 +2614,54 @@ function quantityTable(v: DossierModel['values']): DossierPrimitive[] {
       ...extra
     })
   const result = acTpBtklMo(v)
-  const rows = result.items.filter(
-    i =>
-      i.nhom !== 'ghi_chu' &&
-      !i.key.startsWith('van_khuon_') &&
-      !(i.nhom === 'cot_thep' && i.stt.includes('.'))
-  )
-  const top = 10000
-  text(
-    [1500, top],
-    `BẢNG KHỐI LƯỢNG ${String(v.tenMo).toLocaleUpperCase('vi')} THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)`,
-    300
-  )
-  const row = 380
-  rows.forEach((item, k) => {
-    const y = top - 600 - k * row
-    const color = item.nguon === 'tu_choi' ? 1 : item.flags?.length ? 2 : 7
-    text([1500, y], item.stt, 230, { color })
-    text([2700, y], item.hangMuc, 230, { color })
-    text([14500, y], item.donVi.replace('m3', 'm³').replace('m2', 'm²'), 230, {
-      color
-    })
-    text(
-      [19500, y],
-      item.khoiLuong === null ? 'không tính' : acTpBtklNumber(item.khoiLuong),
-      230,
-      { color, align: 2 }
+  const rows = result.items
+    .filter(
+      i =>
+        i.nhom !== 'ghi_chu' &&
+        !i.key.startsWith('van_khuon_') &&
+        !(i.nhom === 'cot_thep' && i.stt.includes('.'))
     )
+    .map(item => ({
+      stt: item.stt,
+      name: item.hangMuc,
+      unit: item.donVi.replace('m3', 'm³').replace('m2', 'm²'),
+      value:
+        item.khoiLuong === null ? 'không tính' : acTpBtklNumber(item.khoiLuong),
+      color: item.nguon === 'tu_choi' ? 1 : item.flags?.length ? 2 : 7
+    }))
+  const h = 230,
+    row = 330,
+    pad = 300
+  const widest = (key: 'stt' | 'name' | 'unit' | 'value') =>
+    Math.max(0, ...rows.map(r => acapTextWidth(r[key], h)))
+  const xStt = base.x
+  const xName = xStt + widest('stt') + pad
+  const xUnit = xName + widest('name') + pad
+  const xValue = xUnit + widest('unit') + pad + widest('value')
+  const footer = [
+    'Đỏ: không tính (thiếu dữ liệu). Không dùng để thi công.',
+    'Vàng: có cờ — xem diễn giải trên tờ BTKL.'
+  ]
+  // Bottom-up: footer lines, the rows, then the heading.
+  let y = base.y
+  for (const line of [...footer].reverse()) {
+    text([xStt, y], line, 200, { color: 1 })
+    y += 260
+  }
+  y += 380 - row
+  for (const r of [...rows].reverse()) {
+    y += row
+    text([xStt, y], r.stt, h, { color: r.color })
+    text([xName, y], r.name, h, { color: r.color })
+    text([xUnit, y], r.unit, h, { color: r.color })
+    text([xValue, y], r.value, h, { color: r.color, align: 2 })
+  }
+  // Narrowed so the heading is no wider than the table under it.
+  const heading = `BẢNG KHỐI LƯỢNG ${String(v.tenMo).toLocaleUpperCase('vi')} THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)`
+  const width = xValue - xStt
+  text([xStt, y + 420], heading, 300, {
+    widthFactor: Math.max(0.5, Math.min(1, width / acapTextWidth(heading, 300)))
   })
-  text(
-    [1500, top - 600 - rows.length * row - 200],
-    'Đỏ: không tính (thiếu dữ liệu). Vàng: có cờ — xem diễn giải trên tờ BTKL. Không dùng để thi công.',
-    200,
-    { color: 1 }
-  )
-  return out
+  // Drawn top-down, as read.
+  return out.reverse()
 }

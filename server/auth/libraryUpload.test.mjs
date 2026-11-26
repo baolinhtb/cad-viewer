@@ -42,7 +42,12 @@ function evaluate(code) {
     formatPartId: ({ role, side, ordinal }) =>
       [role, side, ordinal && String(ordinal).padStart(2, '0')]
         .filter(Boolean)
-        .join('_')
+        .join('_'),
+    // The GHI CHÚ block (FIX-NOTE) draws its lines as TEXT on `ghi_chu` (or
+    // the role given): for the trial run, what it draws on is what counts.
+    acTpPlaceGhiChuBlock: (ctx, notes, options = {}) => {
+      if (notes?.length) ctx.text({ role: options.role ?? 'ghi_chu' })
+    }
   }
   return new Function(code.replace(/^\s*export default /m, 'return '))()
 }
