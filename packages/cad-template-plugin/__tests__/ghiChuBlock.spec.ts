@@ -45,6 +45,7 @@ import { buildDossierScene, drawDossierScene } from '../src/dossier/scene'
 import { acapDossierSheetNotes } from '../src/dossier/scene030'
 import { runDossierTool } from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
+import { ghiChuText } from './helpers/ghiChu'
 import { loadLibraryTemplate } from './helpers/libraryTemplate'
 
 type Box = { x0: number; y0: number; x1: number; y1: number }
@@ -377,4 +378,107 @@ describe('hồ sơ L1: cảnh báo vào khối GHI CHÚ, không đè hình', () 
       }
     }
   )
+})
+
+/**
+ * FIX-NOTE QA (SUB-100): the take-off of the current parameters is a sparse
+ * table (stt / item / unit / value) and the GHI CHÚ block was placed in the
+ * gap between its columns; the table also ran down into the title strip
+ * (CHỦ TRÌ / THIẾT KẾ). Both are checked as solid blocks here: the union box
+ * of the table's texts and of the title strip with its texts.
+ */
+describe('SUB-100: GHI CHÚ clear of the take-off table, table above the title strip', () => {
+  jest.setTimeout(300000)
+
+  const union = (es: AcDbEntity[]): Box =>
+    es.map(boxOf).reduce((a, b) => ({
+      x0: Math.min(a.x0, b.x0),
+      y0: Math.min(a.y0, b.y0),
+      x1: Math.max(a.x1, b.x1),
+      y1: Math.max(a.y1, b.y1)
+    }))
+
+  test.each([
+    ['L1 đủ thông số', L1, 'D1000', '78,54'],
+    // The QA «8 m only» prompt: other values are dossierDefaults() — D1200,
+    // lCoc 0 — so the pile line is «không tính». Not the L1 defaults.
+    [
+      'L1 chỉ bề mặt đường 8 m',
+      { tenMo: 'L1', bMatDuong: 8000 },
+      'D1200',
+      'không tính'
+    ]
+  ] as [string, Record<string, number | string>, string, string][])(
+    '%s',
+    (_name, given, pile, pileValue) => {
+      const { scene, entities } = drawScene(given)
+      if (!('D' in given)) {
+        expect(scene.model.values.D).toBe(1200)
+        expect(Number(scene.model.values.lCoc)).toBe(0)
+      }
+      const sub = entities.filter(e => sheetOf(e) === 'SUB-100')
+      const table = sub.filter(
+        e => readSemanticTag(e)?.partId === 'ghi_chu_btkl_SUB-100'
+      )
+      const strip = sub.filter(e =>
+        ['khung_ten', 'tieu_de_ban_ve'].includes(readSemanticTag(e)?.role ?? '')
+      )
+      const notes = sub.filter(isNote)
+      expect(table.length).toBeGreaterThan(60)
+      expect(strip.length).toBeGreaterThan(0)
+      expect(notes.length).toBeGreaterThan(0)
+      expect(ghiChuText(entities, 'SUB-100')).toContain(
+        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      )
+      // The pile line of the take-off.
+      const lines = table.map(e => (e as AcDbText).textString)
+      const pileRow = lines.indexOf(`Bê tông cọc khoan nhồi ${pile}`)
+      expect(pileRow).toBeGreaterThan(0)
+      expect(lines).toContain(pileValue)
+      const tableBox = union(table)
+      const stripBox = union(strip)
+      // The table: wholly above the strip with room (≥ 300), not on it.
+      expect(acTpBoxesOverlap(tableBox, stripBox)).toBe(false)
+      expect(tableBox.y0 - stripBox.y1).toBeGreaterThanOrEqual(300 - 1e-6)
+      // ... and clear of everything else on the sheet but the frame border.
+      const others = sub.filter(
+        e =>
+          !table.includes(e) &&
+          !isNote(e) &&
+          !FRAME.has(readSemanticTag(e)?.role ?? '') &&
+          readSemanticTag(e)?.role !== 'tieu_de_ban_ve'
+      )
+      expect(
+        others
+          .filter(e => acTpBoxesOverlap(tableBox, boxOf(e)))
+          .map(e => `${e.dxfTypeName} ${readSemanticTag(e)?.partId}`)
+      ).toEqual([])
+      // Every GHI CHÚ line: clear of both blocks as a whole.
+      for (const n of notes) {
+        expect([
+          (n as AcDbText).textString,
+          acTpBoxesOverlap(boxOf(n), tableBox),
+          acTpBoxesOverlap(boxOf(n), stripBox)
+        ]).toEqual([(n as AcDbText).textString, false, false])
+      }
+      // The block, read back from the scene, is the same as drawn.
+      const sheet = scene.sheets.find(s => s.id === 'SUB-100')!
+      expect(acapDossierSheetNotes(sheet).join(' ')).toContain(
+        'CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      )
+      // The existing per-entity check over every sheet still holds.
+      expect(dossierOverlaps(entities)).toEqual([])
+    }
+  )
+})
+
+describe('library versions to publish (drawings pin id@version)', () => {
+  test.each([
+    ['mo_mat_chinh.js', '2.0.1'],
+    ['mo_coc_khoan_nhoi.js', '1.0.1'],
+    ['tru_mat_chinh.js', '1.0.1'],
+    ['tru_mat_ben.js', '1.0.1']
+  ])('%s is %s', (file, version) => {
+    expect(loadLibraryTemplate(file).meta.version).toBe(version)
+  })
 })

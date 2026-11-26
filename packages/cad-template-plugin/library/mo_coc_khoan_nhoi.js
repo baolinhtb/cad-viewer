@@ -29,7 +29,7 @@ const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_coc_khoan_nhoi',
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'Mố cầu — cọc khoan nhồi',
     category: 'Mố trụ',
     description:

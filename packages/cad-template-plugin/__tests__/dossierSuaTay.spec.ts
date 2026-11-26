@@ -315,6 +315,26 @@ describe('(b) an existing take-off follows sua_ho_so_mo', () => {
     expect(String(res.message)).not.toMatch(/Chưa có thép áp dụng/)
   })
 
+  // FIX-NOTE QA: the checklist prompt made the dossier only (no tao_btkl), so
+  // there is no take-off sheet to refresh and no «Đã tự cập nhật tờ BTKL»
+  // line — it is never invented. Same 3 % edit as above.
+  test('without tao_btkl: dốc ngang 3 % says nothing about a BTKL sheet', async () => {
+    const db = await tao(database())
+    expect(listRuns(db).filter(r => r.templateId === 'btkl_ket_cau')).toEqual(
+      []
+    )
+    const res = await sua(db, { docNgang: 3 })
+    expect(res.ok).toBe(true)
+    const said = ((res.data as { canhBao?: string[] }).canhBao ?? []).join(' ')
+    expect(said).not.toContain('Đã tự cập nhật tờ BTKL')
+    expect(String(res.message)).not.toContain('Đã tự cập nhật tờ BTKL')
+    expect(String(res.message)).not.toMatch(/19,704 → 19,592|184,857 → 184,745/)
+    expect(String(res.message)).toMatch(/^Đã sửa hồ sơ/)
+    expect(listRuns(db).filter(r => r.templateId === 'btkl_ket_cau')).toEqual(
+      []
+    )
+  })
+
   test('wing thickness / rail height follow too; a label-only change leaves it', async () => {
     const db = await tao(database())
     await runBtklTool('tao_btkl', {}, db)
@@ -655,5 +675,70 @@ describe('UI fixtures (acTpDxfOut, UTF-8)', () => {
         w.includes('sửa tay')
       )
     ).toEqual([])
+  })
+
+  // FIX-NOTE QA (SUB-100): the take-off of the current parameters moved
+  // above the title strip. A dossier drawn before (the fixture) has it lower,
+  // its footer on one line, running into the strip: the first edit redraws
+  // it whole where the generator puts it now — not a hand edit, no copy left.
+  test('fixture note: the SUB-100 take-off is redrawn above the title strip, once', async () => {
+    const db = await readDxf(readFileSync(path('note'), 'utf8'))
+    const takeOff = () =>
+      entitiesOfRun(db, runOf(db).id).filter(
+        (e): e is AcDbText =>
+          e instanceof AcDbText &&
+          readSemanticTag(e)?.partId === 'ghi_chu_btkl_SUB-100'
+      )
+    const stripTop = () =>
+      Math.max(
+        ...entitiesOfRun(db, runOf(db).id)
+          .filter(
+            e =>
+              sheetOf(e) === 'SUB-100' &&
+              readSemanticTag(e)?.role === 'khung_ten'
+          )
+          .map(e => e.geometricExtents.max.y)
+      )
+    const bottom = (es: AcDbEntity[]) =>
+      Math.min(...es.map(e => e.geometricExtents.min.y))
+    // As drawn before: into the strip.
+    expect(bottom(takeOff())).toBeLessThan(stripTop())
+    const res = await sua(db, { hLanCan: 1300 })
+    expect(res.ok).toBe(true)
+    expect(
+      ((res.data as { canhBao?: string[] }).canhBao ?? []).filter(w =>
+        w.includes('sửa tay')
+      )
+    ).toEqual([])
+    const now = takeOff()
+    expect(bottom(now) - stripTop()).toBeGreaterThanOrEqual(300 - 1)
+    // Exactly the table the new values draw: each text once.
+    const fresh = buildDossierScene(buildDossierModel({ ...runOf(db).values }))
+      .sheets.find(s => s.id === 'SUB-100')!
+      .primitives.flatMap(p =>
+        p.kind === 'text' && p.partId === 'ghi_chu_btkl_SUB-100' ? [p.text] : []
+      )
+    expect(now.map(e => e.textString).sort()).toEqual(fresh.sort())
+  })
+})
+
+describe('the SUB-100 take-off edited by hand is a hand edit', () => {
+  test('a take-off number typed over: the edit is refused, nothing changed', async () => {
+    const db = await tao(database())
+    const value = entitiesOfRun(db, runOf(db).id).find(
+      (e): e is AcDbText =>
+        e instanceof AcDbText &&
+        readSemanticTag(e)?.partId === 'ghi_chu_btkl_SUB-100' &&
+        e.textString === '184,857'
+    )!
+    expect(value).toBeDefined()
+    db.openEntityForWrite(value)
+    value.textString = '190,000'
+    const res = await sua(db, { hLanCan: 1300 })
+    expect(res.ok).toBe(false)
+    expect(res.message).toContain('đã được sửa tay')
+    expect(
+      all(db).some(e => e instanceof AcDbText && e.textString === '190,000')
+    ).toBe(true)
   })
 })

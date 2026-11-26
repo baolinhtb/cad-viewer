@@ -845,6 +845,36 @@ function isGeneratorNote(
   )
 }
 
+/** Part id of the take-off of the current parameters on SUB-100. */
+const TAKE_OFF_PART = /^ghi_chu_btkl_/
+const isTakeOffPart = (p: { partId: string }) => TAKE_OFF_PART.test(p.partId)
+
+/** The take-off's one-line footer as drawn before it was laid out bottom-up. */
+const LEGACY_TAKE_OFF_FOOTER =
+  'Đỏ: không tính (thiếu dữ liệu). Vàng: có cờ — xem diễn giải trên tờ BTKL. Không dùng để thi công.'
+
+/**
+ * Whether an entity of a run is a text of the generator's take-off table
+ * (SUB-100, `ghi_chu_btkl_*`) reading what the run's values gave it
+ * (`texts`), or its old one-line footer. The table follows the values and
+ * the sheet's layout — it moved above the title strip (FIX-NOTE QA) — so it
+ * is redrawn whole, like the GHI CHÚ block; a text of it reading anything
+ * else was edited by hand.
+ */
+function isGeneratorTakeOff(
+  e: AcDbEntity,
+  texts: (sheet: string) => ReadonlySet<string>
+): boolean {
+  const tag = readSemanticTag(e)
+  if (!tag || !TAKE_OFF_PART.test(tag.partId)) return false
+  if (!(e instanceof AcDbText || e instanceof AcDbMText)) return false
+  const text = plainOf(e)
+  return (
+    texts(String(tag.params?.sheet ?? '')).has(text) ||
+    text === LEGACY_TAKE_OFF_FOOTER
+  )
+}
+
 /**
  * 0.3.0: a dimension change regenerates the run (decision Q6), but only if
  * the drawing still is exactly what the run's recorded values produce. The
@@ -951,10 +981,31 @@ async function regenerateRun(
   const generatorNotes = entities.filter(e =>
     isGeneratorNote(e, sheet => beforeNotes.get(sheet) ?? noNotes)
   )
-  const noteSet = new Set(generatorNotes)
+  // The take-off table of SUB-100 likewise: erased and drawn anew whole.
+  const beforeTakeOff = new Map(
+    before.sheets.map(s => [
+      s.id,
+      new Set(
+        s.primitives.flatMap(p =>
+          p.kind === 'text' && TAKE_OFF_PART.test(p.partId) ? [p.text] : []
+        )
+      )
+    ])
+  )
+  const generatorTakeOff = entities.filter(e =>
+    isGeneratorTakeOff(e, sheet => beforeTakeOff.get(sheet) ?? noNotes)
+  )
+  const noteSet = new Set([...generatorNotes, ...generatorTakeOff])
+  // A text of the table that reads otherwise was edited by hand (before
+  // FIX-NOTE the M1 tables caveat was drawn with the table: a note, above).
+  const editedTakeOff = entities.filter(
+    e => TAKE_OFF_PART.test(readSemanticTag(e)?.partId ?? '') && !noteSet.has(e)
+  ).length
   const body = entities.filter(e => !noteSet.has(e))
-  const isBlockLine = (scene: DossierScene, sheet: string, i: number) =>
-    scene.sheets.find(s => s.id === sheet)?.primitives[i]?.note !== undefined
+  const isBlockLine = (scene: DossierScene, sheet: string, i: number) => {
+    const p = scene.sheets.find(s => s.id === sheet)?.primitives[i]
+    return p !== undefined && (p.note !== undefined || isTakeOffPart(p))
+  }
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
   // What the run's values draw, split into what the change redraws and what
@@ -974,7 +1025,8 @@ async function regenerateRun(
       ),
       before,
       (sheet, i, drawn) => {
-        // The GHI CHÚ block is matched apart (generatorNotes).
+        // The GHI CHÚ block and the take-off are matched apart
+        // (generatorNotes, generatorTakeOff).
         if (isBlockLine(before, sheet, i)) return
         ;(keptBefore.has(`${sheet}#${i}`) ? keptKeys : redrawnKeys).push(
           ...drawn
@@ -985,7 +1037,11 @@ async function regenerateRun(
     )
   )
   const expected = entitiesOfRun(scratch, run.id)
-    .filter(e => readSemanticTag(e)?.params?.khoi !== ACTP_GHI_CHU_TITLE)
+    .filter(
+      e =>
+        readSemanticTag(e)?.params?.khoi !== ACTP_GHI_CHU_TITLE &&
+        !TAKE_OFF_PART.test(readSemanticTag(e)?.partId ?? '')
+    )
     .map(entityKey)
     .sort()
   const actual = body.map(entityKey).sort()
@@ -1079,7 +1135,8 @@ async function regenerateRun(
   // region of the change. Refused, as before P2-M5.
   const inRegion =
     sum(toRedraw) +
-    [...toKeep].filter(([k, n]) => n > 0 && redrawnSet.has(k)).length
+    [...toKeep].filter(([k, n]) => n > 0 && redrawnSet.has(k)).length +
+    editedTakeOff
   // A generated text now reading another value in its place is an edited
   // label: never kept silently under a change (the label rule), wherever it is.
   const labels: string[] = []
@@ -1127,7 +1184,7 @@ async function regenerateRun(
     db,
     'Sửa hồ sơ theo thông số mới, giữ phần không đổi',
     async () => {
-      for (const entity of [...erase, ...generatorNotes])
+      for (const entity of [...erase, ...noteSet])
         if (entity.erase()) removed += 1
       // What stays carries the new values, as if drawn with them.
       for (const original of [...keep, ...extra]) {
@@ -1166,7 +1223,10 @@ async function regenerateRun(
         sheets: after.sheets.map(sheet => ({
           ...sheet,
           primitives: sheet.primitives.filter(
-            (p, i) => p.note !== undefined || !keptAfter.has(`${sheet.id}#${i}`)
+            (p, i) =>
+              p.note !== undefined ||
+              isTakeOffPart(p) ||
+              !keptAfter.has(`${sheet.id}#${i}`)
           )
         }))
       })

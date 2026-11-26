@@ -640,7 +640,7 @@ function but(ctx) {
 export default {
   meta: {
     id: 'tru_mat_ben',
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'Trụ cầu — mặt bên (bố cục sơ bộ)',
     category: 'Mố trụ',
     description:

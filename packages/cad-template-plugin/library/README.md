@@ -43,7 +43,7 @@ Qua `POST /api/templates`, hoặc qua giao diện thư viện template. Một te
 mới ở trạng thái `draft` cho tới khi nó dựng ra hình lần đầu trong trình duyệt
 — cái đó chỉ chứng minh được ở đúng nơi nó chạy.
 
-## Trụ cầu — `tru_mat_chinh`, `tru_mat_ben` 1.0.0
+## Trụ cầu — `tru_mat_chinh`, `tru_mat_ben` 1.0.1
 
 **Bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng** — khác các template mố, repo
 chưa có bản vẽ trụ để đo. Hai tệp dùng chung một khối tham số và kiểm tra

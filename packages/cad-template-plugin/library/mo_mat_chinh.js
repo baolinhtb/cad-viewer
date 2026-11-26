@@ -76,7 +76,7 @@ const { formatPartId, acTpPlaceGhiChuBlock } = globalThis.__CAD_TEMPLATE_SDK__
 export default {
   meta: {
     id: 'mo_mat_chinh',
-    version: '2.0.0',
+    version: '2.0.1',
     name: 'Mố cầu — mặt chính hoàn chỉnh (bản vẽ M1)',
     category: 'Mố trụ',
     description:
