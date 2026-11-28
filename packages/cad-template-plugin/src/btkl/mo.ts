@@ -969,7 +969,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
               .filter(r => r.noiChong)
               .map(
                 r =>
-                  `; ${r.mark.toUpperCase()} nối chồng ${r.noiChong!.soMoi} mối × ${r.noiChong!.chieuDai} mm (TCVN 11823-5 Đ11.5.3.1, loại ${r.noiChong!.cap})`
+                  `; ${r.mark.toUpperCase()} nối chồng ${r.noiChong!.soMoi} mối × ${r.noiChong!.chieuDai} mm (TCVN 11823-5 Đ 11.5.3.1, loại ${r.noiChong!.cap})`
               )
               .join('')} (M1: ${acTpBtklNumber(kg0, 1)} kg)`
           ])
@@ -993,7 +993,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
             )
             .join(
               ', '
-            )} — nối chồng chịu kéo loại ${ACTP_NEO_VAT_LIEU.capNoi} = 1,3·λd (TCVN 11823-5 Đ11.5.3.1), đã cộng vào khối lượng.`
+            )} — nối chồng chịu kéo loại ${ACTP_NEO_VAT_LIEU.capNoi} = 1,3·λd (TCVN 11823-5 Đ 11.5.3.1), đã cộng vào khối lượng.`
         })
       flags.push(...acTpNeoFlags(v))
       if (schedule.estimated.length)

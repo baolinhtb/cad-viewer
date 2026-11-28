@@ -51,12 +51,18 @@ const WING_LINES =
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
+/** What the agent is told about the steel flags' clauses. */
+const STEEL_CLAUSE_RULE =
+  'Cờ thép neo/nối (coThep: neo_khong_du, neo_ban_goc_chua_dat, noi_chong_cay_thep): nói lại số liệu kèm nguyên điều khoản trong ngoặc như tờ BTKL (ví dụ «TCVN 11823-5 Đ 11.5.3.1», «Đ 11.2.4.1 (PT 182)»), không bỏ, không viết lại điều khoản.'
+
 export const BTKL_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_btkl',
     description:
-      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép đếm theo bố trí mẫu M1 kéo theo kích thước mới (cờ thep_bo_tri_m1_theo_hinh_hoc), riêng tường cánh tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong), tường tai đếm thanh; thanh dài hơn cây thép được cộng nối chồng theo TCVN 11823-5 Đ11.5.3.1 (cờ noi_chong_cay_thep), neo không đủ báo cờ neo_khong_du, chỗ bản gốc M1 chưa đạt báo neo_ban_goc_chua_dat; thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl. ' +
-      WING_LINES,
+      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép đếm theo bố trí mẫu M1 kéo theo kích thước mới (cờ thep_bo_tri_m1_theo_hinh_hoc), riêng tường cánh tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong), tường tai đếm thanh; thanh dài hơn cây thép được cộng nối chồng theo TCVN 11823-5 Đ 11.5.3.1 (cờ noi_chong_cay_thep), neo không đủ báo cờ neo_khong_du, chỗ bản gốc M1 chưa đạt báo neo_ban_goc_chua_dat; thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl. ' +
+      WING_LINES +
+      ' ' +
+      STEEL_CLAUSE_RULE,
     input_schema: {
       type: 'object',
       properties: {
@@ -74,7 +80,9 @@ export const BTKL_TOOLS: readonly AcApToolSchema[] = [
     name: 'cap_nhat_btkl',
     description:
       'Tính lại BTKL sau khi mố/trụ trong bản vẽ đổi kích thước, được thêm hoặc xoá: đọc lại thông số từ bản vẽ và dựng lại các tờ BTKL tại chỗ (cùng mã lần chạy, cùng vị trí). Tờ BTKL là kết quả tính, sửa tay trên tờ sẽ mất. Không có gì đổi thì không sửa bản vẽ. ' +
-      WING_LINES,
+      WING_LINES +
+      ' ' +
+      STEEL_CLAUSE_RULE,
     input_schema: {
       type: 'object',
       properties: { ma_lan_chay: { type: 'string' } },
@@ -224,8 +232,34 @@ function totals(r: AcTpBtklResult) {
         )
       )
     ],
+    /**
+     * The anchorage / lap flags of the steel, as the sheet words them, clause
+     * included («TCVN 11823-5 Đ 11.5.3.1»): to be repeated as they are
+     * (P3-M2b, UI case 1: the chat dropped the clause).
+     */
+    coThep: steelClauseFlags(r),
     loi: r.errors
   }
+}
+
+/** Flag codes of the anchorage and lap checks (TCVN 11823-5). */
+export const ACAP_BTKL_STEEL_CLAUSE_FLAGS: readonly string[] = [
+  'neo_khong_du',
+  'neo_ban_goc_chua_dat',
+  'noi_chong_cay_thep'
+]
+
+/** «[code] message» of the anchorage / lap flags of one result. */
+function steelClauseFlags(r: AcTpBtklResult | undefined): string[] {
+  return [
+    ...new Set(
+      (r?.items ?? []).flatMap(i =>
+        (i.flags ?? [])
+          .filter(f => ACAP_BTKL_STEEL_CLAUSE_FLAGS.includes(f.code))
+          .map(f => `[${f.code}] ${f.message}`)
+      )
+    )
+  ]
 }
 
 function describe(
@@ -239,7 +273,7 @@ function describe(
   return {
     ok: true,
     status: 'ready',
-    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng. Số viết như tờ BTKL: nhóm nghìn bằng khoảng trắng, thập phân dấu phẩy (thép dùng thepKgHienThi, ví dụ 14 058,319 — không viết 14.058,319).`,
+    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng. Số viết như tờ BTKL: nhóm nghìn bằng khoảng trắng, thập phân dấu phẩy (thép dùng thepKgHienThi, ví dụ 14 058,319 — không viết 14.058,319). ${STEEL_CLAUSE_RULE}`,
     data: {
       maLanChay: runId,
       soTo: sheets.length,
@@ -364,6 +398,14 @@ export async function acapRefreshBtklAfterEdit(
         ? `Đã tự cập nhật tờ BTKL ${run.id}: ${items}.`
         : `Đã tự cập nhật tờ BTKL ${run.id} theo hồ sơ mới (cùng chỗ).`
     )
+    // A steel flag the edit brought (a splice past the stock bar, a short
+    // anchorage): with its clause, as on the sheet.
+    const was = new Set(steelClauseFlags(beforeResult))
+    const added = steelClauseFlags(result).filter(f => !was.has(f))
+    if (added.length)
+      notes.push(
+        `Cờ thép mới trên tờ BTKL ${run.id} (nói lại giữ nguyên điều khoản): ${added.join(' ')}`
+      )
   }
   return notes
 }

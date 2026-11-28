@@ -76,6 +76,8 @@ const SHEET_TITLES: Record<string, string> = {
 
 /** The source's own text for the default project name. */
 const SOURCE_PROJECT = 'CẦU KM0+400 (TUYẾN SỐ 2)'
+/** The scale under each view title of the source sheets. */
+const SOURCE_VIEW_SCALE = '(TL: 1/100)'
 const DEFAULT_PROJECT = 'Cầu Km0+400 — Tuyến số 2'
 
 type LayoutPrimitive = {
@@ -187,6 +189,23 @@ function dimOverrides(
       out[key] = value
   }
   return Object.keys(out).length ? (out as AcTpDimStyleVars) : undefined
+}
+
+/**
+ * Dimension overrides of a drawing shrunk by `f` (P3-M2b): DIMLFAC 1/f on
+ * top of the source's, so the text reads the true length; sizes kept.
+ */
+function scaledDim(
+  style: string,
+  overrides: AcTpDimStyleVars | undefined,
+  vars: Record<string, number> | undefined,
+  f: number
+): AcTpDimStyleVars | undefined {
+  if (f === 1) return overrides
+  const own = (ACTP_DIM_STYLES_33[style] as { dimlfac?: number } | undefined)
+    ?.dimlfac
+  const lfac = vars?.dimlfac ?? own ?? 1
+  return { ...(overrides ?? {}), dimlfac: lfac / f }
 }
 
 /** Centre of an extracted primitive: picks its view in the stretch grid. */
@@ -1827,7 +1846,8 @@ const grow = (b: Box | undefined, [x, y]: XY): Box =>
  */
 function viewShifts(
   ls: Pick<LayoutSheet, 'content' | 'viewport'>,
-  stretch: Exclude<ReturnType<typeof sheetStretch>, { error: string }>
+  stretch: Exclude<ReturnType<typeof sheetStretch>, { error: string }>,
+  scale = K
 ): { shifts: XY[]; boxes: Box[]; source: Box[] } | { error: string } {
   if (stretch.identity) return { shifts: [], boxes: [], source: [] }
   const before: (Box | undefined)[] = []
@@ -1883,12 +1903,21 @@ function viewShifts(
     if (b) allowed = grow(grow(allowed, [b.x0, b.y0]), [b.x1, b.y1])
   // Then move all views together, by the same amount, back inside if they
   // fit: views side by side stay aligned on their common levels.
+  // At a smaller scale (P3-M2b) the drawing is shrunk about the viewport
+  // centre, after the moves: the fit and the A3 check are on what is drawn.
+  const sc = viewScaling(vp, scale)
   let all: Box | undefined
   stretch.views.forEach((_, k) => {
     const b = after[k]
     if (!b) return
     const [dx, dy] = shifts[k]
-    all = grow(grow(all, [b.x0 + dx, b.y0 + dy]), [b.x1 + dx, b.y1 + dy])
+    const m = sc.box({
+      x0: b.x0 + dx,
+      y0: b.y0 + dy,
+      x1: b.x1 + dx,
+      y1: b.y1 + dy
+    })
+    all = grow(grow(all, [m.x0, m.y0]), [m.x1, m.y1])
   })
   if (all) {
     const fit = (lo: number, hi: number, min: number, max: number) =>
@@ -1896,8 +1925,8 @@ function viewShifts(
     const fx = fit(all.x0, all.x1, allowed.x0, allowed.x1)
     const fy = fit(all.y0, all.y1, allowed.y0, allowed.y1)
     for (const s of shifts) {
-      s[0] += fx
-      s[1] += fy
+      s[0] += sc.f === 1 ? fx : fx / sc.f
+      s[1] += sc.f === 1 ? fy : fy / sc.f
     }
   }
   const boxes: Box[] = []
@@ -1905,7 +1934,12 @@ function viewShifts(
     const b = after[k]
     if (!b) continue
     const [dx, dy] = shifts[k]
-    boxes[k] = { x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy }
+    boxes[k] = sc.box({
+      x0: b.x0 + dx,
+      y0: b.y0 + dy,
+      x1: b.x1 + dx,
+      y1: b.y1 + dy
+    })
     const over = Math.max(
       allowed.x0 - boxes[k].x0,
       boxes[k].x1 - allowed.x1,
@@ -1914,10 +1948,61 @@ function viewShifts(
     )
     if (over > 1)
       return {
-        error: `${stretch.views[k]} vượt khung A3 ${Math.round(over)} mm (tỉ lệ 1:100) sau khi dời các hình chiếu để giữ khoảng hở; cần tờ lớn hơn hoặc bố trí lại.`
+        error: `${stretch.views[k]} vượt khung A3 ${Math.round(over)} mm (tỉ lệ 1:${scale}) sau khi dời các hình chiếu để giữ khoảng hở; cần tờ lớn hơn hoặc bố trí lại.`
       }
   }
   return { shifts, boxes, source: before.map(b => b!) }
+}
+
+/**
+ * Scales a sheet's drawing may take when it does not fit the A3 viewport at
+ * 1:100 (P3-M2b, QA case 7: an 11 m road). The office draws 1:125 too (the
+ * `_33_D125` dimension style of `02. BTC- mo_2.dwg`, DIMSCALE 125); 1:150
+ * and 1:200 are the usual next steps of a bridge drawing.
+ */
+export const DOSSIER_VIEW_SCALES: readonly number[] = [K, 125, 150, 200]
+
+/**
+ * Drawing at 1:`scale` on a sheet laid out at 1:100: points shrink by
+ * f = 100/scale about the viewport centre (sheet-local units); text,
+ * symbols and dimension text keep their paper size; dimensions measure
+ * the true length through DIMLFAC = 1/f. Identity at 1:100.
+ */
+function viewScaling(vp: { w: number; h: number }, scale: number) {
+  const f = K / scale
+  const c: XY = [(vp.w * K) / 2, (vp.h * K) / 2]
+  const point = (q: XY): XY =>
+    f === 1 ? q : [c[0] + f * (q[0] - c[0]), c[1] + f * (q[1] - c[1])]
+  const box = (b: Box): Box => {
+    if (f === 1) return b
+    const [x0, y0] = point([b.x0, b.y0])
+    const [x1, y1] = point([b.x1, b.y1])
+    return { x0, y0, x1, y1 }
+  }
+  return { f, point, box }
+}
+
+/**
+ * The moves of a sheet's views at the largest scale that fits the A3
+ * viewport (1:100 first), or the refusal at the smallest scale.
+ */
+function viewLayout(
+  ls: Pick<LayoutSheet, 'content' | 'viewport'>,
+  stretch: Exclude<ReturnType<typeof sheetStretch>, { error: string }>
+):
+  | { shifts: XY[]; boxes: Box[]; source: Box[]; scale: number }
+  | { error: string } {
+  let last: { error: string } = { error: '' }
+  for (const scale of DOSSIER_VIEW_SCALES) {
+    const layout = viewShifts(ls, stretch, scale)
+    if (!('error' in layout)) return { ...layout, scale }
+    last = layout
+    // Only an overflow is helped by a smaller scale.
+    if (!/vượt khung A3/.test(layout.error)) return layout
+  }
+  return {
+    error: `${last.error} Đã thử tỉ lệ nhỏ nhất 1:${DOSSIER_VIEW_SCALES[DOSSIER_VIEW_SCALES.length - 1]}.`
+  }
 }
 
 /**
@@ -1933,6 +2018,8 @@ export function sheetViewBoxes(
       before: Record<string, Box>
       after: Record<string, Box>
       flow: string[][]
+      /** The drawing's scale denominator (100, or smaller to fit A3). */
+      scale: number
     }
   | { error: string }
   | undefined {
@@ -1941,7 +2028,7 @@ export function sheetViewBoxes(
   const stretch = sheetStretch(sheetId, values)
   if ('error' in stretch) return { error: stretch.error }
   if (stretch.identity) return undefined
-  const layout = viewShifts(ls, stretch)
+  const layout = viewLayout(ls, stretch)
   if ('error' in layout) return layout
   const named = (boxes: Box[]) =>
     Object.fromEntries(
@@ -1950,7 +2037,8 @@ export function sheetViewBoxes(
   return {
     before: named(layout.source),
     after: named(layout.boxes),
-    flow: stretch.flow.map(col => col.map(k => stretch.views[k]))
+    flow: stretch.flow.map(col => col.map(k => stretch.views[k])),
+    scale: layout.scale
   }
 }
 
@@ -2134,21 +2222,26 @@ export function buildScene030(
 
     // The A3 frame, built first: the take-off on SUB-100 sits above its
     // title strip. Drawn after the content (below).
-    const frame = acTpBuildDrawingFrame({
-      khoGiay: 'A3',
-      truong: {
-        duAn: field('duAn'),
-        soTo: `${index + 1}/${LAYOUT.sheets.length}`,
-        tiLe: `1:${K}`,
-        ngay: field('ngay'),
-        giaiDoan: 'TKBVTC',
-        donVi: field('donVi'),
-        chuTri: field('nguoiChuTri'),
-        thietKe: field('nguoiThietKe'),
-        kiemTra: field('nguoiKiemTra'),
-        duyet: field('nguoiDuyet')
-      }
-    })
+    const buildFrame = (scale: number) =>
+      acTpBuildDrawingFrame({
+        khoGiay: 'A3',
+        truong: {
+          duAn: field('duAn'),
+          soTo: `${index + 1}/${LAYOUT.sheets.length}`,
+          tiLe: `1:${scale}`,
+          ngay: field('ngay'),
+          giaiDoan: 'TKBVTC',
+          donVi: field('donVi'),
+          chuTri: field('nguoiChuTri'),
+          thietKe: field('nguoiThietKe'),
+          kiemTra: field('nguoiKiemTra'),
+          duyet: field('nguoiDuyet')
+        }
+      })
+    let frame = buildFrame(K)
+    // The scale the drawing in the viewport took (P3-M2b: smaller when the
+    // views would leave the A3 sheet at 1:100).
+    let viewScale = K
 
     // ------------------------------------------------ drawing in the viewport
     if (ls.viewport && ls.content) {
@@ -2177,11 +2270,18 @@ export function buildScene030(
         )
         note(stretch.error, 300)
       } else {
-        const layout = viewShifts(ls, stretch)
+        const layout = viewLayout(ls, stretch)
         if ('error' in layout) {
           note(NOT_BUILT, 450, true)
           note(layout.error, 300)
-        } else
+        } else {
+          viewScale = layout.scale
+          const sc = viewScaling(ls.viewport, viewScale)
+          // Sheet-local point → sheet point, through the smaller scale.
+          const put = (P: XY): XY => {
+            const q = sc.point(P)
+            return [x0 + q[0], y0 + q[1]]
+          }
           for (const raw of steel
             ? steelAsM1
               ? ls.content
@@ -2193,7 +2293,14 @@ export function buildScene030(
                 stretch,
                 layout.shifts
               )) {
-            const c = steel ? relabelSteel(raw) : relabelGeneral(raw)
+            const relabelled = steel ? relabelSteel(raw) : relabelGeneral(raw)
+            // The scale under each view title follows the drawing's.
+            const c =
+              viewScale !== K &&
+              relabelled.kind === 'text' &&
+              relabelled.text === SOURCE_VIEW_SCALE
+                ? { ...relabelled, text: `(TL: 1/${viewScale})` }
+                : relabelled
             const at = centreOf(c)
             // The view that maps it: its own centre's, or the one a pile
             // item was placed through (P2-M4).
@@ -2232,20 +2339,34 @@ export function buildScene030(
                   stretch.tilt(stretch.map(q, view)[0], q[1], view)
             const down = (q: XY) =>
               dy === undefined ? stretch.map(q, view)[1] + tiltAt(q) : q[1] + dy
-            addPaper(
-              c,
-              contentRole(c),
-              c.kind === 'insert'
-                ? q => [x0 + q[0] + move[0] + sx, y0 + q[1] + move[1] + sy]
-                : q => [x0 + across(q) + sx, y0 + down(q) + sy],
-              1,
-              {
-                sourceHandle: c.handle,
-                sourceLayer: c.src,
-                sourceType: c.type
-              }
-            )
+            const source = {
+              sourceHandle: c.handle,
+              sourceLayer: c.src,
+              sourceType: c.type
+            }
+            if (sc.f === 1)
+              addPaper(
+                c,
+                contentRole(c),
+                c.kind === 'insert'
+                  ? q => [x0 + q[0] + move[0] + sx, y0 + q[1] + move[1] + sy]
+                  : q => [x0 + across(q) + sx, y0 + down(q) + sy],
+                1,
+                source
+              )
+            else
+              addPaper(
+                c,
+                contentRole(c),
+                c.kind === 'insert'
+                  ? q => put([q[0] + move[0] + sx, q[1] + move[1] + sy])
+                  : q => put([across(q) + sx, down(q) + sy]),
+                1,
+                source,
+                sc.f
+              )
           }
+        }
       }
       if (!steel && !('error' in stretch)) placeElevationTags(s.primitives)
     } else if (ls.viewport && ls.model && ls.view && ls.offset) {
@@ -2477,7 +2598,11 @@ export function buildScene030(
       role: string,
       place: (q: XY) => XY = scaled,
       k = K,
-      source: Partial<DossierPrimitive> = {}
+      source: Partial<DossierPrimitive> = {},
+      // Drawing shrunk to a smaller scale (P3-M2b): `place` includes it;
+      // geometry sizes follow it, text and symbols keep their paper size,
+      // dimensions read the true length (DIMLFAC 1/f).
+      f = 1
     ) {
       const look = {
         ...id(role),
@@ -2517,7 +2642,7 @@ export function buildScene030(
             ...look,
             kind: 'circle',
             at: place(p.at!),
-            radius: p.radius! * k
+            radius: f === 1 ? p.radius! * k : p.radius! * k * f
           })
           return
         case 'arc':
@@ -2525,7 +2650,7 @@ export function buildScene030(
             ...look,
             kind: 'arc',
             at: place(p.at!),
-            radius: p.radius! * k,
+            radius: f === 1 ? p.radius! * k : p.radius! * k * f,
             startAngle: p.startAngle!,
             endAngle: p.endAngle!
           })
@@ -2585,7 +2710,12 @@ export function buildScene030(
               ((line[0] - start[0]) * -dy + (line[1] - start[1]) * dx) / len
           }
           const dimStyle = p.dimStyle ?? '_33_D100'
-          const overrides = dimOverrides(dimStyle, p.vars)
+          const overrides = scaledDim(
+            dimStyle,
+            dimOverrides(dimStyle, p.vars),
+            p.vars,
+            f
+          )
           push({
             ...look,
             kind: 'dimension',
@@ -2630,13 +2760,26 @@ export function buildScene030(
             arrowHead: p.arrowHead ?? true
           })
           return
-        case 'insert':
+        case 'insert': {
+          // A symbol (section mark, level tag, centre mark: inserted at a
+          // scale other than 1) keeps its paper size and its attributes
+          // their place in it; a drawn part (pile, bearing, rail) shrinks.
+          const symbol = f !== 1 && Math.abs(Math.abs(p.scale![0]) - 1) > 1e-9
+          const at = place(p.at!)
+          const size = f === 1 || symbol ? k : k * f
+          // place() shrank the offset from the insertion point by f: a
+          // symbol's attribute gets it back at full size.
+          const attributeAt = (q: XY): XY => {
+            if (!symbol) return place(q)
+            const pq = place(q)
+            return [at[0] + (pq[0] - at[0]) / f, at[1] + (pq[1] - at[1]) / f]
+          }
           push({
             ...look,
             kind: 'insert',
             block: p.block!,
-            at: place(p.at!),
-            scale: [p.scale![0] * k, p.scale![1] * k],
+            at,
+            scale: [p.scale![0] * size, p.scale![1] * size],
             rotation: p.rotation,
             attributes: Object.fromEntries(
               Object.entries(p.attributes ?? {}).map(([tag, a]) => [
@@ -2645,7 +2788,7 @@ export function buildScene030(
                   ? a
                   : {
                       value: a.value,
-                      at: place(a.position),
+                      at: attributeAt(a.position),
                       height: a.height !== undefined ? a.height * k : undefined,
                       rotation: a.rotationDeg,
                       align: a.align,
@@ -2656,10 +2799,13 @@ export function buildScene030(
             )
           })
           return
+        }
       }
     }
 
     // ------------------------------------------------ A3 frame
+    // The title block states the drawing's scale (P3-M2b).
+    if (viewScale !== K) frame = buildFrame(viewScale)
     // The source's own title block (xref `FR A3`) is missing from the file;
     // only its three texts survive, at the right of the strip. They are drawn
     // where they were measured, so cells of our title block that fall in
@@ -2708,6 +2854,7 @@ export function buildScene030(
     // drawing area just above the title strip at the right, or the nearest
     // free place to it.
     const area = frame.drawArea
+    if (viewScale !== K) s.viewScale = viewScale
     placeSheetNotes(s, notes, {
       x0: area.x * K,
       y0: area.y * K,

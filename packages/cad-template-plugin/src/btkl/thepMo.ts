@@ -258,7 +258,7 @@ export interface AcTpSteelRow {
   tamTinh?: { heSo: number; lyDo: string }
   /**
    * P3-M2: the bar is longer than a commercial bar, `soMoi` tension laps of
-   * `chieuDai` mm each (Đ11.5.3.1, class B assumed) are in `length` and `kg`.
+   * `chieuDai` mm each (Đ 11.5.3.1, class B assumed) are in `length` and `kg`.
    */
   noiChong?: { soMoi: number; chieuDai: number; cap: 'A' | 'B' }
 }
@@ -326,7 +326,7 @@ export function acTpSteelScheduleMo(
             1
           )
       // P3-M2: a bar the new geometry made longer than a commercial bar is
-      // lap spliced (Đ11.5.3.1); the laps add to the mark's length.
+      // lap spliced (Đ 11.5.3.1); the laps add to the mark's length.
       const m = ACTP_NEO_VAT_LIEU
       const lap = acTpNoiChong(
         b.diameter,

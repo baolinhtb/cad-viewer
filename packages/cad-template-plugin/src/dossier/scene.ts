@@ -153,6 +153,11 @@ export interface DossierSheet {
   width: number
   height: number
   scale: number
+  /**
+   * Scale denominator of the drawing in the viewport when it is not the
+   * sheet's 1:100 (P3-M2b: shrunk to fit A3, 125/150/200); absent at 1:100.
+   */
+  viewScale?: number
   origin: XY
   primitives: DossierPrimitive[]
 }

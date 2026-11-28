@@ -921,8 +921,96 @@ export function sheetStretch(
       flow: FLOWS[id] ?? [views.map((_, k) => k)]
     }
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) }
+    // Name the arrangement limit the user crossed, with the range that
+    // builds, rather than the grid lines (QA P3-M2 case 6: «đường mốc đứng
+    // chồng/đảo nhau (7446 → 10946)» for a 300 mm toe on L1).
+    // Said with the steel sheets' bounds (the stricter): what all six
+    // sheets need.
+    const limits = acTpDossierLayoutLimits(values, STEEL_SHEETS.has(id))
+    return {
+      error: limits.length
+        ? acTpDossierLayoutMessage(values, acTpDossierLayoutLimits(values))
+        : error instanceof Error
+          ? error.message
+          : String(error)
+    }
   }
+}
+
+/** Steel sheets: their grids carry a 150 band inside each face. */
+const STEEL_SHEETS: ReadonlySet<string> = new Set([
+  'SUB-070',
+  'SUB-080',
+  'SUB-090'
+])
+
+/** One arrangement limit along the bridge of the M1 layout. */
+export interface AcTpDossierLayoutLimit {
+  code: 'mui_be_sau_tim_coc' | 'got_be_sau_tim_coc' | 'canh_hang_sau_be'
+  /** The value the limit is on, mm, and what it must exceed. */
+  value: number
+  min: number
+}
+
+/**
+ * The arrangement limits along the bridge the M1 layout draws (P3-M2b):
+ *
+ * - the front pile row under the toe: toe muiBe > D (the grids put the
+ *   outer pile centre at D from the footing edge);
+ * - the back pile row under the heel: heel lBe − muiBe − tThan > D, and
+ *   > D + 300 on the steel sheets (the 300 haunch behind the stem);
+ * - the M1 wing cantilevers past the footing back (1:1 chamfer under it):
+ *   wing end muiBe + tThan − 500 + lCanh past lBe, by more than 150 on the
+ *   steel sheets (their 150 band inside each face).
+ *
+ * `steel` picks the steel sheets' bounds. Only the limits crossed.
+ */
+export function acTpDossierLayoutLimits(
+  values: AcTpParamValues,
+  steel = true
+): AcTpDossierLayoutLimit[] {
+  const n = (k: string) => Number(values[k])
+  const heel = n('lBe') - n('muiBe') - n('tThan')
+  const overhang = n('muiBe') + n('tThan') - 500 + n('lCanh') - n('lBe')
+  const all: AcTpDossierLayoutLimit[] = [
+    { code: 'mui_be_sau_tim_coc', value: n('muiBe'), min: n('D') },
+    {
+      code: 'got_be_sau_tim_coc',
+      value: heel,
+      min: n('D') + (steel ? 300 : 0)
+    },
+    { code: 'canh_hang_sau_be', value: overhang, min: steel ? 150 : 0 }
+  ]
+  return all.filter(l => !(l.value > l.min))
+}
+
+/**
+ * The refusal for crossed arrangement limits, in Vietnamese: each limit
+ * with its numbers, then the toe range (muiBe) the six sheets build with
+ * the other values kept — the bounds of the steel sheets, the stricter.
+ */
+export function acTpDossierLayoutMessage(
+  values: AcTpParamValues,
+  limits: AcTpDossierLayoutLimit[]
+): string {
+  const n = (k: string) => Number(values[k])
+  const mm = (v: number) =>
+    String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  const why = limits.map(l =>
+    l.code === 'mui_be_sau_tim_coc'
+      ? `mũi bệ (mép bệ tới mặt trước thân) ${mm(l.value)} mm phải lớn hơn ${mm(l.min)} mm (bố trí M1 đặt tim hàng cọc trước dưới mũi bệ, cách mép bệ D)`
+      : l.code === 'got_be_sau_tim_coc'
+        ? `gót bệ (mặt sau thân tới mép sau bệ = chiều dài bệ − mũi bệ − bề dày thân) ${mm(l.value)} mm phải lớn hơn ${mm(l.min)} mm (tim hàng cọc sau dưới gót bệ, cách mép bệ D, sau đoạn vút 300 mm sau thân)`
+        : `tường cánh kiểu M1 hẫng ra sau bệ (vát 1:1 dưới cánh): mút cánh = mũi bệ + bề dày thân − 500 + chiều dài cánh = ${mm(n('muiBe') + n('tThan') - 500 + n('lCanh'))} mm phải vượt mép sau bệ (${mm(n('lBe'))} mm) hơn ${mm(l.min)} mm, đang ${mm(l.value)} mm`
+  )
+  const lo =
+    Math.max(n('D'), n('lBe') + 150 + 500 - n('tThan') - n('lCanh')) + 1
+  const hi = n('lBe') - n('tThan') - n('D') - 300 - 1
+  const range =
+    lo <= hi
+      ? `Với chiều dài bệ ${mm(n('lBe'))}, bề dày thân ${mm(n('tThan'))}, chiều dài cánh ${mm(n('lCanh'))}, đường kính cọc ${mm(n('D'))} mm: mũi bệ dựng được đủ 6 tờ (kể cả tờ thép) từ ${mm(lo)} đến ${mm(hi)} mm; mũi bệ ngắn hơn cần tường cánh dài hơn (mút cánh vượt mép sau bệ > 150 mm) và mũi bệ vẫn > D.`
+      : `Với chiều dài bệ ${mm(n('lBe'))}, bề dày thân ${mm(n('tThan'))}, chiều dài cánh ${mm(n('lCanh'))}, đường kính cọc ${mm(n('D'))} mm không có mũi bệ nào dựng được đủ 6 tờ; cần bệ dài hơn hoặc tường cánh dài hơn.`
+  return `Bố trí dọc cầu ngoài khoảng bộ sinh ${DOSSIER_VERSION} dựng được: ${why.join('; ')}. ${range}`
 }
 
 /**

@@ -59,6 +59,7 @@ const limits =
   `Gối đổi được: ${DOSSIER_BEARING_KEYS.join(', ')} (vẽ lại đúng soGoi block gối ở mặt chính, cách đều aGoi quanh tim; ụ chống xô giữ vị trí bản gốc). ` +
   `Cọc đổi được: ${DOSSIER_PILE_KEYS.join(', ')} (vẽ lại mảng cọc như gối: mặt bằng cọc soHangCoc hàng × soCotCoc cọc, mặt chính soCotCoc cọc, mặt cắt A–A/B–B/C–C soHangCoc cọc, cách đều quanh tim bệ, dim tim cọc theo; soCotCoc 1–6, soHangCoc 1–4; tim tự do khi mặt bên cọc ngoài cùng cách mép bệ ≥ 300 mm và tim > D, sai thì từ chối; 2 hàng × 2 cọc sát mép giữ đúng bản vẽ gốc). ` +
   'tCanh (dày tường cánh) phải lọt giữa mép mặt đường và tim cọc ngoài cùng: (bBe − bMatDuong)/2 < tCanh < khoảng từ mép bệ tới tim cọc ngoài cùng = (bBe − (soCotCoc − 1) × aCocNgang)/2 (cọc sát mép: D; 1 cọc mỗi hàng: D), và 2 × tCanh < bThan; ngoài khoảng đó bị từ chối. ' +
+  'Bố trí dọc cầu theo M1 (ngoài khoảng thì từ chối, thông báo nêu khoảng mũi bệ dựng được): muiBe là «mũi bệ» = khoảng mép trước bệ tới mặt trước thân (L1 và M1: 2000), phải > D (tim hàng cọc trước dưới mũi bệ); gót bệ lBe − muiBe − tThan > D + 300; tường cánh M1 hẫng ra sau bệ: muiBe + tThan − 500 + lCanh > lBe + 150 (L1: muiBe ≥ 1451; mũi bệ ngắn hơn thì phải tăng lCanh cùng lần gọi). ' +
   'Bắt buộc theo nhau: bThan = bBe (bản gốc vẽ thân rộng bằng bệ). ' +
   `Tự suy khi không truyền: chỉ cho bMatDuong (không cho bBe/bThan) thì bBe = bThan = bMatDuong + 2 × ${DOSSIER_ROAD_MARGIN} (lề mép đường cố định ${DOSSIER_ROAD_MARGIN} mm mỗi bên như M1, ví dụ mặt đường 8000 → bBe = bThan = ${8000 + 2 * DOSSIER_ROAD_MARGIN}); đổi bBe, D hoặc soCotCoc mà không cho aCocNgang thì cọc biên sát mép bệ, chia đều: aCocNgang = (bBe − 2D)/(soCotCoc − 1) làm tròn xuống mm (2 cọc: bBe − 2D; ví dụ bệ 8700, D1000, 3 cọc mỗi hàng → 3350); đổi lBe, D hoặc soHangCoc mà không cho aCocDoc thì aCocDoc = (lBe − 2D)/(soHangCoc − 1) tương tự; tim cọc đã truyền thì giữ; không cho aGoi mà các gối không còn lọt trong thân ((soGoi − 1) × aGoi + 500 > bThan) thì aGoi = (bThan − 500 − 2 × ${DOSSIER_BEARING_MARGIN}) / (soGoi − 1) làm tròn xuống bội 50 mm (lề mép ${DOSSIER_BEARING_MARGIN} mm như M1; ví dụ 6 gối trên thân 8700 → aGoi = 1400, trên thân 7700 → 1200). Giá trị suy ra trả về trong data.suyRa: phải báo lại cho người dùng. ` +
   `Chỉ đổi chữ: ${[...DOSSIER_FREE_KEYS].join(', ')}. ` +
@@ -118,7 +119,7 @@ export const DOSSIER_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_ho_so_mo',
     description:
-      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Phiên bản 0.3.1 (hồ sơ mới): 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc, bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Thông số ngoài giới hạn dưới đây thì công cụ từ chối và không vẽ gì. Đổi hình học: tờ thép SUB-070/080/090 và bảng thép SUB-100 là bố trí thép mẫu M1 kéo theo kích thước mới (giữ đường kính, móc, lớp phủ, cự ly; thêm/bớt thanh), SUB-100 thêm bảng khối lượng theo thông số; thép tường cánh còn tạm tính theo hàm lượng (tường tai đếm thanh); kiểm neo/nối chồng theo TCVN 11823-5 (thanh dài hơn cây thép 11,7 m giả định được cộng nối chồng, neo không đủ thì báo, giữ hình). Chưa phải thiết kế cốt thép mới, chưa kiểm toán. Hồ sơ bản nháp; không tự thiết kế cốt thép. Mẫu M1 (không nói L1): chưa có chiều dài cọc thì không tự đặt (lCoc 0). Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
+      'Ưu tiên khi người dùng muốn dựng bộ hồ sơ mố M1 hoặc bản vẽ mố đầy đủ theo BTC mo_2. Phiên bản 0.3.1 (hồ sơ mới): 6 tờ A3 1:100 SUB-010…SUB-100 như bản gốc (tờ nào ở 1:100 vượt khung A3 — ví dụ mặt chính khi mặt đường rộng 10–13 m — thì tự vẽ 1:125, rồi 1:150, 1:200; chữ giữ cỡ giấy, kích thước ghi số thật; báo lại tờ đổi tỉ lệ theo data.tiLeTo; chỉ từ chối khi 1:200 vẫn tràn), bằng đối tượng CAD thật (dim, hatch, block có attribute), bảng cao độ/thông số và bảng thống kê vẽ bằng nét và chữ. Thông số ngoài giới hạn dưới đây thì công cụ từ chối và không vẽ gì. Đổi hình học: tờ thép SUB-070/080/090 và bảng thép SUB-100 là bố trí thép mẫu M1 kéo theo kích thước mới (giữ đường kính, móc, lớp phủ, cự ly; thêm/bớt thanh), SUB-100 thêm bảng khối lượng theo thông số; thép tường cánh còn tạm tính theo hàm lượng (tường tai đếm thanh); kiểm neo/nối chồng theo TCVN 11823-5 (thanh dài hơn cây thép 11,7 m giả định được cộng nối chồng, neo không đủ thì báo, giữ hình). Chưa phải thiết kế cốt thép mới, chưa kiểm toán. Hồ sơ bản nháp; không tự thiết kế cốt thép. Mẫu M1 (không nói L1): chưa có chiều dài cọc thì không tự đặt (lCoc 0). Thông số mặc định lấy từ mẫu, phải nói rõ. Sửa hồ sơ đã có dùng sua_ho_so_mo.\n' +
       `«Hồ sơ L1», «L1 mặc định», «tạo hồ sơ L1, lập BTKL mặc định»: gọi với thong_so.tenMo = "L1" (hoặc mau: "L1"); công cụ áp bộ L1 đã chấp nhận: ${presetL1Words} (gồm chiều dài cọc 25 m), rồi tự suy bBe = bThan = 8700, tim cọc ngang 6700, tim cọc dọc 4000. Thông số truyền thêm đè lên bộ L1 (ví dụ tenMo "L1", lCoc 0 giữ lCoc 0). Phải báo lại các số của bộ L1 cho người dùng; không hỏi lại chiều dài cọc khi đã áp bộ L1. Không được chỉ đổi tên rồi để mẫu M1.\n` +
       limits +
       '\n' +
@@ -235,6 +236,48 @@ function drawnElevations(model: ReturnType<typeof buildDossierModel>) {
   }
 }
 
+/** Pile spacing derived from a width: the count that spreads it. */
+const SPACING_DRIVERS: Record<
+  string,
+  { count: string; width: string; words: string }
+> = {
+  aCocNgang: { count: 'soCotCoc', width: 'bBe', words: 'cọc mỗi hàng' },
+  aCocDoc: { count: 'soHangCoc', width: 'lBe', words: 'hàng cọc' }
+}
+
+/**
+ * Why a refusal names a value the user never gave (P3-M2b, QA case 7: «mặt
+ * đường 12 000» refused with «Tim cọc ngang: cần số trong 600–10000 mm»):
+ * the derived value out of its range, how it was derived and, for a pile
+ * spacing, the pile count that brings it back in. The count is the
+ * engineer's to choose: the note says so, nothing is set.
+ */
+export function acapDerivedRangeNote(
+  values: AcTpParamValues,
+  suyRa: DossierDerived[]
+): string {
+  const n = (k: string) => Number(values[k])
+  const mm = (v: number) =>
+    String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return suyRa
+    .map(d => {
+      const p = DOSSIER_PARAMS.find(q => q.key === d.thamSo)
+      if (!p || p.min === undefined || p.max === undefined) return ''
+      if (d.giaTri >= p.min && d.giaTri <= p.max) return ''
+      const head = `${p.label} ${mm(d.giaTri)} ${p.unit} là số tự suy (${d.lyDo}), ngoài giới hạn ${mm(p.min)}–${mm(p.max)} ${p.unit}.`
+      const drv = SPACING_DRIVERS[d.thamSo]
+      if (!drv) return head
+      const gap = n(drv.width) - 2 * n('D')
+      const countParam = DOSSIER_PARAMS.find(q => q.key === drv.count)
+      let k = n(drv.count) + 1
+      while (k <= Number(countParam?.max ?? 0) && gap / (k - 1) > p.max) k++
+      if (k > Number(countParam?.max ?? 0)) return head
+      return `${head} Với ${k} ${drv.words} thì ${p.label.toLowerCase()} = ${mm(Math.floor(gap / (k - 1)))} ${p.unit}; số cọc là quyết định thiết kế: hỏi người dùng số ${drv.words} (${drv.count}) hoặc ${p.label.toLowerCase()} (${d.thamSo}), không tự đặt.`
+    })
+    .filter(Boolean)
+    .join(' ')
+}
+
 /** The derived values, spelt out for the agent to repeat to the user. */
 function derivedNote(suyRa: unknown): string {
   if (!Array.isArray(suyRa) || !suyRa.length) return ''
@@ -251,7 +294,13 @@ function summary(
   kind: 'full' | 'edit' = 'full'
 ): AcApToolOutcome {
   const model = buildDossierModel(values)
-  const detailMode = buildDossierScene(model).detailMode
+  const scene = buildDossierScene(model)
+  const detailMode = scene.detailMode
+  // Sheets drawn smaller than 1:100 to stay on the A3 sheet (P3-M2b).
+  const scaled = scene.sheets.filter(s => s.viewScale)
+  const scaleNote = scaled.length
+    ? `${scaled.map(s => `Tờ ${s.id} vẽ tỉ lệ 1:${s.viewScale}`).join(', ')} (ở 1:100 hình vượt khung A3; chữ, ký hiệu giữ cỡ giấy, kích thước ghi số thật, nhãn «TL: 1/…» dưới tên hình đổi theo; các tờ khác 1:100) — phải báo lại người dùng. `
+    : ''
   const btklNote = Array.isArray(extra.btkl) ? ` ${extra.btkl.join(' ')}` : ''
   const presetNote =
     extra.boThongSo === 'L1'
@@ -259,9 +308,9 @@ function summary(
       : ''
   const message =
     kind === 'edit'
-      ? `Đã sửa hồ sơ ${values.tenMo} (${runId}): ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}`.trimEnd() +
+      ? `Đã sửa hồ sơ ${values.tenMo} (${runId}): ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${derivedNote(extra.suyRa)}${scaleNote}`.trimEnd() +
         btklNote
-      : `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${presetNote}${derivedNote(extra.suyRa)}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${btklNote}`
+      : `Hồ sơ ${values.tenMo} (${runId}): 6 tờ BẢN NHÁP, ${model.bearings.length} vị trí gối cách nhau ${model.values.aGoi} mm (${model.stops.offsets.length} ụ chống xô), ${model.piles.length} cọc (${model.values.soHangCoc} hàng × ${model.values.soCotCoc} cọc, tim ngang ${model.values.aCocNgang} mm, tim dọc ${model.values.aCocDoc} mm). ${presetNote}${derivedNote(extra.suyRa)}${scaleNote}${Number(model.values.lCoc) ? '' : 'Chưa có chiều dài cọc: cọc vẽ ngắt đoạn, chưa tính khối lượng cọc — hỏi người dùng chiều dài cọc thực, không tự đặt. '}${model.referenceSteelApplicable ? 'Thép theo mẫu gốc, cần đối chiếu các mục chưa chốt.' : 'Chưa có thép áp dụng cho hình học này.'} ${model.issues.length} mục kiểm tra; chưa đủ để phát hành thi công.${btklNote}`
   return {
     ok: !model.issues.some(i => i.level === 'error'),
     status: model.issues.some(i => i.level === 'error') ? 'refused' : 'ready',
@@ -278,6 +327,13 @@ function summary(
       caoDo: drawnElevations(model),
       kiemTra: model.issues,
       thepApDung: model.referenceSteelApplicable,
+      ...(scaled.length
+        ? {
+            tiLeTo: Object.fromEntries(
+              scaled.map(s => [s.id, `1:${s.viewScale}`])
+            )
+          }
+        : {}),
       ...extra
     }
   }
@@ -313,7 +369,12 @@ export async function runDossierTool(
         return {
           ok: false,
           status: 'refused',
-          message: errors.map(i => i.message).join('\n'),
+          message: [
+            ...errors.map(i => i.message),
+            acapDerivedRangeNote(derived.values, derived.suyRa)
+          ]
+            .filter(Boolean)
+            .join('\n'),
           data: { kiemTra: errors, ...suyRaOf(derived.suyRa) }
         }
       // No false success: a sheet whose drawing cannot follow the values
@@ -389,7 +450,15 @@ export async function runDossierTool(
         revertHandEdits: input.dua_ve_so_bo_sinh === true,
         unlock031: input.mo_khoa_031 === true
       })
-      if (result.errors.length) throw new Error(result.errors.join('\n'))
+      if (result.errors.length)
+        throw new Error(
+          [
+            ...result.errors,
+            acapDerivedRangeNote(derived.values, derived.suyRa)
+          ]
+            .filter(Boolean)
+            .join('\n')
+        )
       // An existing take-off follows the dossier (P2-M5 b).
       const btkl = await acapRefreshBtklAfterEdit(runId, database)
       const warnings = [...(result.warnings ?? []), ...btkl]
