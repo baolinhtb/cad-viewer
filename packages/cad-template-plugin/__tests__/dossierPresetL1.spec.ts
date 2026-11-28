@@ -191,9 +191,10 @@ describe('tao_ho_so_mo + tao_btkl: «hồ sơ L1 mặc định» gives the P2 nu
     })
   })
 
-  // C: the L1 geometry differs from M1, so the GHI CHÚ blocks are there
-  // right after tao_ho_so_mo — no sua needed.
-  test('GHI CHÚ on SUB-070…100 right after tao_ho_so_mo', async () => {
+  // C: the L1 geometry differs from M1: its notes are there right after
+  // tao_ho_so_mo — no sua needed. P3-M1: the steel sheets follow L1, no
+  // «THÉP THEO M1 GỐC» block on them; SUB-100 keeps the (*) note.
+  test('GHI CHÚ on SUB-100 right after tao_ho_so_mo, none on the steel sheets', async () => {
     const db = database()
     expect(
       (await runDossierTool('tao_ho_so_mo', { thong_so: { tenMo: 'L1' } }, db))
@@ -208,8 +209,11 @@ describe('tao_ho_so_mo + tao_btkl: «hồ sơ L1 mặc định» gives the P2 nu
         notes.map(n => String(readSemanticTag(n)?.params?.sheet ?? '?'))
       )
     ].sort()
-    expect(sheets).toEqual(['SUB-070', 'SUB-080', 'SUB-090', 'SUB-100'])
-    expect(notes.filter(n => n.textString === 'GHI CHÚ')).toHaveLength(4)
+    expect(sheets).toEqual(['SUB-100'])
+    expect(notes.filter(n => n.textString === 'GHI CHÚ')).toHaveLength(1)
+    expect(notes.map(n => n.textString).join(' ')).not.toMatch(
+      /THÉP THEO M1 GỐC/
+    )
   })
 
   // D: the 3 % cross fall on the default L1 gives the P2 numbers.

@@ -241,12 +241,28 @@ describe('BTKL workbook — M1', () => {
     )
   })
 
-  test('estimated steel says there is no bar list, and gives the estimate', () => {
-    const p = unzip(acTpBtklWorkbook([acTpBtklMo({ hBe: 2500 })]))
+  // P3-M1: the bars laid over the new geometry are listed; a group still
+  // estimated (the wings) is a line of its own, in the total.
+  test('changed geometry: the laid bars, then the estimated groups', () => {
+    const r = acTpBtklMo({ lCanh: 5000 })
+    const p = unzip(acTpBtklWorkbook([r]))
     const s = cells(p.get('xl/worksheets/sheet2.xml')!)
-    expect(s.get('A4')!.v).toMatch(
-      /^Không có bảng thép: chưa có bố trí từng thanh cho hình học này; Cốt thép \(tạm tính theo hàm lượng mẫu M1\) = [\d ]+,\d+ kg/
+    expect(s.get('B4')!.v).toBe('F1')
+    // The total row sums the bars and the estimate: item 6 of the BTKL.
+    const total = [...s.entries()].find(([, c]) => c.v === 'Tổng cộng')![0]
+    const row = total.slice(1)
+    expect(s.get(`I${row}`)!.f).toBe(`SUM(I4:I${Number(row) - 1})`)
+    expect(Number(s.get(`I${row}`)!.v)).toBeCloseTo(
+      r.items.find(i => i.key === 'thep')!.khoiLuong!,
+      6
     )
+    expect(
+      [...s.values()].some(c =>
+        /^Thép tường cánh \(2 bên\) \(tạm tính theo hàm lượng mẫu M1\)$/.test(
+          String(c.v)
+        )
+      )
+    ).toBe(true)
   })
 
   test('several objects get one steel sheet each', () => {

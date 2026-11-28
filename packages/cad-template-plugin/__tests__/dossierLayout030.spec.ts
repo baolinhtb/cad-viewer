@@ -20,6 +20,7 @@ import {
   AcDbFileType
 } from '@mlightcad/data-model'
 
+import { acTpBtklMo } from '../src/btkl/mo'
 import { dossierHtml, dossierSheetSvg } from '../src/dossier/export'
 import {
   buildDossierModel,
@@ -187,14 +188,15 @@ describe('bố cục 0.3.0', () => {
     expect(texts.some(t => /mặt cắt/i.test(t))).toBe(true)
   })
 
-  test('kích thước khác bản gốc: tờ thép giữ hình M1 và ghi rõ chưa cập nhật', () => {
+  // P3-M1: was «tờ thép giữ hình M1 và ghi rõ chưa cập nhật».
+  test('kích thước khác bản gốc: tờ thép dựng theo kích thước mới, không cảnh báo M1', () => {
     const changed = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
     expect(changed.detailMode).toBe('parametric')
     for (const s of changed.sheets.slice(2, 5)) {
       expect(s.primitives.some(p => p.sourceHandle)).toBe(true)
       // In the sheet's GHI CHÚ block, read whole however it wraps.
-      expect(acapDossierSheetNotes(s)).toContain(
-        'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      expect(acapDossierSheetNotes(s).join(' ')).not.toMatch(
+        /THÉP THEO M1 GỐC|CHƯA CÓ PHƯƠNG ÁN THÉP/
       )
     }
   })
@@ -470,13 +472,13 @@ describe('SUB-070 (thép 1/3) dựng bằng đối tượng thật', () => {
     }
   })
 
-  test('kích thước khác bản gốc: giữ thép M1 đúng như mẫu, không kéo giãn, ghi rõ', () => {
+  // P3-M1: was «giữ thép M1 đúng như mẫu, không kéo giãn, ghi rõ».
+  test('kích thước khác bản gốc: thép theo lưới, dãy thanh thêm theo cự ly M1', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
-    // Exactly the M1 steel, point for point: not stretched to the new size.
-    expect(own(tall)).toEqual(own(scene))
-    expect(acapDossierSheetNotes(tall.sheets[2])).toContain(
-      'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-    )
+    // Not the M1 drawing any more; the bar rows up the footing gain bars.
+    expect(own(tall)).not.toEqual(own(scene))
+    expect(own(tall).length).toBeGreaterThan(own(scene).length)
+    expect(acapDossierSheetNotes(tall.sheets[2])).toEqual([])
   })
 
   test('đổi cấu tạo thép (F3 D25): vẫn không vẽ thép, ghi chưa có phương án', () => {
@@ -530,17 +532,20 @@ describe('SUB-080/090 (thép tường cánh trái/phải) dựng bằng đối t
     }
   })
 
-  test('kích thước khác bản gốc: không kéo giãn thép tường cánh, giữ M1 có cảnh báo', () => {
+  // P3-M1: was «không kéo giãn thép tường cánh, giữ M1 có cảnh báo».
+  test('kích thước khác bản gốc: thép tường cánh theo chiều dài cánh mới', () => {
     const longer = buildDossierScene(buildDossierModel({ lCanh: 7000 }), V)
     for (const id of ['SUB-080', 'SUB-090']) {
-      expect(own(longer, id)).toEqual(own(scene, id))
+      expect(own(longer, id)).not.toEqual(own(scene, id))
+      // Rows along the wing gain bars (150 apart over 500 mm more).
+      expect(own(longer, id).length).toBeGreaterThan(own(scene, id).length)
       expect(
         longer.sheets
           .find(x => x.id === id)!
           .primitives.some(
             p => p.kind === 'text' && /^THÉP THEO M1 GỐC/.test(p.text)
           )
-      ).toBe(true)
+      ).toBe(false)
     }
   })
 })
@@ -588,19 +593,20 @@ describe('SUB-100: bảng thống kê và khối lượng vẽ bằng nét và c
     expect(own.some(e => e.dxfTypeName === 'OLE2FRAME')).toBe(false)
   })
 
-  test('kích thước khác bản gốc: bảng M1 giữ nguyên có cảnh báo, thêm bảng khối lượng theo thông số', () => {
+  // P3-M1: was «bảng M1 giữ nguyên có cảnh báo».
+  test('kích thước khác bản gốc: bảng thép theo bố trí mới, thêm bảng khối lượng theo thông số', () => {
     const tall = buildDossierScene(buildDossierModel({ hBe: 2500 }), V)
-    expect(texts(tall)).toContain('14058.319')
-    // The caveat is a note of the sheet's GHI CHÚ block, read whole.
-    expect(acapDossierSheetNotes(sub100(tall))).toContain(
-      'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-    )
+    const total = acTpBtklMo({ hBe: 2500 }).items.find(i => i.key === 'thep')!
+    expect(texts(tall)).not.toContain('14058.319')
+    expect(texts(tall)).toContain(total.khoiLuong!.toFixed(3))
+    // No M1-table caveat any more (and nothing estimated on a taller footing).
+    expect(acapDossierSheetNotes(sub100(tall))).toEqual([])
     // The take-off of the current parameters: footing 7,7 × 6 × 2,5 − piles.
     expect(texts(tall)).toContain(
       'BẢNG KHỐI LƯỢNG M1 THEO THÔNG SỐ HIỆN TẠI (TẠM TÍNH, xem BTKL)'
     )
     expect(texts(tall)).toContain('114,821')
-    expect(texts(tall)).toContain('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
+    expect(texts(tall)).toContain('Cốt thép (bố trí mẫu M1 theo hình học mới)')
     // Kept clear of the M1 tables and the title block: lower left only.
     const added = sub100(tall).primitives.filter(
       p => p.partId === 'ghi_chu_btkl_SUB-100'

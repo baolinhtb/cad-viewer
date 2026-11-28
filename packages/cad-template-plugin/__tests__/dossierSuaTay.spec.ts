@@ -658,15 +658,18 @@ describe('UI fixtures (acTpDxfOut, UTF-8)', () => {
     expect(
       all(db).some(e => e instanceof AcDbText && e.textString === NOTE)
     ).toBe(true)
-    // The block is drawn, its warnings whole however they wrap.
+    // The block is drawn, its warnings whole however they wrap. P3-M1: the
+    // steel follows the geometry, the old steel / M1-table caveats are gone.
     const run = entitiesOfRun(db, runOf(db).id)
     for (const sheet of ['SUB-070', 'SUB-080', 'SUB-090'])
-      expect(ghiChuText(run, sheet)).toContain(STEEL)
-    expect(ghiChuText(run, 'SUB-100')).toContain(TABLES)
+      expect(ghiChuText(run, sheet)).not.toContain(STEEL)
+    expect(ghiChuText(run, 'SUB-100')).not.toContain(TABLES)
+    expect(ghiChuText(run, 'SUB-100')).toContain('(*) tường cánh')
     const notes = buildDossierScene(
       buildDossierModel({ ...runOf(db).values })
     ).sheets.flatMap(s => acapDossierSheetNotes(s))
-    expect(notes).toEqual(expect.arrayContaining([STEEL, TABLES]))
+    expect(notes).not.toEqual(expect.arrayContaining([STEEL]))
+    expect(notes).not.toEqual(expect.arrayContaining([TABLES]))
     // And the next edit finds the block where the generator put it.
     const next = await sua(db, { docNgang: 3 })
     expect(next.ok).toBe(true)

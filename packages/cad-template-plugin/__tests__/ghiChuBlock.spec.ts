@@ -232,8 +232,10 @@ describe('mo_coc_khoan_nhoi: same block, clear of the piles', () => {
 
 /**
  * The QA dossier L1 of dossierSuaTay (8 m road, stem 1,2 m, wings 4 m, D1000
- * piles 25 m): its geometry differs from M1, so the steel sheets carry
- * «THÉP THEO M1 GỐC…» and SUB-100 its M1-table warning — the red notes.
+ * piles 25 m): its geometry differs from M1. Before P3-M1 the steel sheets
+ * carried «THÉP THEO M1 GỐC…» and SUB-100 its M1-table warning; now the
+ * steel follows the geometry and only SUB-100 has a note — the wings and
+ * ear walls still estimated (*).
  */
 const L1 = {
   tenMo: 'QA-FIX-NOTE',
@@ -302,7 +304,7 @@ function drawScene(given: Record<string, number | string>) {
 describe('hồ sơ L1: cảnh báo vào khối GHI CHÚ, không đè hình', () => {
   jest.setTimeout(300000)
 
-  test('tao_ho_so_mo L1: STEEL_AS_M1 and the SUB-100 warning, clear of the sheet', async () => {
+  test('tao_ho_so_mo L1: the SUB-100 note (no STEEL_AS_M1), clear of the sheet', async () => {
     const db = new AcDbDatabase()
     db.createDefaultData()
     const r = await runDossierTool('tao_ho_so_mo', { thong_so: L1 }, db)
@@ -310,17 +312,15 @@ describe('hồ sơ L1: cảnh báo vào khối GHI CHÚ, không đè hình', () 
     const run = listRuns(db).find(x => x.templateId === 'ho_so_mo_m1')!
     const entities = entitiesOfRun(db, run.id)
     const notes = entities.filter(isNote) as AcDbText[]
-    // Three steel sheets and SUB-100, each with its own red block.
+    // P3-M1: no block on the steel sheets any more; SUB-100 keeps one.
     const sheets = [...new Set(notes.map(sheetOf))].sort()
-    expect(sheets).toEqual(['SUB-070', 'SUB-080', 'SUB-090', 'SUB-100'])
+    expect(sheets).toEqual(['SUB-100'])
     expect(notes.every(n => n.color.colorIndex === 1)).toBe(true)
-    for (const id of sheets.slice(0, 3)) {
-      const own = notes.filter(n => sheetOf(n) === id)
-      expect(own[0].textString).toBe('GHI CHÚ')
-      expect(own.map(n => n.textString).join(' ')).toContain(
-        'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-      )
-    }
+    const own = notes.filter(n => sheetOf(n) === 'SUB-100')
+    expect(own[0].textString).toBe('GHI CHÚ')
+    const said = own.map(n => n.textString).join(' ')
+    expect(said).toContain('(*) tường cánh trái, tường cánh phải, tường tai')
+    expect(said).not.toMatch(/THÉP THEO M1 GỐC|CỦA M1 GỐC/)
     // No warning left outside a block.
     const loose = entities.filter(
       e =>
@@ -427,9 +427,12 @@ describe('SUB-100: GHI CHÚ clear of the take-off table, table above the title s
       expect(table.length).toBeGreaterThan(60)
       expect(strip.length).toBeGreaterThan(0)
       expect(notes.length).toBeGreaterThan(0)
+      // P3-M1: the (*) note of the groups still estimated, not the M1-table
+      // caveat.
       expect(ghiChuText(entities, 'SUB-100')).toContain(
-        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+        '(*) tường cánh trái, tường cánh phải'
       )
+      expect(ghiChuText(entities, 'SUB-100')).not.toContain('CỦA M1 GỐC')
       // The pile line of the take-off.
       const lines = table.map(e => (e as AcDbText).textString)
       const pileRow = lines.indexOf(`Bê tông cọc khoan nhồi ${pile}`)
@@ -463,9 +466,13 @@ describe('SUB-100: GHI CHÚ clear of the take-off table, table above the title s
       }
       // The block, read back from the scene, is the same as drawn.
       const sheet = scene.sheets.find(s => s.id === 'SUB-100')!
-      expect(acapDossierSheetNotes(sheet).join(' ')).toContain(
-        'CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
+      // P3-M1: the (*) note of the groups still estimated (wings, and the
+      // ear walls when tThan changed), not the M1-table caveat.
+      const read = acapDossierSheetNotes(sheet).join(' ')
+      expect(read).toMatch(
+        /^\(\*\) tường cánh trái, tường cánh phải(, tường tai)?: số thanh, chiều dài theo M1; khối lượng tạm tính theo hàm lượng\.$/
       )
+      expect(read).not.toContain('CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY')
       // The existing per-entity check over every sheet still holds.
       expect(dossierOverlaps(entities)).toEqual([])
     }
@@ -532,14 +539,10 @@ describe('hồ sơ L1 mặc định (tao_ho_so_mo tenMo "L1"): SUB-100 boxes', (
     expect(r.ok).toBe(true)
     const run = () => listRuns(db).find(x => x.templateId === DOSSIER_ID)!
     expect(run().values).toMatchObject({ D: 1000, lCoc: 25000, bBe: 8700 })
-    // The red blocks without any sua: the geometry is not M1's.
+    // The red block without any sua: the geometry is not M1's. P3-M1: only
+    // SUB-100 (the steel sheets follow L1, no «THÉP THEO M1 GỐC»).
     const notes = entitiesOfRun(db, run().id).filter(isNote)
-    expect([...new Set(notes.map(sheetOf))].sort()).toEqual([
-      'SUB-070',
-      'SUB-080',
-      'SUB-090',
-      'SUB-100'
-    ])
+    expect([...new Set(notes.map(sheetOf))].sort()).toEqual(['SUB-100'])
     checkSub100(entitiesOfRun(db, run().id))
     const res = await runDossierTool(
       'sua_ho_so_mo',
