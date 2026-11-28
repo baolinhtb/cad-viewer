@@ -30,6 +30,8 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     description: name
   })),
   runBtklTool: () => Promise.resolve(returned.template),
+  ROAD_TOOLS: [{ name: 'tao_mat_cat_duong', description: 'tao_mat_cat_duong' }],
+  runRoadTool: () => Promise.resolve(returned.template),
   SEMANTIC_TOOLS: [
     { name: 'moc_toa_do', description: 'd', input_schema: {} },
     { name: 'mo_ta_ban_ve', description: 'd', input_schema: {} },

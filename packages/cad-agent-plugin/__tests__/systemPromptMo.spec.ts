@@ -405,3 +405,12 @@ describe('no take-off unless asked (P3-M3 backlog b)', () => {
     expect(skill).toContain('chưa xin thì chỉ hỏi «Có lập bảng khối lượng không?»')
   })
 })
+
+describe('road cross-section (P3-M3) in the system prompt', () => {
+  test('called at once with the engineer numbers, defaults restated, no take-off', () => {
+    expect(prompt).toContain('gọi tao_mat_cat_duong NGAY')
+    expect(prompt).toContain('«mặt đường 7 m, 2 làn» → soLan 2, bLan 3500')
+    expect(prompt).toContain('nêu lại các giá trị lấy mặc định')
+    expect(prompt).toContain('không gọi tao_btkl sau mặt cắt đường')
+  })
+})

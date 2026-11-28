@@ -92,10 +92,11 @@ describe('the list the dialog offers', () => {
       'tuong_phong_ho_btct@3.1.0',
       'ho_so_mo_m1@0.3.1',
       'khung_ban_ve@1.0.0',
-      'btkl_ket_cau@1.0.0'
+      'btkl_ket_cau@1.0.0',
+      'duong_mat_cat_ngang@0.1.0'
     ])
     // Every version is still visible where versions are the point.
-    expect(listRegisteredTemplates()).toHaveLength(7)
+    expect(listRegisteredTemplates()).toHaveLength(8)
   })
 })
 

@@ -12,8 +12,10 @@ import {
 import {
   BTKL_TOOLS,
   DOSSIER_TOOLS,
+  ROAD_TOOLS,
   runBtklTool,
-  runDossierTool
+  runDossierTool,
+  runRoadTool
 } from '@mlightcad/cad-template-plugin'
 import { tool } from 'ai'
 // `zod/v4`, not `zod`. The AI SDK's `tool()` is typed against zod v4 core, and
@@ -263,6 +265,21 @@ export function createCadTools(options: CreateCadScriptToolsOptions = {}) {
         })
         .strict(),
       execute: async input => runBtklTool('xuat_btkl', input)
+    }),
+    tao_mat_cat_duong: tool({
+      description: ROAD_TOOLS.find(t => t.name === 'tao_mat_cat_duong')!
+        .description,
+      inputSchema: z
+        .object({
+          thong_so: z
+            .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+            .optional()
+        })
+        .strict(),
+      execute: async input => {
+        await ready()
+        return runRoadTool('tao_mat_cat_duong', input)
+      }
     }),
     // The semantic group comes first because it is what the model should reach
     // for first: the geometry tools below act on coordinates and object ids,
