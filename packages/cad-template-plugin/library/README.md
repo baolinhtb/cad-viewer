@@ -43,7 +43,7 @@ Qua `POST /api/templates`, hoặc qua giao diện thư viện template. Một te
 mới ở trạng thái `draft` cho tới khi nó dựng ra hình lần đầu trong trình duyệt
 — cái đó chỉ chứng minh được ở đúng nơi nó chạy.
 
-## Trụ cầu — `tru_mat_chinh`, `tru_mat_ben` 1.0.1
+## Trụ cầu — `tru_mat_chinh`, `tru_mat_ben` 1.1.0
 
 **Bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng** — khác các template mố, repo
 chưa có bản vẽ trụ để đo. Hai tệp dùng chung một khối tham số và kiểm tra
@@ -61,6 +61,13 @@ hai hình bằng một lệnh; hướng dẫn cho trợ lý là `assets/skills/t
    (`POST /api/skills`) rồi công bố.
 3. Sau đó trợ lý chạy được `chay_template tru_mat_chinh` / `tru_mat_ben` và
    `ghep_bo_phan tru_cau_hoan_chinh`.
+
+1.1.0 (so với 1.0.1; hình với tham số mặc định không đổi): thêm ba tham số
+tuỳ chọn `lNhip`, `gocXien`, `phanTramN` để kiểm chiều rộng đỡ dầm N (TCVN
+11823-4:2017 đ.7.4.4) — chỉ kiểm khi có cả `lNhip` và `phanTramN`, không đạt
+thì chặn; D < 750 mm in ghi chú điều kiện kiểm tra thủ công (TCVN
+11823-10:2017 đ.8.1.3) trên cả hai hình. Bản vẽ ghim `id@version`, nên đổi mã
+là phải lên phiên bản; công bố bằng `tools/codex-cad/publish-library-templates.mjs`.
 
 `server/auth/libraryUpload.test.mjs` chạy đúng con đường đó (tải lên, kiểm vai
 trò/layer với danh mục `_33_`, công bố, khối chuẩn hoá) cho mọi tệp trong thư

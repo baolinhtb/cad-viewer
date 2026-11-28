@@ -20,7 +20,7 @@ const PILE = Math.PI * 0.6 ** 2
 describe('BTKL trụ — defaults match the library templates', () => {
   test.each(['tru_mat_chinh.js', 'tru_mat_ben.js'])('%s', file => {
     const t = loadLibraryTemplate(file)
-    expect(t.meta.version).toBe('1.0.1')
+    expect(t.meta.version).toBe('1.1.0')
     expect(
       Object.fromEntries(
         t.params.map((p: { key: string; default: unknown }) => [
@@ -209,5 +209,23 @@ describe('BTKL trụ with the abutment in one sheet set and workbook', () => {
     const text = new TextDecoder().decode(bytes)
     expect(text).toContain('<sheet name="Thép 2 Trụ T1"')
     expect(text).toContain('Không có bảng thép: Trụ chưa có phương án cốt thép')
+  })
+})
+
+describe('BTKL trụ — a pier drawn with the seat-width inputs (1.1.0)', () => {
+  test('lNhip / gocXien / phanTramN are read, and change no quantity', () => {
+    const base = acTpBtklTru({}, 'Trụ T1')
+    const withN = acTpBtklTru(
+      { lNhip: 33000, gocXien: 0, phanTramN: 100 },
+      'Trụ T1'
+    )
+    expect(withN.errors).toEqual([])
+    expect(withN.items.map(i => [i.key, i.khoiLuong])).toEqual(
+      base.items.map(i => [i.key, i.khoiLuong])
+    )
+    // Unchanged defaults: 197,542 m³ concrete, 5,335 m³ lean, 167,2 m² formwork.
+    expect(kl(withN, 'be_tong')).toBeCloseTo(197.542, 3)
+    expect(kl(withN, 'lot')).toBeCloseTo(5.335, 3)
+    expect(kl(withN, 'van_khuon')).toBeCloseTo(167.2, 1)
   })
 })

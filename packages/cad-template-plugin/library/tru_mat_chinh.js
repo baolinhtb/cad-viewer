@@ -49,7 +49,7 @@ const PARAMS = [
     default: 2000,
     group: 'Xà mũ',
     hint:
-      'Phải đủ chiều rộng đỡ dầm tối thiểu N theo TCVN 11823-4:2017 đ.7.4.4 (Phương trình 25) — skill tru-cau kiểm khi có L, H, S. Mặc định 2000 là ' +
+      'Phải đủ chiều rộng đỡ dầm tối thiểu N theo TCVN 11823-4:2017 đ.7.4.4 (Phương trình 25) — template kiểm và chặn khi có lNhip và phanTramN (H = hThan + hXaMu). Mặc định 2000 là ' +
       TU_DO
   },
   {
@@ -362,6 +362,44 @@ const PARAMS = [
     group: 'Cọc',
     hint: '0 = chưa biết: vẽ đoạn cọc 2500 mm có nét lượn "còn tiếp", không đoán chiều dài.'
   },
+  // Đỡ dầm — chỉ để kiểm, không đổi hình
+  {
+    key: 'lNhip',
+    label: 'L: chiều dài mặt cầu tới khe co giãn kế bên',
+    type: 'number',
+    unit: 'mm',
+    min: 0,
+    max: 2000000,
+    default: 0,
+    group: 'Đỡ dầm',
+    hint:
+      'L của TCVN 11823-4:2017 đ.7.4.4 (Phương trình 25): chiều dài mặt cầu đến khe co giãn lân cận hoặc đến cuối mặt cầu. ' +
+      '0 = chưa có: không kiểm chiều rộng đỡ dầm N.'
+  },
+  {
+    key: 'gocXien',
+    label: 'S: độ chéo mặt đỡ',
+    type: 'number',
+    unit: 'độ',
+    min: 0,
+    max: 80,
+    default: 0,
+    group: 'Đỡ dầm',
+    hint: 'S của TCVN 11823-4:2017 Phương trình 25, đo từ đường vuông góc với nhịp; 0 là cầu thẳng góc. Dải chỉ chặn sai số nhập liệu.'
+  },
+  {
+    key: 'phanTramN',
+    label: 'Phần trăm của N theo vùng động đất',
+    type: 'number',
+    unit: '%',
+    min: 0,
+    max: 150,
+    default: 0,
+    group: 'Đỡ dầm',
+    hint:
+      'TCVN 11823-4:2017 đ.7.4.4, Bảng 16: vùng 1, hệ số gia tốc < 0,025, đất I hoặc II: ≥ 50; vùng 1 còn lại và vùng 2: 100; vùng 3: 150. ' +
+      'Người thiết kế chọn theo vùng của công trình — template không tự chọn. 0 = chưa có: không kiểm N.'
+  },
   // Vị trí, thể hiện
   {
     key: 'x',
@@ -441,6 +479,27 @@ function caoMepBe(beRong, soCoc, khoang, D) {
   return (beRong - (soCoc - 1) * khoang) / 2 - D / 2
 }
 
+/**
+ * Chiều rộng đỡ dầm tối thiểu N — TCVN 11823-4:2017 đ.7.4.4, Phương trình 25,
+ * Bảng 16. Chỉ tính khi người dùng cho L và phần trăm theo vùng động đất;
+ * thiếu một trong hai thì trả về undefined (không kiểm, không đoán).
+ *
+ * H của trụ là "chiều cao của cột hoặc trụ": lấy đỉnh bệ → đỉnh xà mũ,
+ * hThan + hXaMu. Bề rộng sẵn có là cận trên: hai hàng gối thì mỗi nhịp tựa
+ * trên nửa xà mũ (lXaMu/2), một hàng thì cả lXaMu; khe đầu dầm không có
+ * trong template nên chưa trừ.
+ */
+function doDam(v) {
+  if (!(v.lNhip > 0) || !(v.phanTramN > 0)) return undefined
+  const H = v.hThan + v.hXaMu
+  const N =
+    (200 + 0.0017 * v.lNhip + 0.0067 * H) *
+    (1 + 0.000125 * v.gocXien * v.gocXien) *
+    (v.phanTramN / 100)
+  const coSan = v.lXaMu / v.soHangGoi
+  return { H, N, coSan, dat: coSan >= N }
+}
+
 /** Ràng buộc liên trường. Lỗi chặn vẽ; lỗi nào là điều khoản thì ghi điều khoản. */
 function kiemTra(values) {
   const v = doc(values)
@@ -516,6 +575,25 @@ function kiemTra(values) {
           'TCVN 11823-10:2017 đ.8.1.2. Mở rộng bệ, giảm khoảng cách hoặc đường kính cọc.'
       )
   }
+  if (v.phanTramN > 0 && v.phanTramN < 50)
+    loi.push(
+      `Phần trăm của N ${v.phanTramN} % nhỏ hơn mức thấp nhất 50 % của TCVN 11823-4:2017 Bảng 16.`
+    )
+  const dd = v.phanTramN >= 50 ? doDam(v) : undefined
+  if (dd && !dd.dat) {
+    const so = x => String(x).replace('.', ',')
+    const N = Math.ceil(dd.N)
+    loi.push(
+      'Xà mũ không đủ chiều rộng đỡ dầm tối thiểu — TCVN 11823-4:2017 đ.7.4.4 ' +
+        `(Phương trình 25, Bảng 16): N = (200 + 0,0017·${v.lNhip} + 0,0067·${dd.H})` +
+        `·(1 + 0,000125·${so(v.gocXien)}²) × ${so(v.phanTramN)} % = ${so(Math.round(dd.N * 10) / 10)} mm ` +
+        `(H = hThan + hXaMu = ${dd.H} mm). ` +
+        (v.soHangGoi === 2
+          ? `Hai hàng gối: mỗi nhịp tựa nhiều nhất lXaMu/2 = ${dd.coSan} mm < ${N} mm. `
+          : `Một hàng gối: dầm tựa nhiều nhất lXaMu = ${dd.coSan} mm < ${N} mm. `) +
+        `Cần lXaMu ≥ ${N * v.soHangGoi} mm.`
+    )
+  }
   return loi
 }
 
@@ -539,6 +617,18 @@ function ghiChuCoc(v) {
       )
   }
   return ghi
+}
+
+/**
+ * Đường kính dưới 750 mm: TCVN 11823-10:2017 đ.8.1.3 chỉ đặt ngưỡng ấy khi hố
+ * khoan được kiểm tra thủ công. Không cấm, nên vẫn vẽ và in thành ghi chú.
+ */
+function ghiChuD(v) {
+  if (v.D >= 750) return []
+  return [
+    `D = ${v.D} mm < 750 mm: hố khoan không được kiểm tra thủ công ` +
+      '(TCVN 11823-10:2017 đ.8.1.3) — nếu kiểm tra thủ công cần D ≥ 750 mm.'
+  ]
 }
 
 /** Bút vẽ dùng chung: chữ nhật, cọc, kích thước, ghi chú. */
@@ -645,7 +735,7 @@ function but(ctx) {
 export default {
   meta: {
     id: 'tru_mat_chinh',
-    version: '1.0.1',
+    version: '1.1.0',
     name: 'Trụ cầu — mặt chính (bố cục sơ bộ)',
     category: 'Mố trụ',
     description:
@@ -653,8 +743,10 @@ export default {
       '(nhìn dọc tuyến): bê tông lót, bệ, cọc khoan nhồi theo ngang cầu, thân ' +
       'tường đặc hoặc thân cột, xà mũ có đầu hẫng vát và hàng đá kê gối, kèm ' +
       'kích thước. Dùng chung tham số với tru_mat_ben. Kích thước do tính toán ' +
-      'quyết định; chỉ cự ly mặt bên cọc đến mép bệ ≥ 300 mm (TCVN ' +
-      '11823-10:2017 đ.8.1.2) là ràng buộc tiêu chuẩn bị chặn.'
+      'quyết định; ràng buộc tiêu chuẩn bị chặn: cự ly mặt bên cọc đến mép ' +
+      'bệ ≥ 300 mm (TCVN 11823-10:2017 đ.8.1.2), và chiều rộng đỡ dầm N ' +
+      '(TCVN 11823-4:2017 đ.7.4.4) khi có lNhip và phanTramN — không có ' +
+      'thì chưa kiểm N.'
   },
   params: PARAMS,
   validate: kiemTra,
@@ -853,7 +945,8 @@ export default {
             'Chiều dài cọc chưa xác định: cọc vẽ đoạn ngắn, nét lượn là "còn tiếp".'
           ]
         : []),
-      ...ghiChuCoc(v)
+      ...ghiChuCoc(v),
+      ...ghiChuD(v)
     ])
   }
 }
