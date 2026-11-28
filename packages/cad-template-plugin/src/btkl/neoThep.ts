@@ -29,7 +29,7 @@ export interface AcTpNeoVatLieu {
   fc: number
   /** Commercial bar length, mm: a longer bar is lap spliced. */
   chieuDaiCayThep: number
-  /** Tension lap class, Đ11.5.3.1. */
+  /** Tension lap class, Đ 11.5.3.1. */
   capNoi: 'A' | 'B'
 }
 
@@ -47,16 +47,16 @@ export const ACTP_NEO_VAT_LIEU: Readonly<AcTpNeoVatLieu> = Object.freeze({
 /** Concrete cover of the M1 bars, mm (F1 5850 = bệ 6000 − 2 × 75). */
 export const ACTP_LOP_PHU_M1 = 75
 
-/** Basic tension development length λdb, mm — Đ11.2.1.1, PT 177. */
+/** Basic tension development length λdb, mm — Đ 11.2.1.1, PT 177. */
 export function acTpLambdaDb(db: number, m: AcTpNeoVatLieu): number {
   return (0.91 * db * m.fy) / Math.sqrt(m.fc)
 }
 
 /**
- * Tension development length λd, mm — Đ11.2.1.1, PT 176, ≥ 300 mm. λrl 1,3
- * (Đ11.2.1.2) for a horizontal bar with more than 300 mm of fresh concrete
+ * Tension development length λd, mm — Đ 11.2.1.1, PT 176, ≥ 300 mm. λrl 1,3
+ * (Đ 11.2.1.2) for a horizontal bar with more than 300 mm of fresh concrete
  * cast below it; black bars in normal concrete: λcf = λlW = 1; λrc = λer = 1
- * (Đ11.2.1.3, no As required known).
+ * (Đ 11.2.1.3, no As required known).
  */
 export function acTpLambdaD(
   db: number,
@@ -66,14 +66,14 @@ export function acTpLambdaD(
   return Math.max(300, acTpLambdaDb(db, m) * (ngangTren ? 1.3 : 1))
 }
 
-/** Basic development length of a standard hook λhb, mm — Đ11.2.4.1, PT 182. */
+/** Basic development length of a standard hook λhb, mm — Đ 11.2.4.1, PT 182. */
 export function acTpLambdaHb(db: number, m: AcTpNeoVatLieu): number {
   return (100 * db * m.fy) / (420 * Math.sqrt(m.fc))
 }
 
 /**
- * Development length of a standard hook λdh, mm — Đ11.2.4.1 with the factor
- * 0,8 of Đ11.2.4.2 when the side cover is ≥ 64 mm and the cover on the tail
+ * Development length of a standard hook λdh, mm — Đ 11.2.4.1 with the factor
+ * 0,8 of Đ 11.2.4.2 when the side cover is ≥ 64 mm and the cover on the tail
  * ≥ 50 mm (90° hook, db ≤ 36); never less than max(8db, 150) (the translation
  * reads «giá trị nhỏ», AASHTO 5.11.2.4.1 the larger: the larger is kept).
  */
@@ -86,7 +86,7 @@ export function acTpLambdaDh(
   return Math.max(8 * db, 150, acTpLambdaHb(db, m) * factor)
 }
 
-/** Tension lap length, mm — Đ11.5.3.1: A 1,0 λd, B 1,3 λd, ≥ 300 mm. */
+/** Tension lap length, mm — Đ 11.5.3.1: A 1,0 λd, B 1,3 λd, ≥ 300 mm. */
 export function acTpNoiChong(
   db: number,
   m: AcTpNeoVatLieu,
@@ -155,9 +155,9 @@ interface Check {
 }
 
 const C = ACTP_LOP_PHU_M1
-const HOOK = 'Đ11.2.4.1 (PT 182), Đ11.2.4.2'
-const STRAIGHT = 'Đ11.2.1.1 (PT 176, 177)'
-const LAP = 'Đ11.5.3.1, Đ11.2.1.1 (PT 176, 177)'
+const HOOK = 'Đ 11.2.4.1 (PT 182), Đ 11.2.4.2'
+const STRAIGHT = 'Đ 11.2.1.1 (PT 176, 177)'
+const LAP = 'Đ 11.5.3.1, Đ 11.2.1.1 (PT 176, 177)'
 
 /**
  * The ends of the M1 layout that cross a critical section, with what the
