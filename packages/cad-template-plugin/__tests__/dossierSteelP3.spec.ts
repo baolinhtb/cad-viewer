@@ -5,8 +5,9 @@
  * steel was estimated from the M1 ratio kg/m³. Now the steel views use the
  * grid of the views they are cut from, bar ends keep the M1 cover to the new
  * faces, rows of bars in section are re-laid at the M1 spacing (more bars on
- * a wider member), and the BTKL counts the bars — the wings and ear walls,
- * which no rule re-lays yet, stay estimated (flagged, that group only).
+ * a wider member), and the BTKL counts the bars — the wings, which no rule
+ * re-lays yet, stay estimated (flagged, that group only; P3-M2 counts the ear
+ * walls: tai 54,377 estimated → 63,719 kg counted on L1, + 9,341).
  */
 jest.mock('../../cad-simple-viewer/src/editor/global/eventBus', () => ({
   eventBus: { emit: jest.fn() }
@@ -233,12 +234,12 @@ describe('L1: the steel sheets follow the L1 geometry', () => {
     const s = sheet(scene, 'SUB-100')
     const all = texts(s)
     // F1: 50 → 57 bars over the 8700 footing; overall total = BTKL item 6.
-    expect(all).toContain('13467.513')
+    expect(all).toContain('13476.854')
     expect(all).not.toContain('14058.319')
     expect(all.join(' ')).toContain('BẢNG KHỐI LƯỢNG L1 THEO THÔNG SỐ HIỆN TẠI')
     const notes = acapDossierSheetNotes(s).join(' ')
     expect(notes).toContain(
-      '(*) tường cánh trái, tường cánh phải, tường tai: số thanh, chiều dài theo M1; khối lượng tạm tính theo hàm lượng.'
+      '(*) tường cánh trái, tường cánh phải: số thanh, chiều dài theo M1; khối lượng tạm tính theo hàm lượng.'
     )
   })
 })
@@ -253,21 +254,23 @@ describe('BTKL steel: counted from the layout (old → new)', () => {
     expect(kl(r, 'thep')).toBeCloseTo(14058.319, 3)
   })
 
-  test('L1: 12 859,837 (ratio estimate) → 13 467,513 kg; concrete as P2', () => {
+  test('L1: 12 859,837 (ratio) → 13 467,513 (P3-M1) → 13 476,854 kg (P3-M2)', () => {
     const r = acTpBtklMo(L1)
     // Before P3-M1: 12 859,837 kg, all estimated from the M1 ratios.
-    expect(kl(r, 'thep')).toBeCloseTo(13467.513, 3)
+    // P3-M1: 13 467,513 kg; P3-M2 counts the ear walls (+ 9,341).
+    expect(kl(r, 'thep')).toBeCloseTo(13476.854, 3)
     const thep = r.items.find(i => i.key === 'thep')!
     expect(thep.hangMuc).toBe('Cốt thép (bố trí mẫu M1 theo hình học mới)')
     expect(thep.flags?.map(f => f.code)).toEqual([
       'thep_bo_tri_m1_theo_hinh_hoc',
+      'neo_ban_goc_chua_dat',
       'thep_tam_tinh_ham_luong'
     ])
-    // Only the wings and the ear walls are estimated.
+    // Only the wings are estimated (P3-M2: the ear walls are counted).
     expect(
       r.items.filter(i => i.key.startsWith('thep_hl_')).map(i => i.key)
-    ).toEqual(['thep_hl_canh', 'thep_hl_tai'])
-    expect(r.bars).toHaveLength(35)
+    ).toEqual(['thep_hl_canh'])
+    expect(r.bars).toHaveLength(37)
     expect(r.bars.find(b => b.mark === 'F1')).toMatchObject({
       count: 57,
       length: 6350
@@ -282,9 +285,9 @@ describe('BTKL steel: counted from the layout (old → new)', () => {
     expect(r.items.find(i => i.stt === '1')!.khoiLuong).toBeCloseTo(184.857, 3)
   })
 
-  test('L1 at 3 %: 12 842,755 → 13 450,431 kg (the wing estimate follows)', () => {
+  test('L1 at 3 %: 12 842,755 → 13 450,431 → 13 459,772 kg (P3-M2 ears)', () => {
     const r = acTpBtklMo({ ...L1, docNgang: 3 })
-    expect(kl(r, 'thep')).toBeCloseTo(13450.431, 3)
+    expect(kl(r, 'thep')).toBeCloseTo(13459.772, 3)
     expect(kl(r, 'canh')).toBeCloseTo(19.592, 3)
     expect(r.items.find(i => i.stt === '1')!.khoiLuong).toBeCloseTo(184.745, 3)
   })
@@ -351,7 +354,7 @@ describe('tools: «Tạo hồ sơ L1, lập BTKL mặc định», then 3 %', () 
         .ok
     ).toBe(true)
     expect((await runBtklTool('tao_btkl', {}, db)).ok).toBe(true)
-    expect(steelOf(db).khoiLuong).toBeCloseTo(13467.513, 3)
+    expect(steelOf(db).khoiLuong).toBeCloseTo(13476.854, 3)
     expect(warningsOnSheets(db)).toEqual([])
     const res = await runDossierTool(
       'sua_ho_so_mo',
@@ -362,7 +365,7 @@ describe('tools: «Tạo hồ sơ L1, lập BTKL mặc định», then 3 %', () 
     const said = ((res.data as { canhBao?: string[] }).canhBao ?? []).join(' ')
     expect(said).toContain('Đã tự cập nhật tờ BTKL')
     expect(said).toContain('tổng C30 184,857 → 184,745 m³')
-    expect(steelOf(db).khoiLuong).toBeCloseTo(13450.431, 3)
+    expect(steelOf(db).khoiLuong).toBeCloseTo(13459.772, 3)
     expect(warningsOnSheets(db)).toEqual([])
   })
 
@@ -380,9 +383,9 @@ describe('tools: «Tạo hồ sơ L1, lập BTKL mặc định», then 3 %', () 
     )
     expect(res.ok).toBe(true)
     const item6 = steelOf(db)
-    // 35 marks counted on the 8700 × 6000 × 2500 footing (+ wings, ear
-    // walls estimated): 13 945,147 kg (L1 at hBe 2000: 13 467,513).
-    expect(item6.khoiLuong).toBeCloseTo(13945.147, 3)
+    // 37 marks counted on the 8700 × 6000 × 2500 footing (+ wings
+    // estimated): 13 954,488 kg (P3-M1, ears estimated: 13 945,147).
+    expect(item6.khoiLuong).toBeCloseTo(13954.488, 3)
     const files: { name: string; content: unknown }[] = []
     const btkl = listRuns(db).find(r => r.templateId === 'btkl_ket_cau')!
     const out = await runBtklTool(
@@ -423,8 +426,7 @@ describe('tools: «Tạo hồ sơ L1, lập BTKL mặc định», then 3 %', () 
       ([k, v]) => k.startsWith('B') && v === 'Tạm tính'
     )
     expect(estimates.map(([k]) => cell.get(`J${k.slice(1)}`))).toEqual([
-      'Thép tường cánh (2 bên) (tạm tính theo hàm lượng mẫu M1)',
-      'Thép tường tai (tạm tính theo hàm lượng mẫu M1)'
+      'Thép tường cánh (2 bên) (tạm tính theo hàm lượng mẫu M1)'
     ])
     // Total row: the sum of the mass column = BTKL item 6.
     const total = [...cell.entries()].find(

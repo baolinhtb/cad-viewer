@@ -108,6 +108,11 @@ describe('BTKL tools — abutment M1', () => {
       thepKg: 14058.319,
       cocM3: null
     })
+    // P3-M2: the steel as the sheet writes it, for the agent to repeat.
+    expect(
+      (tong(made)[0] as unknown as { thepKgHienThi: string }).thepKgHienThi
+    ).toBe('14 058,319')
+    expect(made.message).toContain('không viết 14.058,319')
     expect(tong(made)[0].co).toContain(
       '1.2 [lech_ban_goc_than] Bảng gốc ghi 53,667 m³, nhỏ hơn hình học 0,814 m³ (1,5 %); chưa giải thích được — đang chờ kỹ sư xác nhận.'
     )
