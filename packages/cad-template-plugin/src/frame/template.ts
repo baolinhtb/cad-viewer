@@ -73,6 +73,39 @@ const PARAMS: readonly AcTpParamSpec[] = [
     })
   ),
   {
+    key: 'tieuDeHinh',
+    label: 'Tiêu đề hình trên tờ',
+    type: 'text',
+    default: '',
+    group: 'Tiêu đề hình',
+    hint:
+      'Trống thì không vẽ. Có thì in tiêu đề và dòng "(TL: 1/n)" bên dưới, ' +
+      'căn giữa tại (tieuDeX, tieuDeY). ' +
+      NO_STANDARD
+  },
+  {
+    key: 'tieuDeX',
+    label: 'Tiêu đề hình — X trên tờ',
+    type: 'number',
+    unit: 'mm giấy',
+    min: 0,
+    max: 841,
+    default: 0,
+    group: 'Tiêu đề hình',
+    hint: 'Milimét giấy tính từ góc dưới trái khung ngoài. Chỉ chặn sai số nhập liệu.'
+  },
+  {
+    key: 'tieuDeY',
+    label: 'Tiêu đề hình — Y trên tờ',
+    type: 'number',
+    unit: 'mm giấy',
+    min: 0,
+    max: 594,
+    default: 0,
+    group: 'Tiêu đề hình',
+    hint: 'Milimét giấy tính từ góc dưới trái khung ngoài. Chỉ chặn sai số nhập liệu.'
+  },
+  {
     key: 'x',
     label: 'Góc dưới trái tờ — X',
     type: 'number',
@@ -169,6 +202,26 @@ export const drawingFrameTemplate: AcTpTemplate = {
           params: p.field ? { truong: p.field } : undefined
         })
       }
+    }
+    // Title of the view on the sheet, with its scale under it — as the road
+    // section prints «(TL: 1/n)» (4 mm and 2,5 mm high on paper).
+    const tieuDe = String(values.tieuDeHinh ?? '').trim()
+    if (tieuDe) {
+      const tx = Number(values.tieuDeX) || 0
+      const ty = Number(values.tieuDeY) || 0
+      ;[
+        { text: tieuDe, dy: 0, h: 4 },
+        { text: `(TL: 1/${scale})`, dy: -5.5, h: 2.5 }
+      ].forEach(({ text, dy, h }) =>
+        ctx.text({
+          role: 'tieu_de_ban_ve',
+          partId: 'tieu_de_hinh',
+          position: at([tx, ty + dy]),
+          text,
+          height: h * scale,
+          align: 1
+        })
+      )
     }
   }
 }

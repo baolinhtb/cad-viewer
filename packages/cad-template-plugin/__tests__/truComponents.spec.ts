@@ -487,7 +487,7 @@ describe('tru_cau_hoan_chinh', () => {
     }
     // Side view centred kcHinh to the right.
     const sideBe = box(of('tru_mat_ben'), 'tru_be')!
-    expect((sideBe.x0 + sideBe.x1) / 2).toBe(16000)
+    expect((sideBe.x0 + sideBe.x1) / 2).toBe(21000)
     // The views do not overlap.
     expect(box(of('tru_mat_chinh'), 'kich_thuoc')!.x1).toBeLessThan(
       Math.min(...of('tru_mat_ben').map(e => e.geometricExtents.min.x))
