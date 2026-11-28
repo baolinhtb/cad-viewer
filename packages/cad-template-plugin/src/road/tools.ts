@@ -36,14 +36,16 @@ export const ROAD_TOOLS: readonly AcApToolSchema[] = [
     description:
       'Vẽ bản vẽ cấu tạo MẶT CẮT NGANG ĐƯỜNG theo thông số (một tờ A3): làn xe, lề gia cố, lề đất, dải phân cách giữa, bó vỉa và hè (đô thị), mái ta luy đắp/đào 1:m, dốc ngang hai mái/một mái, cột kết cấu áo đường (tên lớp + bề dày) có hatch; kích thước ghi số thật, nhãn «i = 2,0 %», tỉ lệ tự chọn vừa khung (ghi «(TL: 1/n)»). Dùng khi người dùng muốn vẽ mặt cắt ngang đường / trắc ngang điển hình. Không thiết kế: không kiểm cường độ áo đường, không tính đào đắp, không lập bảng khối lượng (đừng gọi tao_btkl sau công cụ này). ' +
       'Đổi m/cm sang mm (dốc là %, cao độ là m). Mặt đường «7 m, 2 làn» → soLan 2, bLan 3500. «Lề gia cố mỗi bên 1,5 m» → bLeGiaCo 1500. Đường đô thị có hè → loaiDuong "do_thi", coBoVia true, bLeDat 0, bHe (kể cả bó vỉa). Nền đào → hNen âm. ' +
-      'Thông số không truyền lấy mặc định; công cụ trả data.macDinh (các giá trị lấy mặc định) — PHẢI nêu lại cho người dùng các giá trị đó (nhất là kết cấu áo đường, lề đất, chiều cao nền, hệ số mái) cùng tổng bề rộng nền, bề dày áo đường và tỉ lệ. Giá trị ngoài dải TCVN 4054:2005 / TCVN 13592:2022 hoặc ràng buộc sai thì công cụ từ chối, không vẽ: báo nguyên văn lời từ chối (có điều khoản, giá trị cho phép) và hỏi lại, không tự sửa số.\n' +
+      'Thông số không truyền lấy mặc định; công cụ trả data.macDinh (các giá trị lấy mặc định) — PHẢI nêu lại cho người dùng các giá trị đó (nhất là kết cấu áo đường, lề đất, chiều cao nền, hệ số mái) cùng tổng bề rộng nền, bề dày áo đường và tỉ lệ. Giá trị ngoài dải TCVN 4054:2005 / TCVN 13592:2022 hoặc ràng buộc sai thì công cụ từ chối, không vẽ: báo nguyên văn lời từ chối (có điều khoản, giá trị cho phép) và hỏi lại, không tự sửa số. ' +
+      'Thứ tự lời: TRƯỚC khi gọi công cụ chỉ nói ý định trung tính («Đang kiểm tra thông số mặt cắt ngang…») hoặc im — không nói «Tôi sẽ vẽ», «sẽ vẽ», «Đã vẽ»; công cụ kiểm thông số trước khi vẽ. «Đã vẽ…» chỉ sau khi công cụ trả ok. Công cụ từ chối (lời bắt đầu «Chưa vẽ gì:») thì câu đầu tiên trả lời người dùng là «Chưa vẽ gì: …» nguyên văn lý do, điều khoản và giá trị cho phép.\n' +
       paramDescription,
     input_schema: {
       type: 'object',
       properties: {
         thong_so: {
           type: 'object',
-          description: 'Thông số mặt cắt; chỉ truyền những gì người dùng nói. lopAoDuong dạng «tên|dày mm; tên|dày mm» từ trên xuống.',
+          description:
+            'Thông số mặt cắt; chỉ truyền những gì người dùng nói. lopAoDuong dạng «tên|dày mm; tên|dày mm» từ trên xuống.',
           additionalProperties: { type: ['number', 'string', 'boolean'] }
         }
       },
@@ -84,13 +86,22 @@ export async function runRoadTool(
   try {
     if (!ROAD_TOOLS.some(t => t.name === name))
       throw new Error(`Không có công cụ mặt cắt đường "${name}".`)
-    const given = suppliedValues(input.thong_so)
+    let given: AcTpParamValues
+    try {
+      given = suppliedValues(input.thong_so)
+    } catch (e) {
+      return {
+        ok: false,
+        status: 'refused',
+        message: `Chưa vẽ gì: ${(e as Error).message}`
+      }
+    }
     const model = buildRoadModel(given)
     if (model.errors.length)
       return {
         ok: false,
         status: 'refused',
-        message: `Chưa vẽ mặt cắt, không vẽ gì:\n${model.errors.join('\n')}`,
+        message: `Chưa vẽ gì: ${model.errors.join('\n')}`,
         data: { loi: model.errors }
       }
     const db = database ?? AcApDocManager.instance.curDocument.database
@@ -107,7 +118,7 @@ export async function runRoadTool(
       return {
         ok: false,
         status: 'refused',
-        message: `Chưa vẽ mặt cắt, không vẽ gì: ${(e as Error).message}`
+        message: `Chưa vẽ gì: ${(e as Error).message}`
       }
     }
     const result = await runTemplate(roadSectionTemplate, values, db)

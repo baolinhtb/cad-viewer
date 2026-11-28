@@ -332,7 +332,9 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
       'relay that line verbatim — it already names 1.4 Tường cánh, 1.7 Lan can trên tường cánh and tổng C30'
     )
     expect(prompt).toContain('Do not replace it with only the C30 total')
-    expect(skill).toContain('**áp ngay** với quy ước dấu hiện tại / mặc định (dương =')
+    expect(skill).toContain(
+      '**áp ngay** với quy ước dấu hiện tại / mặc định (dương ='
+    )
     expect(skill).toContain('trái tuyến cao')
     expect(skill).toContain(
       'Không hỏi mố có nằm trong đường cong siêu cao hay không,'
@@ -345,8 +347,12 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).not.toContain('Hỏi người dùng xác nhận trước khi dựng')
     expect(skill).not.toMatch(/Hỏi\s+người dùng xác nhận trước khi dựng/)
     expect(skill).toContain('**nhắc lại nguyên văn dòng đó**')
-    expect(skill).toContain('1.4 Tường cánh, 1.7 Lan can trên tường cánh, tổng C30')
-    expect(skill).toContain('Không thay bằng chỉ tổng C30, không bỏ 1.4 hay 1.7')
+    expect(skill).toContain(
+      '1.4 Tường cánh, 1.7 Lan can trên tường cánh, tổng C30'
+    )
+    expect(skill).toContain(
+      'Không thay bằng chỉ tổng C30, không bỏ 1.4 hay 1.7'
+    )
   })
 
   // QA P2-M6b: the prompt rule to name 1.4/1.7 was ignored (only C30
@@ -371,7 +377,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('**nhắc lại nguyên văn dòng đó**')
     expect(skill).toContain('**Sau lần sửa: không lặp cảnh báo tĩnh.**')
     expect(skill).toContain('không viết lại')
-    expect(skill).toContain("thành mục «Lưu ý» hai gạch sau mỗi lần sửa")
+    expect(skill).toContain('thành mục «Lưu ý» hai gạch sau mỗi lần sửa')
     expect(skill).toContain('được thêm **tối đa một câu** ghi chú')
   })
 
@@ -402,7 +408,9 @@ describe('no take-off unless asked (P3-M3 backlog b)', () => {
     expect(prompt).toContain('Không tự lập BTKL')
     expect(prompt).toContain('«Có lập bảng khối lượng không?»')
     expect(prompt).toContain('Prompt đã nói «…, lập BTKL» thì gọi cả hai')
-    expect(skill).toContain('chưa xin thì chỉ hỏi «Có lập bảng khối lượng không?»')
+    expect(skill).toContain(
+      'chưa xin thì chỉ hỏi «Có lập bảng khối lượng không?»'
+    )
   })
 })
 
@@ -412,5 +420,13 @@ describe('road cross-section (P3-M3) in the system prompt', () => {
     expect(prompt).toContain('«mặt đường 7 m, 2 làn» → soLan 2, bLan 3500')
     expect(prompt).toContain('nêu lại các giá trị lấy mặc định')
     expect(prompt).toContain('không gọi tao_btkl sau mặt cắt đường')
+  })
+
+  // Live P3-M3: a refused section opened with «Tôi sẽ vẽ…» before the refusal.
+  test('no «sẽ vẽ» before the check; a refusal opens «Chưa vẽ gì:» (P3-M4a)', () => {
+    expect(prompt).toContain('«Đang kiểm tra thông số mặt cắt ngang…»')
+    expect(prompt).toContain('không nói «Tôi sẽ vẽ…»/«Đã vẽ…»')
+    expect(prompt).toContain('«Đã vẽ…» chỉ sau khi công cụ trả ok')
+    expect(prompt).toContain('câu đầu tiên trả lời là «Chưa vẽ gì: …»')
   })
 })

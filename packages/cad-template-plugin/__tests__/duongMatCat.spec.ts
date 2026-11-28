@@ -307,11 +307,37 @@ describe('tao_mat_cat_duong against a real database', () => {
       db
     )
     expect(out).toMatchObject({ ok: false, status: 'refused' })
-    expect(out.message).toContain('không vẽ gì')
+    expect(out.message).toMatch(/^Chưa vẽ gì: /)
     expect(out.message).toContain('TCVN 4054 đ.4.9 Bảng 9')
     expect(count(db)).toBe(before)
     expect(listRuns(db)).toEqual([])
   })
+
+  // The three live refusals of P3-M3 (dốc 3 %, dải phân cách 2 làn, làn 2,5 m):
+  // nothing added, and the first words are «Chưa vẽ gì:» (P3-M4a).
+  test.each([
+    ['dốc 3 %', { iMat: 3 }, '1,5–2,0 %'],
+    ['dải phân cách 2 làn', { soLan: 2, bPhanCach: 2000 }, 'số làn chẵn'],
+    ['làn 2,5 m', { bLan: 2500 }, '2 750–3 750 mm']
+  ] as const)(
+    'refused %s: draws nothing, message opens «Chưa vẽ gì:»',
+    async (_n, v, allowed) => {
+      const db = database()
+      const before = count(db)
+      const out = await runRoadTool(
+        'tao_mat_cat_duong',
+        { thong_so: { ...v } },
+        db
+      )
+      expect(out).toMatchObject({ ok: false, status: 'refused' })
+      expect(out.message).toMatch(/^Chưa vẽ gì: /)
+      expect(out.message).toContain(allowed)
+      expect(out.message).toMatch(/TCVN/)
+      expect(out.message).not.toMatch(/Đã vẽ|sẽ vẽ/)
+      expect(count(db)).toBe(before)
+      expect(listRuns(db)).toEqual([])
+    }
+  )
 
   test('an unknown parameter is refused by name', async () => {
     const out = await runRoadTool(
@@ -320,6 +346,7 @@ describe('tao_mat_cat_duong against a real database', () => {
       database()
     )
     expect(out.ok).toBe(false)
+    expect(out.message).toMatch(/^Chưa vẽ gì: /)
     expect(out.message).toContain('«beRongMat»')
   })
 
@@ -336,5 +363,12 @@ describe('tao_mat_cat_duong against a real database', () => {
     expect(d).toContain('không lập bảng khối lượng')
     expect(d).toContain('đừng gọi tao_btkl')
     expect(d).toContain('data.macDinh')
+  })
+
+  test('the tool tells the agent not to promise a drawing before the check', () => {
+    const d = ROAD_TOOLS[0].description
+    expect(d).toContain('không nói «Tôi sẽ vẽ»')
+    expect(d).toContain('«Đã vẽ…» chỉ sau khi công cụ trả ok')
+    expect(d).toContain('câu đầu tiên trả lời người dùng là «Chưa vẽ gì: …»')
   })
 })

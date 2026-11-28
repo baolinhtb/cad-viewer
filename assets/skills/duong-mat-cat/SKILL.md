@@ -48,11 +48,20 @@ Ví dụ: «Vẽ mặt cắt ngang đường 2 làn xe, mặt đường 7 m, l�
 1,5 m, dốc ngang 2 %» → bề rộng nền 7 000 + 2 × 1 500 + 2 × 500 = 11 000 mm;
 áo đường 570 mm; mặt cắt 1:100, cột kết cấu áo đường 1:10.
 
+## Thứ tự lời
+
+Công cụ kiểm thông số trước rồi mới vẽ, nên trước khi gọi chỉ nói ý định
+trung tính («Đang kiểm tra thông số mặt cắt ngang…») hoặc im. Không nói
+«Tôi sẽ vẽ…», «sẽ vẽ» hay «Đã vẽ…» trước khi công cụ trả lời. «Đã vẽ…» chỉ
+sau khi công cụ trả `ok`.
+
 ## Khi bị từ chối
 
-Công cụ không vẽ gì và trả lời nêu ràng buộc, giá trị cho phép và điều khoản.
-Nhắc lại nguyên văn, không tự sửa số, không vẽ bằng cách khác. Các ràng buộc
-và điều khoản: `references/tcvn-check.md`.
+Công cụ không vẽ gì và trả lời bắt đầu bằng «Chưa vẽ gì:», nêu ràng buộc,
+giá trị cho phép và điều khoản. Câu đầu tiên trả lời người dùng là «Chưa vẽ
+gì: …» nhắc lại nguyên văn lý do, điều khoản và giá trị cho phép; không tự
+sửa số, không vẽ bằng cách khác. Các ràng buộc và điều khoản:
+`references/tcvn-check.md`.
 
 ## Giới hạn
 
