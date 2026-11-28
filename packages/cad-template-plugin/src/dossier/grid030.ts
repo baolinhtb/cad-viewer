@@ -110,11 +110,37 @@ let legacy = false
 export function acTpWithLegacyDossierGeometry<T>(build: () => T): T {
   const was = legacy
   legacy = true
+  // Drawn before P2-M6 is drawn before P3-M1 too.
   try {
-    return build()
+    return acTpWithPreP3Steel(build)
   } finally {
     legacy = was
   }
+}
+
+/**
+ * Steel of the generator before P3-M1: for a changed geometry the steel
+ * sheets kept the M1 drawing at the M1 size, marked «THÉP THEO M1 GỐC…»,
+ * SUB-100 the M1 tables, and the BTKL steel was the M1 ratio estimate of
+ * every group. Only to recognise such a dossier when it is edited — never
+ * to build a new one (see `acapDossierRevisionFor` in edit.ts).
+ */
+let preP3Steel = false
+
+/** Runs `build` with the steel of the generator before P3-M1 (synchronous). */
+export function acTpWithPreP3Steel<T>(build: () => T): T {
+  const was = preP3Steel
+  preP3Steel = true
+  try {
+    return build()
+  } finally {
+    preP3Steel = was
+  }
+}
+
+/** Whether the steel is being drawn / counted as before P3-M1. */
+export function acTpPreP3Steel(): boolean {
+  return preP3Steel
 }
 
 /** Whether a drawing is being built as before P2-M6. */
@@ -504,18 +530,224 @@ const SUB_020: View[] = [
 ]
 
 /**
+ * Steel sheets SUB-070 / 080 / 090 (P3-M1): the same lines as the general
+ * views the sections are cut from (front elevation for 1-1/2-2, the plan for
+ * 4-4/5-5, A–A / B–B / C–C for 3-3 and the wing sections), so the bars
+ * follow the dossier's dimensions. Two things are added for reinforcement:
+ *
+ * - a band line 150 inside each concrete face, moving with that face: what
+ *   lies between a face and its band moves rigidly, so a bar end or a bar
+ *   row keeps the M1 cover to the new face (75–100 in the source) instead
+ *   of the cover growing or shrinking with the member;
+ * - no slope tilt: the source draws the steel at its own falls; a changed
+ *   cross or longitudinal fall is not re-drawn on these sheets (P3-M2).
+ *
+ * Rows of bars in section (the `MO2_U4xx` arrays, 150 apart) are re-laid at
+ * the M1 spacing by the scene (`acTpSteelRowCount`), not stretched apart.
+ */
+const STEEL_BAND = 150
+
+/**
+ * Lines along the bridge of a side section, from the toe edge `e` (the
+ * muiBe side) in direction `s`: stem front (muiBe), head wall front and
+ * stem back (+ tThan, assumption 9), heel edge (lBe); the outer pile
+ * centres at D from the edges where piles are drawn; the wing end (LC from
+ * the head wall front) where the wing is drawn.
+ */
+function steelSide(
+  e: number,
+  s: 1 | -1,
+  { piles = false, wing = false }: { piles?: boolean; wing?: boolean } = {}
+): Line[] {
+  const stem = (d: Delta) => s * (d.muiBe + d.tThan)
+  const lines: Line[] = [
+    [e, () => 0],
+    [e + s * STEEL_BAND, () => 0],
+    [e + s * 2000, d => s * d.muiBe],
+    [e + s * (2000 + STEEL_BAND), d => s * d.muiBe],
+    [e + s * 3000, stem],
+    [e + s * 3500, stem],
+    // The corbel and the 300 haunch behind the stem move with its back.
+    [e + s * (3500 + 300), stem],
+    [e + s * (6000 - STEEL_BAND), d => s * d.lBe],
+    [e + s * 6000, d => s * d.lBe]
+  ]
+  if (piles)
+    lines.push(
+      [e + s * 1200, d => s * d.D],
+      [e + s * 4800, d => s * (d.lBe - d.D)]
+    )
+  if (wing) {
+    const end = (d: Delta) => s * (d.muiBe + d.tThan + d.lCanh)
+    lines.push([e + s * (9500 - STEEL_BAND), end], [e + s * 9500, end])
+  }
+  return lines.sort((a, b) => a[0] - b[0])
+}
+
+/**
+ * Heights of a steel section: lean concrete, footing (with its bands), the
+ * stem top / seat (`seat`, its lowest point in the section), the head wall
+ * top (`top`, lowest point), and the rail top where drawn.
+ */
+function steelHeights(
+  bottom: number,
+  seat: number,
+  top: number,
+  rail?: number
+): Line[] {
+  const head = (d: Delta) => d.hBe + d.hThan + d.hDau
+  return [
+    [bottom - 100, d => -d.hLot],
+    [bottom, () => 0],
+    [bottom + STEEL_BAND, () => 0],
+    [bottom + 2000 - STEEL_BAND, d => d.hBe],
+    [bottom + 2000, d => d.hBe],
+    [seat - STEEL_BAND, d => d.hBe + d.hThan],
+    [top - STEEL_BAND, head],
+    ...(rail === undefined
+      ? []
+      : [[rail, (d: Delta) => head(d) + d.hLanCan] as Line])
+  ]
+}
+
+/** Across the bridge, with the bands inside the footing edges. */
+const steelAcross = (lines: Line[], left: number): Line[] =>
+  [
+    ...lines,
+    [left + STEEL_BAND, (d: Delta) => -d.bBe / 2] as Line,
+    [left + SOURCE_STEM - STEEL_BAND, (d: Delta) => d.bBe / 2] as Line
+  ].sort((a, b) => a[0] - b[0])
+
+/** Wing sections 9-9 / 10-10 in plan: thickness tCanh from the outer face. */
+const wingPlan = (cut: number, outer: number, s: 1 | -1): Line[] =>
+  [
+    [cut, () => 0] as Line,
+    [outer - s * 500, (d: Delta) => -s * d.tCanh] as Line,
+    [outer, () => 0] as Line
+  ].sort((a, b) => a[0] - b[0])
+
+/** SUB-070 — half sections 1-1 / 2-2, half plans 4-4 / 5-5, section 3-3. */
+const SUB_070: View[] = [
+  {
+    name: 'Mặt cắt 1-1 / 2-2',
+    box: { x0: 0, y0: 11000, x1: 20000, y1: 30000 },
+    x: steelAcross(frontAcross(8570), 8570),
+    y: steelHeights(13733, 20384, 22190)
+  },
+  {
+    name: 'Mặt cắt 4-4 / 5-5',
+    box: { x0: 0, y0: 0, x1: 20000, y1: 11000 },
+    x: steelAcross(planAcross(8570), 8570),
+    y: [
+      [1843, () => 0],
+      [1843 + STEEL_BAND, () => 0],
+      [3843, d => d.muiBe],
+      [5343, d => d.muiBe + d.tThan],
+      [7843 - STEEL_BAND, d => d.lBe],
+      [7843, d => d.lBe]
+    ]
+  },
+  {
+    name: 'Mặt cắt 3-3',
+    box: { x0: 20000, y0: 0, x1: 40000, y1: 30000 },
+    x: steelSide(31338, -1, { piles: true }),
+    y: steelHeights(13733, 20449, 22337)
+  }
+]
+
+/** SUB-080 — left wing: sections 7-7, 8-8 (over 9-9, 10-10) and 6-6. */
+const SUB_080: View[] = [
+  {
+    name: 'Mặt cắt 7-7',
+    box: { x0: 0, y0: 7000, x1: 17500, y1: 30000 },
+    x: steelSide(6396, 1, { piles: true, wing: true }),
+    y: steelHeights(9216, 16002, 17821, 18900)
+  },
+  {
+    name: 'Mặt cắt 9-9',
+    box: { x0: 0, y0: 0, x1: 17500, y1: 7000 },
+    x: steelSide(6396, 1, { wing: true }),
+    y: wingPlan(715, 3225, 1)
+  },
+  {
+    name: 'Mặt cắt 8-8',
+    box: { x0: 17500, y0: 7000, x1: 29500, y1: 30000 },
+    x: steelSide(18436, 1, { piles: true, wing: true }),
+    y: steelHeights(9216, 16002, 17821, 18900)
+  },
+  {
+    name: 'Mặt cắt 10-10',
+    box: { x0: 17500, y0: 0, x1: 29500, y1: 7000 },
+    x: steelSide(18436, 1),
+    y: wingPlan(715, 3225, 1)
+  },
+  {
+    name: 'Mặt cắt 6-6',
+    box: { x0: 29500, y0: 0, x1: 40000, y1: 30000 },
+    x: [
+      [32726, d => -d.tCanh],
+      [33226, () => 0]
+    ],
+    y: steelHeights(9216, 16002, 17821)
+  }
+]
+
+/** SUB-090 — right wing, SUB-080 mirrored: 8-8, 7-7 (over 10-10, 9-9), 6-6. */
+const SUB_090: View[] = [
+  {
+    name: 'Mặt cắt 8-8',
+    box: { x0: 0, y0: 7000, x1: 14500, y1: 30000 },
+    x: steelSide(13686, -1, { piles: true, wing: true }),
+    y: steelHeights(9954, 16741, 18559, 19640)
+  },
+  {
+    name: 'Mặt cắt 10-10',
+    box: { x0: 0, y0: 0, x1: 14500, y1: 7000 },
+    x: steelSide(13686, -1),
+    y: wingPlan(1453, 3963, 1)
+  },
+  {
+    name: 'Mặt cắt 7-7',
+    box: { x0: 14500, y0: 7000, x1: 27000, y1: 30000 },
+    x: steelSide(25726, -1, { piles: true, wing: true }),
+    y: steelHeights(9954, 16741, 18559, 19640)
+  },
+  {
+    name: 'Mặt cắt 9-9',
+    box: { x0: 14500, y0: 0, x1: 27000, y1: 7000 },
+    x: steelSide(25726, -1, { wing: true }),
+    y: wingPlan(1453, 3963, 1)
+  },
+  {
+    name: 'Mặt cắt 6-6',
+    box: { x0: 27000, y0: 0, x1: 40000, y1: 30000 },
+    x: [
+      [30006, () => 0],
+      [30506, d => d.tCanh]
+    ],
+    y: steelHeights(9954, 16741, 18559)
+  }
+]
+
+/**
  * How a sheet's views sit: columns left to right, each listing its views top
  * to bottom (indices into the sheet's views). When a view grows, the views
  * below it and the columns to its right move to keep the source's gaps.
  */
 const FLOWS: Record<string, number[][]> = {
   'SUB-010': [[0, 1], [2, 3], [4]],
-  'SUB-020': [[0]]
+  'SUB-020': [[0]],
+  'SUB-070': [[0, 1], [2]],
+  'SUB-080': [[0, 1], [2, 3], [4]],
+  'SUB-090': [[0, 1], [2, 3], [4]]
 }
 
 const GRIDS: Record<string, View[]> = {
   'SUB-010': SUB_010,
-  'SUB-020': SUB_020
+  'SUB-020': SUB_020,
+  'SUB-070': SUB_070,
+  'SUB-080': SUB_080,
+  'SUB-090': SUB_090
 }
 
 /** A piecewise-linear map through the moved lines. */
