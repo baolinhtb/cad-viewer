@@ -290,7 +290,9 @@ describe('BTKL mố — changed geometry', () => {
       'mau_thuan_lot',
       'bt_nhua_gia_dinh',
       'van_khuon_cho_dinh_muc',
-      'thep_bo_tri_m1_theo_hinh_hoc'
+      'thep_bo_tri_m1_theo_hinh_hoc',
+      // P3-M2: P1's lap under the stem top, short on the M1 drawing itself.
+      'neo_ban_goc_chua_dat'
     ])
   })
 
@@ -302,7 +304,8 @@ describe('BTKL mố — changed geometry', () => {
     expect(thep.nguon).toBe('tham_so')
     expect(thep.hangMuc).toBe('Cốt thép (bố trí mẫu M1 theo hình học mới)')
     expect(thep.flags?.map(f => f.code)).toEqual([
-      'thep_bo_tri_m1_theo_hinh_hoc'
+      'thep_bo_tri_m1_theo_hinh_hoc',
+      'neo_ban_goc_chua_dat'
     ])
     // Side bars F5 every 150 up the footing: 12 → 16 per face (+500 mm).
     expect(r.bars.find(b => b.mark === 'F5')!.count).toBe(32)

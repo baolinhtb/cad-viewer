@@ -15,7 +15,7 @@
  *
  * At the M1 values every rule gives the table's own count and length. A
  * group whose geometry changed in a way no rule follows (the wings: chamfer,
- * slopes, length; the ear walls) is not re-laid here: its bars keep the M1
+ * slopes, length, two-piece rows) is not re-laid here: its bars keep the M1
  * marks and its mass is estimated from the M1 ratio kg/m³ of that member
  * (`tamTinh`), flagged, as before P3-M1 — only for that group.
  */
@@ -23,6 +23,12 @@ import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
 import { dossierDefaults, dossierParamLabel } from '../dossier/model'
 import bars from '../dossier/reference/bars.json'
+import {
+  ACTP_NEO_VAT_LIEU,
+  ACTP_THANH_NGANG_TREN,
+  acTpNoiChong,
+  acTpSoMoiNoi
+} from './neoThep'
 import { acTpSteelKgPerM } from './sourceM1'
 
 /** A parameter's change from the M1 default, mm (or count). */
@@ -130,6 +136,18 @@ const RAIL: Record<string, Rule> = {
   t2: { sets: 2, spread: [spread(44, 150, 'lCanh')] }
 }
 
+/**
+ * Ear walls (P3-M2), read from the M1 table: each ear 150 × 1200 × N with
+ * N = tThan − 500 (1000 at M1, as the take-off's concrete line), C1 D14 1685
+ * = 1200 high + 485 into the stem, 2 ears × 2 faces × 6 bars along N
+ * (≈ (1000 − 2 × 75)/5 = 170 apart); C2 D14 1485 = N + 485 along N, 2 ears ×
+ * 8 rows up the ear (the height does not follow tThan).
+ */
+const EAR_WALL: Record<string, Rule> = {
+  c1: { sets: 4, spread: [spread(6, 170, 'tThan')] },
+  c2: { segs: { 0: along('tThan') } }
+}
+
 const WING_DEPENDS = [
   'lBe',
   'muiBe',
@@ -190,8 +208,9 @@ const GROUPS: Record<string, Group> = {
   tai: {
     label: 'tường tai',
     dependsOn: ['tThan'],
-    follows: [],
-    concrete: 'tai'
+    follows: ['tThan'],
+    concrete: 'tai',
+    rules: EAR_WALL
   },
   // Per bearing (the M1 table is for 4); their spacing does not change them.
   goi: {
@@ -237,6 +256,11 @@ export interface AcTpSteelRow {
    * (new concrete volume / M1 volume) and why.
    */
   tamTinh?: { heSo: number; lyDo: string }
+  /**
+   * P3-M2: the bar is longer than a commercial bar, `soMoi` tension laps of
+   * `chieuDai` mm each (Đ11.5.3.1, class B assumed) are in `length` and `kg`.
+   */
+  noiChong?: { soMoi: number; chieuDai: number; cap: 'A' | 'B' }
 }
 
 /** The schedule and the groups estimated, with their reasons. */
@@ -301,9 +325,24 @@ export function acTpSteelScheduleMo(
             (p, s) => p * acTpBarsOver(s.k0, s.s, s.along(d)),
             1
           )
+      // P3-M2: a bar the new geometry made longer than a commercial bar is
+      // lap spliced (Đ11.5.3.1); the laps add to the mark's length.
+      const m = ACTP_NEO_VAT_LIEU
+      const lap = acTpNoiChong(
+        b.diameter,
+        m,
+        ACTP_THANH_NGANG_TREN.includes(b.mark)
+      )
+      const soMoi = acTpSoMoiNoi(length, lap, m.chieuDaiCayThep)
+      const noiChong =
+        soMoi > 0
+          ? { soMoi, chieuDai: Math.ceil(lap), cap: m.capNoi }
+          : undefined
+      if (noiChong) length += noiChong.soMoi * noiChong.chieuDai
       if (
         !(count >= 1) ||
         !(length > 0) ||
+        !(soMoi >= 0) ||
         segments.some(s => Number(s) <= 0)
       ) {
         refused = `số hiệu ${b.mark.toUpperCase()} không còn chỗ bố trí với lớp phủ và cự ly mẫu M1`
@@ -325,7 +364,8 @@ export function acTpSteelScheduleMo(
           length: b.length,
           kg: (b.count * b.length * kgPerM) / 1000,
           segments: b.segments
-        }
+        },
+        ...(noiChong ? { noiChong } : {})
       })
     }
     laid.set(key, refused ?? out)

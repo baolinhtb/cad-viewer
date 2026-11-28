@@ -319,7 +319,8 @@ describe('hồ sơ L1: cảnh báo vào khối GHI CHÚ, không đè hình', () 
     const own = notes.filter(n => sheetOf(n) === 'SUB-100')
     expect(own[0].textString).toBe('GHI CHÚ')
     const said = own.map(n => n.textString).join(' ')
-    expect(said).toContain('(*) tường cánh trái, tường cánh phải, tường tai')
+    // P3-M2: the ear walls are counted, only the wings estimated.
+    expect(said).toContain('(*) tường cánh trái, tường cánh phải: số thanh')
     expect(said).not.toMatch(/THÉP THEO M1 GỐC|CỦA M1 GỐC/)
     // No warning left outside a block.
     const loose = entities.filter(

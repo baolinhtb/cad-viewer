@@ -358,6 +358,35 @@ const planAcross = (left: number): Line[] =>
  */
 
 /** SUB-010 — front elevation, sections A–A and B–B, plans. */
+/**
+ * The cross fall of the front elevation (SUB-010 «Mặt chính») about the
+ * centre line, for a view drawn `dx` / `dy` (source mm) off it: the steel
+ * sections 1-1 / 2-2 are cut from that elevation, 5156 to the right and 447
+ * up (stem edge 3414 → 8570, footing top 15286 → 15733).
+ */
+const crossFall =
+  (dx: number, dy: number): View['tilt'] =>
+  (d, _n, fx) => {
+    const i = d.docNgang / 100
+    const centre = fx(7264 + dx)
+    const stem = [fx(3414 + dx), fx(11114 + dx)]
+    const road = [fx(3764 + dx), fx(10764 + dx)]
+    const fix = fallFix(
+      fx,
+      7264 + dx,
+      [3414 + dx, 11114 + dx],
+      [3764 + dx, 10764 + dx]
+    )
+    return (x, y, xs) => {
+      const onRoad = y >= 21700 + dy
+      const [lo, hi] = onRoad ? road : stem
+      return (
+        (i * (clamp(x, lo, hi) - centre) + fix(onRoad, x, xs)) *
+        ramp(y, 15286 + dy, 19900 + dy)
+      )
+    }
+  }
+
 const SUB_010: View[] = [
   {
     name: 'Mặt chính',
@@ -376,20 +405,7 @@ const SUB_010: View[] = [
     // slope than stated (L1: 1,75 % for 2 %, a 20 mm tilt left at 0 %).
     // `fallFix` adds the source fall over the width added (P2-M6), from the
     // source x, so the drawn slope is the stated one on any width.
-    tilt: (d, _n, fx) => {
-      const i = d.docNgang / 100
-      const centre = fx(7264)
-      const stem = [fx(3414), fx(11114)]
-      const road = [fx(3764), fx(10764)]
-      const fix = fallFix(fx, 7264, [3414, 11114], [3764, 10764])
-      return (x, y, xs) => {
-        const [lo, hi] = y >= 21700 ? road : stem
-        return (
-          (i * (clamp(x, lo, hi) - centre) + fix(y >= 21700, x, xs)) *
-          ramp(y, 15286, 19900)
-        )
-      }
-    },
+    tilt: crossFall(0, 0),
     y: [
       ...heights(20015).slice(0, 3),
       // The seat falls across the bridge (19916 at its low end, 20080 at
@@ -539,8 +555,10 @@ const SUB_020: View[] = [
  *   lies between a face and its band moves rigidly, so a bar end or a bar
  *   row keeps the M1 cover to the new face (75–100 in the source) instead
  *   of the cover growing or shrinking with the member;
- * - no slope tilt: the source draws the steel at its own falls; a changed
- *   cross or longitudinal fall is not re-drawn on these sheets (P3-M2).
+ * - the cross fall of the front elevation on sections 1-1 / 2-2 (P3-M2):
+ *   the stem and head-wall bars follow the sloped seat and top. The other
+ *   steel views keep the source falls (sections along the bridge do not
+ *   see the cross fall; the wings' docDoc is not re-drawn).
  *
  * Rows of bars in section (the `MO2_U4xx` arrays, 150 apart) are re-laid at
  * the M1 spacing by the scene (`acTpSteelRowCount`), not stretched apart.
@@ -632,7 +650,11 @@ const SUB_070: View[] = [
     name: 'Mặt cắt 1-1 / 2-2',
     box: { x0: 0, y0: 11000, x1: 20000, y1: 30000 },
     x: steelAcross(frontAcross(8570), 8570),
-    y: steelHeights(13733, 20384, 22190)
+    y: steelHeights(13733, 20384, 22190),
+    // P3-M2: the cross fall of the elevation it is cut from — stem bars
+    // stretch to the sloped seat, the head wall to its sloped top, so their
+    // ends keep the M1 cover on either side; the footing stays.
+    tilt: crossFall(8570 - 3414, 15733 - 15286)
   },
   {
     name: 'Mặt cắt 4-4 / 5-5',

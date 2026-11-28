@@ -735,7 +735,7 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
       'warning',
       values.thepF3 === 'D25' || values.thepW16 === 'D14'
         ? 'Cấu tạo thép đã khác mẫu M1 (F3 D25 hoặc W16 D14): không vẽ bố trí thép mẫu và không dùng bảng thép cũ. Cần phương án thép mới.'
-        : 'Hình học đã khác mẫu M1: tờ thép SUB-070…090 và bảng thép SUB-100 là bố trí mẫu M1 kéo theo kích thước mới (giữ đường kính, số hiệu, móc, lớp phủ, cự ly; thêm/bớt thanh) — chưa phải thiết kế cốt thép mới, chưa kiểm toán. Thép tường cánh, tường tai còn tạm tính theo hàm lượng mẫu M1.'
+        : 'Hình học đã khác mẫu M1: tờ thép SUB-070…090 và bảng thép SUB-100 là bố trí mẫu M1 kéo theo kích thước mới (giữ đường kính, số hiệu, móc, lớp phủ, cự ly; thêm/bớt thanh) — chưa phải thiết kế cốt thép mới, chưa kiểm toán. Thép tường cánh còn tạm tính theo hàm lượng mẫu M1 (tường tai đã đếm thanh). Đã kiểm neo, móc, nối chồng theo TCVN 11823-5 (Đ11.2.1.1, Đ11.2.4.1, Đ11.5.3.1; fy 400 MPa và cây thép 11,7 m là giả định): thanh dài hơn cây thép được cộng nối chồng; neo không đủ thì báo neo_khong_du, giữ hình.'
     )
   if (values.thep === 'khong')
     issue(
