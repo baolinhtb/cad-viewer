@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * Publishes the repository's library templates whose version is not in the
- * library yet — the FIX-NOTE follow-up: `mo_mat_chinh` 2.0.1,
- * `mo_coc_khoan_nhoi` / `tru_mat_chinh` / `tru_mat_ben` 1.0.1 (the GHI CHÚ
- * block). The browser evaluates the newest *published* version of each id
+ * library yet: `mo_mat_chinh` 2.0.1, `mo_coc_khoan_nhoi` 1.0.1 (the GHI CHÚ
+ * block, already published by the FIX-NOTE run — left as they are), and
+ * `tru_mat_chinh` / `tru_mat_ben` 1.1.0 (P3-M4a2: seat-width check N, D < 750
+ * note). The browser evaluates the newest *published* version of each id
  * from `GET /api/templates`; a version already uploaded with other code is
  * refused (`uploadTemplate`: drawings pin id@version), so a change ships as a
  * new version.
@@ -22,7 +23,8 @@
  *     --db /path/to/auth.db --user author@example.com [--dry-run] \
  *     [packages/cad-template-plugin/library/mo_mat_chinh.js ...]
  *
- * With no files, the four FIX-NOTE files are taken. `--dry-run` reports what
+ * With no files, those four files are taken (each at the version in the
+ * repository); for the pier alone pass the two tru_*.js paths. `--dry-run` reports what
  * would be done and writes nothing.
  */
 import { readFileSync } from 'node:fs'

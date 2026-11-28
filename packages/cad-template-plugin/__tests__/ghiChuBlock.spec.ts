@@ -559,8 +559,8 @@ describe('library versions to publish (drawings pin id@version)', () => {
   test.each([
     ['mo_mat_chinh.js', '2.0.1'],
     ['mo_coc_khoan_nhoi.js', '1.0.1'],
-    ['tru_mat_chinh.js', '1.0.1'],
-    ['tru_mat_ben.js', '1.0.1']
+    ['tru_mat_chinh.js', '1.1.0'],
+    ['tru_mat_ben.js', '1.1.0']
   ])('%s is %s', (file, version) => {
     expect(loadLibraryTemplate(file).meta.version).toBe(version)
   })

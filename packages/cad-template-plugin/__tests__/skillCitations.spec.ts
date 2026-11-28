@@ -214,6 +214,57 @@ describe('the drilled-shaft clauses are cited with their conditions', () => {
   })
 })
 
+describe('the pier never sizes piles or the cap "by TCVN 11823-11"', () => {
+  // TCVN 11823-11:2017 §7 (Trụ cầu) has no dimensional clause: 7.1 sends
+  // loads to Parts 3, 5 and 6, and 7.2 is protection — impact, a railway
+  // barrier, scour, a cutwater, all qualitative. The pile clauses are
+  // 11823-10 đ.8.1.2 / 8.1.3. So a pier source may cite 11823-11 only for
+  // what it really holds (the pier types of đ.3.5, đ.7.1, đ.7.2.x), and never
+  // next to choosing a pile or a cap size.
+  const PIER_SOURCES = [
+    ...guideFiles('tru-cau'),
+    join(LIBRARY, 'tru_mat_chinh.js'),
+    join(LIBRARY, 'tru_mat_ben.js'),
+    join(__dirname, '..', 'src', 'assembly.ts'),
+    join(__dirname, '..', 'src', 'btkl', 'tru.ts'),
+    join(
+      ROOT,
+      'packages',
+      'cad-agent-plugin',
+      'src',
+      'agent',
+      'systemPrompt.ts'
+    )
+  ]
+  const ALLOWED = /^(3\.5|7\.1|7\.2(\.[1-4])?)$/
+
+  test.each(PIER_SOURCES.map(f => [f.slice(ROOT.length + 1), f]))(
+    '%s',
+    (_name, file) => {
+      const content = readFileSync(file, 'utf8')
+      const bad: string[] = []
+      for (const c of scan(file, content).citations)
+        if (c.standard === '11823-11' && !ALLOWED.test(c.ref))
+          bad.push(`${c.where}: 11823-11 ${c.kind} ${c.ref}`)
+      content.split('\n').forEach((line, i) => {
+        if (/11823-11/.test(line) && /chọn|cọc|xà mũ/i.test(line))
+          bad.push(`${i + 1}: ${line.trim()}`)
+      })
+      // Wrapped prose: "chọn … theo … 11823-11" across a line break.
+      const flat = content.replace(/\s+/g, ' ')
+      for (const m of flat.matchAll(/chọn[^.;|]{0,80}?11823-11/gi))
+        bad.push(m[0])
+      expect(bad).toEqual([])
+    }
+  )
+
+  test('the guard catches the wording it is there for', () => {
+    expect(
+      /chọn[^.;|]{0,80}?11823-11/i.test('chọn xà mũ theo TCVN 11823-11')
+    ).toBe(true)
+  })
+})
+
 describe('library templates', () => {
   test('every clause in hints, descriptions and notes exists in assets/tcvn', () => {
     const errors: string[] = []

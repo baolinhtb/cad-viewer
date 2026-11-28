@@ -99,14 +99,14 @@ function box(list: AcDbEntity[], role: string) {
 
 describe('library contract', () => {
   test.each(FILES)(
-    '%s: one default export, no import, 1.0.1, says it is preliminary',
+    '%s: one default export, no import, 1.1.0, says it is preliminary',
     file => {
       const code = readFileSync(join(DIR, file), 'utf8')
       expect(code.match(/^\s*export default /gm)).toHaveLength(1)
       expect(code).not.toMatch(/^\s*import\s/m)
       const t = loadLibraryTemplate(file)
       expect(t.meta.id).toBe(file.replace('.js', ''))
-      expect(t.meta.version).toBe('1.0.1')
+      expect(t.meta.version).toBe('1.1.0')
       expect(t.meta.category).toBe('Mố trụ')
       expect(t.meta.description).toMatch(
         /bố cục sơ bộ, chưa đối chiếu bản vẽ văn phòng/i
@@ -314,6 +314,129 @@ describe('mặt bên', () => {
   })
 })
 
+describe('D < 750 mm: drawn, with the đ.8.1.3 condition noted', () => {
+  // Not a refusal: 750 mm applies only when the hole is inspected by hand.
+  test.each(FILES)('%s', file => {
+    const small = draw(file, { D: 700 })
+    expect(small.errors).toEqual([])
+    const note = notesOf(small.drawn).filter(n => /< 750 mm/.test(n))
+    expect(note).toEqual([
+      'D = 700 mm < 750 mm: hố khoan không được kiểm tra thủ công ' +
+        '(TCVN 11823-10:2017 đ.8.1.3) — nếu kiểm tra thủ công cần D ≥ 750 mm.'
+    ])
+    // At 750 and above nothing is added.
+    expect(notesOf(draw(file, { D: 750 }).drawn).join()).not.toMatch(/750/)
+    expect(notesOf(draw(file).drawn).join()).not.toMatch(/750/)
+  })
+
+  test('the side view gets a GHI CHÚ block only for this note', () => {
+    expect(notesOf(draw('tru_mat_ben.js').drawn)).toEqual([])
+    expect(notesOf(draw('tru_mat_ben.js', { D: 700 }).drawn)).toHaveLength(1)
+  })
+})
+
+describe('chiều rộng đỡ dầm N — TCVN 11823-4:2017 đ.7.4.4, PT 25, Bảng 16', () => {
+  // Defaults: H = hThan + hXaMu = 6000 + 1500 = 7500; two rows of bearings,
+  // so each span seats on at most lXaMu/2 = 1000.
+  const errs = (file: string, o: Record<string, unknown>) => {
+    const t = loadLibraryTemplate(file)
+    return t.validate({ ...defaults(t), ...o }) as string[]
+  }
+
+  test.each(FILES)(
+    '%s: passes — L 33 000, S 0, 100 %%: N = 306,35 ≤ 1000',
+    file => {
+      // (200 + 0,0017·33000 + 0,0067·7500)·1·1,00 = 200 + 56,1 + 50,25
+      expect(errs(file, { lNhip: 33000, phanTramN: 100 })).toEqual([])
+    }
+  )
+
+  test.each(FILES)(
+    '%s: same L, zone decides — 100 %% passes, 150 %% refused',
+    file => {
+      // (200 + 510 + 50,25) = 760,25 ≤ 1000 at 100 %; × 1,5 = 1140,375 > 1000.
+      expect(errs(file, { lNhip: 300000, phanTramN: 100 })).toEqual([])
+      expect(errs(file, { lNhip: 300000, phanTramN: 150 })).toEqual([
+        'Xà mũ không đủ chiều rộng đỡ dầm tối thiểu — TCVN 11823-4:2017 đ.7.4.4 ' +
+          '(Phương trình 25, Bảng 16): N = (200 + 0,0017·300000 + 0,0067·7500)' +
+          '·(1 + 0,000125·0²) × 150 % = 1140,4 mm (H = hThan + hXaMu = 7500 mm). ' +
+          'Hai hàng gối: mỗi nhịp tựa nhiều nhất lXaMu/2 = 1000 mm < 1141 mm. ' +
+          'Cần lXaMu ≥ 2282 mm.'
+      ])
+      // At the lXaMu the message asks for, it passes.
+      expect(
+        errs(file, { lNhip: 300000, phanTramN: 150, lXaMu: 2282 })
+      ).toEqual([])
+    }
+  )
+
+  test('skew raises N: S 30° → × 1,1125', () => {
+    // L 200 000, H 7500, 150 %: 590,25 · 1,1125 · 1,5 = 984,98 ≤ 1000 …
+    expect(
+      errs('tru_mat_chinh.js', { lNhip: 200000, gocXien: 30, phanTramN: 150 })
+    ).toEqual([])
+    // … S 35° → 1 + 0,000125·1225 = 1,153125: 1020,95 > 1000.
+    expect(
+      errs('tru_mat_chinh.js', {
+        lNhip: 200000,
+        gocXien: 35,
+        phanTramN: 150
+      }).join()
+    ).toMatch(/= 1020,9 mm .*< 1021 mm\. Cần lXaMu ≥ 2042 mm\./)
+  })
+
+  test('one row of bearings seats on the whole lXaMu', () => {
+    // L 500 000, 150 %, lXaMu 1500, tThan 1200: (200 + 850 + 50,25)·1,5 = 1650,375.
+    expect(
+      errs('tru_mat_ben.js', {
+        lNhip: 500000,
+        phanTramN: 150,
+        soHangGoi: 1,
+        lXaMu: 1500,
+        tThan: 1200
+      })
+    ).toEqual([
+      'Xà mũ không đủ chiều rộng đỡ dầm tối thiểu — TCVN 11823-4:2017 đ.7.4.4 ' +
+        '(Phương trình 25, Bảng 16): N = (200 + 0,0017·500000 + 0,0067·7500)' +
+        '·(1 + 0,000125·0²) × 150 % = 1650,4 mm (H = hThan + hXaMu = 7500 mm). ' +
+        'Một hàng gối: dầm tựa nhiều nhất lXaMu = 1500 mm < 1651 mm. ' +
+        'Cần lXaMu ≥ 1651 mm.'
+    ])
+  })
+
+  test('below the 50 % floor of Bảng 16 is refused', () => {
+    expect(errs('tru_mat_chinh.js', { lNhip: 33000, phanTramN: 40 })).toEqual([
+      'Phần trăm của N 40 % nhỏ hơn mức thấp nhất 50 % của TCVN 11823-4:2017 Bảng 16.'
+    ])
+  })
+
+  test.each(FILES)(
+    '%s: without L or without the zone, nothing is checked and the drawing is the default one',
+    file => {
+      const geometry = (o: Record<string, unknown>) =>
+        JSON.stringify(
+          draw(file, o).drawn.map(e => {
+            const b = e.geometricExtents
+            return [
+              readSemanticTag(e)?.partId,
+              r(b.min.x),
+              r(b.min.y),
+              r(b.max.x),
+              r(b.max.y)
+            ]
+          })
+        )
+      const base = geometry({})
+      // L huge enough to fail at any zone — but no zone given: not checked.
+      expect(errs(file, { lNhip: 2000000 })).toEqual([])
+      expect(geometry({ lNhip: 2000000 })).toBe(base)
+      // A zone but no L: not checked either.
+      expect(errs(file, { phanTramN: 150 })).toEqual([])
+      expect(geometry({ phanTramN: 150, gocXien: 30 })).toBe(base)
+    }
+  )
+})
+
 describe('validation: refused before anything is drawn', () => {
   test.each(FILES)('%s: same checks in both views', file => {
     const t = loadLibraryTemplate(file)
@@ -364,7 +487,7 @@ describe('tru_cau_hoan_chinh', () => {
     }
     // Side view centred kcHinh to the right.
     const sideBe = box(of('tru_mat_ben'), 'tru_be')!
-    expect((sideBe.x0 + sideBe.x1) / 2).toBe(16000)
+    expect((sideBe.x0 + sideBe.x1) / 2).toBe(21000)
     // The views do not overlap.
     expect(box(of('tru_mat_chinh'), 'kich_thuoc')!.x1).toBeLessThan(
       Math.min(...of('tru_mat_ben').map(e => e.geometricExtents.min.x))
@@ -447,7 +570,7 @@ describe('the road the agent takes: library → loader → chay_template / ghep_
       db
     )
     expect(outcome.ok).toBe(true)
-    expect(outcome.message).toContain(`${id} v1.0.1`)
+    expect(outcome.message).toContain(`${id} v1.1.0`)
     expect(listRuns(db).map(run => run.templateId)).toEqual([id])
   })
 

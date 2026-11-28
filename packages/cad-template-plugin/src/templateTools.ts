@@ -315,7 +315,8 @@ export async function runTemplateTool(
     return {
       ok: false,
       status: 'refused',
-      message: `Thông số không hợp lệ, chưa vẽ gì:\n- ${result.errors.join('\n- ')}`
+      // Refusal first, as the road section does: «Chưa vẽ gì:».
+      message: `Chưa vẽ gì: thông số không hợp lệ:\n- ${result.errors.join('\n- ')}`
     }
   }
 
@@ -515,7 +516,13 @@ async function assembleTool(
     return {
       ok: false,
       status: 'refused',
-      message: `Ghép dừng lại vì có bước không dựng được:\n- ${result.errors.join('\n- ')}`,
+      // Nothing drawn (a check across steps, a missing template, or the first
+      // step refused): say that first, as the road section does.
+      message:
+        result.entityCount === 0
+          ? 'Chưa vẽ gì: ' +
+            result.errors.map(e => e.replace(/^Chưa vẽ gì: /, '')).join('\n')
+          : `Ghép dừng lại vì có bước không dựng được:\n- ${result.errors.join('\n- ')}`,
       data: { buoc: result.buoc }
     }
   }
@@ -534,9 +541,11 @@ async function assembleTool(
       'cái bằng sua_lan_chay.' +
       (boQua.length
         ? ` Bỏ qua thông số không phải số: ${boQua.join(', ')}.`
-        : ''),
+        : '') +
+      (result.ghiChu?.length ? ` Ghi chú: ${result.ghiChu.join(' ')}` : ''),
     data: {
       maGhep: id,
+      ...(result.ghiChu?.length ? { ghiChu: result.ghiChu } : {}),
       soDoiTuong: result.entityCount,
       buoc: result.buoc
     }

@@ -65,10 +65,18 @@ export const BTKL_TRU_DEFAULTS: Readonly<Record<string, number | string>> = {
   aCocNgang: 3600,
   aCocDoc: 3600,
   lCoc: 0,
+  // Seat-width check inputs (1.1.0): no quantity depends on them, but a run
+  // that passed them must still be read.
+  lNhip: 0,
+  gocXien: 0,
+  phanTramN: 0,
   x: 0,
   y: 0,
   ghiKichThuoc: 'co'
 }
+
+/** Keys where 0 is a value, not a missing one. */
+const ZERO_OK = ['lCoc', 'lNhip', 'gocXien', 'phanTramN', 'x', 'y']
 
 const f = (mm: number) => acTpBtklNumber(mm / 1000)
 const PI = Math.PI
@@ -118,7 +126,7 @@ export function acTpBtklTru(
       const n = typeof v[key] === 'string' ? Number(v[key]) : v[key]
       if (typeof n !== 'number' || !Number.isFinite(n))
         errors.push(`Thông số trụ ${key}: cần một số.`)
-      else if (n < 0 || (n === 0 && !['lCoc', 'x', 'y'].includes(key)))
+      else if (n < 0 || (n === 0 && !ZERO_OK.includes(key)))
         errors.push(`Thông số trụ ${key}: cần số dương.`)
       else v[key] = n
     }
