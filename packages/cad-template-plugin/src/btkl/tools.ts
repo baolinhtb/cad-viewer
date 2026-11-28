@@ -53,7 +53,7 @@ const XLSX_MIME =
 
 /** What the agent is told about the steel flags' clauses. */
 const STEEL_CLAUSE_RULE =
-  'Cờ thép neo/nối (coThep: neo_khong_du, neo_ban_goc_chua_dat, noi_chong_cay_thep): nói lại số liệu kèm nguyên điều khoản trong ngoặc như tờ BTKL (ví dụ «TCVN 11823-5 Đ 11.5.3.1», «Đ 11.2.4.1 (PT 182)»), không bỏ, không viết lại điều khoản.'
+  'Cờ thép neo/nối (coThep: neo_khong_du, neo_ban_goc_chua_dat, noi_chong_cay_thep): nói lại số liệu kèm nguyên điều khoản trong ngoặc như tờ BTKL (ví dụ «TCVN 11823-5 Đ 11.5.3.1», «Đ 11.2.4.1 (PT 182)»), không bỏ, không viết lại điều khoản. Giữ đúng lời «yêu cầu … mm, có … mm» như tờ BTKL (ví dụ «yêu cầu 1 382 mm, có 648 mm»), không đổi thành «cần … nhưng chỉ có …».'
 
 export const BTKL_TOOLS: readonly AcApToolSchema[] = [
   {
@@ -270,10 +270,13 @@ function describe(
   const { objects } = btklObjectsFromValues(values)
   const results = objects.map(acTpBtklOfObject)
   const sheets = acTpBtklSheets(results, btklMetaFromValues(values))
+  // P3-M3 backlog (a): the steel flags in the message itself, worded as the
+  // sheet words them, so the chat has the sheet's sentence to repeat.
+  const steel = [...new Set(results.flatMap(r => steelClauseFlags(r)))]
   return {
     ok: true,
     status: 'ready',
-    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng. Số viết như tờ BTKL: nhóm nghìn bằng khoảng trắng, thập phân dấu phẩy (thép dùng thepKgHienThi, ví dụ 14 058,319 — không viết 14.058,319). ${STEEL_CLAUSE_RULE}`,
+    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng. Số viết như tờ BTKL: nhóm nghìn bằng khoảng trắng, thập phân dấu phẩy (thép dùng thepKgHienThi, ví dụ 14 058,319 — không viết 14.058,319). ${STEEL_CLAUSE_RULE}${steel.length ? ` Cờ thép (nguyên văn tờ BTKL): ${steel.join(' ')}` : ''}`,
     data: {
       maLanChay: runId,
       soTo: sheets.length,
@@ -404,7 +407,7 @@ export async function acapRefreshBtklAfterEdit(
     const added = steelClauseFlags(result).filter(f => !was.has(f))
     if (added.length)
       notes.push(
-        `Cờ thép mới trên tờ BTKL ${run.id} (nói lại giữ nguyên điều khoản): ${added.join(' ')}`
+        `Cờ thép mới trên tờ BTKL ${run.id} (nói lại nguyên văn: «yêu cầu … mm, có … mm» và điều khoản): ${added.join(' ')}`
       )
   }
   return notes
