@@ -107,8 +107,15 @@ describe('recognising an uploaded module', () => {
 })
 
 describe('the registry', () => {
-  // Only the measured, explicitly draft dossier ships with the application.
-  const BUILT_IN_IDS: string[] = ['ho_so_mo_m1', 'khung_ban_ve', 'btkl_ket_cau']
+  // Only the measured, explicitly draft dossier ships with the application,
+  // with the frame, the take-off and (P3-M3) the road cross-section, which
+  // draws the section the engineer specifies and guesses no outline.
+  const BUILT_IN_IDS: string[] = [
+    'ho_so_mo_m1',
+    'khung_ban_ve',
+    'btkl_ket_cau',
+    'duong_mat_cat_ngang'
+  ]
 
   beforeEach(() => setRemoteTemplates([]))
 

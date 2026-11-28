@@ -155,7 +155,7 @@ const guideFiles = (skill: string) => {
   ]
 }
 
-describe.each(['mo-cau', 'tru-cau'])('skill %s', skill => {
+describe.each(['mo-cau', 'tru-cau', 'duong-mat-cat'])('skill %s', skill => {
   const files = guideFiles(skill)
 
   test('every clause, table and equation it cites exists in assets/tcvn', () => {
@@ -228,6 +228,26 @@ describe('library templates', () => {
     }
     expect(errors).toEqual([])
     expect(count).toBeGreaterThan(5)
+  })
+})
+
+describe('compiled road cross-section', () => {
+  // The road section is compiled into the plugin, not a library template,
+  // but its hints and refusals cite TCVN 4054 / 13592 the same way.
+  test('every clause in src/road exists in assets/tcvn', () => {
+    const dir = join(__dirname, '..', 'src', 'road')
+    const errors: string[] = []
+    let count = 0
+    for (const file of readdirSync(dir).filter(f => f.endsWith('.ts'))) {
+      const result = scan(
+        `src/road/${file}`,
+        readFileSync(join(dir, file), 'utf8')
+      )
+      errors.push(...result.errors)
+      count += result.citations.length
+    }
+    expect(errors).toEqual([])
+    expect(count).toBeGreaterThan(20)
   })
 })
 

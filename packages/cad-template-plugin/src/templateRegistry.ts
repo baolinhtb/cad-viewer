@@ -17,6 +17,7 @@ import {
 } from './dossier/template'
 import { drawingFrameTemplate } from './frame/template'
 import type { AcApRemoteTemplate } from './remoteTemplates'
+import { roadSectionTemplate } from './road/template'
 
 /**
  * The measured M1 dossier is bundled as an explicitly draft template.
@@ -39,11 +40,16 @@ import type { AcApRemoteTemplate } from './remoteTemplates'
  *
  * The quantity take-off (`btkl_ket_cau`) is computed from the runs it lists,
  * not drawn from a guessed outline, so it ships too.
+ *
+ * The road cross-section (`duong_mat_cat_ngang`) draws the section the
+ * engineer specifies — widths, falls, layers — and checks the values against
+ * the loaded TCVN clauses; it guesses no outline either.
  */
 const BUILT_IN: readonly AcTpTemplate[] = [
   abutmentDossierTemplate,
   drawingFrameTemplate,
-  btklTemplate
+  btklTemplate,
+  roadSectionTemplate
 ]
 
 /**

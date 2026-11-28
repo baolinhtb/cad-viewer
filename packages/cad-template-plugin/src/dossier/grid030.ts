@@ -1003,12 +1003,13 @@ export function acTpDossierLayoutMessage(
         ? `gót bệ (mặt sau thân tới mép sau bệ = chiều dài bệ − mũi bệ − bề dày thân) ${mm(l.value)} mm phải lớn hơn ${mm(l.min)} mm (tim hàng cọc sau dưới gót bệ, cách mép bệ D, sau đoạn vút 300 mm sau thân)`
         : `tường cánh kiểu M1 hẫng ra sau bệ (vát 1:1 dưới cánh): mút cánh = mũi bệ + bề dày thân − 500 + chiều dài cánh = ${mm(n('muiBe') + n('tThan') - 500 + n('lCanh'))} mm phải vượt mép sau bệ (${mm(n('lBe'))} mm) hơn ${mm(l.min)} mm, đang ${mm(l.value)} mm`
   )
-  const lo =
-    Math.max(n('D'), n('lBe') + 150 + 500 - n('tThan') - n('lCanh')) + 1
+  // The toe a wing of this length still cantilevers 150 past the back from.
+  const wingMin = n('lBe') + 150 + 500 - n('tThan') - n('lCanh')
+  const lo = Math.max(n('D'), wingMin) + 1
   const hi = n('lBe') - n('tThan') - n('D') - 300 - 1
   const range =
     lo <= hi
-      ? `Với chiều dài bệ ${mm(n('lBe'))}, bề dày thân ${mm(n('tThan'))}, chiều dài cánh ${mm(n('lCanh'))}, đường kính cọc ${mm(n('D'))} mm: mũi bệ dựng được đủ 6 tờ (kể cả tờ thép) từ ${mm(lo)} đến ${mm(hi)} mm; mũi bệ ngắn hơn cần tường cánh dài hơn (mút cánh vượt mép sau bệ > 150 mm) và mũi bệ vẫn > D.`
+      ? `Với chiều dài bệ ${mm(n('lBe'))}, bề dày thân ${mm(n('tThan'))}, chiều dài cánh ${mm(n('lCanh'))}, đường kính cọc ${mm(n('D'))} mm: mũi bệ dựng được đủ 6 tờ (kể cả tờ thép) từ ${mm(lo)} đến ${mm(hi)} mm. Hai giới hạn dưới: mũi bệ > D (${mm(n('D'))} mm); và tường cánh kiểu M1 phải hẫng ra sau bệ — mút cánh = mũi bệ + bề dày thân − 500 + chiều dài cánh phải vượt mép sau bệ > 150 mm, tức mũi bệ > ${mm(n('lBe'))} + 150 + 500 − ${mm(n('tThan'))} − ${mm(n('lCanh'))} = ${mm(wingMin)} mm. Giới hạn trên: gót bệ > D + 300. Muốn mũi bệ ngắn hơn ${mm(lo)} mm thì cần tường cánh dài hơn (mỗi mm cánh thêm cho ngắn mũi bệ một mm, mũi bệ vẫn > D).`
       : `Với chiều dài bệ ${mm(n('lBe'))}, bề dày thân ${mm(n('tThan'))}, chiều dài cánh ${mm(n('lCanh'))}, đường kính cọc ${mm(n('D'))} mm không có mũi bệ nào dựng được đủ 6 tờ; cần bệ dài hơn hoặc tường cánh dài hơn.`
   return `Bố trí dọc cầu ngoài khoảng bộ sinh ${DOSSIER_VERSION} dựng được: ${why.join('; ')}. ${range}`
 }

@@ -271,7 +271,22 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     // (heading + wrapped lines): +18 over the 7 loose texts.
     // FIX-NOTE QA: SUB-100's take-off footer on two lines (+1) and its GHI
     // CHÚ block in the narrower free slot beside the table (+4 lines).
-    expect(s.count).toBe(2995)
+    // That was 2995 while a changed geometry left the steel sheets as the M1
+    // source. Since P3-M1 the steel sheets lay the M1 bars out on the new
+    // geometry: the bar dots of the sections are one block per bar, spread
+    // over the 8700 footing/stem instead of M1's 7700, so SUB-070 has 320
+    // inserts (M1: 13), SUB-080/090 141 each (M1: 5), and SUB-100's bar
+    // table and take-off 1624 entities (M1 1595). SUB-010 (334) and SUB-020
+    // (191) are as before: 2890 + 5 + 307 + 2 × 136 + 29 = 3503.
+    expect(s.bySheet).toEqual({
+      'SUB-010': 334,
+      'SUB-020': 191,
+      'SUB-070': 606,
+      'SUB-080': 374,
+      'SUB-090': 374,
+      'SUB-100': 1624
+    })
+    expect(s.count).toBe(3503)
     expect(values(db)).toMatchObject({
       bMatDuong: 8000,
       bBe: 8700,
@@ -312,8 +327,13 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     expect(sb.notBuilt).toEqual([])
     expect(sb.count).toBe(sa.count)
     expect(layersLost).toEqual([])
-    for (const id of ['SUB-070', 'SUB-080', 'SUB-090'])
-      expect(changed[id] ?? 0).toBe(0)
+    // Since P3-M2 the wall-top steel of the half sections 1-1/2-2 on
+    // SUB-070 follows the road edges on the 2 % cross fall (bars, outline,
+    // their dims, leaders, labels and the two view titles that sit on the
+    // wall top): 33 entities, the same count either side. The stem and
+    // footing sheets SUB-080/090 do not depend on the road width.
+    expect(changed['SUB-070'] ?? 0).toBe(33)
+    for (const id of ['SUB-080', 'SUB-090']) expect(changed[id] ?? 0).toBe(0)
     expect(changed['SUB-010'] ?? 0).toBeGreaterThan(0)
     expect(changed['SUB-010'] ?? 0).toBeLessThan(120)
     // Since P2-M6 the cross fall is the stated 2 % over the wider road:
@@ -340,7 +360,16 @@ describe('P1/M2 acceptance — live prompts L1–L3', () => {
     expect(suyRa(res.data)).toEqual([])
     expect(values(db).tThan).toBe(1500)
     expect(after.notBuilt).toEqual([])
-    expect(after.count).toBe(before.count)
+    // Since P3-M1 the stem steel follows the stem: on SUB-080/090 the
+    // section through a 1500 stem has one bar dot fewer each side than at
+    // 1200 (139 inserts instead of 141), so 2 fewer per sheet. The other
+    // sheets keep their counts.
+    expect(after.bySheet).toEqual({
+      ...before.bySheet,
+      'SUB-080': before.bySheet['SUB-080'] - 2,
+      'SUB-090': before.bySheet['SUB-090'] - 2
+    })
+    expect(after.count).toBe(before.count - 4)
   })
 
   test('L3: lCanh → 5500 edits, dims still match', async () => {
@@ -393,7 +422,18 @@ describe('sua_ho_so_mo with a new road width', () => {
     expect(before.count).toBe(2890)
     // FIX-NOTE: 2990, the warnings as GHI CHÚ blocks (+18 lines); FIX-NOTE
     // QA: 2995, the SUB-100 take-off footer (+1) and narrower block (+4).
-    expect(after.count).toBe(2995)
+    // P3-M1: 3561, the steel laid out on the 8700 footing with M1's 1000
+    // stem (L1 has a 1200 stem): SUB-070 604, SUB-080/090 404 each (bar
+    // dots across the wider footing and the thinner stem), SUB-100 1624.
+    expect(after.bySheet).toEqual({
+      'SUB-010': 334,
+      'SUB-020': 191,
+      'SUB-070': 604,
+      'SUB-080': 404,
+      'SUB-090': 404,
+      'SUB-100': 1624
+    })
+    expect(after.count).toBe(3561)
   })
 
   test('outside the remaining grid it still refuses honestly and says how to unlock', async () => {
@@ -437,18 +477,42 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
     // 2971 before P2-M6: flush 2 × 2 at 5700, the front pair block is now
     // its two stubs at 5700 (+1).
     // FIX-NOTE: the warnings as GHI CHÚ blocks, +18; FIX-NOTE QA: SUB-100
-    // take-off footer +1, its block narrower +4.
-    expect(first.count).toBe(2995)
+    // take-off footer +1, its block narrower +4: 2995 then. P3-M1: 3489,
+    // the steel laid out on this geometry (M1's 7700 footing, 1200 stem):
+    // SUB-070 592 (306 bar inserts), SUB-080/090 374 each, SUB-100 1624.
+    expect(first.bySheet).toEqual({
+      'SUB-010': 334,
+      'SUB-020': 191,
+      'SUB-070': 592,
+      'SUB-080': 374,
+      'SUB-090': 374,
+      'SUB-100': 1624
+    })
+    expect(first.count).toBe(3489)
     const log: unknown[] = []
     let prev = first
-    for (const change of [
-      { tThan: 1500 },
-      { lCanh: 5500 },
-      { hDau: 2187 },
-      { hThan: 5017 },
-      { caoDoDayBe: 229.137 },
-      { tenMo: 'QA-TEST-MO-C2' }
-    ] as Values[]) {
+    // Since P3-M1 the steel sheets follow each dimension, so their entity
+    // counts move with the bars a stem, wing or wall now holds; pinned per
+    // step (SUB-070, SUB-080 = SUB-090). Drawing, elevations and the take-off
+    // sheet keep their counts. Labels (elevation, name) leave steel alone.
+    const steel: [number, number][] = [
+      [592, 372], // tThan 1500: one bar dot fewer each side of the stem
+      [592, 392], // lCanh 5500: +20 bar dots along the longer wing
+      [596, 394], // hDau 2187: taller head wall, +4 / +2 dots
+      [600, 396], // hThan 5017: taller stem, +4 / +2 dots
+      [600, 396], // caoDoDayBe: labels only
+      [600, 396] // tenMo: labels only
+    ]
+    for (const [step, change] of (
+      [
+        { tThan: 1500 },
+        { lCanh: 5500 },
+        { hDau: 2187 },
+        { hThan: 5017 },
+        { caoDoDayBe: 229.137 },
+        { tenMo: 'QA-TEST-MO-C2' }
+      ] as Values[]
+    ).entries()) {
       const res = await tool(
         'sua_ho_so_mo',
         { ma_lan_chay: runId(db), thong_so: change },
@@ -459,13 +523,22 @@ describe('Control inside the old grid (bMatDuong = 7000) is unchanged', () => {
       log.push({ change, ok: res.ok, count: next.count, changed })
       expect(res.ok).toBe(true)
       expect(suyRa(res.data)).toEqual([])
-      expect(next.count).toBe(first.count)
+      expect(next.bySheet).toEqual({
+        'SUB-010': 334,
+        'SUB-020': 191,
+        'SUB-070': steel[step][0],
+        'SUB-080': steel[step][1],
+        'SUB-090': steel[step][1],
+        'SUB-100': 1624
+      })
       expect(first.layers.filter(l => !next.layers.includes(l))).toEqual([])
-      if (!('tenMo' in change)) {
-        for (const id of ['SUB-070', 'SUB-080', 'SUB-090'])
+      // A dimension change now redraws the steel sheets and SUB-100's bar
+      // table and take-off with it (P3-M1/M2: ~50 changed on SUB-100, same
+      // count), so the old «steel sheets untouched, SUB-100 < 10» holds only
+      // for a label change: the footing elevation touches SUB-020 alone.
+      if ('caoDoDayBe' in change)
+        for (const id of ['SUB-070', 'SUB-080', 'SUB-090', 'SUB-100'])
           expect(changed[id] ?? 0).toBe(0)
-        expect(changed['SUB-100'] ?? 0).toBeLessThan(10)
-      }
       expect(next.notBuilt).toEqual([])
       prev = next
     }

@@ -28,6 +28,13 @@ jest.mock('@mlightcad/cad-template-plugin', () => ({
     calls.push({ name, input })
     return Promise.resolve({ ok: true, status: 'ready', message: 'BTKL' })
   },
+  ROAD_TOOLS: [
+    { name: 'tao_mat_cat_duong', description: 'Mặt cắt ngang đường' }
+  ],
+  runRoadTool: (name: string, input: unknown) => {
+    calls.push({ name, input })
+    return Promise.resolve({ ok: true, status: 'ready', message: 'mặt cắt' })
+  },
   runDossierTool: (name: string, input: unknown) => {
     calls.push({ name, input })
     return Promise.resolve({ ok: true, status: 'ready', message: 'bản nháp' })
@@ -223,6 +230,25 @@ describe('the quantity take-off tools', () => {
     expect(calls).toEqual([
       { name: 'cap_nhat_btkl', input: { ma_lan_chay: 'r3' } },
       { name: 'xuat_btkl', input: { dinh_dang: 'xlsx' } }
+    ])
+  })
+})
+
+describe('the road cross-section tool', () => {
+  const tools = createCadTools() as unknown as Record<
+    string,
+    {
+      description: string
+      execute: (input: unknown, options?: unknown) => Promise<unknown>
+    }
+  >
+
+  test('is offered and reaches runRoadTool', async () => {
+    expect(tools.tao_mat_cat_duong.description).toBe('Mặt cắt ngang đường')
+    calls.length = 0
+    await tools.tao_mat_cat_duong.execute({ thong_so: { soLan: 2 } })
+    expect(calls).toEqual([
+      { name: 'tao_mat_cat_duong', input: { thong_so: { soLan: 2 } } }
     ])
   })
 })

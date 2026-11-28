@@ -31,3 +31,18 @@ export * from './dossier/dimSymbols'
 export * from './dossier/scene'
 export * from './dossier/export'
 export * from './dossier/tools'
+export type { RoadBand, RoadLayer, RoadModel } from './road/model'
+export {
+  buildRoadModel,
+  parseRoadLayers,
+  ROAD_DEFAULT_LAYERS,
+  ROAD_ID,
+  ROAD_PARAMS,
+  ROAD_VERSION,
+  roadCrossFallRange,
+  roadDefaults
+} from './road/model'
+export type { RoadPrimitive, RoadScene } from './road/scene'
+export { buildRoadScene, ROAD_SCALES, roadTextBox } from './road/scene'
+export { roadSectionTemplate } from './road/template'
+export { ROAD_TOOLS, runRoadTool } from './road/tools'

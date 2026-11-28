@@ -383,7 +383,7 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     for (const word of [
       '«hồ sơ L1», «L1 mặc định», «tạo hồ sơ L1, lập BTKL mặc định»',
       'gọi tao_ho_so_mo với thong_so.tenMo = "L1"',
-      'chiều dài cọc 25000 mm) rồi gọi tao_btkl',
+      'chiều dài cọc 25000 mm) rồi gọi tao_btkl CHỈ khi chính prompt đã xin BTKL',
       'Không được chỉ đổi tên rồi lấy mẫu M1',
       'không hỏi lại chiều dài cọc khi đã áp bộ L1',
       'Không nói L1 thì vẫn là mẫu M1 và không tự đặt chiều dài cọc'
@@ -392,5 +392,25 @@ describe('abutment (mố) guidance in the system prompt and the mo-cau skill', (
     expect(skill).toContain('gọi `tao_ho_so_mo` với `tenMo: ')
     expect(skill).toContain('`lCoc = 25000`')
     expect(skill).toContain('Không chỉ đổi tên rồi để mẫu M1')
+  })
+})
+
+describe('no take-off unless asked (P3-M3 backlog b)', () => {
+  // UI P3-M2b: after «3 cọc mỗi hàng» the agent said «Tiếp theo tôi sẽ lập
+  // bảng khối lượng mặc định» and called tao_btkl unasked.
+  test('after a dossier call it asks one question instead', () => {
+    expect(prompt).toContain('Không tự lập BTKL')
+    expect(prompt).toContain('«Có lập bảng khối lượng không?»')
+    expect(prompt).toContain('Prompt đã nói «…, lập BTKL» thì gọi cả hai')
+    expect(skill).toContain('chưa xin thì chỉ hỏi «Có lập bảng khối lượng không?»')
+  })
+})
+
+describe('road cross-section (P3-M3) in the system prompt', () => {
+  test('called at once with the engineer numbers, defaults restated, no take-off', () => {
+    expect(prompt).toContain('gọi tao_mat_cat_duong NGAY')
+    expect(prompt).toContain('«mặt đường 7 m, 2 làn» → soLan 2, bLan 3500')
+    expect(prompt).toContain('nêu lại các giá trị lấy mặc định')
+    expect(prompt).toContain('không gọi tao_btkl sau mặt cắt đường')
   })
 })

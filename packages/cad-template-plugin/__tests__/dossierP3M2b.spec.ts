@@ -45,7 +45,11 @@ import {
 import layout from '../src/dossier/reference/layout-mo2.json'
 import { buildDossierScene } from '../src/dossier/scene'
 import { sheetViewBoxes } from '../src/dossier/scene030'
-import { DOSSIER_PRESET_L1, runDossierTool } from '../src/dossier/tools'
+import {
+  DOSSIER_PRESET_L1,
+  DOSSIER_TOOLS,
+  runDossierTool
+} from '../src/dossier/tools'
 import { entitiesOfRun, listRuns } from '../src/runIdentity'
 
 jest.setTimeout(900000)
@@ -182,6 +186,25 @@ describe('case 6: no valid geometry is short of anchorage (proof)', () => {
     expect(refused.message).toContain(
       'mũi bệ dựng được đủ 6 tờ (kể cả tờ thép) từ 1 451 đến 3 499 mm'
     )
+    // P3-M3 backlog (c): both lower limits, with this dossier's numbers.
+    expect(refused.message).toContain('mũi bệ > D (1 000 mm)')
+    expect(refused.message).toContain(
+      'mút cánh = mũi bệ + bề dày thân − 500 + chiều dài cánh phải vượt mép sau bệ > 150 mm, tức mũi bệ > 6 000 + 150 + 500 − 1 200 − 4 000 = 1 450 mm'
+    )
+    // A toe above D but short of the wing limit is refused for the wing alone.
+    const wing = await runDossierTool(
+      'sua_ho_so_mo',
+      { ma_lan_chay: runId, thong_so: { muiBe: 1200 } },
+      db
+    ).catch((e: Error) => ({ ok: false, message: e.message }))
+    expect(wing.ok).toBe(false)
+    expect(wing.message).toContain('mút cánh = mũi bệ + bề dày thân − 500')
+    expect(wing.message).not.toContain('mũi bệ (mép bệ tới mặt trước thân)')
+    // P3-M3 backlog (b): the create answer asks before a take-off.
+    expect(made.message).toContain('hỏi «Có lập bảng khối lượng không?»')
+    expect(
+      DOSSIER_TOOLS.find(t => t.name === 'tao_ho_so_mo')!.description
+    ).toContain('không tự gọi tao_btkl')
     expect(listRuns(db)[0].values.muiBe).toBe(2000)
     // The shortest toe, the shortest heel, the lowest footing the six
     // sheets build on L1: the take-off has P1 only.
@@ -234,6 +257,11 @@ describe('steel flags reach the agent with their clause', () => {
     // The same words as on the sheet's flag line.
     expect(tong(made).co.join(' ')).toContain(flags[0].slice(24, 120))
     expect(made.message).toContain('không bỏ, không viết lại điều khoản')
+    // P3-M3 backlog (a): the message carries the sheet's own sentence and
+    // tells the chat to keep «yêu cầu … có …», not «cần … nhưng chỉ có …».
+    expect(made.message).toContain(`Cờ thép (nguyên văn tờ BTKL): ${flags[0]}`)
+    expect(made.message).toContain('yêu cầu 1 382 mm, có 648 mm')
+    expect(made.message).toContain('không đổi thành «cần … nhưng chỉ có …»')
     for (const name of ['tao_btkl', 'cap_nhat_btkl'])
       expect(BTKL_TOOLS.find(t => t.name === name)!.description).toContain(
         'nói lại số liệu kèm nguyên điều khoản'
