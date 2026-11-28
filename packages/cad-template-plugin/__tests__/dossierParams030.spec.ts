@@ -309,15 +309,82 @@ describe('GĐ7a: hình chiếu dời để giữ khoảng hở, tràn khung thì
     expect(sheetViewBoxes(dossierDefaults(), 'SUB-010')).toBeUndefined()
   })
 
-  test('tràn khung A3 thì từ chối, nói hình chiếu nào và tràn bao nhiêu', () => {
-    const scene = buildDossierScene(
-      buildDossierModel({ lCanh: 12000 }),
-      DOSSIER_A3_VERSION
-    )
-    const texts = scene.sheets[0].primitives.flatMap(p =>
-      p.kind === 'text' ? [p.text] : []
-    )
-    expect(texts.some(t => /vượt khung A3/.test(t))).toBe(true)
-    expect(scene.sheets[0].primitives.some(p => p.sourceHandle)).toBe(false)
-  })
+  // P3-M2b: a sheet that leaves A3 at 1:100 is drawn at 1:125 / 1:150 /
+  // 1:200 instead of refused (before: «vượt khung A3» at lCanh 12 000).
+  // No value inside the parameter ranges overflows at 1:200 (the widest,
+  // tallest, longest abutment fits: below), so that refusal is a guard.
+  test.each([
+    [
+      'lCanh 12000',
+      { lCanh: 12000 },
+      { 'SUB-010': 125, 'SUB-020': 150, 'SUB-080': 125, 'SUB-090': 125 }
+    ],
+    [
+      'cực trị',
+      {
+        hThan: 10000,
+        hBe: 4000,
+        lCanh: 12000,
+        bBe: 16000,
+        bThan: 16000,
+        bMatDuong: 15000,
+        soCotCoc: 3,
+        aCocNgang: 6500,
+        lBe: 12000,
+        muiBe: 3000
+      },
+      {
+        'SUB-010': 200,
+        'SUB-020': 150,
+        'SUB-070': 150,
+        'SUB-080': 125,
+        'SUB-090': 125
+      }
+    ]
+  ] as [string, Record<string, number>, Record<string, number>][])(
+    'tràn khung A3 ở 1:100 (%s): tờ đó vẽ tỉ lệ nhỏ hơn, nhãn TL đổi theo, hình trong khung',
+    (_name, v, scales) => {
+      const scene = buildDossierScene(
+        buildDossierModel({ ...dossierDefaults(), ...v }),
+        DOSSIER_A3_VERSION
+      )
+      expect(
+        Object.fromEntries(
+          scene.sheets.filter(s => s.viewScale).map(s => [s.id, s.viewScale])
+        )
+      ).toEqual(scales)
+      for (const s of scene.sheets) {
+        const texts = s.primitives.flatMap(p =>
+          p.kind === 'text' ? [p.text] : []
+        )
+        expect([
+          s.id,
+          texts.some(t => /vượt khung A3|CHƯA DỰNG/.test(t))
+        ]).toEqual([s.id, false])
+        // The drawing sheets (SUB-100 holds the tables) are drawn.
+        if (s.id !== 'SUB-100')
+          expect([s.id, s.primitives.some(p => p.sourceHandle)]).toEqual([
+            s.id,
+            true
+          ])
+        const scale = s.viewScale ?? 100
+        if (texts.some(t => /^\(TL: 1\/\d+\)$/.test(t)))
+          expect(
+            texts
+              .filter(t => /^\(TL: 1\/\d+\)$/.test(t))
+              .every(t => t === `(TL: 1/${scale})`)
+          ).toBe(true)
+      }
+      const r = sheetViewBoxes(
+        buildDossierModel({ ...dossierDefaults(), ...v }).values,
+        'SUB-010'
+      )
+      if (!r || 'error' in r) throw new Error(JSON.stringify(r))
+      for (const b of Object.values(r.after)) {
+        expect(b.x0).toBeGreaterThanOrEqual(-1)
+        expect(b.x1).toBeLessThanOrEqual(38400 + 1)
+        expect(b.y1).toBeLessThanOrEqual(25300 + 1)
+      }
+    }
+  )
 })

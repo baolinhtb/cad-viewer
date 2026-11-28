@@ -130,7 +130,7 @@ describe('anchorage of the M1 layout', () => {
     const flag = thep.flags!.find(f => f.code === 'neo_khong_du')!
     expect(flag.message).toContain('F1 mũi bệ')
     expect(flag.message).toContain('yêu cầu 306 mm, có 225 mm')
-    expect(flag.message).toContain('Đ11.2.4.1 (PT 182)')
+    expect(flag.message).toContain('Đ 11.2.4.1 (PT 182)')
   })
 
   test('L1 take-off: P1 reported as the M1 drawing, no neo_khong_du', () => {
@@ -176,7 +176,7 @@ describe('lap splices past the commercial bar length', () => {
     expect(thep.flags!.map(f => f.code)).toContain('noi_chong_cay_thep')
     const be = r.items.find(i => i.key === 'thep_bt_be')!
     expect(be.dienGiai).toContain(
-      'F2 nối chồng 1 mối × 1556 mm (TCVN 11823-5 Đ11.5.3.1, loại B)'
+      'F2 nối chồng 1 mối × 1556 mm (TCVN 11823-5 Đ 11.5.3.1, loại B)'
     )
   })
 })

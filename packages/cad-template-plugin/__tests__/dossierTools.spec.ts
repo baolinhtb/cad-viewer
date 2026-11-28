@@ -506,7 +506,9 @@ describe('dossier tools against a real database', () => {
       { bBe: 4000 },
       { soCoc: 6 },
       { thiep: 'mau' },
-      { lCanh: 12000 }
+      // P3-M2b: lCanh 12 000 builds now (sheets drawn at 1:125/1:150); a
+      // toe shorter than the pile diameter is still outside the layout.
+      { muiBe: 300 }
     ]) {
       const r = await runDossierTool(
         'sua_ho_so_mo',
