@@ -28,6 +28,7 @@ import {
   dossierParamLabel
 } from '../dossier/model'
 import bars from '../dossier/reference/bars.json'
+import { ACTP_NEO_VAT_LIEU, acTpKiemNeoMo } from './neoThep'
 import { acTpSteelKgPerM, BTKL_M1_SOURCE } from './sourceM1'
 import { type AcTpSteelSchedule, acTpSteelScheduleMo } from './thepMo'
 import type {
@@ -240,6 +241,32 @@ export function acTpBtklSteelSchedule(
     buildDossierModel(values).values,
     volumeRatio(r.items, m1().items)
   )
+}
+
+/**
+ * P3-M2: the anchorage checks of the M1 layout on these values as take-off
+ * flags — a short anchorage the new geometry caused (`neo_khong_du`), and the
+ * ones the M1 drawing itself already gives (`neo_ban_goc_chua_dat`), reported
+ * and not redrawn.
+ */
+function acTpNeoFlags(values: AcTpParamValues): AcTpBtklFlag[] {
+  const list = acTpKiemNeoMo(values).filter(c => !c.ok)
+  const line = (c: ReturnType<typeof acTpKiemNeoMo>[number]) =>
+    `${c.mark.toUpperCase()} ${c.viTri}: yêu cầu ${acTpBtklNumber(c.required, 0)} mm, có ${acTpBtklNumber(c.provided, 0)} mm (TCVN 11823-5 ${c.clause})`
+  const flags: AcTpBtklFlag[] = []
+  const now = list.filter(c => !c.banGoc)
+  const was = list.filter(c => c.banGoc)
+  if (now.length)
+    flags.push({
+      code: 'neo_khong_du',
+      message: `Neo/nối không đủ với kích thước mới: ${now.map(line).join('; ')}. Giữ hình bố trí mẫu M1 — cần kỹ sư bố trí lại thép.`
+    })
+  if (was.length)
+    flags.push({
+      code: 'neo_ban_goc_chua_dat',
+      message: `Như bản gốc M1 (không do kích thước mới): ${was.map(line).join('; ')}. Giữ nguyên hình M1, chỉ báo để kỹ sư xem xét (fy 400 MPa giả định).`
+    })
+  return flags
 }
 
 /** New / M1 volume of a concrete line, null when either is unknown. */
@@ -863,7 +890,7 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     // P3-M1: the M1 bar layout laid over the new geometry (thepMo): along
     // the bar the M1 covers and hooks, across the bars the M1 spacing, more
     // or fewer bars as the member widens or narrows. A group no rule
-    // follows yet (the wings, the ear walls) keeps the M1 ratio kg/m³ of its
+    // follows yet (the wings) keeps the M1 ratio kg/m³ of its
     // member — that group only, flagged.
     const base = m1()
     const volume = (list: AcTpBtklItem[], key: string) =>
@@ -938,7 +965,13 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
                     )
                     .join(', ')}${changed.length > 4 ? '…' : ''}`
                 : ' (như M1)'
-            } (M1: ${acTpBtklNumber(kg0, 1)} kg)`
+            }${of
+              .filter(r => r.noiChong)
+              .map(
+                r =>
+                  `; ${r.mark.toUpperCase()} nối chồng ${r.noiChong!.soMoi} mối × ${r.noiChong!.chieuDai} mm (TCVN 11823-5 Đ11.5.3.1, loại ${r.noiChong!.cap})`
+              )
+              .join('')} (M1: ${acTpBtklNumber(kg0, 1)} kg)`
           ])
         }
       }
@@ -949,6 +982,20 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
             'Bố trí thép mẫu M1 (đường kính, số hiệu, móc, lớp phủ, cự ly) đã kéo theo kích thước mới — chưa phải thiết kế cốt thép mới, chưa kiểm toán kết cấu.'
         }
       ]
+      const laps = schedule.rows.filter(r => r.noiChong)
+      if (laps.length)
+        flags.push({
+          code: 'noi_chong_cay_thep',
+          message: `Thanh dài hơn cây thép ${acTpBtklNumber(ACTP_NEO_VAT_LIEU.chieuDaiCayThep, 0)} mm (giả định): ${laps
+            .map(
+              r =>
+                `${r.mark.toUpperCase()} ${r.noiChong!.soMoi} mối × ${r.noiChong!.chieuDai} mm`
+            )
+            .join(
+              ', '
+            )} — nối chồng chịu kéo loại ${ACTP_NEO_VAT_LIEU.capNoi} = 1,3·λd (TCVN 11823-5 Đ11.5.3.1), đã cộng vào khối lượng.`
+        })
+      flags.push(...acTpNeoFlags(v))
       if (schedule.estimated.length)
         flags.push({
           code: 'thep_tam_tinh_ham_luong',

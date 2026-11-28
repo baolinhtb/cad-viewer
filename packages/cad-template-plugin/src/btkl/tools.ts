@@ -20,6 +20,7 @@ import { editTemplateRun } from '../editRun'
 import { listRuns } from '../runIdentity'
 import { runTemplate } from '../runTemplate'
 import type { AcApToolOutcome, AcApToolSchema } from '../semanticTools'
+import { acTpBtklNumber } from './mo'
 import { acTpBtklSheets } from './sheets'
 import {
   type AcTpBtklObject,
@@ -54,7 +55,7 @@ export const BTKL_TOOLS: readonly AcApToolSchema[] = [
   {
     name: 'tao_btkl',
     description:
-      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép đếm theo bố trí mẫu M1 kéo theo kích thước mới (cờ thep_bo_tri_m1_theo_hinh_hoc), riêng tường cánh, tường tai tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong); thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl. ' +
+      'Lập hồ sơ bóc tách khối lượng (BTKL) phần kết cấu cho mọi mố (hồ sơ ho_so_mo_m1) và trụ (tru_mat_chinh/tru_mat_ben, tru_cau_hoan_chinh) đang có trong bản vẽ: các tờ A3 bảng 5 cột STT · Hạng mục · Đơn vị · Khối lượng · Diễn giải công thức, đặt bên phải bản vẽ. Bê tông theo cấu kiện, lót, cọc (khi có lCoc), ván khuôn (quy tắc mặt tiếp xúc lớn như bản gốc M1, chờ định mức), thép mố M1 theo bảng gốc, mố đã đổi hình học thì thép đếm theo bố trí mẫu M1 kéo theo kích thước mới (cờ thep_bo_tri_m1_theo_hinh_hoc), riêng tường cánh tạm tính theo hàm lượng kg/m³ của mẫu M1 (cờ thep_tam_tinh_ham_luong), tường tai đếm thanh; thanh dài hơn cây thép được cộng nối chồng theo TCVN 11823-5 Đ11.5.3.1 (cờ noi_chong_cay_thep), neo không đủ báo cờ neo_khong_du, chỗ bản gốc M1 chưa đạt báo neo_ban_goc_chua_dat; thép trụ bị từ chối có lý do. Dòng nào chỉ bị từ chối khi chính tham số của dòng đó đổi (phuThuoc). Cọc cần lCoc: thiếu thì mời người dùng cho lCoc. Mỗi dòng ghi công thức bằng chính trị số; cờ lệch bản gốc/giả định/chờ định mức phải được nói lại với người dùng. Đã có BTKL thì dùng cap_nhat_btkl. ' +
       WING_LINES,
     input_schema: {
       type: 'object',
@@ -211,6 +212,8 @@ function totals(r: AcTpBtklResult) {
     cocM3: round(value('coc')),
     vanKhuonM2: round(value('van_khuon')),
     thepKg: round(value('thep')),
+    /** The steel total as the sheet writes it, to repeat as is. */
+    thepKgHienThi: value('thep') === null ? null : vi(value('thep')),
     tuChoi: r.items
       .filter(i => i.nguon === 'tu_choi')
       .map(i => `${i.stt} ${i.hangMuc}: ${i.lyDo ?? ''}`),
@@ -236,7 +239,7 @@ function describe(
   return {
     ok: true,
     status: 'ready',
-    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng.`,
+    message: `BTKL ${runId}: ${sheets.length} tờ A3 (${sheets.map(s => s.id).join(', ')}) cho ${objects.map(o => (o.loai === 'mo' ? `mố ${o.ten}` : o.ten)).join(', ')}. Bản nháp: nói lại các dòng từ chối và các cờ cho người dùng. Số viết như tờ BTKL: nhóm nghìn bằng khoảng trắng, thập phân dấu phẩy (thép dùng thepKgHienThi, ví dụ 14 058,319 — không viết 14.058,319).`,
     data: {
       maLanChay: runId,
       soTo: sheets.length,
@@ -276,11 +279,12 @@ export function acapDownloadBtklFile(file: AcApBtklDownload): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
-/** A volume as the user reads it: three decimals at most, decimal comma. */
+/**
+ * A quantity as the drawing writes it: three decimals at most, decimal comma,
+ * thousands grouped by a space (14 058,319 — not 14.058,319).
+ */
 const vi = (v: number | null | undefined) =>
-  v === null || v === undefined
-    ? '–'
-    : String(Math.round(v * 1000) / 1000).replace('.', ',')
+  v === null || v === undefined ? '–' : acTpBtklNumber(v)
 
 const qty3 = (v: number | null | undefined): number | null =>
   v === null || v === undefined ? null : Math.round(v * 1000) / 1000

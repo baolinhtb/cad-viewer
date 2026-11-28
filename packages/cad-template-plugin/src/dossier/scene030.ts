@@ -2375,9 +2375,13 @@ export function buildScene030(
       steelLaid && !tables && ls.paper.some(p => p.ole)
         ? steelTableTexts(ls.paper, v)
         : undefined
+    const edges = relaidTable ? oleRightEdges(ls.paper) : undefined
     for (const p of tables?.paper ?? ls.paper)
-      if (!p.ole || tablesApply || tables)
-        addPaper(relaidTable?.texts.get(p) ?? p, roleOf(p))
+      if (!p.ole || tablesApply || tables) {
+        const q = relaidTable?.texts.get(p) ?? p
+        const kept = edges ? clipToOle(q, edges) : q
+        if (kept) addPaper(kept, roleOf(p))
+      }
     if (steelAsM1 && !tables && ls.paper.some(p => p.ole))
       note(STEEL_TABLES_AS_M1, 250, true)
     if (relaidTable || (steelAsM1 && !tables && ls.paper.some(p => p.ole))) {
@@ -2746,6 +2750,47 @@ const STEEL_AS_M1 = [
   'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
   'Hình thép giữ nguyên kích thước mẫu M1, không kéo giãn. Cần phương án thép mới trước khi phát hành; khối lượng thép trên BTKL là tạm tính theo hàm lượng.'
 ]
+
+/**
+ * Right edge of each OLE table of a sheet: its rightmost vertical line.
+ * Stray borders of the pasted tables run past it (P3-M2, QA P3-M1 c1: the
+ * top border of 211C24F to x 423, beyond the A3 sheet, and dashes beside
+ * the table at the steel totals).
+ */
+function oleRightEdges(paper: LayoutPrimitive[]): Map<string, number> {
+  const edges = new Map<string, number>()
+  for (const p of paper) {
+    if (!p.ole || p.kind !== 'path' || !p.points?.length) continue
+    const xs = p.points.map(q => q[0])
+    const ys = p.points.map(q => q[1])
+    const vertical =
+      Math.max(...xs) - Math.min(...xs) < 0.3 &&
+      Math.max(...ys) - Math.min(...ys) > 5
+    if (vertical)
+      edges.set(p.ole, Math.max(edges.get(p.ole) ?? -Infinity, xs[0]))
+  }
+  return edges
+}
+
+/**
+ * A straight OLE line cut at its table's right edge, undefined when it lies
+ * wholly past it. Only on a re-laid SUB-100 table: the M1 sheet keeps the
+ * source as drawn.
+ */
+function clipToOle(
+  p: LayoutPrimitive,
+  edges: Map<string, number>
+): LayoutPrimitive | undefined {
+  const edge = p.ole ? edges.get(p.ole) : undefined
+  if (edge === undefined || p.kind !== 'path' || !p.line || !p.points) return p
+  const tol = 0.05
+  if (p.points.every(q => q[0] <= edge + tol)) return p
+  if (p.points.every(q => q[0] >= edge - tol)) return undefined
+  return {
+    ...p,
+    points: p.points.map((q): XY => [Math.min(q[0], edge), q[1]])
+  }
+}
 
 /** Columns A…R of the SUB-100 bar table (left half; the right is +170). */
 const SEGMENT_COLUMNS = [96, 103.5, 111, 120, 128, 135.5, 143]

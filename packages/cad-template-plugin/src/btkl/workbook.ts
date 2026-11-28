@@ -218,7 +218,7 @@ function steelSheet(result: AcTpBtklResult, name: string): AcTpXlsxSheet {
       { v: notes.join(' · '), s: 'cellWrap' }
     ])
   })
-  // P3-M1: a group not re-laid yet (wings, ear walls) is a line of its own,
+  // P3-M1: a group not re-laid yet (the wings) is a line of its own,
   // its estimate in the mass column, so the total is item 6 of the BTKL.
   const estimated = result.bars.length
     ? result.items.filter(
