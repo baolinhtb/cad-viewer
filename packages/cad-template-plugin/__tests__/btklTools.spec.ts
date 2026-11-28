@@ -157,7 +157,8 @@ describe('BTKL tools — abutment M1', () => {
     ).toEqual([{ loai: 'mo', ten: 'M1', ma: 'r1', thay: { hBe: 2500 } }])
     const now = tong(refreshed)[0]
     // Only the footing changed: the concrete total follows it, the steel is
-    // estimated from the M1 ratios, and only the piles are still refused.
+    // the M1 layout over the taller footing (P3-M1; was estimated from the
+    // M1 ratios), and only the piles are still refused.
     expect(now.beTongM3).toBe(210.116)
     expect(now.thepKg).toBeGreaterThan(14058.319)
     expect(now.tuChoi).toEqual([
@@ -167,7 +168,7 @@ describe('BTKL tools — abutment M1', () => {
     ])
     expect(now.co).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^6 \[thep_tam_tinh_ham_luong\]/)
+        expect.stringMatching(/^6 \[thep_bo_tri_m1_theo_hinh_hoc\]/)
       ])
     )
     expect(refreshed.message).toContain('đã khớp bản vẽ')

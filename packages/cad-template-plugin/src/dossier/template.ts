@@ -21,7 +21,7 @@ function dossierTemplate(version: string): AcTpTemplate {
       name: 'Hồ sơ mố M1 — 6 tờ bản nháp từ BTC mo_2',
       category: 'Hồ sơ mố',
       description:
-        'Một mô hình sinh mặt chính, A–A/B–B/C–C, mặt bằng mố/cọc, cao độ, ba tờ thép tham chiếu và thống kê. Thép chỉ áp dụng tại hình học mẫu. Chưa phát hành thi công.'
+        'Một mô hình sinh mặt chính, A–A/B–B/C–C, mặt bằng mố/cọc, cao độ, ba tờ thép và thống kê. Ngoài hình học mẫu, thép là bố trí mẫu M1 kéo theo kích thước (chưa thiết kế lại). Chưa phát hành thi công.'
     },
     // A dossier started from the dialog is a new one: numbers on its
     // dimensions by default (DOSSIER_NEW_LABEL_MODE).

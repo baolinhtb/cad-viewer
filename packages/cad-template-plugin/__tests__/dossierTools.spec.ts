@@ -272,7 +272,7 @@ describe('dossier tools against a real database', () => {
     }
   })
 
-  test('a geometry change keeps the steel sheets and SUB-100, marked as M1, with the current take-off', async () => {
+  test('a geometry change keeps the steel sheets and SUB-100 (P3-M1: on the new geometry), with the current take-off', async () => {
     // 17/11/2026: hLot +50 mm took the dossier from 2890 to 829 entities —
     // three steel sheets and SUB-100 went blank without a word.
     const db = database()
@@ -293,9 +293,9 @@ describe('dossier tools against a real database', () => {
             e instanceof AcDbText && readSemanticTag(e)?.params?.sheet === sheet
         )
         .map(e => (e as AcDbText).textString)
-    // The caveats are in each sheet's GHI CHÚ block, wrapped: read whole.
+    // P3-M1: the steel follows the geometry — no «THÉP THEO M1 GỐC» block.
     for (const sheet of ['SUB-070', 'SUB-080', 'SUB-090']) {
-      expect(ghiChuText(after, sheet)).toContain(
+      expect(ghiChuText(after, sheet)).not.toContain(
         'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
       )
       expect(ghiChuText(after, sheet)).not.toContain(
@@ -304,7 +304,7 @@ describe('dossier tools against a real database', () => {
     }
     const sub100 = textsOn('SUB-100')
     expect(sub100).toContain('TỔNG KHỐI LƯỢNG BÊ TÔNG MỐ (M3)')
-    expect(ghiChuText(after, 'SUB-100')).toContain(
+    expect(ghiChuText(after, 'SUB-100')).not.toContain(
       'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
     )
     expect(sub100).toContain(
@@ -312,10 +312,9 @@ describe('dossier tools against a real database', () => {
     )
     // The blinding line follows hLot: (7,9 × 6,2 − 4 × π × 0,36) × 0,15.
     expect(sub100).toContain('6,668')
-    expect(sub100).toContain('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
+    expect(sub100).toContain('Cốt thép (bố trí mẫu M1 theo hình học mới)')
     const data = result.data as { canhBao?: string[] }
-    // The sheets still carry the M1-steel caveat; after an edit it is not
-    // repeated in canhBao (said on create / describe only).
+    // No M1-steel caveat on the sheets, none in canhBao.
     expect(data.canhBao ?? []).not.toEqual(
       expect.arrayContaining([
         'SUB-070: THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'

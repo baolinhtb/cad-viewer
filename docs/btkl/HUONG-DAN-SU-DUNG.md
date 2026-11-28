@@ -92,7 +92,9 @@ Gõ:
   `bThan` khác `bBe`, hoặc hình bị tràn khỏi khung A3.
 - Hồ sơ đã bị sửa tay thì `sua_ho_so_mo` cũng từ chối dựng lại.
 - Khi hình học khác M1, các tờ thép SUB-070/080/090 và bảng thống kê SUB-100
-  ghi **"chưa có phương án thép"**.
+  là **bố trí thép mẫu M1 kéo theo kích thước mới** (giữ lớp phủ, cự ly; thêm
+  hoặc bớt thanh), chưa phải thiết kế thép mới. F3 D25 / W16 D14 thì ghi
+  **"chưa có phương án thép"**.
 
 Để làm theo các ví dụ ở Phần 2, đưa bệ về như cũ:
 

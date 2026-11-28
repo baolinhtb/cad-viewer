@@ -39,7 +39,10 @@ import {
 import { acTpBtklMo, acTpBtklWingEnds } from '../src/btkl/mo'
 import { acapDeriveDossierValues } from '../src/dossier/derive'
 import { DOSSIER_DIM_SYMBOLS } from '../src/dossier/dimSymbols'
-import { acTpWithLegacyDossierGeometry } from '../src/dossier/grid030'
+import {
+  acTpWithLegacyDossierGeometry,
+  acTpWithPreP3Steel
+} from '../src/dossier/grid030'
 import {
   buildDossierModel,
   DOSSIER_A3_VERSION,
@@ -243,7 +246,11 @@ describe('H2 and the approximate heights (plan section 10)', () => {
       { hLanCan: 1300 },
       { tThan: 1200, lCanh: 4000, D: 1000, aCocNgang: 5300 }
     ] as Values[])
-      expect(JSON.stringify(scene(v))).toBe(JSON.stringify(legacyScene(v)))
+      // The pre-M6 revision draws the steel as before P3-M1 too: compare the
+      // geometry with that steel on both sides.
+      expect(JSON.stringify(acTpWithPreP3Steel(() => scene(v)))).toBe(
+        JSON.stringify(legacyScene(v))
+      )
   })
 })
 

@@ -20,7 +20,7 @@
  */
 import type { AcTpParamValues } from '@mlightcad/cad-template-sdk'
 
-import { sheetStretch } from '../dossier/grid030'
+import { acTpPreP3Steel, sheetStretch } from '../dossier/grid030'
 import {
   buildDossierModel,
   DOSSIER_STOP_WIDTH,
@@ -29,6 +29,7 @@ import {
 } from '../dossier/model'
 import bars from '../dossier/reference/bars.json'
 import { acTpSteelKgPerM, BTKL_M1_SOURCE } from './sourceM1'
+import { type AcTpSteelSchedule, acTpSteelScheduleMo } from './thepMo'
 import type {
   AcTpBtklBar,
   AcTpBtklFlag,
@@ -203,7 +204,7 @@ const STEEL_GROUPS: [string, string[], string][] = [
   ['lan_can', ['lan_can'], 'Lan can trên tường cánh']
 ]
 
-/** M1 steel by bar group, kg, at the table's kg/m. */
+/** M1 steel by bar group, kg, at the table's kg/m (estimate before P3-M1). */
 function m1SteelByGroup(): Record<string, number> {
   const out: Record<string, number> = {}
   for (const b of bars)
@@ -213,11 +214,41 @@ function m1SteelByGroup(): Record<string, number> {
   return out
 }
 
+/** Lines of the steel take-off by bar group, for a changed geometry. */
+const STEEL_GROUP_LINES: [string, string[], string][] = [
+  ...STEEL_GROUPS,
+  ['goi', ['goi'], 'Gối'],
+  ['phu', ['phu'], 'Phụ']
+]
+
 let m1Cache: AcTpBtklResult | undefined
 /** The take-off at the M1 defaults: the volumes the steel ratios refer to. */
 function m1(): AcTpBtklResult {
   return (m1Cache ??= acTpBtklMo())
 }
+
+/**
+ * The bar schedule of an abutment run for its geometry (P3-M1, thepMo): the
+ * groups no rule re-lays are estimated from the M1 ratio kg/m³ of their
+ * member, as on the take-off.
+ */
+export function acTpBtklSteelSchedule(
+  values: AcTpParamValues = {}
+): AcTpSteelSchedule {
+  const r = acTpBtklMo(values)
+  return acTpSteelScheduleMo(
+    buildDossierModel(values).values,
+    volumeRatio(r.items, m1().items)
+  )
+}
+
+/** New / M1 volume of a concrete line, null when either is unknown. */
+const volumeRatio =
+  (items: AcTpBtklItem[], base: AcTpBtklItem[]) => (key: string) => {
+    const vol = items.find(i => i.key === key)?.khoiLuong ?? null
+    const vol0 = base.find(i => i.key === key)?.khoiLuong ?? null
+    return vol === null || !vol0 ? null : vol / vol0
+  }
 
 /** "1 234,567" — Vietnamese grouping, 3 decimals at most. */
 export function acTpBtklNumber(v: number, digits = 3): string {
@@ -750,7 +781,8 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
     v.thep === 'mau' &&
     v.thepF3 !== 'D25' &&
     v.thepW16 !== 'D14'
-  if (estimateSteel) {
+  if (estimateSteel && acTpPreP3Steel()) {
+    // As before P3-M1 (only to recognise a dossier drawn then, edit.ts).
     const kgOf = m1SteelByGroup()
     const base = m1()
     const volume = (list: AcTpBtklItem[], key: string) =>
@@ -813,6 +845,130 @@ export function acTpBtklMo(values: AcTpParamValues = {}): AcTpBtklResult {
               'Tạm tính theo hàm lượng mẫu M1 (sai số cỡ ±10–15 %), đã tính vào tổng thép; chỉ dùng cho dự toán sơ bộ, chưa có bố trí thép cho hình học này.'
           }
         ]
+      })
+      parts.forEach(([key, hangMuc, kg, dienGiai], k) =>
+        add({
+          key,
+          stt: `6.${k + 1}`,
+          nhom: 'cot_thep',
+          hangMuc,
+          donVi: 'kg',
+          khoiLuong: kg,
+          dienGiai,
+          nguon: 'tham_so'
+        })
+      )
+    }
+  } else if (estimateSteel) {
+    // P3-M1: the M1 bar layout laid over the new geometry (thepMo): along
+    // the bar the M1 covers and hooks, across the bars the M1 spacing, more
+    // or fewer bars as the member widens or narrows. A group no rule
+    // follows yet (the wings, the ear walls) keeps the M1 ratio kg/m³ of its
+    // member — that group only, flagged.
+    const base = m1()
+    const volume = (list: AcTpBtklItem[], key: string) =>
+      list.find(i => i.key === key)?.khoiLuong ?? null
+    const schedule = acTpSteelScheduleMo(v, volumeRatio(items, base.items))
+    // An estimated group needs its member's volume (as before P3-M1).
+    const missing = STEEL_GROUPS.filter(
+      ([key, groups]) =>
+        volume(items, key) === null &&
+        schedule.estimated.some(e => groups.includes(e.group))
+    )
+    if (missing.length)
+      add({
+        key: 'thep',
+        stt: '6',
+        nhom: 'cot_thep',
+        hangMuc: 'Cốt thép',
+        donVi: 'kg',
+        khoiLuong: null,
+        dienGiai: '',
+        nguon: 'tu_choi',
+        lyDo: `Không quy đổi được thép theo hàm lượng mẫu M1: thiếu thể tích ${missing.map(m => m[2].toLowerCase()).join(', ')}.`
+      })
+    else {
+      for (const r of schedule.rows)
+        if (!r.tamTinh)
+          barList.push({
+            mark: r.mark.toUpperCase(),
+            diameter: r.diameter,
+            surface: r.surface,
+            count: r.count,
+            length: r.length,
+            kgPerM: r.kgPerM,
+            kgPerMSource: bars.find(b => b.mark === r.mark)?.kgPerM
+              ? 'bang_goc'
+              : 'cong_thuc',
+            kg: r.kg,
+            group: r.group
+          })
+      const parts: [string, string, number, string][] = []
+      for (const [key, groups, label] of STEEL_GROUP_LINES) {
+        const of = schedule.rows.filter(r => groups.includes(r.group))
+        if (!of.length) continue
+        const kg = of.reduce((s, r) => s + r.kg, 0)
+        const kg0 = of.reduce((s, r) => s + r.m1.kg, 0)
+        const estimated = of.find(r => r.tamTinh)
+        if (estimated) {
+          const vol = volume(items, key)
+          parts.push([
+            `thep_hl_${key}`,
+            `Thép ${label.toLowerCase()} (tạm tính theo hàm lượng mẫu M1)`,
+            kg,
+            vol === null
+              ? `Giữ khối lượng M1 ${acTpBtklNumber(kg0, 1)} kg`
+              : `${acTpBtklNumber(kg0 / volume(base.items, key)!, 1)} kg/m³ × ${acTpBtklNumber(vol)} m³ (M1: ${acTpBtklNumber(kg0, 1)} kg / ${acTpBtklNumber(volume(base.items, key)!)} m³) — chưa bố trí lại theo kích thước mới`
+          ])
+        } else {
+          const changed = of.filter(
+            r => r.count !== r.m1.count || r.length !== r.m1.length
+          )
+          parts.push([
+            `thep_bt_${key}`,
+            `Thép ${label.toLowerCase()}`,
+            kg,
+            `${of.length} số hiệu theo bố trí: Σ số lượng × dài × kg/m${
+              changed.length
+                ? `; theo kích thước mới: ${changed
+                    .slice(0, 4)
+                    .map(
+                      r =>
+                        `${r.mark.toUpperCase()} ${r.m1.count}→${r.count} thanh × ${r.length} mm`
+                    )
+                    .join(', ')}${changed.length > 4 ? '…' : ''}`
+                : ' (như M1)'
+            } (M1: ${acTpBtklNumber(kg0, 1)} kg)`
+          ])
+        }
+      }
+      const flags: AcTpBtklFlag[] = [
+        {
+          code: 'thep_bo_tri_m1_theo_hinh_hoc',
+          message:
+            'Bố trí thép mẫu M1 (đường kính, số hiệu, móc, lớp phủ, cự ly) đã kéo theo kích thước mới — chưa phải thiết kế cốt thép mới, chưa kiểm toán kết cấu.'
+        }
+      ]
+      if (schedule.estimated.length)
+        flags.push({
+          code: 'thep_tam_tinh_ham_luong',
+          message: `Chỉ ${schedule.estimated.map(e => e.label).join(', ')}: tạm tính theo hàm lượng mẫu M1 (sai số cỡ ±10–15 %), đã tính vào tổng thép — bố trí M1 của nhóm này chưa có quy tắc theo kích thước mới.`
+        })
+      add({
+        key: 'thep',
+        stt: '6',
+        nhom: 'cot_thep',
+        hangMuc: 'Cốt thép (bố trí mẫu M1 theo hình học mới)',
+        donVi: 'kg',
+        khoiLuong: parts.reduce((s, p) => s + p[2], 0),
+        dienGiai: `Cộng 6.1–6.${parts.length}: ${barList.length} số hiệu đếm theo bố trí${
+          schedule.estimated.length
+            ? `, ${schedule.estimated.map(e => e.label).join(', ')} tạm tính theo hàm lượng`
+            : ''
+        }`,
+        nguon: 'tham_so',
+        laTong: true,
+        flags
       })
       parts.forEach(([key, hangMuc, kg, dienGiai], k) =>
         add({

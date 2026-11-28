@@ -23,7 +23,7 @@ import {
 import type { AcApRunEditResult } from '../editRun'
 import { entitiesOfRun, listRuns } from '../runIdentity'
 import { layerStyles, legacyLayers, roleLayers } from '../templateRegistry'
-import { acTpWithLegacyDossierGeometry } from './grid030'
+import { acTpWithLegacyDossierGeometry, acTpWithPreP3Steel } from './grid030'
 import {
   acapIsA3Version,
   buildDossierModel,
@@ -164,11 +164,10 @@ export async function acapEditDossierRun(
   // not be silently overwritten by a value reconstructed from the template.
   // Both scenes with the run's own generator: a 0.1.0 dossier keeps its
   // border, a 0.2.0 one its title block.
-  // A dossier drawn before P2-M6 keeps that drawing while only its labels
-  // change: both scenes as it was drawn, so nothing reads as a hand edit.
-  const asDrawn = drawnBeforeM6(run, entities)
-    ? acTpWithLegacyDossierGeometry
-    : <T>(build: () => T) => build()
+  // A dossier drawn before P2-M6 (or before P3-M1) keeps that drawing while
+  // only its labels change: both scenes as it was drawn, so nothing reads
+  // as a hand edit.
+  const asDrawn = acapDossierRevisionFor(run, entities)
   const before = asDrawn(() =>
     buildDossierScene(buildDossierModel({ ...run.values }), run.version)
   )
@@ -922,10 +921,11 @@ async function regenerateRun(
   // (front pile pair 5300 apart on L1, the source fall stretched, the hDau
   // band) — so the corrections are what this change redraws, never taken
   // for hand edits; they come with it.
-  const before = (
-    drawnBeforeM6(run, entities)
-      ? acTpWithLegacyDossierGeometry
-      : <T>(build: () => T) => build()
+  // Likewise the steel of a dossier drawn before P3-M1 (the M1 steel kept
+  // at the M1 size): the steel sheets this change redraws on its geometry.
+  const before = acapDossierRevisionFor(
+    run,
+    entities
   )(() => buildDossierScene(buildDossierModel({ ...run.values }), run.version))
   // Say it before doing it: on 17/11/2026 hLot +50 mm silently took the
   // dossier from 2890 to 829 entities. Counted on the scenes, sheet by sheet.
@@ -1352,11 +1352,14 @@ function compareWithGenerator(
   run: ReturnType<typeof listRuns>[number],
   entities: AcDbEntity[]
 ): { drift: number; valueEdits: string[] } {
-  const now = driftFrom(db, run, entities, false)
-  if (!now.drift) return now
-  // Drawn before P2-M6 and untouched since: no drift either.
-  const old = driftFrom(db, run, entities, true)
-  return old.drift < now.drift ? old : now
+  let best = driftFrom(db, run, entities, REVISIONS[0])
+  // Drawn before P3-M1 or P2-M6 and untouched since: no drift either.
+  for (const revision of REVISIONS.slice(1)) {
+    if (!best.drift) break
+    const old = driftFrom(db, run, entities, revision)
+    if (old.drift < best.drift) best = old
+  }
+  return best
 }
 
 /** {@link compareWithGenerator} against one generator revision. */
@@ -1364,11 +1367,11 @@ function driftFrom(
   db: AcDbDatabase,
   run: ReturnType<typeof listRuns>[number],
   entities: AcDbEntity[],
-  beforeM6: boolean
+  revision: Revision
 ): { drift: number; valueEdits: string[] } {
-  const build = () =>
+  const scene = revision(() =>
     buildDossierScene(buildDossierModel({ ...run.values }), DOSSIER_VERSION)
-  const scene = beforeM6 ? acTpWithLegacyDossierGeometry(build) : build()
+  )
   const scratch = new AcDbDatabase()
   scratch.createDefaultData()
   acTpWithWorkingDatabaseSync(scratch, () =>
@@ -1438,29 +1441,49 @@ function driftFrom(
   return { drift: drift + extraTexts.length, valueEdits }
 }
 
+/** Builds as one revision of the generator (see {@link REVISIONS}). */
+type Revision = <T>(build: () => T) => T
+
 /**
- * Whether an A3 dossier's drawing is the generator's before P2-M6 (see
- * `legacy` in grid030): its values draw differently then and now (an L1
- * road, a flush 2 × 2 off the source spacing, hDau changed), and more of
- * its entities match the older drawing. Untouched or hand-edited alike, the
- * closer drawing is the one it was built with.
+ * Revisions of the 0.3.1 drawing, newest first: today's; the steel before
+ * P3-M1 (`acTpWithPreP3Steel`: the M1 steel kept at the M1 size for a
+ * changed geometry); the geometry before P2-M6 (`legacy` in grid030, with
+ * that steel too).
  */
-function drawnBeforeM6(
+const REVISIONS: Revision[] = [
+  build => build(),
+  acTpWithPreP3Steel,
+  acTpWithLegacyDossierGeometry
+]
+
+/**
+ * The generator revision an A3 dossier's drawing was built with: its values
+ * draw differently then and now (an L1 road, a flush 2 × 2 off the source
+ * spacing, hDau changed; any changed geometry for the steel before P3-M1),
+ * and more of its entities match that drawing. Untouched or hand-edited
+ * alike, the closest drawing is the one it was built with; ties go to the
+ * newer revision.
+ */
+function acapDossierRevisionFor(
   run: ReturnType<typeof listRuns>[number],
   entities: AcDbEntity[]
-): boolean {
-  if (!acapIsA3Version(run.version)) return false
+): Revision {
+  if (!acapIsA3Version(run.version)) return REVISIONS[0]
   const build = () =>
     buildDossierScene(buildDossierModel({ ...run.values }), run.version)
-  let now: DossierScene
-  let old: DossierScene
-  try {
-    now = build()
-    old = acTpWithLegacyDossierGeometry(build)
-  } catch {
-    return false
+  const scenes: { revision: Revision; scene: DossierScene }[] = []
+  for (const revision of REVISIONS) {
+    let scene: DossierScene
+    try {
+      scene = revision(build)
+    } catch {
+      continue
+    }
+    const key = JSON.stringify(scene)
+    if (!scenes.some(x => JSON.stringify(x.scene) === key))
+      scenes.push({ revision, scene })
   }
-  if (JSON.stringify(now) === JSON.stringify(old)) return false
+  if (scenes.length < 2) return REVISIONS[0]
   const actual = new Map<string, number>()
   for (const e of entities) {
     const k = regionKey(e)
@@ -1498,7 +1521,16 @@ function drawnBeforeM6(
     }
     return hits
   }
-  return matches(old) > matches(now)
+  let best = scenes[0]
+  let most = matches(best.scene)
+  for (const x of scenes.slice(1)) {
+    const hits = matches(x.scene)
+    if (hits > most) {
+      best = x
+      most = hits
+    }
+  }
+  return best.revision
 }
 
 /** The refusal for an older dossier that no longer matches the generator. */

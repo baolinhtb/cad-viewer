@@ -726,11 +726,16 @@ export function buildDossierModel(input: AcTpParamValues = {}): DossierModel {
     geometryKeys.every(k => values[k] === defaults[k]) &&
     values.thepF3 !== 'D25' &&
     values.thepW16 !== 'D14'
+  // `referenceSteelApplicable` says the abutment is the source one; another
+  // geometry still gets the M1 layout over its dimensions (P3-M1), only a
+  // changed bar choice is new detailing.
   if (values.thep === 'mau' && !referenceSteelApplicable)
     issue(
       'steel_outside_reference',
       'warning',
-      'Hình học hoặc cấu tạo thép đã khác mẫu M1: không sao chép hình thép và khối lượng thép cũ. Cần phương án thép mới.'
+      values.thepF3 === 'D25' || values.thepW16 === 'D14'
+        ? 'Cấu tạo thép đã khác mẫu M1 (F3 D25 hoặc W16 D14): không vẽ bố trí thép mẫu và không dùng bảng thép cũ. Cần phương án thép mới.'
+        : 'Hình học đã khác mẫu M1: tờ thép SUB-070…090 và bảng thép SUB-100 là bố trí mẫu M1 kéo theo kích thước mới (giữ đường kính, số hiệu, móc, lớp phủ, cự ly; thêm/bớt thanh) — chưa phải thiết kế cốt thép mới, chưa kiểm toán. Thép tường cánh, tường tai còn tạm tính theo hàm lượng mẫu M1.'
     )
   if (values.thep === 'khong')
     issue(

@@ -163,25 +163,15 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       DOSSIER_A3_VERSION
     )
 
-    // Steel sheets: never stretched — when the geometry changed they keep
-    // the M1 steel, marked as not updated (they used to go blank, −71 % of
-    // the dossier); the elevation datum alone leaves the steel as it is.
-    const geometric = Object.keys(change).some(k => k !== 'caoDoDayBe')
-    // The caveats are in each sheet's GHI CHÚ block, wrapped: read whole.
+    // Steel sheets (P3-M1): drawn for any geometry the grid follows, the M1
+    // layout over the new dimensions — no «THÉP THEO M1 GỐC» caveat, no
+    // M1-table caveat on SUB-100 (before: the M1 steel frozen, marked).
     const run = entitiesOfRun(db, runId)
     for (const s of ['SUB-070', 'SUB-080', 'SUB-090']) {
       expect(steelDrawn(db, runId, s)).toBeGreaterThan(0)
-      expect(
-        ghiChuText(run, s).includes(
-          'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-        )
-      ).toBe(geometric)
+      expect(ghiChuText(run, s)).not.toMatch(/THÉP THEO M1 GỐC/)
     }
-    expect(
-      ghiChuText(run, 'SUB-100').includes(
-        'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
-      )
-    ).toBe(geometric)
+    expect(ghiChuText(run, 'SUB-100')).not.toMatch(/CỦA M1 GỐC, CHƯA CẬP NHẬT/)
 
     const refused = ghiChuText(run, 'SUB-010').includes('CHƯA DỰNG ĐƯỢC HÌNH')
     const hb = dimLengths(db, runId, 'SUB-010', 'HB')
@@ -223,7 +213,9 @@ describe('GĐ6: hồ sơ 0.3.0 theo tham số qua sua_ho_so_mo', () => {
       BMo: [...new Set(bMo)],
       DCoc: [...new Set(dCoc)],
       bangSUB020: table,
-      thep: geometric ? 'từ chối' : 'giữ (chỉ đổi cao độ)'
+      thep: Object.keys(change).some(k => k !== 'caoDoDayBe')
+        ? 'theo kích thước mới (P3-M1)'
+        : 'giữ (chỉ đổi cao độ)'
     }
     if (OUT)
       writeFileSync(join(OUT, `${name}.dxf`), acTpDxfOut(db, 6) as string)

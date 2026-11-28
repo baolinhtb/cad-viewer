@@ -290,29 +290,37 @@ describe('BTKL mố — changed geometry', () => {
       'mau_thuan_lot',
       'bt_nhua_gia_dinh',
       'van_khuon_cho_dinh_muc',
-      'thep_tam_tinh_ham_luong'
+      'thep_bo_tri_m1_theo_hinh_hoc'
     ])
   })
 
-  test('steel: estimated from the M1 kg/m³ of each member, and flagged', () => {
-    expect(r.bars).toEqual([])
+  // P3-M1: was «estimated from the M1 kg/m³ of each member» (thep_hl_*).
+  test('steel: the M1 layout over the new footing height, counted', () => {
+    // Nothing on a 2,5 m footing needs an estimate: every mark is laid.
+    expect(r.bars).toHaveLength(69)
     const thep = line(r, 'thep')
     expect(thep.nguon).toBe('tham_so')
-    expect(thep.hangMuc).toBe('Cốt thép (tạm tính theo hàm lượng mẫu M1)')
-    expect(thep.flags?.[0].message).toContain('Tạm tính theo hàm lượng mẫu M1')
-    // The footing's steel follows its volume; every other member keeps its M1 steel.
-    expect(kl(r, 'thep_hl_be')).toBeCloseTo(
-      (kgOf('be') * kl(r, 'be')) / kl(m1, 'be'),
-      6
-    )
-    expect(kl(r, 'thep_hl_be')).toBeGreaterThan(kgOf('be') * 1.2)
-    expect(kl(r, 'thep_hl_than')).toBeCloseTo(kgOf('than'), 6)
-    expect(kl(r, 'thep_hl_canh')).toBeCloseTo(
+    expect(thep.hangMuc).toBe('Cốt thép (bố trí mẫu M1 theo hình học mới)')
+    expect(thep.flags?.map(f => f.code)).toEqual([
+      'thep_bo_tri_m1_theo_hinh_hoc'
+    ])
+    // Side bars F5 every 150 up the footing: 12 → 16 per face (+500 mm).
+    expect(r.bars.find(b => b.mark === 'F5')!.count).toBe(32)
+    // Ties F6 / F8 longer by the 500 mm, same count.
+    const f6 = bars.find(b => b.mark === 'f6')!
+    expect(r.bars.find(b => b.mark === 'F6')).toMatchObject({
+      count: f6.count,
+      length: f6.length + 500
+    })
+    expect(kl(r, 'thep_bt_be')).toBeGreaterThan(kgOf('be'))
+    // Every other member keeps its M1 steel.
+    expect(kl(r, 'thep_bt_than')).toBeCloseTo(kgOf('than'), 6)
+    expect(kl(r, 'thep_bt_canh')).toBeCloseTo(
       kgOf('canh_trai') + kgOf('canh_phai'),
       6
     )
-    expect(kl(r, 'thep_hl_goi')).toBeCloseTo(kgOf('goi'), 6)
-    const parts = r.items.filter(i => i.key.startsWith('thep_hl_'))
+    expect(kl(r, 'thep_bt_goi')).toBeCloseTo(kgOf('goi'), 6)
+    const parts = r.items.filter(i => /^thep_(bt|hl)_/.test(i.key))
     expect(parts.map(i => i.stt)).toEqual([
       '6.1',
       '6.2',
@@ -343,7 +351,9 @@ describe('BTKL mố — changed geometry', () => {
         .map(kgOf)
         .reduce((s, x) => s + x, 0)
     ).toBeCloseTo(SRC.thep.tong, 2)
-    expect(line(r, 'thep_hl_be').dienGiai).toMatch(/^49,9 kg\/m³ × /)
+    expect(line(r, 'thep_bt_be').dienGiai).toMatch(
+      /^9 số hiệu theo bố trí: Σ số lượng × dài × kg\/m; theo kích thước mới: F5 24→32 thanh/
+    )
   })
 
   test('the ear walls follow the stem thickness by their formula', () => {
@@ -413,24 +423,37 @@ describe('BTKL mố — changed geometry', () => {
   })
 
   test('estimated steel counts in the steel total, flag kept (assumption 1)', () => {
-    const r = acTpBtklMo({ hBe: 2500 })
+    // P3-M1: only a group no rule re-lays (the wings here) is estimated.
+    const r = acTpBtklMo({ lCanh: 5000 })
     const thep = line(r, 'thep')
     expect(thep.trongTong).toBe(true)
-    const parts = r.items.filter(i => i.key.startsWith('thep_hl_'))
+    const parts = r.items.filter(i => /^thep_(bt|hl)_/.test(i.key))
     for (const p of parts) expect(p.trongTong).toBe(true)
+    expect(
+      r.items.filter(i => i.key.startsWith('thep_hl_')).map(i => i.key)
+    ).toEqual(['thep_hl_canh'])
+    expect(kl(r, 'thep_hl_canh')).toBeCloseTo(
+      ((kgOf('canh_trai') + kgOf('canh_phai')) * kl(r, 'canh')) /
+        kl(m1, 'canh'),
+      6
+    )
     expect(thep.khoiLuong).toBeCloseTo(
       parts.reduce((s, i) => s + i.khoiLuong!, 0),
       9
     )
-    expect(thep.flags?.[0].message).toContain('đã tính vào tổng thép')
+    const flag = thep.flags?.find(f => f.code === 'thep_tam_tinh_ham_luong')
+    expect(flag?.message).toContain('Chỉ tường cánh trái, tường cánh phải')
+    expect(flag?.message).toContain('đã tính vào tổng thép')
   })
 
   // From the server session's draft of item d.
   test('the estimate meets the real schedule where the geometry does', () => {
     // A hair of a change leaves the source bar schedule behind; the ratio
     // estimate must land on its total, not somewhere near it.
+    // P3-M1: the bars are counted; a hair adds no bar.
     const hair = acTpBtklMo({ hBe: 2000.001 })
-    expect(hair.bars).toEqual([])
+    expect(hair.bars).toHaveLength(69)
+    expect(hair.bars.map(b => b.count)).toEqual(bars.map(b => b.count))
     expect(kl(hair, 'thep')).toBeCloseTo(SRC.thep.tong, 1)
   })
 

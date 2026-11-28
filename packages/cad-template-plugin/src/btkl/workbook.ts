@@ -218,9 +218,31 @@ function steelSheet(result: AcTpBtklResult, name: string): AcTpXlsxSheet {
       { v: notes.join(' · '), s: 'cellWrap' }
     ])
   })
+  // P3-M1: a group not re-laid yet (wings, ear walls) is a line of its own,
+  // its estimate in the mass column, so the total is item 6 of the BTKL.
+  const estimated = result.bars.length
+    ? result.items.filter(
+        i => i.key.startsWith('thep_hl_') && i.khoiLuong !== null
+      )
+    : []
+  estimated.forEach((item, k) =>
+    rows.push([
+      { v: result.bars.length + k + 1, s: 'cellCenter' },
+      { v: 'Tạm tính', s: 'cellCenter' },
+      ...Array.from({ length: 6 }, () => ({ v: '', s: 'cellCenter' as const })),
+      { v: exact(item.khoiLuong!), s: 'number' },
+      { v: item.hangMuc, s: 'cellWrap' },
+      {
+        v: `Không có trong bảng thanh (chưa bố trí lại theo kích thước mới): ${item.dienGiai}`,
+        s: 'cellWrap'
+      }
+    ])
+  )
   if (result.bars.length) {
     const last = rows.length
-    const sum = result.bars.reduce((s, b) => s + b.kg, 0)
+    const sum =
+      result.bars.reduce((s, b) => s + b.kg, 0) +
+      estimated.reduce((s, i) => s + i.khoiLuong!, 0)
     rows.push([
       { v: '', s: 'bold' },
       { v: 'Tổng cộng', s: 'bold' },

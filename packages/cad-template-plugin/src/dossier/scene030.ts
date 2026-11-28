@@ -32,9 +32,14 @@ import {
   acTpLayoutGhiChuBlock
 } from '@mlightcad/cad-template-sdk'
 
-import { acTpBtklMo, acTpBtklNumber } from '../btkl/mo'
+import { acTpBtklMo, acTpBtklNumber, acTpBtklSteelSchedule } from '../btkl/mo'
+import { acTpBarsOver } from '../btkl/thepMo'
 import { acTpDimensionText, type AcTpDimLabelMode } from './dimSymbols'
-import { acTpLegacyDossierGeometry, sheetStretch } from './grid030'
+import {
+  acTpLegacyDossierGeometry,
+  acTpPreP3Steel,
+  sheetStretch
+} from './grid030'
 import type { DossierModel } from './model'
 import {
   DOSSIER_BEARING_WIDTH,
@@ -305,8 +310,148 @@ const BEARING_LABEL = /^G\d+$/
  * centre line (source x `fromCentre`): the grid moves that line, not the
  * distances, so a bearing array keeps its spacing whatever the width does.
  */
+/** A row of bars in section: one child block repeated at a fixed pitch. */
+interface BarRow {
+  child: string
+  /** Child-to-child offset in the block, source units. */
+  pitch: XY
+  count: number
+}
+const barRowCache = new Map<string, BarRow | null>()
+/** The row a block draws (`MO2_U412`: 51 bars 150 apart), if it is one. */
+function barRow(name: string): BarRow | null {
+  const cached = barRowCache.get(name)
+  if (cached !== undefined) return cached
+  const def = LAYOUT.blocks.find(b => b.name === name)
+  const ents = (def?.entities ?? []) as unknown as {
+    kind: string
+    block?: string
+    position?: { x: number; y: number }
+    scale?: { x: number; y: number }
+    rotationDeg?: number
+  }[]
+  let row: BarRow | null = null
+  const plain = (e: (typeof ents)[number]) =>
+    e.kind === 'insert' &&
+    e.block === ents[0].block &&
+    e.position !== undefined &&
+    (e.scale?.x ?? 1) === 1 &&
+    (e.scale?.y ?? 1) === 1 &&
+    !e.rotationDeg
+  if (ents.length >= 3 && ents.every(plain)) {
+    const at = ents.map(e => [e.position!.x, e.position!.y] as XY)
+    const pitch: XY = [at[1][0] - at[0][0], at[1][1] - at[0][1]]
+    const even = at.every(
+      (q, i) =>
+        Math.abs(q[0] - i * pitch[0]) < 0.5 &&
+        Math.abs(q[1] - i * pitch[1]) < 0.5
+    )
+    if (even && Math.hypot(...pitch) > 1)
+      row = { child: ents[0].block!, pitch, count: ents.length }
+  }
+  barRowCache.set(name, row)
+  return row
+}
+
+/**
+ * Bars of a row in section for a stretched sheet (P3-M1): the end bars go
+ * where the grid puts them — each keeps its M1 cover, the grid moving the
+ * concrete face and its band together — and the bars between are laid at
+ * the M1 spacing, ⌈span / spacing⌉ + 1 of them (thepMo's count), evenly.
+ * A wider member gets more bars, never the M1 bars further apart. Other
+ * primitives are returned as they are.
+ */
+function relaidRows(
+  content: LayoutPrimitive[],
+  stretch: Exclude<ReturnType<typeof sheetStretch>, { error: string }>
+): ArrayedPrimitive[] {
+  if (stretch.identity) return content
+  return content.flatMap((p): ArrayedPrimitive[] => {
+    const row = p.kind === 'insert' && p.at ? barRow(p.block ?? '') : null
+    if (!row || !p.at) return [p]
+    const view = centreOf(p)
+    const [sx, sy] = p.scale ?? [1, 1]
+    const a = ((p.rotation ?? 0) * Math.PI) / 180
+    const at = p.at
+    const place = (k: number): XY => {
+      const lx = k * row.pitch[0] * sx,
+        ly = k * row.pitch[1] * sy
+      return [
+        at[0] + lx * Math.cos(a) - ly * Math.sin(a),
+        at[1] + lx * Math.sin(a) + ly * Math.cos(a)
+      ]
+    }
+    const first = stretch.map(place(0), view)
+    const last = stretch.map(place(row.count - 1), view)
+    const spacing = Math.hypot(...row.pitch)
+    const span = Math.hypot(last[0] - first[0], last[1] - first[1])
+    const count = acTpBarsOver(
+      row.count,
+      spacing,
+      span - (row.count - 1) * spacing
+    )
+    if (!(count >= 2)) return [p]
+    return Array.from({ length: count }, (_, i) => {
+      const t = i / (count - 1)
+      return {
+        ...p,
+        block: row.child,
+        handle: p.handle ? `${p.handle}.${i + 1}` : undefined,
+        relaid: [
+          first[0] + (last[0] - first[0]) * t,
+          first[1] + (last[1] - first[1]) * t
+        ] as XY,
+        viewAt: view
+      }
+    })
+  })
+}
+
+/** Bars of each row in section a sheet draws, for `values` (tests, notes). */
+export function acTpSteelRows(
+  sheetId: string,
+  values: DossierModel['values']
+): { block: string; count: number; spacing: number; span: number }[] {
+  const ls = LAYOUT.sheets.find(x => x.id === sheetId)
+  const stretch = sheetStretch(sheetId, values)
+  if (!ls?.content || 'error' in stretch) return []
+  const out: { block: string; count: number; spacing: number; span: number }[] =
+    []
+  for (const p of ls.content) {
+    const row = p.kind === 'insert' ? barRow(p.block ?? '') : null
+    if (!row) continue
+    const bars = relaidRows([p], stretch)
+    const ends = bars.map(b => (b as ArrayedPrimitive).relaid)
+    const spacing = Math.hypot(...row.pitch)
+    if (!ends[0]) {
+      out.push({
+        block: p.block!,
+        count: row.count,
+        spacing,
+        span: spacing * (row.count - 1)
+      })
+      continue
+    }
+    const f = ends[0],
+      l = ends[ends.length - 1]!
+    const span = Math.hypot(l[0] - f[0], l[1] - f[1])
+    out.push({
+      block: p.block!,
+      count: bars.length,
+      spacing: span / (bars.length - 1),
+      span
+    })
+  }
+  return out
+}
+
 type ArrayedPrimitive = LayoutPrimitive & {
   fromCentre?: number
+  /**
+   * A bar of a re-laid row (P3-M1): where it goes, sheet-local and already
+   * stretched — placed there as is.
+   */
+  relaid?: XY
   /**
    * The source point whose view maps this item (P2-M4 piles): the item was
    * placed through that view's stretch, wherever its own centre falls.
@@ -1941,15 +2086,20 @@ export function buildScene030(
       : String(v.congTrinh).toLocaleUpperCase('vi')
   const relabel = (text: string) =>
     text.replace(/\bM1\b/g, tenMo.toLocaleUpperCase('vi'))
-  // A changed geometry with the M1 bar layout otherwise intact: the steel
-  // sheets and the SUB-100 tables keep the M1 drawing, marked as not updated,
-  // instead of going blank (17/11/2026: −71 % of the dossier on hLot +50).
-  // A changed bar choice (F3 D25, W16 D14) is new detailing: still refused.
-  const steelAsM1 =
+  // A changed geometry with the M1 bar layout otherwise intact (P3-M1): the
+  // steel sheets follow the dossier's grid — M1 covers kept at the new
+  // faces, rows of bars re-laid at the M1 spacing — and the SUB-100 bar
+  // table is the M1 schedule over the new geometry (thepMo). A changed bar
+  // choice (F3 D25, W16 D14) is new detailing: still refused.
+  const steelChanged =
     !model.referenceSteelApplicable &&
     v.thep === 'mau' &&
     v.thepF3 !== 'D25' &&
     v.thepW16 !== 'D14'
+  const steelLaid = steelChanged && !acTpPreP3Steel()
+  // Before P3-M1 (only to recognise a dossier drawn then): the M1 steel at
+  // the M1 size, marked as not updated.
+  const steelAsM1 = steelChanged && acTpPreP3Steel()
   const labelMode = (v.nhanKichThuoc ?? 'ky_hieu') as AcTpDimLabelMode
   // Elevation values, as the SUB-020 table computes them (datum included).
   const elevations =
@@ -2006,17 +2156,13 @@ export function buildScene030(
       const x0 = ls.viewport.x * K,
         y0 = ls.viewport.y * K
       const steel = ls.view !== undefined && ls.view !== 'general'
-      // Reinforcement is drawn only for the source abutment: re-laying bars
-      // for other dimensions is a design decision, not a stretch (GĐ6).
-      const stretch: ReturnType<typeof sheetStretch> = !steel
-        ? sheetStretch(ls.id, v)
-        : // The model already says when the source steel no longer applies
-          // (any geometric change; not the elevation datum or pile length).
-          model.referenceSteelApplicable
+      // Reinforcement follows the grid of the views it is cut from (GĐ6,
+      // P3-M1); a bar choice that is new detailing is not drawn.
+      const stretch: ReturnType<typeof sheetStretch> =
+        !steel || model.referenceSteelApplicable || steelLaid
           ? sheetStretch(ls.id, v)
           : steelAsM1
-            ? // Never stretched to the new size: re-laying bars is design.
-              sheetStretch(ls.id, dossierDefaults())
+            ? sheetStretch(ls.id, dossierDefaults())
             : {
                 error:
                   'Không kéo giãn hoặc sao chép cấu tạo thép M1 sang kích thước mới.'
@@ -2037,7 +2183,9 @@ export function buildScene030(
           note(layout.error, 300)
         } else
           for (const raw of steel
-            ? ls.content
+            ? steelAsM1
+              ? ls.content
+              : relaidRows(ls.content, stretch)
             : arrayedPiles(
                 arrayedBearings(ls.content, model, stretch.identity),
                 ls.id,
@@ -2055,6 +2203,12 @@ export function buildScene030(
             // everything else is stretched point by point.
             const [mx, my] = stretch.map(at, view)
             const move: XY = [mx - at[0], my - at[1]]
+            // A re-laid bar goes where its row put it (P3-M1).
+            const relaid = (raw as ArrayedPrimitive).relaid
+            if (relaid && c.at) {
+              move[0] = relaid[0] - c.at[0]
+              move[1] = relaid[1] - c.at[1]
+            }
             // A re-placed bearing item keeps its true distance from the
             // bearing centre line, whatever the grid does to the width.
             const fc = (raw as ArrayedPrimitive).fromCentre
@@ -2207,7 +2361,7 @@ export function buildScene030(
     const scaled = (p: XY): XY => [p[0] * K, p[1] * K]
     // The statistics and quantity tables hold the source abutment's numbers:
     // shown only while the parameters are that abutment's, like its steel.
-    const tablesApply = model.referenceSteelApplicable || steelAsM1
+    const tablesApply = model.referenceSteelApplicable || steelLaid || steelAsM1
     // SUB-020: elevation and dimension tables, recomputed (GĐ5).
     const tables =
       s.id === 'SUB-020' ? sub020Tables(ls.paper, v, tenMo) : undefined
@@ -2215,10 +2369,24 @@ export function buildScene030(
       note('BẢNG CAO ĐỘ VÀ THÔNG SỐ CHƯA TÍNH ĐƯỢC CHO THÔNG SỐ NÀY', 450, true)
       note(tables.error, 300)
     }
+    // P3-M1: the bar table's rows and totals for the new geometry; the M1
+    // concrete and material lines give way to the take-off drawn below.
+    const relaidTable =
+      steelLaid && !tables && ls.paper.some(p => p.ole)
+        ? steelTableTexts(ls.paper, v)
+        : undefined
     for (const p of tables?.paper ?? ls.paper)
-      if (!p.ole || tablesApply || tables) addPaper(p, roleOf(p))
-    if (steelAsM1 && !tables && ls.paper.some(p => p.ole)) {
+      if (!p.ole || tablesApply || tables)
+        addPaper(relaidTable?.texts.get(p) ?? p, roleOf(p))
+    if (steelAsM1 && !tables && ls.paper.some(p => p.ole))
       note(STEEL_TABLES_AS_M1, 250, true)
+    if (relaidTable || (steelAsM1 && !tables && ls.paper.some(p => p.ole))) {
+      // Short: SUB-100 has room only for a narrow column beside the table.
+      if (relaidTable?.estimated.length)
+        note(
+          `(*) ${relaidTable.estimated.join(', ')}: số thanh, chiều dài theo M1; khối lượng tạm tính theo hàm lượng.`,
+          250
+        )
       quantityTable(v, {
         x: frame.drawArea.x * K + 300,
         y: (frame.titleStrip.y + frame.titleStrip.h) * K + 300
@@ -2569,19 +2737,113 @@ export function buildScene030(
   }
 }
 
-/** Warning on SUB-100 when its tables stay M1's for a changed geometry. */
+/** Warning on SUB-100 when its tables stay M1's (before P3-M1). */
 const STEEL_TABLES_AS_M1 =
   'BẢNG THỐNG KÊ THÉP VÀ KHỐI LƯỢNG BÊN PHẢI LÀ CỦA M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY'
 
-/** Warning over a steel sheet drawn as M1 for a changed geometry. */
+/** Warning over a steel sheet drawn as M1 (before P3-M1). */
 const STEEL_AS_M1 = [
   'THÉP THEO M1 GỐC, CHƯA CẬP NHẬT CHO THÔNG SỐ NÀY',
   'Hình thép giữ nguyên kích thước mẫu M1, không kéo giãn. Cần phương án thép mới trước khi phát hành; khối lượng thép trên BTKL là tạm tính theo hàm lượng.'
 ]
 
+/** Columns A…R of the SUB-100 bar table (left half; the right is +170). */
+const SEGMENT_COLUMNS = [96, 103.5, 111, 120, 128, 135.5, 143]
+const fixed3 = (x: number) => x.toFixed(3)
+
 /**
- * SUB-100 for a changed geometry: the M1 tables stay, marked as M1's (the
- * warning is in the sheet's GHI CHÚ block), and the take-off of the current
+ * SUB-100 bar table for a changed geometry (P3-M1): each bar row's segment
+ * lengths, count, bar length and mass from the M1 schedule laid over the
+ * dossier's dimensions (thepMo), the totals by diameter and overall, and
+ * the M1 concrete / material values cleared (the take-off of the current
+ * parameters is drawn beside the table). A row of a group not re-laid keeps
+ * its M1 count and lengths; its mass is the estimate, marked «*» (see the
+ * sheet's GHI CHÚ). Returns replacement texts by source primitive.
+ */
+function steelTableTexts(
+  paper: LayoutPrimitive[],
+  v: DossierModel['values']
+): {
+  texts: Map<LayoutPrimitive, LayoutPrimitive>
+  estimated: string[]
+} {
+  const schedule = acTpBtklSteelSchedule(v)
+  const byMark = new Map(schedule.rows.map(r => [r.mark, r]))
+  const texts = new Map<LayoutPrimitive, LayoutPrimitive>()
+  const set = (p: LayoutPrimitive, text: string) => {
+    if (text !== p.text) texts.set(p, { ...p, text })
+  }
+  const cells = paper.filter(
+    p => p.ole && p.kind === 'text' && p.at && p.text !== undefined
+  )
+  // Bar rows: a mark cell (F1, W2'…) and the cells of its line, same half.
+  for (const mark of cells) {
+    const r = byMark.get(mark.text!.toLowerCase())
+    if (!r || !/^[A-Z]\d+'?$/.test(mark.text!)) continue
+    const right = mark.at![0] > 200
+    const line = cells
+      .filter(
+        p =>
+          p !== mark &&
+          Math.abs(p.at![1] - mark.at![1]) < 0.6 &&
+          p.at![0] > mark.at![0] &&
+          p.at![0] - mark.at![0] < 120 &&
+          p.at![0] > 200 === right
+      )
+      .sort((a, b) => a.at![0] - b.at![0])
+    if (line.length < 6) continue
+    const [count, length, , kg] = line.slice(-4)
+    const offset = right ? 170 : 0
+    for (const cell of line.slice(0, -4)) {
+      const j = SEGMENT_COLUMNS.findIndex(
+        x => Math.abs(x + offset - cell.at![0]) < 3.5
+      )
+      if (j >= 0 && r.segments[j] !== undefined) set(cell, r.segments[j])
+    }
+    set(count, String(r.count))
+    set(length, String(Math.round(r.length)))
+    set(kg, `${fixed3(r.kg)}${r.tamTinh ? '*' : ''}`)
+  }
+  // Totals by diameter (ribbed, plain) under their headings, and overall.
+  const heads = cells.filter(p => /^[DR]\d+$/.test(p.text!))
+  const sum = (test: (r: (typeof schedule.rows)[number]) => boolean) =>
+    schedule.rows.filter(test).reduce((s, r) => s + r.kg, 0)
+  const ribbed = sum(r => r.surface === 'ribbed')
+  const plain = sum(r => r.surface === 'plain')
+  for (const head of heads) {
+    const surface = head.text!.startsWith('D') ? 'ribbed' : 'plain'
+    const d = Number(head.text!.slice(1))
+    const value = cells.find(
+      p =>
+        p.at![1] < head.at![1] - 2 &&
+        p.at![1] > head.at![1] - 5 &&
+        Math.abs(p.at![0] - head.at![0]) < 2.5 &&
+        !/^[DR]\d+$/.test(p.text!)
+    )
+    if (!value) continue
+    const kg = sum(r => r.surface === surface && r.diameter === d)
+    set(value, kg ? fixed3(kg) : '-')
+  }
+  for (const p of cells) {
+    if (!/^\d+\.\d+$/.test(p.text!) || p.at![0] < 345) continue
+    const y = p.at![1]
+    if (Math.abs(y - 162.5) < 0.5) set(p, fixed3(ribbed + plain))
+    else if (Math.abs(y - 155.2) < 0.5) set(p, fixed3(ribbed))
+    else if (Math.abs(y - 147.8) < 0.5) set(p, fixed3(plain))
+    // M1 concrete and material quantities: not this geometry's.
+    else if (y < 145) set(p, '-')
+  }
+  return {
+    texts,
+    estimated: schedule.estimated
+      .map(e => e.label)
+      .filter((l, i, all) => all.indexOf(l) === i)
+  }
+}
+
+/**
+ * SUB-100 for a changed geometry: the bar table is the M1 layout over the
+ * new dimensions (`steelTableTexts`, P3-M1), and the take-off of the current
  * parameters (item d) is drawn in the lower left of the drawing area, its
  * bottom at `base` (just above the title strip).
  *
