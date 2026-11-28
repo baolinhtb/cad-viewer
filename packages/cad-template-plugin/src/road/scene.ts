@@ -683,10 +683,20 @@ export function buildRoadScene(model: RoadModel): RoadScene {
   const outerR = model.bands.filter(
     b => b.x0 >= carriage[carriage.length - 1].x1 - 1e-6
   )
+  const divider = carriage.find(b => b.kind === 'phan_cach')
   const row2: { x0: number; x1: number }[] = []
   if (outerL.length)
     row2.push({ x0: outerL[0].x0, x1: outerL[outerL.length - 1].x1 })
-  if (carriage.length)
+  // With a median, one span over lanes and median would read the carriageway
+  // plus the median (18 000 for 4 × 3 750 + 3 000): give each half on its own
+  // and the median, the total travelled way goes in a label above (P3-M4a).
+  if (divider)
+    row2.push(
+      { x0: carriage[0].x0, x1: divider.x0 },
+      { x0: divider.x0, x1: divider.x1 },
+      { x0: divider.x1, x1: carriage[carriage.length - 1].x1 }
+    )
+  else if (carriage.length)
     row2.push({ x0: carriage[0].x0, x1: carriage[carriage.length - 1].x1 })
   if (outerR.length)
     row2.push({ x0: outerR[0].x0, x1: outerR[outerR.length - 1].x1 })
@@ -705,14 +715,17 @@ export function buildRoadScene(model: RoadModel): RoadScene {
         x1 = cx + seg.x1 * f
       const value = Math.round(seg.x1 - seg.x0)
       const w = acTpGhiChuTextWidth(roadMm(value).replace(/\s/g, ''), DIM_TEXT)
-      // Too narrow for its number: lifted over the line, alternately.
-      const textAt: XY | undefined =
-        x1 - x0 < w + 100
-          ? [
-              (x0 + x1) / 2,
-              dimY + row.offset + 60 + DIM_TEXT / 2 + 250 * (1 + (raised++ % 2))
-            ]
-          : undefined
+      // Too narrow for its number: lifted over the line, alternately only
+      // between neighbours, so lone narrow spans (the two 500 earth
+      // shoulders at the ends) stay level with each other (P3-M4a).
+      const narrow = x1 - x0 < w + 100
+      if (!narrow) raised = 0
+      const textAt: XY | undefined = narrow
+        ? [
+            (x0 + x1) / 2,
+            dimY + row.offset + 60 + DIM_TEXT / 2 + 250 * (1 + (raised++ % 2))
+          ]
+        : undefined
       push({
         kind: 'dimension',
         role: 'kich_thuoc',
@@ -728,7 +741,29 @@ export function buildRoadScene(model: RoadModel): RoadScene {
       })
     })
   })
-  const lastRowTop = dimY + rows[rows.length - 1].offset + 900
+  let lastRowTop = dimY + rows[rows.length - 1].offset + 900
+  if (divider) {
+    // A linear dimension cannot read 15 000 across a 3 000 median without
+    // lying about its length: the travelled-way total is a label one row up.
+    const halfL = divider.x0 - carriage[0].x0,
+      halfR = carriage[carriage.length - 1].x1 - divider.x1
+    const halves = halfL + halfR
+    const parts =
+      Math.abs(halfL - halfR) < 1
+        ? `2 × ${roadMm(halfL)}`
+        : `${roadMm(halfL)} + ${roadMm(halfR)}`
+    const yLabel = dimY + rows[rows.length - 1].offset + 800
+    push({
+      kind: 'text',
+      role: 'ghi_chu',
+      partId: 'phan_xe_chay_tong',
+      at: [cx, yLabel],
+      text: `PHẦN XE CHẠY ${parts} = ${roadMm(halves)}`,
+      height: H_LABEL,
+      align: 1
+    })
+    lastRowTop = yLabel + H_LABEL + 600
+  }
   // Title and scale above the dimensions.
   push({
     kind: 'text',

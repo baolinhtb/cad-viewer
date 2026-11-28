@@ -209,6 +209,38 @@ describe('road cross-section: the sheet', () => {
       expect(values).toContain(v)
   })
 
+  test('with a median the travelled way reads 15 000 apart from the 3 000 median (P3-M4a)', () => {
+    // «4 làn × 3 750, dải phân cách 3 000, lề GC 2 500, đắp 3 000 mái 1:1,5».
+    const s = scene({ ...VARIANTS.bonLanPhanCach, hNen: 3000, mMai: 1.5 })
+    const own =
+      (ACTP_DIM_STYLES_33._33_D100 as { dimlfac?: number }).dimlfac ?? 1
+    const row2 = dims(s).filter(d => d.partId.startsWith('kich_thuoc_hang2_'))
+    for (const d of dims(s)) {
+      const drawn = Math.hypot(d.end[0] - d.start[0], d.end[1] - d.start[1])
+      const lfac = (d.overrides as { dimlfac: number }).dimlfac
+      expect(Math.round(drawn * lfac)).toBe(Math.round(d.value * own))
+    }
+    expect(row2.map(d => d.value)).toEqual([3000, 7500, 3000, 7500, 3000])
+    expect(dims(s).map(d => d.value)).not.toContain(18000)
+    expect(dims(s).map(d => d.value)).toContain(24000)
+    expect(texts(s).map(t => t.text)).toContain(
+      'PHẦN XE CHẠY 2 × 7 500 = 15 000'
+    )
+  })
+
+  test.each(['macDinh', 'prompt', 'bonLanPhanCach', 'nenDao', 'nenDapCao'])(
+    '%s: the two end 500 labels of row 1 sit at one height (P3-M4a)',
+    k => {
+      const row1 = dims(scene(VARIANTS[k])).filter(d =>
+        d.partId.startsWith('kich_thuoc_hang1_')
+      )
+      const ends = [row1[0], row1[row1.length - 1]]
+      expect(ends.map(d => d.value)).toEqual([500, 500])
+      const ys = ends.map(d => roadTextBox(d)!.y0)
+      expect(Math.abs(ys[0] - ys[1])).toBeLessThan(1e-6)
+    }
+  )
+
   test('default prompt picks 1:100 for the section, 1:10 for the pavement', () => {
     // 11 000 roadbed + 2 × 1,5 × 1 500 batter + 2 × 2 000 ground = 19 800 mm:
     // 39 600 sheet units at 1:50, wider than the ~27 000 left of the detail.
@@ -275,11 +307,37 @@ describe('tao_mat_cat_duong against a real database', () => {
       db
     )
     expect(out).toMatchObject({ ok: false, status: 'refused' })
-    expect(out.message).toContain('không vẽ gì')
+    expect(out.message).toMatch(/^Chưa vẽ gì: /)
     expect(out.message).toContain('TCVN 4054 đ.4.9 Bảng 9')
     expect(count(db)).toBe(before)
     expect(listRuns(db)).toEqual([])
   })
+
+  // The three live refusals of P3-M3 (dốc 3 %, dải phân cách 2 làn, làn 2,5 m):
+  // nothing added, and the first words are «Chưa vẽ gì:» (P3-M4a).
+  test.each([
+    ['dốc 3 %', { iMat: 3 }, '1,5–2,0 %'],
+    ['dải phân cách 2 làn', { soLan: 2, bPhanCach: 2000 }, 'số làn chẵn'],
+    ['làn 2,5 m', { bLan: 2500 }, '2 750–3 750 mm']
+  ] as const)(
+    'refused %s: draws nothing, message opens «Chưa vẽ gì:»',
+    async (_n, v, allowed) => {
+      const db = database()
+      const before = count(db)
+      const out = await runRoadTool(
+        'tao_mat_cat_duong',
+        { thong_so: { ...v } },
+        db
+      )
+      expect(out).toMatchObject({ ok: false, status: 'refused' })
+      expect(out.message).toMatch(/^Chưa vẽ gì: /)
+      expect(out.message).toContain(allowed)
+      expect(out.message).toMatch(/TCVN/)
+      expect(out.message).not.toMatch(/Đã vẽ|sẽ vẽ/)
+      expect(count(db)).toBe(before)
+      expect(listRuns(db)).toEqual([])
+    }
+  )
 
   test('an unknown parameter is refused by name', async () => {
     const out = await runRoadTool(
@@ -288,6 +346,7 @@ describe('tao_mat_cat_duong against a real database', () => {
       database()
     )
     expect(out.ok).toBe(false)
+    expect(out.message).toMatch(/^Chưa vẽ gì: /)
     expect(out.message).toContain('«beRongMat»')
   })
 
@@ -304,5 +363,12 @@ describe('tao_mat_cat_duong against a real database', () => {
     expect(d).toContain('không lập bảng khối lượng')
     expect(d).toContain('đừng gọi tao_btkl')
     expect(d).toContain('data.macDinh')
+  })
+
+  test('the tool tells the agent not to promise a drawing before the check', () => {
+    const d = ROAD_TOOLS[0].description
+    expect(d).toContain('không nói «Tôi sẽ vẽ»')
+    expect(d).toContain('«Đã vẽ…» chỉ sau khi công cụ trả ok')
+    expect(d).toContain('câu đầu tiên trả lời người dùng là «Chưa vẽ gì: …»')
   })
 })
